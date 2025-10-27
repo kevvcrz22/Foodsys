@@ -6,6 +6,9 @@ import AprendizRoute from './Routes/AprendizRoute.js'
 import FichasRoute from "./Routes/FichasRoute.js"
 import EmpresasRoute from "./Routes/EmpresasRoute.js"
 import ReservasRoute from "./Routes/ReservasRoute.js"
+import ResponsableRoutes from "./routes/ResponsableRoutes.js";
+import CentroRoutes from "./routes/CentroRoutes.js";
+import CiudadRoutes from "./routes/CiudadRoutes.js";
 
 const app = Express()
 app.use(Express.json())
@@ -14,6 +17,9 @@ app.use('/api/Aprendiz', AprendizRoute)
 app.use('/api/Fichas', FichasRoute)
 app.use('/api/Empresas', EmpresasRoute)
 app.use('/api/Reservas', ReservasRoute)
+app.use('/api/responsable', ResponsableRoutes)
+app.use('/api/centro', CentroRoutes)
+app.use('/api/ciudad', CiudadRoutes)
 
 app.get('/', (req, res) => {
   res.send('Hola Mundo Foodsys')
