@@ -9,6 +9,9 @@ import ReservasRoute from "./Routes/ReservasRoute.js"
 import ResponsableRoutes from "./routes/ResponsableRoutes.js";
 import CentroRoutes from "./routes/CentroRoutes.js";
 import CiudadRoutes from "./routes/CiudadRoutes.js";
+import ProgramaRoutes from "./Routes/ProgramaRoutes.js"
+import contratoRoutes from "./Routes/contratoRoutes.js"
+import centroarea from "./Routes/centroareaRoutes.js"
 
 const app = Express()
 app.use(Express.json())
@@ -20,6 +23,9 @@ app.use('/api/Reservas', ReservasRoute)
 app.use('/api/responsable', ResponsableRoutes)
 app.use('/api/centro', CentroRoutes)
 app.use('/api/ciudad', CiudadRoutes)
+app.use('/api/Programa', ProgramaRoutes)
+app.use('/api/contrato',contratoRoutes)
+app.use("./api/centroarea",centroarea)
 
 app.get('/', (req, res) => {
   res.send('Hola Mundo Foodsys')
