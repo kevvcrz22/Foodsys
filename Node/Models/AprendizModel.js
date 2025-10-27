@@ -1,6 +1,6 @@
 import db from "../Database/db.js";
 import { DataTypes } from "sequelize";
-const AprendizModel = db.define ('Aprendiz',{
+const AprendizModel = db.define ('aprendices',{
     Id_Aprendiz:{type:DataTypes.NUMBER, primaryKey: true, autoIncrement: true},
     TipDoc_Aprendiz: {type: DataTypes.CHAR},
     NumDoc_Aprendiz: {type: DataTypes.INTEGER},
@@ -22,7 +22,6 @@ const AprendizModel = db.define ('Aprendiz',{
     CreateData: {type: DataTypes.DATE, allowNull: true},
     UpdateData: {type: DataTypes.DATE, allowNull: true}
 }, {
-    tableName: 'aprendices',
     freezeTableName: true,
     timestamps: false
 })
