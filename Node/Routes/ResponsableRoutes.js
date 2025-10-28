@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllResponsables, getResponsable, createResponsable, updateResponsable, deleteResponsable } from "../controllers/ResponsableController.js";
+import { getAllResponsables, getResponsable, createResponsable, updateResponsable, deleteResponsable } from "../Controllers/ResponsableController.js";
 
 const router = express.Router();
 

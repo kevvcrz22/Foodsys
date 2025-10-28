@@ -1,4 +1,4 @@
-import CiudadService from "../services/CiudadService.js";
+import CiudadService from "../Services/CiudadService.js";
 
 // Obtener todos los responsables
 export const getAllCiudades = async (req, res) => {

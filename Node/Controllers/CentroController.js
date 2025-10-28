@@ -1,4 +1,4 @@
-import CentroService from "../services/CentroService.js";
+import CentroService from "../Services/CentroService.js";
 
 // Obtener todos los responsables
 export const getAllCentros = async (req, res) => {

@@ -1,5 +1,5 @@
-import boletasModel from "../models/boletasModel.js";
-import boletasService from "../services/boletasService.js";
+import boletasModel from "../Models/boletasModel.js";
+import boletasService from "../Services/boletasService.js";
 
 export const getAllboletas = async (req, res) => {
     try{

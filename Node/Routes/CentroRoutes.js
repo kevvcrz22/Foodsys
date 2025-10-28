@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllCentros, getCentro, createCentro, updatecentro, deleteCentro } from "../controllers/CentroController.js";
+import { getAllCentros, getCentro, createCentro, updatecentro, deleteCentro } from "../Controllers/CentroController.js";
 
 const routerCentro = express.Router();
 
