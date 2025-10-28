@@ -6,7 +6,7 @@ class CentroService {
     }
     async getById(Id_Centro) {
         const Centro = await CentroModel.findByPk(Id_Centro)
-        if (!player) throw new Error('Centro no encontrado')
+        if (!Centro) throw new Error('Centro no encontrado')
         return Centro
     }
     async create(data) {

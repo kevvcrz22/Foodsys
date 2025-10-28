@@ -6,7 +6,7 @@ class ResponsableService {
     }
     async getById(Id_Responsable) {
         const responsable = await ResponsableModel.findByPk(Id_Responsable)
-        if (!player) throw new Error('responsable no encontrado')
+        if (!responsable) throw new Error('responsable no encontrado')
         return responsable
     }
     async create(data) {
