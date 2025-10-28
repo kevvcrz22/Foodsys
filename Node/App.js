@@ -11,7 +11,7 @@ import CentroRoute from "./Routes/CentroRoutes.js";
 import CiudadRoute from "./Routes/CiudadRoutes.js";
 import ProgramaRoute from "./Routes/ProgramaRoutes.js";
 import contratoRoute from "./Routes/contratoRoutes.js";
-import centroarea from "./Routes/centroareaRoutes.js";
+import centroareaRoutes from './Routes/centroareaRoutes.js';
 import boletasRoute from "./Routes/boletasRoute.js";
 import regionalRoute from "./Routes/regionalRoute.js";
 import turnosRoute from "./Routes/turnosRoute.js";
@@ -30,7 +30,7 @@ app.use('/api/centro', CentroRoute)
 app.use('/api/ciudad', CiudadRoute)
 app.use('/api/Programa', ProgramaRoute)
 app.use('/api/contrato',contratoRoute)
-app.use("./api/centroarea",centroarea)
+app.use('/api/centroarea',centroareaRoutes)
 app.use('/api/boletas', boletasRoute)
 app.use('/api/regional', regionalRoute)
 app.use('/api/turnos', turnosRoute)
