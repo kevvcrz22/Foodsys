@@ -6,7 +6,7 @@ class ReservaBoletaService {
     }
     async getById(Id_ReservaBoleta) {
         const ReservaBoleta = await ReservaBoletaModel.findByPk(Id_ReservaBoleta)
-        if (!player) throw new Error('ReservaBoleta no encontrada')
+        if (!ReservaBoleta) throw new Error('ReservaBoleta no encontrada')
         return ReservaBoleta
     }
     async create(data) {
