@@ -6,7 +6,7 @@ class CiudadService {
     }
     async getById(Id_Ciudad) {
         const Ciudad = await CiudadModel.findByPk(Id_Ciudad)
-        if (!player) throw new Error('Ciudad no encontrada')
+        if (!Ciudad) throw new Error('Ciudad no encontrada')
         return Ciudad
     }
     async create(data) {
