@@ -10,8 +10,7 @@ const turnosModel = db.define('turno', {
   FecFin_Turno: { type: DataTypes.DATE },
   HorIni_Turno: { type: DataTypes.TIME },
   HorFin_Turno: { type: DataTypes.TIME },
-  Createdat: { type: DataTypes.DATE, allowNull: true },
-  Updatedat: { type: DataTypes.DATE, allowNull: true }
+  
 }, {
   freezeTableName: true
 });
