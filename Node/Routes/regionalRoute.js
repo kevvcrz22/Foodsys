@@ -1,10 +1,10 @@
 import express from 'express'
-import { getAllregional, regional, createregional, updateregional, deleteregional } from '../Controllers/regionalControllers.js'
+import { getAllregional, getregional, createregional, updateregional, deleteregional } from '../Controllers/regionalControllers.js'
 
 const router = express.Router()
 
 router.get('/', getAllregional);
-router.get('/:id', regional);
+router.get('/:id', getregional);
 router.post('/', createregional);
 router.put('/:id', updateregional);
 router.delete('/:id', deleteregional);

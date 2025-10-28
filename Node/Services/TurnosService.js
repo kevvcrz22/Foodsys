@@ -18,7 +18,7 @@ class turnosService {
     }
 
     async update(id, data) {
-        const result = await turnosModel.update(data, { where: { id }})
+        const result = await turnosModel.update(data, { where: { Id_Turno: id } })
         const updated = result[0]
 
         if (updated === 0) throw new Error("Turno no encontrado o sin cambios")

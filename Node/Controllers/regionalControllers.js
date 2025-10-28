@@ -1,5 +1,4 @@
 import regionalService from "../Services/regionalService.js";
-
 export const getAllregional = async (req, res) => {
     try{
         const regional = await regionalService.getAll()
@@ -8,10 +7,8 @@ export const getAllregional = async (req, res) => {
         res.status(500).json({message: error.message})
     }
 }
-
-export const regional = async (req, res) => {
+export const getregional = async (req, res) => {
     try{
-
         const regional = await regionalService.getById(req.params.id)
         res.status(200).json(regional)
 
@@ -29,11 +26,10 @@ export const createregional = async (req, res) =>{
         res.status(400).json({message:error.message})
     }
 }
-
 export const updateregional = async (req,res) => {
     try{
         await regionalService.update(req.params.id, req.body)
-        res.status(200).json({message: "Regioanl actualizada correctamente"})
+        res.status(200).json({message: "Regional actualizada correctamente"})
 
     }catch(error){
         res.status(400).json({message: error.message})

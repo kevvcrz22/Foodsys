@@ -18,7 +18,7 @@ class regionalService {
     }
 
     async update(id, data) {
-        const result = await regionalModel.update(data, { where: { id }})
+        const result = await regionalModel.update(data, { where: { Id_Regional: id } })
         const updated = result[0]
 
         if (updated === 0) throw new Error("Regional no encontrada o sin cambios")
