@@ -9,9 +9,7 @@ const boletasModel = db.define('boleta', {
     Pre_Boleta: { type: DataTypes.FLOAT },
     Fec_Boleta: { type: DataTypes.DATE },
     CodQR_Boleta: { type: DataTypes.STRING },
-    Updatedat: { type: DataTypes.DATE, allowNull: true },
-    Createdat: { type: DataTypes.DATE, allowNull: true }
-   
+  
 }, {
     freezeTableName: true
 })
