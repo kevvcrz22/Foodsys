@@ -12,6 +12,8 @@ import CiudadRoutes from "./routes/CiudadRoutes.js";
 import ProgramaRoutes from "./Routes/ProgramaRoutes.js"
 import contratoRoutes from "./Routes/contratoRoutes.js"
 import centroarea from "./Routes/centroareaRoutes.js"
+import AreaRoutes from './routes/AreaRoutes.js'
+import ReservaBoletaRoutes from './routes/ReservaBoletaRoutes.js'
 
 const app = Express()
 app.use(Express.json())
@@ -26,6 +28,8 @@ app.use('/api/ciudad', CiudadRoutes)
 app.use('/api/Programa', ProgramaRoutes)
 app.use('/api/contrato',contratoRoutes)
 app.use("./api/centroarea",centroarea)
+app.use('/api/Area', AreaRoutes)
+app.use('/api/ReservaBoleta', ReservaBoletaRoutes)
 
 app.get('/', (req, res) => {
   res.send('Hola Mundo Foodsys')
