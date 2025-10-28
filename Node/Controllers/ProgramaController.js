@@ -1,4 +1,4 @@
-import ProgramaService from "../services/ProgramaService.js";
+import ProgramaService from "../Services/ProgramaService.js";
 
 export const getAllPrograma = async (req, res) => {
   try {

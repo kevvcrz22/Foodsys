@@ -1,5 +1,4 @@
-import turnosModel from "../models/turnosModel.js";
-import turnosService from "../services/turnosService.js";
+import turnosService from "../Services/turnosService.js";
 
 export const getAllturnos = async (req, res) => {
     try{

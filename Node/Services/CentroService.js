@@ -1,4 +1,4 @@
-import CentroModel from "../models/CentroModel.js";
+import CentroModel from "../Models/CentroModel.js";
 
 class CentroService {
     async getAll() {

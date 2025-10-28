@@ -1,4 +1,4 @@
-import CiudadModel from "../models/CiudadModel.js";
+import CiudadModel from "../Models/CiudadModel.js";
 
 class CiudadService {
     async getAll() {

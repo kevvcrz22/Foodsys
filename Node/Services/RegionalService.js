@@ -1,4 +1,4 @@
-import regionalModel from "../models/regionalModel.js";
+import regionalModel from "../Models/regionalModel.js";
 
 class regionalService {
 

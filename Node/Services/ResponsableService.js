@@ -1,4 +1,4 @@
-import ResponsableModel from "../models/ResponsableModel.js";
+import ResponsableModel from "../Models/ResponsableModel.js";
 
 class ResponsableService {
     async getAll() {

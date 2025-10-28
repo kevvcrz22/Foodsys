@@ -1,6 +1,4 @@
-import boletasModel from "../Models/boletasModel.js";
 import boletasService from "../Services/boletasService.js";
-
 export const getAllboletas = async (req, res) => {
     try{
         const boletas = await boletasService.getAll()

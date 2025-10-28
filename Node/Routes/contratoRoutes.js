@@ -1,5 +1,5 @@
 import express from 'express'
-import { createcontrato, deletecontrato, getAllcontrato, getcontrato, updatecontrato } from '../controllers/contratoController.js'
+import { createcontrato, deletecontrato, getAllcontrato, getcontrato, updatecontrato } from '../Controllers/contratoController.js'
 
 const router = express.Router()
 
