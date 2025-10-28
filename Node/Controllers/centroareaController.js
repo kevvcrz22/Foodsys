@@ -5,7 +5,7 @@ export const getAllcentroarea = async (req, res) => {
   try {
     const centroarea = await centroareaService.getAll();
     res.status(200).json(centroarea);
-  } catch (error) {ca
+  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
