@@ -1,5 +1,5 @@
 import express from 'express'
-import { getAllturnos, getturnos, createturnos, updateturnos, deleteturnos } from '../Controllers/turnosController.js'
+import { getAllturnos, getturnos, createturnos, updateturnos, deleteturnos } from '../Controllers/turnosControllers.js'
 
 const router = express.Router();
 
