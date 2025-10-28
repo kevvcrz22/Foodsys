@@ -18,7 +18,7 @@ class boletasService {
     }
 
     async update(id, data) {
-        const result = await boletasModel.update(data, { where: { id }})
+        const result = await boletasModel.update(data, { where: { Id_Boleta: id } })
         const updated = result[0]
 
         if (updated === 0) throw new Error("Boleta no encontrada o sin cambios")

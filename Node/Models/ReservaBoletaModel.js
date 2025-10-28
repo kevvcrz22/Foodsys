@@ -1,4 +1,4 @@
-import db from "../database/db.js";
+import db from "../Database/db.js";
 import { DataTypes } from "sequelize";
 
 const ReservaBoletaModel = db.define('reserva/boleta', {
