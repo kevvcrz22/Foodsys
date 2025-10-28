@@ -6,7 +6,7 @@ class AreaService {
     }
     async getById(Id_Area) {
         const Area = await AreaModel.findByPk(Id_Area)
-        if (!player) throw new Error('Area no encontrada')
+        if (!Area) throw new Error('Area no encontrada')
         return Area
     }
     async create(data) {
