@@ -1,5 +1,5 @@
 import express from 'express'
-import { createPrograma, deletePrograma, getAllPrograma, getPrograma, updatePrograma } from '../controllers/ProgramaController.js'
+import { createPrograma, deletePrograma, getAllPrograma, getPrograma, updatePrograma } from '../Controllers/ProgramaController.js'
 
 const router = express.Router()
 

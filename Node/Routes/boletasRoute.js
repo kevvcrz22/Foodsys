@@ -1,5 +1,5 @@
 import express from 'express'
-import { getAllboletas, getboletas, createboletas,updateboletas, deleteboletas } from '../controllers/boletasController.js'
+import { getAllboletas, getboletas, createboletas,updateboletas, deleteboletas } from '../Controllers/boletasController.js'
 
 const router = express.Router()
 

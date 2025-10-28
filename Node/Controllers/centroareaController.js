@@ -1,4 +1,4 @@
-import centroareaService from "../services/centroareaService.js";
+import centroareaService from "../Services/centroareaService.js";
 
 
 export const getAllcentroarea = async (req, res) => {

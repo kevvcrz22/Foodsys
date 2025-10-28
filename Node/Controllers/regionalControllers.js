@@ -1,5 +1,4 @@
-import regionalModel from "../models/regionalModel.js";
-import regionalService from "../services/regionalService.js";
+import regionalService from "../Services/regionalService.js";
 
 export const getAllregional = async (req, res) => {
     try{

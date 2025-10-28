@@ -1,4 +1,4 @@
-import contratoService from "../services/contratoService.js";
+import contratoService from "../Services/contratoService.js";
 
 
 export const getAllcontrato = async (req, res) => {

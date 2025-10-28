@@ -1,4 +1,3 @@
-import { json } from "sequelize";
 import AprendizService from "../Services/AprendizService.js";
 export const getAllAprendiz = async (req, res) => {
     try{

@@ -1,4 +1,4 @@
-import boletasModel from "../models/boletasModel.js";
+import boletasModel from "../Models/boletasModel.js";
 
 class boletasService {
 

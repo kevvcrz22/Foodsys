@@ -1,4 +1,4 @@
-import ResponsableService from "../services/ResponsableService.js";
+import ResponsableService from "../Services/ResponsableService.js";
 
 // Obtener todos los responsables
 export const getAllResponsables = async (req, res) => {

@@ -1,4 +1,4 @@
-import ProgramaModel from "../models/ProgramaModel.js";
+import ProgramaModel from "../Models/ProgramaModel.js";
 
 class ProgramaService {
     async getAll() {

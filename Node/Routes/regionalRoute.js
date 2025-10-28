@@ -1,5 +1,5 @@
 import express from 'express'
-import { getAllregional, regional, createregional, updateregional, deleteregional } from '../controllers/regionalController.js'
+import { getAllregional, regional, createregional, updateregional, deleteregional } from '../Controllers/regionalControllers.js'
 
 const router = express.Router()
 

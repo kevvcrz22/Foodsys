@@ -1,4 +1,4 @@
-import turnosModel from "../models/turnosModel.js";
+import turnosModel from "../Models/turnosModel.js";
 
 class turnosService {
 

@@ -1,4 +1,4 @@
-import centroareaModel from "../models/centroareaModel.js";
+import centroareaModel from "../Models/centroareaModel.js";
 
 class centroareaService {
     async getAll() {

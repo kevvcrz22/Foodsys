@@ -1,4 +1,4 @@
-import contratoModel from "../models/contratoModel.js";
+import contratoModel from "../Models/contratoModel.js";
 
 class contratoService {
     async getAll() {
