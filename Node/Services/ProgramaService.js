@@ -1,4 +1,3 @@
-import AreaModel from "../models/AreaModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
 
 class ProgramaService {
