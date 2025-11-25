@@ -8,6 +8,12 @@ class FichasServices {
                 { model: ProgramaModel, as: 'programa', attributes: ['Id_Programa', 'Nom_Programa'] }
             ]
         })
+     
+return await FichasModel.findAll({
+  include: [
+    { model: ProgramaModel, as: 'Programa', attributes: ['Id_Programa', 'Nom_Programa'] }
+  ]
+})
 
 
     }
