@@ -2,7 +2,6 @@ import db from "../Database/db.js";
 import { DataTypes } from "sequelize";
 const FichasModel = db.define ('fichas',{
     Id_Ficha:{type:DataTypes.INTEGER, primaryKey: true, autoIncrement: true},
-    id_Ficha:{type:DataTypes.INTEGER, primaryKey: true, autoIncrement: true},
     Num_Ficha:{type:DataTypes.INTEGER},
     FecIniLec_Ficha:{type:DataTypes.DATE},
     FecFinLec_Ficha:{type:DataTypes.DATE},
@@ -17,4 +16,4 @@ const FichasModel = db.define ('fichas',{
     {freezeTableName: true
         
     })
-export default FichasModel;
+export default FichasModel
