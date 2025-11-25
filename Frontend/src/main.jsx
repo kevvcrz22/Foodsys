@@ -16,7 +16,6 @@ import FichasForm from './Fichas/FichasForm.jsx'
 import CrudPrograma from './Programa/CrudPrograma.jsx'
 import ProgramaForm from './Programa/ProgramaForm.jsx'
 
-
 ReactDOM.createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App/>
@@ -24,4 +23,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <CrudFichas/>
     <CrudPrograma/>
   </StrictMode>
-);
+)
