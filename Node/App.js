@@ -17,6 +17,13 @@ import regionalRoute from "./Routes/regionalRoute.js";
 import turnosRoute from "./Routes/turnosRoute.js";
 import AreaRoutes from './routes/AreaRoutes.js';
 import ReservaBoletaRoutes from './routes/ReservaBoletaRoutes.js'
+import FichasModel from './Models/FichasModel.js';
+import ProgramaModel from './Models/ProgramaModel.js';
+
+ProgramaModel.hasMany(FichasModel, {foreignKey: 'Id_Programa', as: 'Ficha'});
+FichasModel.belongsTo(ProgramaModel, {foreignKey:'Id_Programa', as: 'Programa'})
+
+
 
 const app = Express()
 app.use(Express.json())
@@ -52,5 +59,8 @@ dotenv.config()
 
 const PORT = process.env.PORT || 8000
 app.listen(PORT, () => {
-  console.log(`Server up running at http://localhost:${PORT}`)})
+  console.log(`Server up running at http://localhost:${PORT}`)});
+  
+
+  
 export default app

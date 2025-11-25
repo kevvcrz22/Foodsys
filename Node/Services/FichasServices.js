@@ -1,7 +1,14 @@
 import FichasModel from "../Models/FichasModel.js";
+import ProgramaModel from "../Models/ProgramaModel.js";
 class FichasServices {
     async getAll() {
-        return await FichasModel.findAll()
+     
+return await FichasModel.findAll({
+  include: [
+    { model: ProgramaModel, as: 'Programa', attributes: ['Id_Programa', 'Nom_Programa'] }
+  ]
+})
+
 
     }
     async getById(id) {
