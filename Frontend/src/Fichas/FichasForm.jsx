@@ -3,7 +3,7 @@ import apiAxios from "../api/axiosConfig"
 
 const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
 
-    const [id_Ficha, setid_Ficha] = useState('')
+    const [Id_Ficha, setId_Ficha] = useState('')
     const [Num_Ficha, setNum_Ficha] = useState('')
     const [FecIniLec_Ficha, setFecIniLec_Ficha] = useState('')
     const [FecFinLec_Ficha, setFecFinLec_Ficha] = useState('')
@@ -23,7 +23,7 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
     }, [])
     useEffect(() => {
     if (isEdit && selectedFicha) {
-        setid_Ficha(selectedFicha.id_Ficha);
+        setId_Ficha(selectedFicha.Id_Ficha);
         setNum_Ficha(selectedFicha.Num_Ficha);
         setFecIniLec_Ficha(selectedFicha.FecIniLec_Ficha?.slice(0, 10));
         setFecFinLec_Ficha(selectedFicha.FecFinLec_Ficha?.slice(0, 10));
@@ -69,7 +69,7 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
         } else if (textFormButton === 'Actualizar') {
         // Actualizar ficha
         try {
-            await apiAxios.put(`/api/Fichas/${id_Ficha}`, {
+            await apiAxios.put(`/api/Fichas/${Id_Ficha}`, {
                 Num_Ficha,
                 FecIniLec_Ficha,
                 FecFinLec_Ficha,
