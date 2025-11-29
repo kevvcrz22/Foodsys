@@ -1,13 +1,15 @@
 import db from "../Database/db.js";
 import { DataTypes } from "sequelize";
 const ReservasModel = db.define ('reservas',{
-    id_Reserva:{type:DataTypes.INTEGER, primaryKey: true, autoIncrement: true},
-    FecIni_Reserva:{type:DataTypes.DATE},
-    FecFin_Reserva:{type:DataTypes.DATE},
-    Est_Reserva:{type:DataTypes.STRING},
-    Id_Aprendiz: {type: DataTypes.INTEGER, references: {
-    model: 'Aprendiz', 
-    key: 'id_Aprendiz' 
+    Id_Reserva:{type:DataTypes.INTEGER, primaryKey: true, autoIncrement: true},
+    Fec_Reserva:{type:DataTypes.DATE},
+    Vencimiento:{type:DataTypes.DATE},
+    Est_Reserva:{type:DataTypes.TEXT, defaultValue: "Generada"},
+    Tipo:{type:DataTypes.STRING},
+    Tex_Qr:{type:DataTypes.TEXT},
+    Id_Usuario: {type: DataTypes.INTEGER, references: {
+    model: 'Usuario', 
+    key: 'Id_Usuario' 
   }
 }
 },
