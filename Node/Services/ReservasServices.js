@@ -13,7 +13,7 @@ class ReservasServices {
         return await ReservasModel.create(data)
     }
     async update(id, data) {
-        const result = await ReservasModel.update(data, { where: { id_Reserva: id } });
+        const result = await ReservasModel.update(data, { where: { Id_Reserva: id } });
 
         if (result[0] === 0) {
             const Reservas = await ReservasModel.findByPk(id);
@@ -25,7 +25,7 @@ class ReservasServices {
 }
 
     async delete(id){
-        const deleted = await ReservasModel.destroy({where:{id_Reserva: id}})
+        const deleted = await ReservasModel.destroy({where:{Id_Reservad_Reserva: id}})
         if (!deleted) throw new Error("Reservas no encontrada")
         return true
     }

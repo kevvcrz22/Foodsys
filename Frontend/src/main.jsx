@@ -22,5 +22,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <CrudUsuarios/>
     <CrudFichas/>
     <CrudPrograma/>
+    <CrudReservas/>
   </StrictMode>
 );
