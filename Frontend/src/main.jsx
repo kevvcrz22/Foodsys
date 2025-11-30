@@ -14,7 +14,8 @@ import CrudFichas from './Fichas/CrudFichas.jsx'
 import FichasForm from './Fichas/FichasForm.jsx'
 import CrudPrograma from './Programas/CrudPrograma.jsx'
 import ProgramaForm from './Programas/ProgramaForm.jsx'
-
+import CrudReservas from './Reservas/CrudReservas.jsx'
+import ReservasForm from './Reservas/ReservaForm.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -24,4 +25,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <CrudPrograma/>
     <CrudReservas/>
   </StrictMode>
-);
+)

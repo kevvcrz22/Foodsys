@@ -177,9 +177,9 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
   >
     <option value="">Seleccione un programa</option>
 
-    {Programa.map((Programa) => (
-      <option key={Programa.Id_Programa} value={Programa.Id_Programa}>
-        {Programa.Nom_Programa} 
+    {Programa.map((Programas) => (
+      <option key={Programas.Id_Programa} value={Programas.Id_Programa}>
+        {Programas.Nom_Programa} 
       </option>
     ))}
   </select>
