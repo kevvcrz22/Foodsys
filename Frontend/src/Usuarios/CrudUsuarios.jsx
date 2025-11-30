@@ -57,7 +57,7 @@ const getAllUsuarios = async () => {
   const editUsuario = (row) => {
     setselectedUsuario(row);
     setIsEdit(true);
-    document.getElementById("openModalBtn1").click();
+    document.getElementById("openModalBtn").click();
   };
 
   const newListUsuarios = Usuarios.filter(a => {
@@ -76,7 +76,7 @@ const getAllUsuarios = async () => {
   });
 
   const hideModal = () => {
-    document.getElementById("closeModal1").click();
+    document.getElementById("closeModal").click();
   };
 
   return (
@@ -105,7 +105,7 @@ const getAllUsuarios = async () => {
             <button
               type="button"
               className="d-none"
-              id="openModalBtn1"
+              id="openModalBtn"
               data-bs-toggle="modal"
               data-bs-target="#exampleModal"
             ></button>

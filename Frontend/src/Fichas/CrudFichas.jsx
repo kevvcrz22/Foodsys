@@ -14,7 +14,7 @@ const CrudFichas =() => {
 
 
     const columnsTable = [ 
-        {name: 'Id Ficha', selector: row => row.id_Ficha},
+        {name: 'Id Ficha', selector: row => row.Id_Ficha},
         {name: 'Numero de Ficha', selector: row => row.Num_Ficha},
         {name: 'Inicio Etapa Lectiva', selector: row => row.FecIniLec_Ficha},
         {name: 'Fin Etapa Lectiva', selector: row => row.FecFinLec_Ficha},
@@ -50,7 +50,7 @@ const CrudFichas =() => {
     const editFicha = (row) => {
     setSelectedFicha(row);
     setIsEdit(true);
-    document.getElementById("openModalBtn2").click();
+    document.getElementById("openModalFicha").click();
 };
     const newListFichas = Fichas.filter(Ficha => {
     const textToSearch = filterText.toLowerCase();
@@ -79,15 +79,15 @@ const CrudFichas =() => {
                 <input className="form-control" value={filterText} onChange={(e)=> setFilterText(e.target.value)}/> 
             </div>
             <div className="col-2">
-                <button type="button" className="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal2">
+                <button type="button" className="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ModalFichas">
                     Nuevo
                 </button>
                 <button 
                     type="button" 
                     className="d-none" 
-                    id="openModalBtn2" 
+                    id="openModalFicha" 
                     data-bs-toggle="modal" 
-                    data-bs-target="#exampleModal2">
+                    data-bs-target="#ModalFichas">
                 </button>
 
             </div>
@@ -104,11 +104,11 @@ const CrudFichas =() => {
             />
 
 {/* <!-- Modal --> */}
-<div class="modal fade" id="exampleModal2" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+<div class="modal fade" id="ModalFichas" tabindex="-1" aria-labelledby="ModalFichasLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h1 class="modal-title fs-5" id="exampleModalLabel">Agregar Ficha</h1>
+        <h1 class="modal-title fs-5" id="ModalFichasLabel"> {isEdit ? "Editar Ficha" : "Agregar Ficha"}</h1>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="closeModal"></button>
       </div>
       <div class="modal-body">

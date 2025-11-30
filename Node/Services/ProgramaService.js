@@ -1,9 +1,10 @@
-import ProgramaModel from "../models/ProgramaModel.js";
+import ProgramaModel from "../Models/ProgramaModel.js";
 
 class ProgramaService {
     async getAll() {
-        return await ProgramaModel.findAll();
+    return await ProgramaModel.findAll();
     }
+
 
     async getById(id) {
         const Programa = await ProgramaModel.findByPk(id);
