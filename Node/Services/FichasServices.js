@@ -11,9 +11,14 @@ class FichasServices {
 
     }
     async getById(Id) {
-        const Fichas = await FichasModel.findByPk(Id)
-        if (!Fichas) throw new Error("Ficha no encontrada")
-        return Fichas
+        const Fichas = await FichasModel.findByPk(Id, {
+            include: [
+                { model: ProgramaModel, as: 'programa', attributes: ['Id_Programa', 'Nom_Programa'] }
+            ]
+        });
+
+        if (!Fichas) throw new Error("Ficha no encontrada");
+        return Fichas;
     }
     async create(data) {
         return await FichasModel.create(data)

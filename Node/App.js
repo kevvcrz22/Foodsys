@@ -34,7 +34,7 @@ try {
 }
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
-  console.log(`Server up running at http://localhost:${PORT}`)
+  console.log('Server up running at http://localhost:${PORT}')
 })
 
 FichasModel.hasMany(UsuariosModel, {foreignKey: 'Id_Ficha', as: 'usuarios'})
@@ -44,7 +44,7 @@ ProgramaModel.hasMany(FichasModel, {foreignKey: 'Id_Programa', as: 'ficha'})
 FichasModel.belongsTo(ProgramaModel, {foreignKey: 'Id_Programa', as:'programa'})
 
 
-ReservasModel.hasMany(UsuariosModel, {foreignKey: 'Id_Reserva', as: 'usuarios'})
-UsuariosModel.belongsTo(ReservasModel, {foreignKey: 'Id_Reserva', as: 'reservas'})
-export default app;  
+UsuariosModel.hasMany(ReservasModel, { foreignKey: 'Id_Usuario', as: 'reservas' });
+ReservasModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' });
 
+export default app;

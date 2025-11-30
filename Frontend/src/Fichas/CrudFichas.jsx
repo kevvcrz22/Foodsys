@@ -20,7 +20,8 @@ const CrudFichas =() => {
         {name: 'Fin Etapa Lectiva', selector: row => row.FecFinLec_Ficha},
         {name: 'Inicio Etapa Practica', selector: row => row.FecIniPra_Ficha},
         {name: 'Fin Etapa Practica', selector: row => row.FecFinPra_Ficha},
-        {name: 'Programa', selector: row => row.Programa?.Nom_Programa},
+        {name: 'Programa', selector: row => row.programa?.Nom_Programa },
+
         {name: 'Fecha de Creacion', selector: row => new Date(row.createdAt).toLocaleDateString()},
         {name: 'Fecha de Actualizacion', selector: row => new Date(row.updatedAt).toLocaleDateString()},
         {name:'Acciones', selector: row => (
