@@ -2,7 +2,9 @@ import ProgramaModel from "../Models/ProgramaModel.js";
 
 class ProgramaService {
     async getAll() {
-    return await ProgramaModel.findAll();
+    return await ProgramaModel.findAll({
+        order:[['Id_Programa', 'DESC']]
+    });
     }
 
 
