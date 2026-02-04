@@ -1,12 +1,7 @@
 import { useState, useEffect } from "react";
 import apiAxios from "../api/axiosConfig.js";
 
-import Swal from 'sweetalert2'
-import withReactcontent from 'sweetalert2-react-content'
-
 const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
-
-    const MySwal = withReactcontent(Swal)
 
     const [Id_Programa, setId_Programa] = useState("");
     const [Nom_Programa, setNom_Programa] = useState("");
@@ -57,11 +52,7 @@ const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
                     Area
                 });
 
-                Swal.fire({
-                title: "The Internet?",
-                text: "Programa Actualizado Correctamente",
-                icon: "question"
-                                });
+                alert("Programa actualizado correctamente");
             }
 
             actualizarLista();
