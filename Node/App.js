@@ -34,7 +34,7 @@ try {
 }
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
-  console.log('Server up running at http://localhost:${PORT}')
+  console.log(`Server up running at http://localhost:${PORT}`)
 })
 
 FichasModel.hasMany(UsuariosModel, {foreignKey: 'Id_Ficha', as: 'usuarios'})

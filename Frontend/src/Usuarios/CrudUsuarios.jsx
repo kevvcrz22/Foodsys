@@ -2,6 +2,7 @@ import apiAxios from "../api/axiosConfig";
 import { useState, useEffect } from "react";
 import DataTable from "react-data-table-component";
 import UsuariosForm from "./UsuariosForm.jsx";
+import { Modal } from "bootstrap";
 
 const CrudUsuarios = () => {
 
@@ -54,11 +55,13 @@ const getAllUsuarios = async () => {
 };
 
 
-  const editUsuario = (row) => {
-    setselectedUsuario(row);
-    setIsEdit(true);
-    document.getElementById("openModalBtn").click();
-  };
+const editUsuario = (row) => {
+  setselectedUsuario(row);
+  setIsEdit(true);
+  const modal = new Modal(document.getElementById("exampleModal"));
+  modal.show();
+};
+
 
   const newListUsuarios = Usuarios.filter(a => {
     const textToSearch = filterText.toLowerCase();
@@ -101,14 +104,6 @@ const getAllUsuarios = async () => {
             >
               Nuevo
             </button>
-
-            <button
-              type="button"
-              className="d-none"
-              id="openModalBtn"
-              data-bs-toggle="modal"
-              data-bs-target="#exampleModal"
-            ></button>
           </div>
         </div>
 
