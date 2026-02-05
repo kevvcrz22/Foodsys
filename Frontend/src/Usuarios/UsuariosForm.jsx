@@ -234,13 +234,7 @@ const gestionarForm = async (e) => {
 
 
 
-         
-           
-       
 
-       
-          
-          
 
           ))}
 

@@ -13,6 +13,8 @@
     "axios": "^1.13.1",
     "bootstrap": "^5.3.8",
     "framer-motion": "^12.23.25",
+    "qrcode": "^1.5.4",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.1",
     "react-data-table-component": "^7.7.0",
     "react-dom": "^19.1.1",

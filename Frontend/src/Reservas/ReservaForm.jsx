@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import apiAxios from "../api/axiosConfig.js";
+import { QRCodeCanvas } from "qrcode.react"; 
 
 const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
 
@@ -18,7 +19,7 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
     const getUsuarios = async () => {
         try {
             const response = await apiAxios.get("/api/Usuarios");
-            setUsuarios(response.data);  // <-- debe ser array
+            setUsuarios(response.data);
         } catch (error) {
             console.error("Error cargando usuarios:", error);
         }
@@ -37,9 +38,8 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
             setEst_Reserva(reserva.Est_Reserva);
             setId_Usuario(reserva.Id_Usuario);
             setTipo(reserva.Tipo);
-            setTex_Qr(reserva.Tex_Qr);
+            setTex_Qr(reserva.Tex_Qr || "");
             setTextFormButton("Actualizar");
-
         } else {
             setId_Reserva("");
             setFec_Reserva("");
@@ -52,22 +52,21 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
         }
     }, [reserva, Edit]);
 
-    // 🔹 Obtener un usuario por Id
-    const getUsuarioById = async (id) => {
-        const response = await apiAxios.get(`/api/Usuarios/${id}`);
-        return response.data;
-    };
+    // 🔥 Texto que contendrá el QR (se recalcula cuando cambian los campos)
+    const qrData = useMemo(() => {
+        
+        return `RESERVA
+Fecha: ${Fec_Reserva || "-"}
+Vencimiento: ${Vencimiento || "-"}
+Estado: ${Est_Reserva || "-"}
+Tipo: ${Tipo || "-"}
+Usuario: ${Id_Usuario || "-"}`;
+    }, [Fec_Reserva, Vencimiento, Est_Reserva, Tipo, Id_Usuario]);
 
-    // 🔹 Generar QR automáticamente
+    // 🔹 Mantener Tex_Qr sincronizado con lo que va dentro del QR (opcional)
     useEffect(() => {
-        const generarQR = async () => {
-            if (Id_Usuario && Fec_Reserva) {
-                const usuario = await getUsuarioById(Id_Usuario);
-                setTex_Qr(`${usuario.NumDoc_Usuario}_${Fec_Reserva}`);
-            }
-        };
-        generarQR();
-    }, [Id_Usuario, Fec_Reserva]);
+        setTex_Qr(qrData);
+    }, [qrData]);
 
     // 🔹 Enviar formulario
     const gestionarForm = async (e) => {
@@ -80,17 +79,17 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
                     Vencimiento,
                     Est_Reserva,
                     Tipo,
-                    Tex_Qr,
+                    Tex_Qr: qrData, 
                     Id_Usuario
                 });
 
-                alert("Reserva Creada Correctamente");
-                hideModal();
+                alert("Reserva creada correctamente");
                 reload();
+                hideModal();
 
             } catch (error) {
-                console.error("Error Creando Reserva", error);
-                alert(error.message);
+                console.error("Error creando reserva", error);
+                alert(error?.response?.data?.message || "Error creando reserva");
             }
 
         } else if (textFormButton === "Actualizar") {
@@ -100,17 +99,17 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
                     Vencimiento,
                     Est_Reserva,
                     Tipo,
-                    Tex_Qr,
+                    Tex_Qr: qrData,
                     Id_Usuario
                 });
 
-                alert("Reserva Actualizada Correctamente");
+                alert("Reserva actualizada correctamente");
                 reload();
                 hideModal();
 
             } catch (error) {
                 console.error(error);
-                alert("Error Actualizando Reserva");
+                alert("Error actualizando reserva");
             }
         }
     };
@@ -153,10 +152,8 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
                     </select>
                 </div>
 
-                {/* 🔹 SELECT DE USUARIOS CORRECTO */}
                 <div className="mb-3">
                     <label htmlFor="Id_Usuario" className="form-label">Usuario</label>
-
                     <select
                         id="Id_Usuario"
                         className="form-control"
@@ -164,10 +161,9 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
                         onChange={(e) => setId_Usuario(e.target.value)}
                     >
                         <option value="">Seleccione un usuario</option>
-
                         {Usuarios.map((u) => (
                             <option key={u.Id_Usuario} value={u.Id_Usuario}>
-                                {u.Nom_Usuario} {/* Nombre visible */}
+                                {u.Nom_Usuario}
                             </option>
                         ))}
                     </select>
@@ -183,7 +179,14 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
                     />
                 </div>
 
-                <button type="submit" className="btn btn-primary">
+                {/* 🔥 Vista previa del QR en vivo */}
+                {Fec_Reserva && Id_Usuario && (
+                    <div className="mt-3 text-center">
+                        <QRCodeCanvas value={qrData} size={200} />
+                    </div>
+                )}
+
+                <button type="submit" className="btn btn-primary mt-3">
                     {textFormButton}
                 </button>
 
@@ -192,4 +195,4 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
     );
 };
 
-export default ReservasForm
+export default ReservasForm;

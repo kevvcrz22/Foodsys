@@ -1,4 +1,6 @@
 import ReservasServices from "../Services/ReservasServices.js";
+import QRCode from "qrcode";
+
 export const getAllReservas = async (req, res) => {
     try{
         const Reservas = await ReservasServices.getAll();
@@ -7,6 +9,7 @@ export const getAllReservas = async (req, res) => {
         res.status(500).json({message: error.message})
     }
 }
+
 export const getReservas = async(req, res)=>{
     try{
         const Reservas = await ReservasServices.getById(req.params.id)
@@ -15,14 +18,43 @@ export const getReservas = async(req, res)=>{
         res.status(404).json({message: error.message})
     }
 }
+
 export const createReservas = async (req, res) =>{
     try{
-        const Reservas = await ReservasServices.create(req.body)
-        res.status(201).json({message:"Reserva Creada", Reservas})
+
+        // Crear reserva
+        const reserva = await ReservasServices.create(req.body);
+
+        // 🔥 Crear texto QR con TODOS los datos
+        const textoQR = `
+Reserva: ${reserva.Id_Reserva}
+Fecha Reserva: ${reserva.Fec_Reserva}
+Vencimiento: ${reserva.Vencimiento}
+Estado: ${reserva.Est_Reserva}
+Tipo: ${reserva.Tipo}
+Usuario: ${reserva.Id_Usuario}
+        `;
+
+        // Generar imagen QR
+        const qrImagen = await QRCode.toDataURL(textoQR);
+
+        // Guardar texto QR en BD
+        await ReservasServices.update(reserva.Id_Reserva, {
+            Tex_Qr: textoQR
+        });
+
+        res.status(201).json({
+            message:"Reserva Creada",
+            reserva,
+            qr: qrImagen
+        });
+
     }catch(error){
         res.status(400).json({message:error.message})
     }
 }
+
+
 export const updateReservas = async(req, res) => {
     try{
         await ReservasServices.update(parseInt(req.params.id), req.body)
@@ -31,6 +63,7 @@ export const updateReservas = async(req, res) => {
         res.status(400).json({message: error.message})
     }
 }
+
 export const deleteReservas = async(req, res)=>{
     try{
         await ReservasServices.delete(req.params.id)

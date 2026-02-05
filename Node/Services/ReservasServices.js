@@ -25,7 +25,7 @@ class ReservasServices {
 }
 
     async delete(id){
-        const deleted = await ReservasModel.destroy({where:{Id_Reservad_Reserva: id}})
+        const deleted = await ReservasModel.destroy({where:{Id_Reservad: id}})
         if (!deleted) throw new Error("Reservas no encontrada")
         return true
     }
