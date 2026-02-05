@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import logo from './Img/logo.png';
+
 import Presentacion from './Img/Casino.jpg';
 import './Login.css'; // Asegúrate de que esta ruta sea correcta
 
@@ -172,20 +172,7 @@ setTimeout(() => {
   return (
     <div className="foodsys-app">
       {/* Header */}
-      <header className="topbar" role="banner">
-        <div className="inner">
-          <a className="brand" href="#" aria-label="Foodsys - inicio">
-            <img src={logo} alt="Logo Foodsys" className="logo" />
-            <span className="brand-name">Foodsys</span>
-          </a>
-
-          <nav className="navlinks" role="navigation" aria-label="Enlaces principales">
-            <a href="Index.html" className="active">Inicio</a>
-            <a href="#">Contacto</a>
-            <a href="#">¿Qué es Foodsys?</a>
-          </nav>
-        </div>
-      </header>
+      
 
       {/* Contenido principal */}
       <main role="main">
