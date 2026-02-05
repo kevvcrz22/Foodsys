@@ -24,6 +24,7 @@ const CrudUsuarios = () => {
     { name: "Tipo De Usuario", selector: row => row.Tip_Usuario },
     { name: "Estado De Usuario", selector: row => row.Est_Usuario },
     { name: "Contraseña", selector: row => row.Con_Usuario },
+    { name: "Sancion", selector: row => row.Sancion},
     { name: "Ficha", selector: row => row.ficha?.Num_Ficha || "Sin ficha" },
     { name: "Fecha de Creación", selector: row => new Date(row.CreateData).toLocaleDateString() },
     { name: "Fecha de Actualización", selector: row => new Date(row.UpdateData).toLocaleDateString() },

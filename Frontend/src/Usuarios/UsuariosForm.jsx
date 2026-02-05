@@ -14,6 +14,7 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
   const [Tip_Usuario, setTip_Usuario] = useState("");
   const [Est_Usuario, setEst_Usuario] = useState("");
   const [Con_Usuario, setCon_Usuario] = useState("");
+  const [Sancion, setSancion_Usuario] = useState("");
   const [Id_Ficha, setId_Ficha] = useState("")
   const [Fichas, setFichas] = useState ([])
 
@@ -34,6 +35,7 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
       setTip_Usuario(UsuarioSeleccionado.Tip_Usuario);
       setEst_Usuario(UsuarioSeleccionado.Est_Usuario);
       setCon_Usuario(UsuarioSeleccionado.Con_Usuario);
+      setSancion_Usuario(UsuarioSeleccionado.Sancion);
       setId_Ficha(UsuarioSeleccionado.Id_Ficha);
       setTextFormButton("Actualizar");
     } 
@@ -61,6 +63,7 @@ const gestionarForm = async (e) => {
         Tip_Usuario,
         Est_Usuario,
         Con_Usuario,
+        Sancion,
         Id_Ficha
       });
       const data = response.data;
@@ -78,6 +81,7 @@ const gestionarForm = async (e) => {
       setTip_Usuario("");
       setEst_Usuario("");
       setCon_Usuario("");
+      setSancion_Usuario("");
       setId_Ficha("");
       reload();
 
@@ -100,6 +104,7 @@ const gestionarForm = async (e) => {
         Tip_Usuario,
         Est_Usuario,
         Con_Usuario,
+        Sancion,
         Id_Ficha
       });
 
@@ -204,6 +209,14 @@ const gestionarForm = async (e) => {
             <option value="Turno Sena Empresa">Turno Sena Empresa</option>
           </select>
         </div>
+          <div className="mb-3">
+          <label className="form-label">Sancion</label>
+          <select id="Sancion" className="form-control" value={Sancion} onChange={(e) => setSancion_Usuario(e.target.value)}>
+            <option value="">Seleccionar...</option>
+            <option value="Si">Si</option>
+            <option value="No">No</option>
+            </select>
+            </div>
 
         <div className="mb-3">
           <label className="form-label">Contraseña:</label>
@@ -219,11 +232,21 @@ const gestionarForm = async (e) => {
               {Fichas.Num_Ficha}
             </option>
 
+
+
+         
+           
+       
+
+       
+          
+          
+
           ))}
 
-        </select>
+        
+           </select>
         </div>
-
         <div className="mb-3 text-center">
           <input type="submit" className="btn btn-primary w-50" value={textFormButton} />
         </div>
