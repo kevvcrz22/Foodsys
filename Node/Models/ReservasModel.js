@@ -2,7 +2,7 @@ import db from "../Database/db.js";
 import { DataTypes } from "sequelize";
 const ReservasModel = db.define ('reservas',{
     Id_Reserva:{type:DataTypes.INTEGER, primaryKey: true, autoIncrement: true},
-    Fec_Reserva:{type:DataTypes.DATE},
+    Fec_Reserva:{type:DataTypes.DATEONLY},
     Vencimiento:{type:DataTypes.DATE},
     Est_Reserva:{type:DataTypes.TEXT, defaultValue: "Generada"},
     Tipo:{type:DataTypes.STRING},
