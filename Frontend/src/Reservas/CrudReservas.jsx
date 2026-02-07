@@ -13,7 +13,7 @@ const CrudReservas = () => {
     const columnsTable = [
         { name: "Id_Reserva", selector: row => row.Id_Reserva },
         { name: "Fec_Reserva", selector: row => row.Fec_Reserva },
-        { name: "Vencimiento", selector: row => row.Vencimiento },
+        { name: "Vencimiento", selector: row => new Date(row.Vencimiento).toLocaleString()  },
         { name: "Est_Reserva", selector: row => row.Est_Reserva },
         { name: "Tipo", selector: row => row.Tipo },
         { name: "Tex_Qr", selector: row => row.Tex_Qr },
@@ -42,6 +42,7 @@ const getAllReservas = async () => {
     try {
         const response = await apiAxios.get("/api/Reservas");
         setReservas(response.data);
+        console.log(response.data)
     } catch (error) {
         console.error("Error al cargar reservas:", error);
     }

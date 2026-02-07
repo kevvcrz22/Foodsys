@@ -10,7 +10,19 @@ class ReservasServices {
         return Reservas
     }
     async create(data){
-        return await ReservasModel.create(data)
+        const {Id_Reserva} = await ReservasModel.create(data)
+
+        const {Tex_Qr} = data
+
+        const newTex_Qr = `${Id_Reserva}_${Tex_Qr}`
+
+        const reserva = await this.update(Id_Reserva, {Tex_Qr: newTex_Qr})
+
+        return reserva
+
+        //Al crear la reserva hay que obtener el id que se genera e incluirlo en el texto del QR
+        //Después actualizar la reserva con el texto del QR generado
+        
     }
     async update(id, data) {
         const result = await ReservasModel.update(data, { where: { Id_Reserva: id } });
