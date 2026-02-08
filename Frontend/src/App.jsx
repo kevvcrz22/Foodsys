@@ -4,11 +4,11 @@ import { Routes, Route } from "react-router-dom";
 import Login from "./Paginas/Login/Login.jsx";
 import Chatbot from "./components/Chatbot.jsx";
 
-import CrudUsuarios from "./Usuarios/CrudUsuarios.jsx";
-import CrudFichas from "./Fichas/CrudFichas.jsx";
-import CrudPrograma from "./Programas/CrudPrograma.jsx";
-import CrudReservas from "./Reservas/CrudReservas.jsx";
-import NavBar from "./navBar.jsx";
+import CrudUsuarios from "./Tablas/Usuarios/CrudUsuarios.jsx";
+import CrudFichas from "./Tablas/Fichas/CrudFichas.jsx";
+import CrudPrograma from "./Tablas/Programas/CrudPrograma.jsx";
+import CrudReservas from "./Tablas/Reservas/CrudReservas.jsx";
+import NavBar from "./Paginas/navBar.jsx";
 
 function App() {
   const [usuarioLogeado, setUsuarioLogeado] = useState(null);

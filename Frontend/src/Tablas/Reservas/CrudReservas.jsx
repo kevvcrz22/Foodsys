@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import apiAxios from "../api/axiosConfig.js";
+import apiAxios from "../../api/axiosConfig.js";
 import DataTable from "react-data-table-component";
 import ReservasForm from "./ReservaForm.jsx";
 
