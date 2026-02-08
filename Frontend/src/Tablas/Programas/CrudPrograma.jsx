@@ -1,4 +1,4 @@
-import apiNode from "../api/axiosConfig";
+import apiNode from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
 import DataTable from "react-data-table-component";
 import ProgramaForm from "./ProgramaForm.jsx";

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import apiAxios from "../api/axiosConfig.js";
+import apiAxios from "../../api/axiosConfig.js";
 import { QRCodeCanvas } from "qrcode.react"; 
 
 const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
