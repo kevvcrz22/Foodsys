@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Routes, Route } from "react-router-dom";
 
 import Login from "./Paginas/Login/Login.jsx";
-import Chatbot from "./components/Chatbot.jsx";
+import Chatbot from "./Components/Chatbot.jsx";
 
 import CrudUsuarios from "./Tablas/Usuarios/CrudUsuarios.jsx";
 import CrudFichas from "./Tablas/Fichas/CrudFichas.jsx";
