@@ -2,21 +2,39 @@ import { useState, useEffect } from "react";
 import apiAxios from "../../api/axiosConfig.js";
 import DataTable from "react-data-table-component";
 import ReservasForm from "./ReservaForm.jsx";
+import { QRCodeCanvas } from "qrcode.react";
 
 const CrudReservas = () => {
 
     const [reservas, setReservas] = useState([]);
     const [filterText, setFilterText] = useState("");
     const [selectedReserva, setSelectedReserva] = useState(null);
-    const [Editar, setEditar] = useState(false)
+    const [Editar, setEditar] = useState(false);
+
+    // 🔥 ESTADOS NUEVOS PARA QR
+    const [showQRModal, setShowQRModal] = useState(false);
+    const [qrGenerado, setQrGenerado] = useState("");
 
     const columnsTable = [
         { name: "Id_Reserva", selector: row => row.Id_Reserva },
         { name: "Fec_Reserva", selector: row => row.Fec_Reserva },
-        { name: "Vencimiento", selector: row => new Date(row.Vencimiento).toLocaleString()  },
+        { name: "Vencimiento", selector: row => new Date(row.Vencimiento).toLocaleString() },
         { name: "Est_Reserva", selector: row => row.Est_Reserva },
         { name: "Tipo", selector: row => row.Tipo },
-        { name: "Tex_Qr", selector: row => row.Tex_Qr },
+
+    
+        {
+            name: "Tex_Qr",
+            cell: row => (
+                <button
+                    className="btn btn-sm btn-info"
+                    onClick={() => mostrarQR(row.Tex_Qr)}
+                >
+                    Ver QR
+                </button>
+            )
+        },
+
         { name: "Id_Usuario", selector: row => row.Id_Usuario },
 
         {
@@ -34,118 +52,143 @@ const CrudReservas = () => {
         }
     ];
 
-useEffect(() => {
-    getAllReservas();
-}, []);
+    useEffect(() => {
+        getAllReservas();
+    }, []);
 
-const getAllReservas = async () => {
-    try {
-        const response = await apiAxios.get("/api/Reservas");
-        setReservas(response.data);
-        console.log(response.data)
-    } catch (error) {
-        console.error("Error al cargar reservas:", error);
-    }
-}
+    const getAllReservas = async () => {
+        try {
+            const response = await apiAxios.get("/api/Reservas");
+            setReservas(response.data);
+        } catch (error) {
+            console.error("Error al cargar reservas:", error);
+        }
+    };
 
+    const editReserva = (row) => {
+        setSelectedReserva(row);
+        setEditar(true);
+        document.getElementById("openModalBtn")?.click();
+    };
 
-const editReserva = (row) => {
-setSelectedReserva(row);
-setEditar(true);
-document.getElementById("openModalBtn").click();
-};
+    const newListReservas = reservas.filter(reserva => {
+        const text = filterText.toLowerCase();
 
+        return (
+            reserva.Tipo?.toLowerCase().includes(text) ||
+            reserva.Fec_Reserva?.toLowerCase().includes(text) ||
+            reserva.Vencimiento?.toLowerCase().includes(text) ||
+            reserva.Est_Reserva?.toLowerCase().includes(text)
+        );
+    });
 
-const newListReservas = reservas.filter(reserva => {
-    const text = filterText.toLowerCase();
+    const hideModal = () => {
+        document.getElementById("closeModal").click();
+        setSelectedReserva(null);
+    };
+
+    const handleNuevo = () => {
+        setSelectedReserva(null);
+        setEditar(false);
+    };
+
+    // 🔥 FUNCIÓN QUE RECIBE EL QR DESDE EL FORM O DESDE LA TABLA
+    const mostrarQR = (qr) => {
+        if (!qr) return;
+
+        setQrGenerado(qr);
+        setShowQRModal(true);
+    };
 
     return (
-        reserva.Tipo?.toLowerCase().includes(text) ||
-        reserva.Fec_Reserva?.toLowerCase().includes(text)||
-        reserva.Vencimiento?.toLowerCase().includes(text)||
-        reserva.Est_Reserva?.toLowerCase().includes(text)
-    );
-});
+        <>
+            <div className="container mt-5">
 
-const hideModal = () => {
-    document.getElementById("closeModal").click();
-    setSelectedReserva(null);
-};
+                <div className="row d-flex justify-content-between mb-3">
+                    <div className="col-4">
+                        <input
+                            className="form-control"
+                            value={filterText}
+                            onChange={(e) => setFilterText(e.target.value)}
+                        />
+                    </div>
 
-const handleNuevo = () => {
-    setSelectedReserva(null);
-    setEditar(false)
-}
+                    <div className="col-2">
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#exampleModal1"
+                            onClick={handleNuevo}
+                        >
+                            Nuevo
+                        </button>
+                    </div>
+                </div>
 
-return (
-    <>
-        <div className="container mt-5">
-
-       
-            <div className="row d-flex justify-content-between mb-3">
-                <div className="col-4">
-                    <input
-                        className="form-control"
-                        value={filterText}
-                        onChange={(e) => setFilterText(e.target.value)}
+                <div style={{ width: "100%", overflowX: "auto" }}>
+                    <DataTable
+                        title="Reservas"
+                        columns={columnsTable}
+                        data={newListReservas}
+                        keyField="Id_Reserva"
+                        pagination
+                        highlightOnHover
+                        striped
                     />
                 </div>
 
-                <div className="col-2">
-                    <button
-                        type="button"
-                        className="btn btn-primary"
-                        data-bs-toggle="modal"
-                        data-bs-target="#exampleModal1"
-                        onClick={handleNuevo}
-                        
-                    >
-                        Nuevo
-                    </button>
-                </div>
-            </div>
+                {/* MODAL FORMULARIO */}
+                <div className="modal fade" id="exampleModal1" tabIndex="-1" aria-hidden="true">
+                    <div className="modal-dialog">
+                        <div className="modal-content">
 
-            {}
-            <div style={{ width: "100%", overflowX: "auto" }}>
-                <DataTable
-                    title="Reservas"
-                    columns={columnsTable}
-                    data={newListReservas}
-                    keyField="Id_Reserva"
-                    pagination
-                    highlightOnHover
-                    striped
-                />
-            </div>
+                            <div className="modal-header">
+                                <h1 className="modal-title fs-5">
+                                    {selectedReserva ? "Editar Reserva" : "Agregar Reserva"}
+                                </h1>
+                                <button type="button" className="btn-close" data-bs-dismiss="modal" id="closeModal"></button>
+                            </div>
 
-            {}
-            <div className="modal fade" id="exampleModal1" tabIndex="-1" aria-hidden="true">
-                <div className="modal-dialog">
-                    <div className="modal-content">
+                            <div className="modal-body">
+                                <ReservasForm
+                                    hideModal={hideModal}
+                                    reserva={selectedReserva}
+                                    Edit={Editar}
+                                    reload={getAllReservas}
+                                    mostrarQR={mostrarQR}
+                                />
+                            </div>
 
-                        <div className="modal-header">
-                            <h1 className="modal-title fs-5">
-                                {selectedReserva ? "Editar Reserva" : "Agregar Reserva"}
-                            </h1>
-                            <button type="button" className="btn-close" data-bs-dismiss="modal" id="closeModal"></button>
                         </div>
-
-                        <div className="modal-body">
-                            <ReservasForm
-                                hideModal={hideModal}
-                                reserva={selectedReserva}
-                                Edit= {Editar}
-                                reload={getAllReservas}
-                            />
-                        </div>
-
                     </div>
                 </div>
-            </div>
 
-        </div>
-    </>
-);
+                {/* 🔥 MODAL QR */}
+                {showQRModal && (
+                    <div className="modal show d-block">
+                        <div className="modal-dialog modal-dialog-centered">
+                            <div className="modal-content p-4 text-center">
+
+                                <h4>QR de la reserva</h4>
+
+                                <QRCodeCanvas value={qrGenerado} size={200} />
+
+                                <button
+                                    className="btn btn-primary mt-3"
+                                    onClick={() => setShowQRModal(false)}
+                                >
+                                    Cerrar
+                                </button>
+
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+            </div>
+        </>
+    );
 };
 
 export default CrudReservas;
