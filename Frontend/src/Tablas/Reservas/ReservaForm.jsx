@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import apiAxios from "../../api/axiosConfig.js";
-import { QRCodeCanvas } from "qrcode.react"; 
+import { QRCodeCanvas } from "qrcode.react";
 
-const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
+const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }) => {
 
     const [Id_Reserva, setId_Reserva] = useState("");
     const [Fec_Reserva, setFec_Reserva] = useState(() => {
@@ -18,6 +18,8 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
     const [Tex_Qr, setTex_Qr] = useState("");
 
     const [textFormButton, setTextFormButton] = useState("Enviar");
+    const [showQRModal, setShowQRModal] = useState(false);
+    const [qrGenerado, setQrGenerado] = useState("");
 
     //Cargar todos los usuarios
     const getUsuarios = async () => {
@@ -55,16 +57,14 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit }) => {
         }
     }, [reserva, Edit]);
 
-
-    
     const qrData = useMemo(() => {
-        
-        return `RESERVA
-Fecha: ${Fec_Reserva || "-"}
-Vencimiento: ${Vencimiento || "-"}
-Estado: ${Est_Reserva || "-"}
-Tipo: ${Tipo || "-"}
-Usuario: ${Id_Usuario || "-"}`;
+        return {
+            'fecha': Fec_Reserva || '-',
+            'vencimiento': Vencimiento || '-',
+            'estado': Est_Reserva || '-',
+            'tipo': Tipo || '-',
+            'usuario': Id_Usuario || '-'
+        }
     }, [Fec_Reserva, Vencimiento, Est_Reserva, Tipo, Id_Usuario]);
 
     // 🔹 Mantener Tex_Qr sincronizado con lo que va dentro del QR (opcional)
@@ -78,7 +78,6 @@ Usuario: ${Id_Usuario || "-"}`;
         return response.data;
     };
 
-
     useEffect(() => {
         if (Usuarios.length > 0 && !Edit) {
             const usuarioKevin = Usuarios.find(
@@ -91,30 +90,24 @@ Usuario: ${Id_Usuario || "-"}`;
         }
     }, [Usuarios, Edit]);
 
-
-
     // Establecer Vencimiento automático según Tipo de comida
     useEffect(() => {
         if (Tipo && Fec_Reserva) {
-            const fecha = new Date(Fec_Reserva + 'T00:00:00'); // Crear fecha base
+            const fecha = new Date(Fec_Reserva + 'T00:00:00');
 
-            fecha.setDate(fecha.getDate());
-
-            // Establecer hora según tipo de comida
             switch (Tipo) {
                 case "Desayuno":
-                    fecha.setHours(7, 0, 0); // 7:00 AM del día siguiente
+                    fecha.setHours(7, 0, 0);
                     break;
                 case "Almuerzo":
-                    fecha.setHours(14, 0, 0); // 2:00 PM del día siguiente
+                    fecha.setHours(14, 0, 0);
                     break;
                 case "Cena":
-                    fecha.setHours(19, 0, 0); // 7:00 PM del día siguiente
+                    fecha.setHours(19, 0, 0);
                     break;
                 default:
                     return;
             }
-
 
             const pad = (n) => n.toString().padStart(2, '0');
 
@@ -126,10 +119,8 @@ Usuario: ${Id_Usuario || "-"}`;
                 pad(fecha.getMinutes());
 
             setVencimiento(vencimiento);
-
         }
     }, [Tipo, Fec_Reserva]);
-
 
     //Generar QR automáticamente
     useEffect(() => {
@@ -142,24 +133,46 @@ Usuario: ${Id_Usuario || "-"}`;
         generarQR();
     }, [Id_Usuario, Vencimiento]);
 
+    const generarQRFinal = async () => {
+        if (!Id_Usuario || !Vencimiento) return null;
+
+        const usuario = await getUsuarioById(Id_Usuario);
+        return `${Id_Reserva} // ${usuario.Nom_Usuario} //  ${Tipo}`;
+        
+    };
+
     //Enviar formulario
     const gestionarForm = async (e) => {
         e.preventDefault();
 
         if (textFormButton === "Enviar") {
             try {
+
+                const QRFinal = await generarQRFinal();
+
                 await apiAxios.post("/api/Reservas/", {
                     Fec_Reserva,
                     Vencimiento,
                     Est_Reserva,
                     Tipo,
-                    Tex_Qr: qrData, 
+                    Tex_Qr: JSON.stringify(qrData),
                     Id_Usuario
                 });
 
                 alert("Reserva creada correctamente");
                 reload();
+
+                // 🔥 Mostrar QR en modal padre
+                mostrarQR(QRFinal);
+
                 hideModal();
+
+                // 🔥 Limpiar formulario
+                setId_Reserva("");
+                setVencimiento("");
+                setEst_Reserva("Generada");
+                setTipo("");
+                setTex_Qr("");
 
             } catch (error) {
                 console.error("Error creando reserva", error);
@@ -168,6 +181,7 @@ Usuario: ${Id_Usuario || "-"}`;
 
         } else if (textFormButton === "Actualizar") {
             try {
+
                 await apiAxios.put(`/api/Reservas/${Id_Reserva}`, {
                     Fec_Reserva,
                     Vencimiento,
@@ -217,30 +231,24 @@ Usuario: ${Id_Usuario || "-"}`;
                     </select>
                 </div>
 
-
                 <div className="mb-3">
                     <label className="form-label">Vencimiento</label>
                     <input
                         type="datetime-local"
                         className="form-control"
                         value={Vencimiento}
-                        onChange={(e) => setVencimiento(e.target.value)}
                         readOnly
                     />
                 </div>
 
-                {/* 🔹 SELECT DE USUARIOS CORRECTO */}
                 <div className="mb-3">
                     <label htmlFor="Id_Usuario" className="form-label">Usuario</label>
                     <select
                         id="Id_Usuario"
                         className="form-control"
                         value={Id_Usuario}
-                        onChange={(e) => setId_Usuario(e.target.value)}
                         disabled
                     >
-
-                    
                         <option value="">Seleccione un usuario</option>
                         {Usuarios.map((u) => (
                             <option key={u.Id_Usuario} value={u.Id_Usuario}>
@@ -259,13 +267,6 @@ Usuario: ${Id_Usuario || "-"}`;
                         readOnly
                     />
                 </div>
-
-                {/* 🔥 Vista previa del QR en vivo */}
-                {Fec_Reserva && Id_Usuario && (
-                    <div className="mt-3 text-center">
-                        <QRCodeCanvas value={qrData} size={200} />
-                    </div>
-                )}
 
                 <button type="submit" className="btn btn-primary mt-3">
                     {textFormButton}
