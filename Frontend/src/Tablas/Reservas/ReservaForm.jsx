@@ -58,6 +58,7 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
     }, [reserva, Edit]);
 
     const qrData = useMemo(() => {
+<<<<<<< HEAD:Frontend/src/Tablas/Reservas/ReservaForm.jsx
         return {
             'fecha': Fec_Reserva || '-',
             'vencimiento': Vencimiento || '-',
@@ -65,6 +66,14 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
             'tipo': Tipo || '-',
             'usuario': Id_Usuario || '-'
         }
+=======
+        return `RESERVA
+Fecha: ${Fec_Reserva || "-"}
+Vencimiento: ${Vencimiento || "-"}
+Estado: ${Est_Reserva || "-"}
+Tipo: ${Tipo || "-"}
+Usuario: ${Id_Usuario || "-"}`;
+>>>>>>> f54b765 (se modificaron los estilos a tailwind y se agrego la pagina del supevisor):Frontend/src/Reservas/ReservaForm.jsx
     }, [Fec_Reserva, Vencimiento, Est_Reserva, Tipo, Id_Usuario]);
 
     // 🔹 Mantener Tex_Qr sincronizado con lo que va dentro del QR (opcional)
@@ -204,23 +213,27 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
 
     return (
         <>
-            <form onSubmit={gestionarForm} className="col-12 col-md-6">
+            <form onSubmit={gestionarForm} className="space-y-4">
 
-                <div className="mb-3">
-                    <label className="form-label">Fec_Reserva</label>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fecha de Reserva
+                    </label>
                     <input
                         type="date"
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                         value={Fec_Reserva}
                         onChange={(e) => setFec_Reserva(e.target.value)}
                         readOnly
                     />
                 </div>
 
-                <div className="mb-3">
-                    <label className="form-label">Tipo</label>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tipo de Comida
+                    </label>
                     <select
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                         value={Tipo}
                         onChange={(e) => setTipo(e.target.value)}
                     >
@@ -231,21 +244,35 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                     </select>
                 </div>
 
+<<<<<<< HEAD:Frontend/src/Tablas/Reservas/ReservaForm.jsx
                 <div className="mb-3">
                     <label className="form-label">Vencimiento</label>
+=======
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Vencimiento
+                    </label>
+>>>>>>> f54b765 (se modificaron los estilos a tailwind y se agrego la pagina del supevisor):Frontend/src/Reservas/ReservaForm.jsx
                     <input
                         type="datetime-local"
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                         value={Vencimiento}
                         readOnly
                     />
                 </div>
 
+<<<<<<< HEAD:Frontend/src/Tablas/Reservas/ReservaForm.jsx
                 <div className="mb-3">
                     <label htmlFor="Id_Usuario" className="form-label">Usuario</label>
+=======
+                <div>
+                    <label htmlFor="Id_Usuario" className="block text-sm font-medium text-gray-700 mb-2">
+                        Usuario
+                    </label>
+>>>>>>> f54b765 (se modificaron los estilos a tailwind y se agrego la pagina del supevisor):Frontend/src/Reservas/ReservaForm.jsx
                     <select
                         id="Id_Usuario"
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                         value={Id_Usuario}
                         disabled
                     >
@@ -258,19 +285,46 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                     </select>
                 </div>
 
-                <div className="mb-3">
-                    <label className="form-label">Tex_Qr</label>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Código QR
+                    </label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                         value={Tex_Qr}
                         readOnly
                     />
                 </div>
 
+<<<<<<< HEAD:Frontend/src/Tablas/Reservas/ReservaForm.jsx
                 <button type="submit" className="btn btn-primary mt-3">
                     {textFormButton}
                 </button>
+=======
+                {/* 🔥 Vista previa del QR en vivo */}
+                {Fec_Reserva && Id_Usuario && (
+                    <div className="flex justify-center py-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <QRCodeCanvas value={qrData} size={200} />
+                    </div>
+                )}
+
+                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                    <button
+                        type="button"
+                        onClick={hideModal}
+                        className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit" 
+                        className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors"
+                    >
+                        {textFormButton}
+                    </button>
+                </div>
+>>>>>>> f54b765 (se modificaron los estilos a tailwind y se agrego la pagina del supevisor):Frontend/src/Reservas/ReservaForm.jsx
 
             </form>
         </>

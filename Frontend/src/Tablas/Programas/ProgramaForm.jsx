@@ -14,7 +14,7 @@ const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
         if (programa) {
             setId_Programa(programa.Id_Programa);
             setNom_Programa(programa.Nom_Programa);
-            setArea(programa.Area );
+            setArea(programa.Area);
             setNiv_For_Programa(programa.Niv_For_Programa);
             setTextFormButton("Actualizar");
         } else {
@@ -60,28 +60,31 @@ const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
 
         } catch (error) {
             console.error("Error:", error);
-          
         }
     };
 
     return (
         <>
-            <form onSubmit={gestionarForm} className="col-12 col-md-6">
+            <form onSubmit={gestionarForm} className="space-y-4">
 
-                <div className="mb-3">
-                    <label className="form-label">Nombre</label>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nombre
+                    </label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                         value={Nom_Programa}
                         onChange={(e) => setNom_Programa(e.target.value)}
                     />
                 </div>
 
-                <div className="mb-3">
-                    <label className="form-label">Nivel Formación</label>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nivel Formación
+                    </label>
                     <select
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                         value={Niv_For_Programa}
                         onChange={(e) => setNiv_For_Programa(e.target.value)}
                     >
@@ -92,33 +95,41 @@ const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
                     </select>
                 </div>
 
-                <div className="mb-3">
-                    <label className="form-label">Área</label>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Área
+                    </label>
                     <select
-                        type="text"
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                         value={Area}
                         onChange={(e) => setArea(e.target.value)}
                     >
-
-                    <option value="Agricola">Agricola</option>
-                    <option value="Agroindustria">Agroindustria</option>
-                    <option value="Ambiental">Ambiental</option>
-                    <option value="Gestion">Gestion</option>
-                    <option value="Mecanizacion">Mecanizacion</option>
-                    <option value="Pecuario">Pecuario</option>
+                        <option value="">Selecciona uno...</option>
+                        <option value="Agricola">Agrícola</option>
+                        <option value="Agroindustria">Agroindustria</option>
+                        <option value="Ambiental">Ambiental</option>
+                        <option value="Gestion">Gestión</option>
+                        <option value="Mecanizacion">Mecanización</option>
+                        <option value="Pecuario">Pecuario</option>
                     </select>
-                    
-                    
                 </div>
 
-                <div className="mb-3">
-                    <input
-                        type="submit"
-                        className="btn btn-primary w-50"
-                        value={textFormButton}
-                    />
+                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                    <button
+                        type="button"
+                        onClick={hideModal}
+                        className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit" 
+                        className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors"
+                    >
+                        {textFormButton}
+                    </button>
                 </div>
+
             </form>
         </>
     );
