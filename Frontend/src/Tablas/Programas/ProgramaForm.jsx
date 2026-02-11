@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import apiAxios from "../api/axiosConfig.js";
+import apiAxios from "../../api/axiosConfig.js";
 
 const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
 

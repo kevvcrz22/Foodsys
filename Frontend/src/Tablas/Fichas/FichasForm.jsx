@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import apiAxios from "../api/axiosConfig"
+import apiAxios from "../../api/axiosConfig"
 
 const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
 
