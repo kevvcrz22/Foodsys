@@ -1,0 +1,58 @@
+.reservas-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.card-reserva {
+  background: white;
+  padding: 25px;
+  border-radius: 10px;
+  max-width: 600px;
+}
+
+.formulario label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.formulario input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.lista-reservas {
+  list-style: none;
+  padding: 0;
+}
+
+.item-reserva {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  border-radius: 6px;
+}
+
+.estado.pendiente {
+  color: orange;
+  font-weight: bold;
+}
+
+.estado.confirmada {
+  color: green;
+  font-weight: bold;
+}
+
+.btn-primary {
+  background-color: #0c40c5;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+}
