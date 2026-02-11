@@ -12,9 +12,24 @@ import Footer from "./Paginas/Footer.jsx";
 import Perfil from "./Components/AprendizExterno/Perfil.jsx";
 import ReservasAprendiz from "./Components/AprendizExterno/ReservasAprendiz.jsx";
 
+
+import Chatbot from "./Components/Chatbot.jsx";
+/* CRUD */
+import CrudUsuarios from "./Usuarios/CrudUsuarios.jsx";
+import CrudFichas from "./Fichas/CrudFichas.jsx";
+import CrudPrograma from "./Programas/CrudPrograma.jsx";
+import CrudReservas from "./Reservas/CrudReservas.jsx";
+/* LAYOUT */
+import NavBar from "./navBar.jsx";
+import Sidebar from "./Components/Sidebar.jsx";
+/* SUPERVISOR */
+import Inicio from "./Paginas/Login/Supervisor/Inicio";
+import Perfil from "./Paginas/Login/Supervisor/Perfil";
+import Registrar from "./Paginas/Login/Supervisor/Registrar";
+import Reportes from "./Paginas/Login/Supervisor/Reportes";
+
 function App() {
   const [usuarioLogeado, setUsuarioLogeado] = useState(null);
-
   return (
     <>
       <Chatbot />

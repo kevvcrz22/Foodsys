@@ -1,86 +1,74 @@
-import apiAxios from "../../api/axiosConfig";
-import { useState, useEffect} from "react";
-import DataTable from 'react-data-table-component'
-import FichasForm from "./FichasForm";
+import { useState, useEffect } from "react";
+import apiAxios from "../api/axiosConfig.js";
+import DataTable from "react-data-table-component";
+import ReservasForm from "./ReservaForm.jsx";
 
-
-
-const CrudFichas =() => {
-    const [Fichas, setFichas]= useState([])  
-    const [filterText, setFilterText]= useState("")
-    const [selectedFicha, setSelectedFicha] = useState(null);
-    const [isEdit, setIsEdit] = useState(false);
+const CrudReservas = () => {
+    const [reservas, setReservas] = useState([]);
+    const [filterText, setFilterText] = useState("");
+    const [selectedReserva, setSelectedReserva] = useState(null);
+    const [Editar, setEditar] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-
-
-    const columnsTable = [ 
-        {name: 'Id Ficha', selector: row => row.Id_Ficha, sortable: true},
-        {name: 'Numero de Ficha', selector: row => row.Num_Ficha, sortable: true},
-        {name: 'Inicio Etapa Lectiva', selector: row => row.FecIniLec_Ficha, sortable: true},
-        {name: 'Fin Etapa Lectiva', selector: row => row.FecFinLec_Ficha, sortable: true},
-        {name: 'Inicio Etapa Practica', selector: row => row.FecIniPra_Ficha, sortable: true},
-        {name: 'Fin Etapa Practica', selector: row => row.FecFinPra_Ficha, sortable: true},
-        {name: 'Programa', selector: row => row.programa?.Nom_Programa, sortable: true },
-        {name: 'Fecha de Creacion', selector: row => new Date(row.createdAt).toLocaleDateString(), sortable: true},
-        {name: 'Fecha de Actualizacion', selector: row => new Date(row.updatedAt).toLocaleDateString(), sortable: true},
+    const columnsTable = [
+        { name: "Id_Reserva", selector: row => row.Id_Reserva, sortable: true },
+        { name: "Fec_Reserva", selector: row => row.Fec_Reserva, sortable: true },
+        { name: "Vencimiento", selector: row => new Date(row.Vencimiento).toLocaleString(), sortable: true },
+        { name: "Est_Reserva", selector: row => row.Est_Reserva, sortable: true },
+        { name: "Tipo", selector: row => row.Tipo, sortable: true },
+        { name: "Tex_Qr", selector: row => row.Tex_Qr },
+        { name: "Id_Usuario", selector: row => row.Id_Usuario, sortable: true },
         {
-            name:'Acciones', 
+            name: "Acciones",
             cell: row => (
-                <button 
+                <button
                     className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors flex items-center gap-2"
-                    onClick={() => editFicha(row)}
+                    onClick={() => editReserva(row)}
                 >
                     <i className="bi bi-pencil-square"></i> Editar
                 </button>
             )
         }
-    ]
+    ];
 
-    useEffect(()=>{
-        getAllFichas()
-    },[])
+    useEffect(() => {
+        getAllReservas();
+    }, []);
 
-    const getAllFichas = async () => {
+    const getAllReservas = async () => {
         try {
-            const response = await apiAxios.get('/api/Fichas/')
-            console.log("Datos recibidos del backend:", response.data)
-            setFichas(response.data)
+            const response = await apiAxios.get("/api/Reservas");
+            setReservas(response.data);
+            console.log(response.data);
         } catch (error) {
-            console.error("Error al obtener las fichas:", error)
+            console.error("Error al cargar reservas:", error);
         }
-    }
+    };
 
-    const editFicha = (row) => {
-        setSelectedFicha(row);
-        setIsEdit(true);
+    const editReserva = (row) => {
+        setSelectedReserva(row);
+        setEditar(true);
         setIsModalOpen(true);
     };
 
-    const newListFichas = Fichas.filter(Ficha => {
-        const textToSearch = filterText.toLowerCase();
-
-        const Num_Ficha = String(Ficha.Num_Ficha || "").toLowerCase();
-
-        const Nom_Programa = String(
-            Ficha.Programa?.Nom_Programa || Ficha.Programa?.Nom_programa || ""
-        ).toLowerCase();
-
+    const newListReservas = reservas.filter(reserva => {
+        const text = filterText.toLowerCase();
         return (
-            Num_Ficha.includes(textToSearch) ||
-            Nom_Programa.includes(textToSearch)
+            reserva.Tipo?.toLowerCase().includes(text) ||
+            reserva.Fec_Reserva?.toLowerCase().includes(text) ||
+            reserva.Vencimiento?.toLowerCase().includes(text) ||
+            reserva.Est_Reserva?.toLowerCase().includes(text)
         );
     });
 
     const hideModal = () => {
         setIsModalOpen(false);
-        setSelectedFicha(null);
-        setIsEdit(false);
+        setSelectedReserva(null);
     };
 
     const handleNuevo = () => {
-        setSelectedFicha(null);
-        setIsEdit(false);
+        setSelectedReserva(null);
+        setEditar(false);
         setIsModalOpen(true);
     };
 
@@ -110,14 +98,14 @@ const CrudFichas =() => {
         },
     };
 
-    return(
+    return (
         <>
             <div className="container mx-auto px-4 py-6">
                 <div className="flex justify-between items-center mb-6 gap-4">
                     <div className="w-full md:w-1/3">
                         <input
                             type="text"
-                            placeholder="Buscar ficha..."
+                            placeholder="Buscar reserva..."
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             value={filterText}
                             onChange={(e) => setFilterText(e.target.value)}
@@ -129,23 +117,23 @@ const CrudFichas =() => {
                         className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
                         onClick={handleNuevo}
                     >
-                        <i className="bi bi-plus-circle"></i> Nueva Ficha
+                        <i className="bi bi-plus-circle"></i> Nueva Reserva
                     </button>
                 </div>
 
                 <div className="bg-white rounded-lg shadow-lg overflow-hidden">
                     <DataTable
-                        title="Fichas"
+                        title="Reservas"
                         columns={columnsTable}
-                        data={newListFichas}
-                        keyField="Id_Ficha"
+                        data={newListReservas}
+                        keyField="Id_Reserva"
                         pagination
                         highlightOnHover
                         striped
                         customStyles={customStyles}
                         noDataComponent={
                             <div className="text-gray-500 py-8">
-                                No hay fichas para mostrar
+                                No hay reservas para mostrar
                             </div>
                         }
                     />
@@ -164,8 +152,8 @@ const CrudFichas =() => {
                             {/* Header fijo */}
                             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 flex-shrink-0">
                                 <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                                    <i className={`bi ${isEdit ? 'bi-pencil-square' : 'bi-plus-circle'}`}></i>
-                                    {isEdit ? "Editar Ficha" : "Agregar Ficha"}
+                                    <i className={`bi ${selectedReserva ? 'bi-pencil-square' : 'bi-plus-circle'}`}></i>
+                                    {selectedReserva ? "Editar Reserva" : "Agregar Reserva"}
                                 </h2>
                                 <button
                                     onClick={hideModal}
@@ -177,11 +165,11 @@ const CrudFichas =() => {
 
                             {/* Contenido con scroll */}
                             <div className="px-6 py-4 overflow-y-auto flex-1">
-                                <FichasForm 
+                                <ReservasForm
                                     hideModal={hideModal}
-                                    selectedFicha={selectedFicha}
-                                    isEdit={isEdit}
-                                    reload={getAllFichas}
+                                    reserva={selectedReserva}
+                                    Edit={Editar}
+                                    reload={getAllReservas}
                                 />
                             </div>
                         </div>
@@ -206,6 +194,7 @@ const CrudFichas =() => {
                 }
             `}</style>
         </>
-    )
-}
-export default CrudFichas
+    );
+};
+
+export default CrudReservas;
