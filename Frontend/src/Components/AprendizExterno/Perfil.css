@@ -1,0 +1,165 @@
+/* LAYOUT */
+.perfil-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f4f6f9;
+}
+
+/* SIDEBAR */
+.sidebar-aprendiz {
+  width: 240px;
+  background-color: #dcdcfc;
+  color: rgb(32, 31, 31);
+  padding: 30px 20px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.sidebar-aprendiz.cerrado {
+  width: 60px;
+  padding: 20px 10px;
+}
+
+/* BOTÓN FLECHA */
+.toggle-menu {
+  position: absolute;
+  top: 20px;
+  right: -14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background-color: #c1cbe9;
+  color: #2a4a99;
+  cursor: pointer;
+  font-size: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* MENU */
+.sidebar-aprendiz h3 {
+  margin-bottom: 20px;
+}
+
+.sidebar-aprendiz nav button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: none;
+  border-radius: 6px;
+  background-color: transparent;
+  color: rgb(19, 17, 17);
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar-aprendiz nav .activo {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-salir {
+  margin-top: 30px;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* CONTENIDO */
+.perfil-contenido {
+  flex: 1;
+  padding: 40px;
+}
+
+.perfil-contenido h1 {
+  font-size: 28px;
+  color: rgb(19, 17, 17);
+}
+
+.subtitulo {
+  color: #555;
+  margin-bottom: 30px;
+}
+
+/* TARJETAS */
+.card {
+  background: white;
+  padding: 25px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+  max-width: 650px;
+}
+
+.card h2 {
+  margin-bottom: 20px;
+  color: rgb(19, 17, 17);
+}
+
+/* CARD PRINCIPAL */
+.card-principal {
+  max-width: 800px;
+}
+
+/* BLOQUES */
+.bloque {
+  margin-bottom: 30px;
+}
+
+.bloque h3 {
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 18px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 6px;
+}
+
+/* SEGURIDAD */
+.card-seguridad {
+  max-width: 500px;
+  border-left: 5px solid #0c40c5;
+}
+
+/* FORMULARIOS */
+.form-grid,
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+/* INPUTS DESHABILITADOS */
+input:disabled {
+  background-color: #f1f3f6;
+  color: #666;
+  cursor: not-allowed;
+}
+
+/* TEXTO AYUDA */
+.texto-ayuda {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+/* BOTONES */
+.btn-primary,
+.btn-secondary {
+  margin-top: 20px;
+  background-color: #0c40c5;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+}

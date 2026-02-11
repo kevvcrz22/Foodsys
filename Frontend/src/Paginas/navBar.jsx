@@ -1,54 +1,63 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import * as bootstrap from "bootstrap";
 import logo from './../Paginas/Login/Img/logo.png';
 
 const NavBar = () => {
+    const navigate = useNavigate();
+    const revisarOffCanvas = (ruta) => {
+        const offcanvasElement = document.getElementById("offcanvasScrolling");
+        const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement);
+        if (bsOffcanvas) {
+            document.getElementById('botonCerrarOffCanvas').click()
+        }
+        setTimeout(() =>{
+            navigate(ruta)
+        }, 150)
+    }
+
     return (
         <>
-            <header 
-                className="sticky top-0 z-[1000] bg-[#1861c1] text-white px-[22px] py-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.08)]" 
-                role="banner"
-            >
-                <div className="max-w-[1150px] mx-auto flex items-center gap-5">
-                    <a 
-                        className="flex items-center gap-3 no-underline text-white group" 
-                        href="#" 
-                        aria-label="Foodsys - inicio"
-                    >
-                        <img 
-                            src={logo} 
-                            alt="Logo Foodsys" 
-                            className="w-14 h-14 transition-all duration-[350ms] ease-in-out group-hover:rotate-[5deg] group-hover:scale-105" 
-                        />
-                        <span className="font-bold text-[26px] text-white uppercase tracking-[0.5px]">
-                            Foodsys
-                        </span>
+            <header className="topbar" role="banner">
+                <div className="container d-flex justify-content-between align-items-center">
+
+                     <button className="btn btn-success d-lg-none"
+                        type="button" data-bs-toggle="offcanvas"
+                        data-bs-target="#offcanvasScrolling"
+                        aria-controls="offcanvasScrolling">
+                        ☰
+                    </button>
+
+                    <a className="brand" href="#" aria-label="Foodsys - inicio">
+                        <img src={logo} alt="Logo Foodsys" className="logo" />
+                        <span to="/" className="brand-name">Foodsys</span>
                     </a>
-                    <nav 
-                        className="ml-auto flex gap-[10px]" 
-                        role="navigation" 
-                        aria-label="Enlaces principales"
-                    >
-                        <Link 
-                            to="/" 
-                            className="relative text-white no-underline font-semibold px-[14px] py-[10px] rounded-lg transition-all duration-[350ms] ease-in-out overflow-hidden hover:bg-white/15 hover:-translate-y-[2px] bg-white/20 after:content-[''] after:absolute after:bottom-0 after:left-[10%] after:w-[80%] after:h-[2px] after:bg-[#42b72a]"
-                        >
-                            Inicio
-                        </Link>
-                        <Link 
-                            to="/contacto" 
-                            className="relative text-white no-underline font-semibold px-[14px] py-[10px] rounded-lg transition-all duration-[350ms] ease-in-out overflow-hidden hover:bg-white/15 hover:-translate-y-[2px]"
-                        >
-                            Contacto
-                        </Link>
-                        <Link 
-                            to="/about" 
-                            className="relative text-white no-underline font-semibold px-[14px] py-[10px] rounded-lg transition-all duration-[350ms] ease-in-out overflow-hidden hover:bg-white/15 hover:-translate-y-[2px]"
-                        >
-                            ¿Qué es Foodsys?
-                        </Link>
+                   
+                    <nav className="navlinks d-none d-lg-block" role="navigation" aria-label="Enlaces principales">
+                        <Link to="/" className="active">Inicio</Link>
+                        <Link to="https://wa.link/l90ns4">Contacto</Link>
+                        <Link to="/about">¿Qué es Foodsys?</Link>
                     </nav>
                 </div>
+
             </header>
+            <div class="offcanvas offcanvas-start" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1" id="offcanvasScrolling" style={{"--bs-offcanvas-width": "250px"}} aria-labelledby="offcanvasScrollingLabel">
+                <div class="offcanvas-header">
+                    
+                    <h5 class="offcanvas-title" id="offcanvasScrollingLabel">Foodsys</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close" id='botonCerrarOffCanvas'></button>
+                </div>
+                <div class="offcanvas-body">
+                    <ul className="navbar-nav">
+                        <li className='nav-item border-bottom'>
+                            <button onClick={() => revisarOffCanvas('/')} className='nav-link text-start'>Inicio</button>
+                        </li>
+                        <li className='nav-item border-bottom'>
+                            <button onClick={() => revisarOffCanvas('/usuario')} className='nav-link text-start'>Usuarios</button>
+                        </li>
+                    </ul>
+                    
+                </div>
+            </div>
         </>
     )
 }

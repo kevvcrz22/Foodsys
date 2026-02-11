@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-/* PÚBLICO */
+import { Routes, Route } from "react-router-dom";
 import Login from "./Paginas/Login/Login.jsx";
 
 import Chatbot from "./Components/Chatbot.jsx";
-
 import CrudUsuarios from "./Tablas/Usuarios/CrudUsuarios.jsx";
 import CrudFichas from "./Tablas/Fichas/CrudFichas.jsx";
 import CrudPrograma from "./Tablas/Programas/CrudPrograma.jsx";
 import CrudReservas from "./Tablas/Reservas/CrudReservas.jsx";
 import NavBar from "./Paginas/navBar.jsx";
+import Footer from "./Paginas/Footer.jsx";
+import Perfil from "./Components/AprendizExterno/Perfil.jsx";
+import ReservasAprendiz from "./Components/AprendizExterno/ReservasAprendiz.jsx";
 
 
 import Chatbot from "./Components/Chatbot.jsx";
@@ -31,81 +32,25 @@ function App() {
   const [usuarioLogeado, setUsuarioLogeado] = useState(null);
   return (
     <>
-      {/* Chatbot siempre visible */}
       <Chatbot />
+
+      {/* NAVBAR CON USUARIO */}
+      <NavBar usuarioLogeado={usuarioLogeado} />
+
       <Routes>
-        {/* ================= LOGIN ================= */}
-        <Route
-          path="/"
-          element={<Login onLogin={setUsuarioLogeado} />}
-        />
-        {/* alias /login → / */}
-        <Route path="/login" element={<Navigate to="/" />} />
-
-        {/* ================= SUPERVISOR (SIN NavBar) ================= */}
-        <Route
-          path="/supervisor/*"
-          element={
-            <div className="flex min-h-screen bg-gray-100">
-              <Sidebar />
-              <div className="flex-1">
-                {/* SIN NavBar aquí */}
-                <main className="p-6">
-                  <Routes>
-                    <Route index element={<Inicio />} />
-                    <Route path="perfil" element={<Perfil />} />
-                    <Route path="registrar" element={<Registrar />} />
-                    <Route path="reportes" element={<Reportes />} />
-                    {/* fallback interno */}
-                    <Route path="*" element={<Navigate to="/supervisor" />} />
-                  </Routes>
-                </main>
-              </div>
-            </div>
-          }
-        />
-
-        {/* ================= CRUD (CON NavBar) ================= */}
-        <Route
-          path="/usuarios"
-          element={
-            <>
-              <NavBar />
-              <CrudUsuarios />
-            </>
-          }
-        />
-        <Route
-          path="/fichas"
-          element={
-            <>
-              <NavBar />
-              <CrudFichas />
-            </>
-          }
-        />
-        <Route
-          path="/programas"
-          element={
-            <>
-              <NavBar />
-              <CrudPrograma />
-            </>
-          }
-        />
-        <Route
-          path="/reservas"
-          element={
-            <>
-              <NavBar />
-              <CrudReservas />
-            </>
-          }
-        />
-
-        {/* fallback general */}
-        <Route path="*" element={<Navigate to="/" />} />
+        {/* RUTA LOGIN */}
+        <Route path="/" element={<Login onLogin={setUsuarioLogeado} />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/Login" element={<Login/>} />
+        <Route path="/usuarios" element={<CrudUsuarios />} />
+        <Route path="/fichas" element={<CrudFichas />} />
+        <Route path="/programas" element={<CrudPrograma />} />
+        <Route path="/reservas" element={<CrudReservas />} />
+        <Route path="/Reservas" element={<ReservasAprendiz />} />
+        <Route path="/perfilexterno" element={<Perfil />} />
       </Routes>
+
+      <Footer />
 
       {usuarioLogeado && (
         <h2 style={{ textAlign: "center", marginTop: "50px" }}>
