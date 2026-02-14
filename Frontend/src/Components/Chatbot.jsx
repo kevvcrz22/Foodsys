@@ -1,29 +1,31 @@
 import { useState, useEffect, useRef } from "react";
 import avatar from "./Img/avatar.png";
+// Importar Bootstrap Icons CSS en tu index.html o App.js:
+// <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
 const preguntasFrecuentes = [
-  { id: 1, text: "¿Qué es Foodsys?", icon: "🏢" },
-  { id: 2, text: "¿Cómo inicio sesión?", icon: "🔑" },
-  { id: 3, text: "Horarios de reserva", icon: "⏰" },
-  { id: 4, text: "Cancelar reserva", icon: "❌" },
-  { id: 5, text: "Tipos de comida", icon: "🍽️" },
-  { id: 6, text: "Contactar soporte", icon: "📞" }
+  { id: 1, text: "¿Qué es Foodsys?", icon: "bi-building" },
+  { id: 2, text: "¿Cómo inicio sesión?", icon: "bi-key-fill" },
+  { id: 3, text: "Horarios de reserva", icon: "bi-clock-fill" },
+  { id: 4, text: "Cancelar reserva", icon: "bi-x-circle-fill" },
+  { id: 5, text: "Tipos de comida", icon: "bi-egg-fried" },
+  { id: 6, text: "Contactar soporte", icon: "bi-telephone-fill" }
 ];
 
 const preguntasEspecificas = {
   "¿Qué es Foodsys?": [
-    { id: 11, text: "¿Es gratuito?", icon: "💰" },
-    { id: 12, text: "¿Quién puede usarlo?", icon: "👥" },
-    { id: 13, text: "¿Dónde accedo?", icon: "🌐" }
+    { id: 11, text: "¿Es gratuito?", icon: "bi-currency-dollar" },
+    { id: 12, text: "¿Quién puede usarlo?", icon: "bi-people-fill" },
+    { id: 13, text: "¿Dónde accedo?", icon: "bi-globe" }
   ],
   "¿Cómo inicio sesión?": [
-    { id: 21, text: "¿Olvidé contraseña?", icon: "🔓" },
-    { id: 22, text: "Error al ingresar", icon: "⚠️" },
-    { id: 23, text: "Primer acceso", icon: "🆕" }
+    { id: 21, text: "¿Olvidé contraseña?", icon: "bi-unlock-fill" },
+    { id: 22, text: "Error al ingresar", icon: "bi-exclamation-triangle-fill" },
+    { id: 23, text: "Primer acceso", icon: "bi-person-plus-fill" }
   ],
   "Horarios de reserva": [
-    { id: 31, text: "¿Por qué hasta 6 PM?", icon: "🌙" },
-    { id: 32, text: "Horarios de comida", icon: "🕐" }
+    { id: 31, text: "¿Por qué hasta 6 PM?", icon: "bi-moon-stars-fill" },
+    { id: 32, text: "Horarios de comida", icon: "bi-alarm-fill" }
   ]
 };
 
@@ -111,10 +113,7 @@ const Chatbot = () => {
   };
 
   const handlePreguntaClick = (pregunta) => {
-    // Agregar pregunta al historial
     setHistorialNavegacion(prev => [...prev, pregunta.text]);
-    
-    // Marcar pregunta como seleccionada
     setPreguntasSeleccionadas(prev => new Set(prev).add(pregunta.text));
     
     setMessages((prev) => [
@@ -138,16 +137,12 @@ const Chatbot = () => {
       setIsTyping(false);
 
       if (preguntasEspecificas[pregunta.text]) {
-        // Mostrar preguntas específicas de esta categoría
         setPreguntasActuales(preguntasEspecificas[pregunta.text]);
       } else {
-        // Filtrar preguntas ya seleccionadas de las preguntas frecuentes
         const preguntasDisponibles = preguntasFrecuentes.filter(p => 
           !preguntasSeleccionadas.has(p.text) && p.text !== pregunta.text
         );
         
-        // Si hay preguntas específicas para esta pregunta, mostrarlas
-        // sino, mostrar las preguntas frecuentes restantes
         if (preguntasDisponibles.length > 0) {
           setPreguntasActuales(preguntasDisponibles);
         } else {
@@ -210,28 +205,21 @@ const Chatbot = () => {
 
   const handleVolverAtras = () => {
     if (historialNavegacion.length > 1) {
-      // Remover el último elemento
       const nuevoHistorial = [...historialNavegacion];
       nuevoHistorial.pop();
       
-      // Obtener la última pregunta seleccionada
       const preguntaAnterior = nuevoHistorial[nuevoHistorial.length - 1];
-      
-      // Actualizar historial
       setHistorialNavegacion(nuevoHistorial);
       
-      // Si la pregunta anterior tiene preguntas específicas, mostrarlas
       if (preguntasEspecificas[preguntaAnterior]) {
         setPreguntasActuales(preguntasEspecificas[preguntaAnterior]);
       } else {
-        // Mostrar preguntas frecuentes excepto las ya seleccionadas
         const preguntasDisponibles = preguntasFrecuentes.filter(p => 
           !preguntasSeleccionadas.has(p.text) || p.text === preguntaAnterior
         );
         setPreguntasActuales(preguntasDisponibles);
       }
     } else {
-      // Volver al inicio
       setPreguntasActuales(preguntasFrecuentes);
       setPreguntasSeleccionadas(new Set());
       setHistorialNavegacion([]);
@@ -239,315 +227,183 @@ const Chatbot = () => {
   };
 
   return (
-    <div className="position-fixed bottom-0 end-0 p-3" style={{ zIndex: 1055 }}>
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
       {open && (
-        <div className="card shadow-lg border-0 p-2" style={{ 
-          width: "320px", 
-          height: "340px",
-          borderRadius: "10px",
-        }}>
+        <div className="bg-white rounded-2xl shadow-2xl w-screen sm:w-[360px] h-screen sm:h-[500px] flex flex-col overflow-hidden fixed sm:relative bottom-0 right-0 sm:bottom-auto sm:right-auto">
           
-          {/* Header mejorado */}
-          <div className="card-header border-0 py-100" style={{ 
-            backgroundColor: "#42b72a",
-            background: "linear-gradient(135deg, #42b72a 0%, #36a420 100%)"
-          }}>
-            <div className="d-flex justify-content-between align-items-center">
-              <div className="d-flex align-items-center gap-3">
-                <div className="position-relative">
-                  <img src={avatar} width="42" className="rounded-circle border border-0 border-white" alt="K" />
-                  <span className="position-absolute bottom-0 end-0 translate-middle p-1 bg-white border border-2 border-success rounded-circle">
-                    <span className="visually-hidden">Online</span>
-                  </span>
+          {/* Header */}
+          <div className="bg-gradient-to-r from-green-500 to-green-600 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="relative">
+                  <img 
+                    src={avatar} 
+                    className="w-9 h-9 rounded-full border-2 border-white shadow-md" 
+                    alt="Konnan" 
+                  />
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-white border-2 border-green-500 rounded-full"></span>
                 </div>
                 <div>
-                  <div className="fw-bold text-white">Konnan</div>
-                  <div className="text-white-80 small">Asistente Foodsys</div>
+                  <div className="font-semibold text-white text-sm">Konnan</div>
+                  <div className="text-white/90 text-[11px]">Asistente Foodsys</div>
                 </div>
               </div>
-              <div className="d-flex gap-2">
+              <div className="flex gap-1">
                 {historialNavegacion.length > 0 && (
                   <button
-                    className="btn btn-sm btn-outline-light rounded-circle"
+                    className="w-7 h-7 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 active:scale-95"
                     onClick={handleVolverAtras}
-                    style={{ width: "32px", height: "32px" }}
                     title="Volver atrás"
                   >
-                    ←
+                    <i className="bi bi-arrow-left text-xs"></i>
                   </button>
                 )}
                 <button
-                  className="btn btn-sm btn-outline-light rounded-circle"
+                  className="w-7 h-7 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 active:scale-95"
                   onClick={() => setOpen(false)}
-                  style={{ width: "32px", height: "32px" }}
                 >
-                  ✕
+                  <i className="bi bi-x-lg text-xs"></i>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Contenido del chat */}
-          <div className="card-body p-0" style={{ 
-            backgroundColor: "#f8fff8",
-            height: "280px",
-            overflow: "hidden"
-          }}>
-            <div className="h-100 overflow-auto p-3">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`mb-1 ${msg.sender === "user" ? "text-end" : ""}`}
-                >
-                  <div
-                    className={`d-inline-block px-2 py-1 ${msg.sender === "user"
-                        ? "text-white"
-                        : "bg-white border"
-                      }`}
-                    style={{ 
-                      maxWidth: "80%",
-                      fontSize:"13px",
-                      lineHeight: "1.3", 
-                      borderRadius: msg.sender === "user" 
-                        ? "14px 14px 4px 14px" 
-                        : "14px 14px 14px 4px",
-                      backgroundColor: msg.sender === "user" ? "#42b72a" : "white",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
-                    }}
-                  >
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-
-              {/* Mostrar preguntas disponibles */}
-              {!showWelcome && preguntasActuales.length > 0 && (
-                <div className="mt-4">
-                  <div className="mb-3">
-                    <span className="badge px-3 py-2" style={{ 
-                      backgroundColor: "rgba(66, 183, 42, 0.1)", 
-                      color: "#42b72a",
-                      fontWeight: "600",
-                      fontSize: "0.85rem"
-                    }}>
-                      📋 Preguntas relacionadas
-                    </span>
-                  </div>
-                  <div className="row g-2">
-                    {preguntasActuales.map((p) => (
-                      <div key={p.id} className="col-6">
-                        <button
-                          className="btn btn-sm w-100 d-flex align-items-center gap-2 p-2"
-                          onClick={() => handlePreguntaClick(p)}
-                          style={{ 
-                            borderRadius: "10px",
-                            border: "2px solid #42b72a",
-                            backgroundColor: "white",
-                            color: "#42b72a",
-                            transition: "all 0.3s",
-                            fontSize: "0.8rem"
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.backgroundColor = "#42b72a";
-                            e.currentTarget.style.color = "white";
-                            e.currentTarget.style.transform = "translateY(-2px)";
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.backgroundColor = "white";
-                            e.currentTarget.style.color = "#42b72a";
-                            e.currentTarget.style.transform = "translateY(0)";
-                          }}
-                        >
-                          <span style={{ fontSize: "1.1rem" }}>{p.icon}</span>
-                          <span className="text-start">{p.text}</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {showWelcome && (
-                <div className="mt-3">
-                  <div className="mb-3 text-center">
-                    <span className="badge px-3 py-2" style={{ 
-                      backgroundColor: "rgba(66, 183, 42, 0.1)", 
-                      color: "#42b72a",
-                      fontWeight: "600",
-                      fontSize: "0.85rem"
-                    }}>
-                      💡 ¿En qué puedo ayudarte?
-                    </span>
-                  </div>
-                  <div className="row g-2">
-                    {preguntasFrecuentes.map((p) => (
-                      <div key={p.id} className="col-6">
-                        <button
-                          className="btn btn-sm w-100 d-flex align-items-center gap-2 p-2"
-                          onClick={() => handlePreguntaClick(p)}
-                          style={{ 
-                            borderRadius: "10px",
-                            border: "2px solid #42b72a",
-                            backgroundColor: "white",
-                            color: "#42b72a",
-                            transition: "all 0.3s",
-                            fontSize: "0.8rem"
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.backgroundColor = "#42b72a";
-                            e.currentTarget.style.color = "white";
-                            e.currentTarget.style.transform = "translateY(-2px)";
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.backgroundColor = "white";
-                            e.currentTarget.style.color = "#42b72a";
-                            e.currentTarget.style.transform = "translateY(0)";
-                          }}
-                        >
-                          <span style={{ fontSize: "1.1rem" }}>{p.icon}</span>
-                          <span className="text-start">{p.text}</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {showReset && (
-                <div className="text-center mt-4">
-                  
-                </div>
-              )}
-
-              {isTyping && (
-                <div className="d-flex align-items-center gap-2 text-muted small">
-                  <div className="d-flex gap-1">
-                    <div style={{ 
-                      width: "8px", 
-                      height: "8px", 
-                      borderRadius: "50%",
-                      backgroundColor: "#42b72a",
-                      animation: "bounce 1.4s infinite"
-                    }}></div>
-                    <div style={{ 
-                      width: "8px", 
-                      height: "8px", 
-                      borderRadius: "50%",
-                      backgroundColor: "#42b72a",
-                      animation: "bounce 1.4s infinite 0.2s"
-                    }}></div>
-                    <div style={{ 
-                      width: "8px", 
-                      height: "8px", 
-                      borderRadius: "50%",
-                      backgroundColor: "#42b72a",
-                      animation: "bounce 1.4s infinite 0.4s"
-                    }}></div>
-                  </div>
-                  <span>Konnan está escribiendo...</span>
-                </div>
-                
-              )}
-              <div className="text-center my-2">
-
-              <button
-                className="btn"
-                onClick={resetChat}
-                style={{ 
-                  padding: "4px 10px",        // ⬅️ más pequeño
-                  fontSize: "12px",           // ⬅️ clave para reducir tamaño
-                  borderRadius: "8px",
-                  backgroundColor: "#42b72a",
-                  color: "white",
-                  border: "none",
-                  fontWeight: "400",
-                  lineHeight: "1.2",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                  transition: "all 0.2s ease",
-                  display: "inline-block"
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = "#36a420";
-                  e.currentTarget.style.transform = "scale(1.03)";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = "#42b72a";
-                  e.currentTarget.style.transform = "scale(1)";
-                }}
+          {/* Chat Body */}
+          <div className="flex-1 bg-gradient-to-b from-green-50/30 to-white overflow-y-auto p-3 space-y-2.5">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
               >
-                🔄 Nueva conversación
-              </button>
+                <div
+                  className={`max-w-[85%] px-3 py-2 text-xs leading-relaxed ${
+                    msg.sender === "user"
+                      ? "bg-green-500 text-white rounded-2xl rounded-br-sm shadow-sm"
+                      : "bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100"
+                  }`}
+                >
+                  {msg.text}
+                </div>
               </div>
+            ))}
 
-              <div ref={messagesEndRef}></div>
+            {/* Preguntas relacionadas */}
+            {!showWelcome && preguntasActuales.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <div className="flex justify-center">
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium inline-flex items-center gap-1">
+                    <i className="bi bi-clipboard-check text-xs"></i>
+                    <span>Relacionadas</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {preguntasActuales.map((p) => (
+                    <button
+                      key={p.id}
+                      className="flex items-center gap-1.5 p-2 rounded-lg border-2 border-green-500 bg-green-500 text-white hover:bg-green-600 transition-all duration-200 text-[10px] font-medium active:scale-95 shadow-sm"
+                      onClick={() => handlePreguntaClick(p)}
+                    >
+                      <i className={`${p.icon} text-xs flex-shrink-0`}></i>
+                      <span className="text-left flex-1 leading-tight">{p.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Preguntas de bienvenida */}
+            {showWelcome && (
+              <div className="mt-3 space-y-2">
+                <div className="flex justify-center">
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium inline-flex items-center gap-1">
+                    <i className="bi bi-lightbulb-fill text-xs"></i>
+                    <span>¿Cómo ayudarte?</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {preguntasFrecuentes.map((p) => (
+                    <button
+                      key={p.id}
+                      className="flex items-center gap-1.5 p-2 rounded-lg border-2 border-green-500 bg-green-500 text-white hover:bg-green-600 transition-all duration-200 text-[10px] font-medium active:scale-95 shadow-sm"
+                      onClick={() => handlePreguntaClick(p)}
+                    >
+                      <i className={`${p.icon} text-xs flex-shrink-0`}></i>
+                      <span className="text-left flex-1 leading-tight">{p.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Typing indicator */}
+            {isTyping && (
+              <div className="flex items-center gap-2 text-gray-500 text-[10px]">
+                <div className="flex gap-1">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                </div>
+                <span>Konnan está escribiendo...</span>
+              </div>
+            )}
+
+            {/* Botón reset */}
+            <div className="flex justify-center pt-2">
+              <button
+                className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-[10px] font-medium hover:bg-blue-600 transition-all duration-200 active:scale-95 shadow-sm inline-flex items-center gap-1.5"
+                onClick={resetChat}
+              >
+                <i className="bi bi-arrow-clockwise text-xs"></i>
+                Nueva conversación
+              </button>
             </div>
-          </div>
 
-          {/* Input */}
-          
+            <div ref={messagesEndRef}></div>
+          </div>
         </div>
       )}
 
       {/* Botón flotante */}
       {!open && (
         <button
-          className="btn rounded-circle shadow-lg d-flex align-items-center justify-content-center"
-          style={{ 
-            width: "65px", 
-            height: "65px",
-            backgroundColor: "#42b72a",
-            border: "none",
-            animation: "pulse 2s infinite"
-          }}
+          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-2xl flex items-center justify-center bg-green-500 hover:bg-green-600 transition-all duration-300 active:scale-95 animate-pulse-soft relative"
           onClick={() => setOpen(true)}
         >
-          <img src={avatar} width="65" alt="chat" className="rounded-circle" />
-         
+          <img src={avatar} className="w-full h-full rounded-full" alt="chat" />
+          <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold animate-bounce">
+            <i className="bi bi-chat-dots-fill"></i>
+          </div>
         </button>
       )}
 
-      {/* Estilos CSS */}
+      {/* Estilos adicionales */}
       <style>{`
-        @keyframes bounce {
-          0%, 60%, 100% { transform: translateY(0); }
-          30% { transform: translateY(-5px); }
+        @keyframes pulse-soft {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+          50% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
         }
         
-        @keyframes pulse {
-          0% { box-shadow: 0 0 0 0 rgba(66, 183, 42, 0.7); }
-          70% { box-shadow: 0 0 0 10px rgba(66, 183, 42, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(66, 183, 42, 0); }
+        .animate-pulse-soft {
+          animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
-        
-        .text-white-80 {
-          color: rgba(255, 255, 255, 0.9);
-        }
-        
-        .btn:focus {
-          box-shadow: 0 0 0 0.25rem rgba(66, 183, 42, 0.25) !important;
-        }
-        
-        .form-control:focus {
-          border-color: #42b72a;
-          box-shadow: 0 0 0 0.25rem rgba(66, 183, 42, 0.25);
-        }
-        
+
+        /* Scrollbar personalizado */
         ::-webkit-scrollbar {
-          width: 6px;
+          width: 5px;
         }
         
         ::-webkit-scrollbar-track {
-          background: #f1f1f1;
+          background: #f1f5f9;
           border-radius: 10px;
         }
         
         ::-webkit-scrollbar-thumb {
-          background: #42b72a;
+          background: #10b981;
           border-radius: 10px;
         }
         
         ::-webkit-scrollbar-thumb:hover {
-          background: #36a420;
+          background: #059669;
         }
       `}</style>
     </div>

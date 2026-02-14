@@ -58,7 +58,6 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
     }, [reserva, Edit]);
 
     const qrData = useMemo(() => {
-<<<<<<< HEAD:Frontend/src/Tablas/Reservas/ReservaForm.jsx
         return {
             'fecha': Fec_Reserva || '-',
             'vencimiento': Vencimiento || '-',
@@ -66,19 +65,11 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
             'tipo': Tipo || '-',
             'usuario': Id_Usuario || '-'
         }
-=======
-        return `RESERVA
-Fecha: ${Fec_Reserva || "-"}
-Vencimiento: ${Vencimiento || "-"}
-Estado: ${Est_Reserva || "-"}
-Tipo: ${Tipo || "-"}
-Usuario: ${Id_Usuario || "-"}`;
->>>>>>> f54b765 (se modificaron los estilos a tailwind y se agrego la pagina del supevisor):Frontend/src/Reservas/ReservaForm.jsx
     }, [Fec_Reserva, Vencimiento, Est_Reserva, Tipo, Id_Usuario]);
 
     // 🔹 Mantener Tex_Qr sincronizado con lo que va dentro del QR (opcional)
     useEffect(() => {
-        setTex_Qr(qrData);
+        setTex_Qr(JSON.stringify(qrData));
     }, [qrData]);
 
     // Obtener un usuario por Id
@@ -147,7 +138,6 @@ Usuario: ${Id_Usuario || "-"}`;
 
         const usuario = await getUsuarioById(Id_Usuario);
         return `${Id_Reserva} // ${usuario.Nom_Usuario} //  ${Tipo}`;
-        
     };
 
     //Enviar formulario
@@ -196,7 +186,7 @@ Usuario: ${Id_Usuario || "-"}`;
                     Vencimiento,
                     Est_Reserva,
                     Tipo,
-                    Tex_Qr: qrData,
+                    Tex_Qr: JSON.stringify(qrData),
                     Id_Usuario
                 });
 
@@ -244,15 +234,10 @@ Usuario: ${Id_Usuario || "-"}`;
                     </select>
                 </div>
 
-<<<<<<< HEAD:Frontend/src/Tablas/Reservas/ReservaForm.jsx
-                <div className="mb-3">
-                    <label className="form-label">Vencimiento</label>
-=======
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                         Vencimiento
                     </label>
->>>>>>> f54b765 (se modificaron los estilos a tailwind y se agrego la pagina del supevisor):Frontend/src/Reservas/ReservaForm.jsx
                     <input
                         type="datetime-local"
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
@@ -261,15 +246,10 @@ Usuario: ${Id_Usuario || "-"}`;
                     />
                 </div>
 
-<<<<<<< HEAD:Frontend/src/Tablas/Reservas/ReservaForm.jsx
-                <div className="mb-3">
-                    <label htmlFor="Id_Usuario" className="form-label">Usuario</label>
-=======
                 <div>
                     <label htmlFor="Id_Usuario" className="block text-sm font-medium text-gray-700 mb-2">
                         Usuario
                     </label>
->>>>>>> f54b765 (se modificaron los estilos a tailwind y se agrego la pagina del supevisor):Frontend/src/Reservas/ReservaForm.jsx
                     <select
                         id="Id_Usuario"
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
@@ -297,15 +277,10 @@ Usuario: ${Id_Usuario || "-"}`;
                     />
                 </div>
 
-<<<<<<< HEAD:Frontend/src/Tablas/Reservas/ReservaForm.jsx
-                <button type="submit" className="btn btn-primary mt-3">
-                    {textFormButton}
-                </button>
-=======
                 {/* 🔥 Vista previa del QR en vivo */}
                 {Fec_Reserva && Id_Usuario && (
                     <div className="flex justify-center py-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <QRCodeCanvas value={qrData} size={200} />
+                        <QRCodeCanvas value={JSON.stringify(qrData)} size={200} />
                     </div>
                 )}
 
@@ -324,7 +299,6 @@ Usuario: ${Id_Usuario || "-"}`;
                         {textFormButton}
                     </button>
                 </div>
->>>>>>> f54b765 (se modificaron los estilos a tailwind y se agrego la pagina del supevisor):Frontend/src/Reservas/ReservaForm.jsx
 
             </form>
         </>
