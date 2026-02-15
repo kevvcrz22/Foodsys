@@ -1,31 +1,51 @@
 import { useState, useEffect, useRef } from "react";
+import { 
+  Building2, 
+  Key, 
+  Clock, 
+  XCircle, 
+  UtensilsCrossed, 
+  Phone, 
+  DollarSign, 
+  Users, 
+  Globe, 
+  Unlock, 
+  AlertTriangle, 
+  UserPlus, 
+  Moon, 
+  AlarmClock,
+  ClipboardCheck,
+  Lightbulb,
+  RotateCw,
+  ArrowLeft,
+  X,
+  MessageCircle
+} from "lucide-react";
 import avatar from "./Img/avatar.png";
-// Importar Bootstrap Icons CSS en tu index.html o App.js:
-// <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
 const preguntasFrecuentes = [
-  { id: 1, text: "¿Qué es Foodsys?", icon: "bi-building" },
-  { id: 2, text: "¿Cómo inicio sesión?", icon: "bi-key-fill" },
-  { id: 3, text: "Horarios de reserva", icon: "bi-clock-fill" },
-  { id: 4, text: "Cancelar reserva", icon: "bi-x-circle-fill" },
-  { id: 5, text: "Tipos de comida", icon: "bi-egg-fried" },
-  { id: 6, text: "Contactar soporte", icon: "bi-telephone-fill" }
+  { id: 1, text: "¿Qué es Foodsys?", Icon: Building2 },
+  { id: 2, text: "¿Cómo inicio sesión?", Icon: Key },
+  { id: 3, text: "Horarios de reserva", Icon: Clock },
+  { id: 4, text: "Cancelar reserva", Icon: XCircle },
+  { id: 5, text: "Tipos de comida", Icon: UtensilsCrossed },
+  { id: 6, text: "Contactar soporte", Icon: Phone }
 ];
 
 const preguntasEspecificas = {
   "¿Qué es Foodsys?": [
-    { id: 11, text: "¿Es gratuito?", icon: "bi-currency-dollar" },
-    { id: 12, text: "¿Quién puede usarlo?", icon: "bi-people-fill" },
-    { id: 13, text: "¿Dónde accedo?", icon: "bi-globe" }
+    { id: 11, text: "¿Es gratuito?", Icon: DollarSign },
+    { id: 12, text: "¿Quién puede usarlo?", Icon: Users },
+    { id: 13, text: "¿Dónde accedo?", Icon: Globe }
   ],
   "¿Cómo inicio sesión?": [
-    { id: 21, text: "¿Olvidé contraseña?", icon: "bi-unlock-fill" },
-    { id: 22, text: "Error al ingresar", icon: "bi-exclamation-triangle-fill" },
-    { id: 23, text: "Primer acceso", icon: "bi-person-plus-fill" }
+    { id: 21, text: "¿Olvidé contraseña?", Icon: Unlock },
+    { id: 22, text: "Error al ingresar", Icon: AlertTriangle },
+    { id: 23, text: "Primer acceso", Icon: UserPlus }
   ],
   "Horarios de reserva": [
-    { id: 31, text: "¿Por qué hasta 6 PM?", icon: "bi-moon-stars-fill" },
-    { id: 32, text: "Horarios de comida", icon: "bi-alarm-fill" }
+    { id: 31, text: "¿Por qué hasta 6 PM?", Icon: Moon },
+    { id: 32, text: "Horarios de comida", Icon: AlarmClock }
   ]
 };
 
@@ -227,7 +247,7 @@ const Chatbot = () => {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999]">
       {open && (
         <div className="bg-white rounded-2xl shadow-2xl w-screen sm:w-[360px] h-screen sm:h-[500px] flex flex-col overflow-hidden fixed sm:relative bottom-0 right-0 sm:bottom-auto sm:right-auto">
           
@@ -255,14 +275,14 @@ const Chatbot = () => {
                     onClick={handleVolverAtras}
                     title="Volver atrás"
                   >
-                    <i className="bi bi-arrow-left text-xs"></i>
+                    <ArrowLeft className="w-3.5 h-3.5" />
                   </button>
                 )}
                 <button
                   className="w-7 h-7 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 active:scale-95"
                   onClick={() => setOpen(false)}
                 >
-                  <i className="bi bi-x-lg text-xs"></i>
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -292,7 +312,7 @@ const Chatbot = () => {
               <div className="mt-4 space-y-2">
                 <div className="flex justify-center">
                   <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium inline-flex items-center gap-1">
-                    <i className="bi bi-clipboard-check text-xs"></i>
+                    <ClipboardCheck className="w-3 h-3" />
                     <span>Relacionadas</span>
                   </span>
                 </div>
@@ -303,7 +323,7 @@ const Chatbot = () => {
                       className="flex items-center gap-1.5 p-2 rounded-lg border-2 border-green-500 bg-green-500 text-white hover:bg-green-600 transition-all duration-200 text-[10px] font-medium active:scale-95 shadow-sm"
                       onClick={() => handlePreguntaClick(p)}
                     >
-                      <i className={`${p.icon} text-xs flex-shrink-0`}></i>
+                      <p.Icon className="w-3 h-3 flex-shrink-0" />
                       <span className="text-left flex-1 leading-tight">{p.text}</span>
                     </button>
                   ))}
@@ -316,7 +336,7 @@ const Chatbot = () => {
               <div className="mt-3 space-y-2">
                 <div className="flex justify-center">
                   <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium inline-flex items-center gap-1">
-                    <i className="bi bi-lightbulb-fill text-xs"></i>
+                    <Lightbulb className="w-3 h-3" />
                     <span>¿Cómo ayudarte?</span>
                   </span>
                 </div>
@@ -327,7 +347,7 @@ const Chatbot = () => {
                       className="flex items-center gap-1.5 p-2 rounded-lg border-2 border-green-500 bg-green-500 text-white hover:bg-green-600 transition-all duration-200 text-[10px] font-medium active:scale-95 shadow-sm"
                       onClick={() => handlePreguntaClick(p)}
                     >
-                      <i className={`${p.icon} text-xs flex-shrink-0`}></i>
+                      <p.Icon className="w-3 h-3 flex-shrink-0" />
                       <span className="text-left flex-1 leading-tight">{p.text}</span>
                     </button>
                   ))}
@@ -353,7 +373,7 @@ const Chatbot = () => {
                 className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-[10px] font-medium hover:bg-blue-600 transition-all duration-200 active:scale-95 shadow-sm inline-flex items-center gap-1.5"
                 onClick={resetChat}
               >
-                <i className="bi bi-arrow-clockwise text-xs"></i>
+                <RotateCw className="w-3 h-3" />
                 Nueva conversación
               </button>
             </div>
@@ -371,7 +391,7 @@ const Chatbot = () => {
         >
           <img src={avatar} className="w-full h-full rounded-full" alt="chat" />
           <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold animate-bounce">
-            <i className="bi bi-chat-dots-fill"></i>
+            <MessageCircle className="w-3 h-3" />
           </div>
         </button>
       )}
