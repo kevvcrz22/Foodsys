@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Presentacion from './Img/Casino.jpg';
+import Presentacion from '../../Components/Img/Casino.jpg';
+
 
 const LoginFoodsys = ({ onLogin }) => {
   // Estados para los campos del formulario
@@ -140,33 +141,6 @@ const LoginFoodsys = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f6f7fb] font-['Poppins',Arial,sans-serif] text-[#222222]">
-      {/* Header */}
-      <header className="sticky top-0 z-[1000] bg-[#1861c1] text-white px-[22px] py-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-        <div className="max-w-[1150px] mx-auto flex items-center gap-5">
-          <a href="#" className="flex items-center gap-3 no-underline text-white group">
-            <img 
-              src="/api/placeholder/56/56" 
-              alt="Logo Foodsys" 
-              className="w-14 h-14 transition-all duration-[350ms] ease-in-out group-hover:rotate-[5deg] group-hover:scale-105"
-            />
-            <span className="font-bold text-[26px] uppercase tracking-[0.5px]">
-              Foodsys
-            </span>
-          </a>
-          
-          <nav className="ml-auto hidden md:flex gap-[10px]">
-            <a href="#" className="relative text-white no-underline font-semibold px-[14px] py-[10px] rounded-lg transition-all duration-[350ms] ease-in-out hover:bg-white/15 hover:-translate-y-[2px] bg-white/20 after:content-[''] after:absolute after:bottom-0 after:left-[10%] after:w-[80%] after:h-[2px] after:bg-[#42b72a]">
-              Inicio
-            </a>
-            <a href="#" className="text-white no-underline font-semibold px-[14px] py-[10px] rounded-lg transition-all duration-[350ms] ease-in-out hover:bg-white/15 hover:-translate-y-[2px]">
-              Contacto
-            </a>
-            <a href="#" className="text-white no-underline font-semibold px-[14px] py-[10px] rounded-lg transition-all duration-[350ms] ease-in-out hover:bg-white/15 hover:-translate-y-[2px]">
-              ¿Qué es foodsys?
-            </a>
-          </nav>
-        </div>
-      </header>
 
       {/* Contenido principal */}
       <main className="flex-1 py-5" role="main">
