@@ -1,4 +1,4 @@
-import logoFoodsys from "../../../Components/Img/LogoFoodsys.png";
+import logoFoodsys from "../../Components/Img/LogoFoodsys.png";
 export default function Inicio() {
   return (
     <div className="w-full h-full px-6 py-6 overflow-hidden">

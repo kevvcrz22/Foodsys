@@ -1,25 +1,24 @@
 import { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
-/* PÁGINAS */
+/* LOGIN */
 import Login from "./Paginas/Login/Login.jsx";
 
 /* COMPONENTES */
 import Chatbot from "./Components/Chatbot.jsx";
+import Footer from "./Components/Footer.jsx";
+import NavBar from "./Components/navBar.jsx";
 import Sidebar from "./Components/Sidebar.jsx";
 
-/* LAYOUT */
-import NavBar from "./Paginas/navBar.jsx";
-
 /* SUPERVISOR */
-import Inicio from "./Paginas/Login/Supervisor/Inicio";
-import PerfilSupervisor from "./Paginas/Login/Supervisor/Perfil";
-import Registrar from "./Paginas/Login/Supervisor/Registrar";
-import Reportes from "./Paginas/Login/Supervisor/Reportes";
+import Inicio from "./Paginas/Supervisor/Inicio";
+import PerfilSupervisor from "./Paginas/Supervisor/Perfil";
+import Registrar from "./Paginas/Supervisor/Registrar";
+import Reportes from "./Paginas/Supervisor/Reportes";
 
 /* APRENDIZ EXTERNO */
-import PerfilAprendiz from "./Components/AprendizExterno/Perfil.jsx";
-import ReservasAprendiz from "./Components/AprendizExterno/ReservasAprendiz.jsx";
+import PerfilAprendiz from "./Paginas/AprendizExterno/Perfil.jsx";
+import ReservasAprendiz from "./Paginas/AprendizExterno/ReservasAprendiz.jsx";
 
 /* CRUD */
 import CrudUsuarios from "./Tablas/Usuarios/CrudUsuarios.jsx";
@@ -34,16 +33,14 @@ function App() {
     <>
       {/* Chatbot siempre visible */}
       <Chatbot />
-
+      <NavBar/>
       <Routes>
         {/* ================= LOGIN ================= */}
         <Route path="/" element={<Login onLogin={setUsuarioLogeado} />} />
         <Route path="/login" element={<Navigate to="/" replace />} />
 
         {/* ================= SUPERVISOR ================= */}
-        <Route
-          path="/supervisor/*"
-          element={
+        <Route path="/supervisor/*" element={
             <div className="flex min-h-screen bg-gray-100">
               <Sidebar />
               <div className="flex-1">
@@ -83,7 +80,6 @@ function App() {
           path="/usuarios"
           element={
             <div className="min-h-screen bg-gray-50">
-              <NavBar />
               <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <CrudUsuarios />
               </main>
@@ -94,7 +90,6 @@ function App() {
           path="/fichas"
           element={
             <div className="min-h-screen bg-gray-50">
-              <NavBar />
               <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <CrudFichas />
               </main>
@@ -105,7 +100,6 @@ function App() {
           path="/programas"
           element={
             <div className="min-h-screen bg-gray-50">
-              <NavBar />
               <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <CrudPrograma />
               </main>
@@ -116,7 +110,6 @@ function App() {
           path="/reservas"
           element={
             <div className="min-h-screen bg-gray-50">
-              <NavBar />
               <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <CrudReservas />
               </main>
@@ -127,7 +120,7 @@ function App() {
         {/* Fallback general */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-
+      <Footer/>
       {usuarioLogeado && (
         <h2 style={{ textAlign: "center", marginTop: "50px" }}>
           Bienvenido {usuarioLogeado.Nom_Usuario}
