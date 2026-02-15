@@ -2,51 +2,30 @@ import { useState, useEffect } from "react";
 import apiAxios from "../../api/axiosConfig.js";
 import DataTable from "react-data-table-component";
 import ReservasForm from "./ReservaForm.jsx";
-import { QRCodeCanvas } from "qrcode.react";
 
 const CrudReservas = () => {
-
     const [reservas, setReservas] = useState([]);
     const [filterText, setFilterText] = useState("");
     const [selectedReserva, setSelectedReserva] = useState(null);
     const [Editar, setEditar] = useState(false);
-
-    // 🔥 ESTADOS NUEVOS PARA QR
-    const [showQRModal, setShowQRModal] = useState(false);
-    const [qrGenerado, setQrGenerado] = useState("");
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const columnsTable = [
-        { name: "Id_Reserva", selector: row => row.Id_Reserva },
-        { name: "Fec_Reserva", selector: row => row.Fec_Reserva },
-        { name: "Vencimiento", selector: row => new Date(row.Vencimiento).toLocaleString() },
-        { name: "Est_Reserva", selector: row => row.Est_Reserva },
-        { name: "Tipo", selector: row => row.Tipo },
-
-    
-        {
-            name: "Tex_Qr",
-            cell: row => (
-                <button
-                    className="btn btn-sm btn-info"
-                    onClick={() => mostrarQR(row.Tex_Qr)}
-                >
-                    Ver QR
-                </button>
-            )
-        },
-
-        { name: "Id_Usuario", selector: row => row.Id_Usuario },
-
+        { name: "Id_Reserva", selector: row => row.Id_Reserva, sortable: true },
+        { name: "Fec_Reserva", selector: row => row.Fec_Reserva, sortable: true },
+        { name: "Vencimiento", selector: row => new Date(row.Vencimiento).toLocaleString(), sortable: true },
+        { name: "Est_Reserva", selector: row => row.Est_Reserva, sortable: true },
+        { name: "Tipo", selector: row => row.Tipo, sortable: true },
+        { name: "Tex_Qr", selector: row => row.Tex_Qr },
+        { name: "Id_Usuario", selector: row => row.Id_Usuario, sortable: true },
         {
             name: "Acciones",
             cell: row => (
                 <button
-                    className="btn btn-sm bg-info"
-                    data-bs-toggle="modal"
-                    data-bs-target="#exampleModal1"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors flex items-center gap-2"
                     onClick={() => editReserva(row)}
                 >
-                    <i className="fa-solid fa-pencil"></i>
+                    <i className="bi bi-pencil-square"></i> Editar
                 </button>
             )
         }
@@ -60,6 +39,7 @@ const CrudReservas = () => {
         try {
             const response = await apiAxios.get("/api/Reservas");
             setReservas(response.data);
+            console.log(response.data);
         } catch (error) {
             console.error("Error al cargar reservas:", error);
         }
@@ -68,12 +48,11 @@ const CrudReservas = () => {
     const editReserva = (row) => {
         setSelectedReserva(row);
         setEditar(true);
-        document.getElementById("openModalBtn")?.click();
+        setIsModalOpen(true);
     };
 
     const newListReservas = reservas.filter(reserva => {
         const text = filterText.toLowerCase();
-
         return (
             reserva.Tipo?.toLowerCase().includes(text) ||
             reserva.Fec_Reserva?.toLowerCase().includes(text) ||
@@ -83,50 +62,66 @@ const CrudReservas = () => {
     });
 
     const hideModal = () => {
-        document.getElementById("closeModal").click();
+        setIsModalOpen(false);
         setSelectedReserva(null);
     };
 
     const handleNuevo = () => {
         setSelectedReserva(null);
         setEditar(false);
+        setIsModalOpen(true);
     };
 
-    // 🔥 FUNCIÓN QUE RECIBE EL QR DESDE EL FORM O DESDE LA TABLA
-    const mostrarQR = (qr) => {
-        if (!qr) return;
-
-        setQrGenerado(qr);
-        setShowQRModal(true);
+    const customStyles = {
+        headRow: {
+            style: {
+                color: 'black',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                borderRadius: '8px 8px 0 0',
+            },
+        },
+        rows: {
+            style: {
+                '&:hover': {
+                    backgroundColor: '#f3f4f6',
+                    cursor: 'pointer',
+                },
+                borderBottom: '1px solid #e5e7eb',
+            },
+        },
+        pagination: {
+            style: {
+                borderTop: '1px solid #e5e7eb',
+                fontSize: '14px',
+            },
+        },
     };
 
     return (
         <>
-            <div className="container mt-5">
-
-                <div className="row d-flex justify-content-between mb-3">
-                    <div className="col-4">
+            <div className="container mx-auto px-4 py-6">
+                <div className="flex justify-between items-center mb-6 gap-4">
+                    <div className="w-full md:w-1/3">
                         <input
-                            className="form-control"
+                            type="text"
+                            placeholder="Buscar reserva..."
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             value={filterText}
                             onChange={(e) => setFilterText(e.target.value)}
                         />
                     </div>
 
-                    <div className="col-2">
-                        <button
-                            type="button"
-                            className="btn btn-primary"
-                            data-bs-toggle="modal"
-                            data-bs-target="#exampleModal1"
-                            onClick={handleNuevo}
-                        >
-                            Nuevo
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
+                        onClick={handleNuevo}
+                    >
+                        <i className="bi bi-plus-circle"></i> Nueva Reserva
+                    </button>
                 </div>
 
-                <div style={{ width: "100%", overflowX: "auto" }}>
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
                     <DataTable
                         title="Reservas"
                         columns={columnsTable}
@@ -135,58 +130,69 @@ const CrudReservas = () => {
                         pagination
                         highlightOnHover
                         striped
+                        customStyles={customStyles}
+                        noDataComponent={
+                            <div className="text-gray-500 py-8">
+                                No hay reservas para mostrar
+                            </div>
+                        }
                     />
                 </div>
 
-                {/* MODAL FORMULARIO */}
-                <div className="modal fade" id="exampleModal1" tabIndex="-1" aria-hidden="true">
-                    <div className="modal-dialog">
-                        <div className="modal-content">
-
-                            <div className="modal-header">
-                                <h1 className="modal-title fs-5">
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                        {/* 🔥 Fondo borroso en lugar de negro */}
+                        <div 
+                            className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-all duration-300"
+                            onClick={hideModal}
+                        />
+                        
+                        {/* 🔥 Modal con mejor posicionamiento y scroll interno */}
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative z-10 max-h-[95vh] overflow-hidden flex flex-col animate-fadeIn">
+                            {/* Header fijo */}
+                            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 flex-shrink-0">
+                                <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                                    <i className={`bi ${selectedReserva ? 'bi-pencil-square' : 'bi-plus-circle'}`}></i>
                                     {selectedReserva ? "Editar Reserva" : "Agregar Reserva"}
-                                </h1>
-                                <button type="button" className="btn-close" data-bs-dismiss="modal" id="closeModal"></button>
+                                </h2>
+                                <button
+                                    onClick={hideModal}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    <i className="bi bi-x-lg text-xl"></i>
+                                </button>
                             </div>
 
-                            <div className="modal-body">
+                            {/* Contenido con scroll */}
+                            <div className="px-6 py-4 overflow-y-auto flex-1">
                                 <ReservasForm
                                     hideModal={hideModal}
                                     reserva={selectedReserva}
                                     Edit={Editar}
                                     reload={getAllReservas}
-                                    mostrarQR={mostrarQR}
                                 />
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-
-                {/* 🔥 MODAL QR */}
-                {showQRModal && (
-                    <div className="modal show d-block">
-                        <div className="modal-dialog modal-dialog-centered">
-                            <div className="modal-content p-4 text-center">
-
-                                <h4>QR de la reserva</h4>
-
-                                <QRCodeCanvas value={qrGenerado} size={200} />
-
-                                <button
-                                    className="btn btn-primary mt-3"
-                                    onClick={() => setShowQRModal(false)}
-                                >
-                                    Cerrar
-                                </button>
-
                             </div>
                         </div>
                     </div>
                 )}
-
             </div>
+
+            <style jsx>{`
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                        transform: scale(0.95);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: scale(1);
+                    }
+                }
+
+                .animate-fadeIn {
+                    animation: fadeIn 0.2s ease-out;
+                }
+            `}</style>
         </>
     );
 };
