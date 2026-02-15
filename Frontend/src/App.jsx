@@ -10,6 +10,12 @@ import Footer from "./Components/Footer.jsx";
 import NavBar from "./Components/navBar.jsx";
 import Sidebar from "./Components/Sidebar.jsx";
 
+/* ADMINISTRADOR */
+import InicioAdministrador from "./Paginas/Administrador/InicioAdministrador";
+import PerfilAdministrador from "./Paginas/Administrador/PerfilAdministrador";
+import RegistrarAdministrador from "./Paginas/Administrador/RegistrarAdministrador";
+import ReportesAdministrador from "./Paginas/Administrador/ReportesAdministrador";
+
 /* SUPERVISOR */
 import Inicio from "./Paginas/Supervisor/Inicio";
 import PerfilSupervisor from "./Paginas/Supervisor/Perfil";
@@ -50,6 +56,25 @@ function App() {
                     <Route path="perfil" element={<PerfilSupervisor />} />
                     <Route path="registrar" element={<Registrar />} />
                     <Route path="reportes" element={<Reportes />} />
+                    <Route path="*" element={<Navigate to="/supervisor" replace />} />
+                  </Routes>
+                </main>
+              </div>
+            </div>
+          }
+        />
+
+        {/* ================= ADMINISTRADOR ================= */}
+        <Route path="/Administrador/*" element={
+            <div className="flex min-h-screen bg-gray-100">
+              <Sidebar />
+              <div className="flex-1">
+                <main className="p-6">
+                  <Routes>
+                    <Route index element={<InicioAdministrador />} />
+                    <Route path="perfil" element={<PerfilAdministrador />} />
+                    <Route path="registrar" element={<RegistrarAdministrador />} />
+                    <Route path="reportes" element={<ReportesAdministrador />} />
                     <Route path="*" element={<Navigate to="/supervisor" replace />} />
                   </Routes>
                 </main>

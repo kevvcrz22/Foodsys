@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
 import { Home, User, Edit, BarChart3, LogOut, Menu, X } from "lucide-react";
-import logoFoodSys from "./Img/LogoFoodsys.png";
+import LogoFoodsys from "./Img/LogoFoodsys.png";
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -51,12 +51,12 @@ export default function Sidebar() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <img
-                  src={logoFoodSys}
+                  src={LogoFoodsys}
                   alt="FoodSys"
                   className="w-10 h-10 rounded-lg object-cover"
                 />
                 <h2 className="text-xl text-bold text-gray-700">
-                  FoodSys
+                  Foodsys
                 </h2>
               </div>
               
