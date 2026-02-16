@@ -1,40 +1,66 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Presentacion from '../../Components/Img/Casino.jpg';
 
+import Presentacion from './Img/Casino.jpg';
+import './Login.css'; // Asegúrate de que esta ruta sea correcta
 
 const LoginFoodsys = ({ onLogin }) => {
   // Estados para los campos del formulario
   const [formData, setFormData] = useState({
-    tipoDocumento: '',
-    documento: '',
+    TipDoc_Usuario: '',
+    NumDoc_Usuario: '',
     password: '',
   });
   
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formErrors, setFormErrors] = useState({
-    tipoDocumento: '',
-    documento: '',
+    TipDoc_Usuario: '',
+    NumDoc_Usuario: '',
     password: '',
   });
   const [touched, setTouched] = useState({
-    tipoDocumento: false,
-    documento: false,
+    TipDoc_Usuario: false,
+    NumDoc_Usuario: false,
     password: false,
   });
 
   // Referencia para el formulario
   const loginFormRef = useRef(null);
 
+  // Efecto para agregar efecto hover a las tarjetas
+  useEffect(() => {
+    const cards = document.querySelectorAll('.card');
+    
+    const handleMouseEnter = function() {
+      this.style.transform = 'translateY(-5px)';
+    };
+    
+    const handleMouseLeave = function() {
+      this.style.transform = 'translateY(0)';
+    };
+    
+    cards.forEach(card => {
+      card.addEventListener('mouseenter', handleMouseEnter);
+      card.addEventListener('mouseleave', handleMouseLeave);
+    });
+    
+    return () => {
+      cards.forEach(card => {
+        card.removeEventListener('mouseenter', handleMouseEnter);
+        card.removeEventListener('mouseleave', handleMouseLeave);
+      });
+    };
+  }, []);
+
   // Validación de campos
   const validateField = (name, value) => {
     let error = '';
     
     switch (name) {
-      case 'tipoDocumento':
+      case 'TipDoc_Usuario':
         if (!value) error = 'Debe seleccionar un tipo de documento';
         break;
-      case 'documento':
+      case 'NumDoc_Usuario':
         if (!value) {
           error = 'El documento es requerido';
         } else if (!/^\d+$/.test(value)) {
@@ -44,8 +70,8 @@ const LoginFoodsys = ({ onLogin }) => {
       case 'password':
         if (!value) {
           error = 'La contraseña es requerida';
-        } else if (value.length < 6) {
-          error = 'La contraseña debe tener al menos 6 caracteres';
+        } else if (value.length < 8) {
+          error = 'La contraseña debe tener al menos 8 caracteres';
         }
         break;
       default:
@@ -64,6 +90,7 @@ const LoginFoodsys = ({ onLogin }) => {
       [name]: value
     }));
     
+    // Si el campo ha sido tocado, validarlo inmediatamente
     if (touched[name]) {
       const error = validateField(name, value);
       setFormErrors(prev => ({
@@ -97,113 +124,118 @@ const LoginFoodsys = ({ onLogin }) => {
   // Validar todo el formulario
   const validateForm = () => {
     const errors = {
-      tipoDocumento: validateField('tipoDocumento', formData.tipoDocumento),
-      documento: validateField('documento', formData.documento),
+      TipDoc_Usuario: validateField('TipDoc_Usuario', formData.TipDoc_Usuario),
+      NumDoc_Usuario: validateField('NumDoc_Usuario', formData.NumDoc_Usuario),
       password: validateField('password', formData.password),
     };
     
     setFormErrors(errors);
     setTouched({
-      tipoDocumento: true,
-      documento: true,
+      TipDoc_Usuario: true,
+      NumDoc_Usuario: true,
       password: true,
     });
     
-    return !errors.tipoDocumento && !errors.documento && !errors.password;
+    // Retorna true si no hay errores
+    return !errors.TipDoc_Usuario && !errors.NumDoc_Usuario && !errors.password;
   };
 
-  // Manejar envío del formulario
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      if (loginFormRef.current) {
-        loginFormRef.current.classList.add('animate-shake');
-        setTimeout(() => {
-          if (loginFormRef.current) {
-            loginFormRef.current.classList.remove('animate-shake');
-          }
-        }, 600);
-      }
-      return;
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!validateForm()) {
+    if (loginFormRef.current) {
+      loginFormRef.current.classList.add('invalid');
+      setTimeout(() => {
+        if (loginFormRef.current) {
+          loginFormRef.current.classList.remove('invalid');
+        }
+      }, 600);
     }
-    
+    return;
+  }
+
+  try {
     setIsLoading(true);
-    
-    setTimeout(() => {
-      setIsLoading(false);
-      onLogin({
-        Nom_Usuario: "Admin",
-        Tip_Usuario: "Administrador"
-      });
-    }, 1000);
-  };
+
+    const response = await fetch("http://localhost:8000/api/Usuarios/login", {
+
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(formData)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Error al iniciar sesión");
+    }
+
+    // Guardar token en localStorage
+    localStorage.setItem("token", data.usuarios.token);
+    localStorage.setItem("usuario", JSON.stringify(data.usuarios));
+
+    // Enviar datos al componente padre
+    onLogin(data.usuarios);
+
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f6f7fb] font-['Poppins',Arial,sans-serif] text-[#222222]">
+    <div className="foodsys-app">
+      {/* Header */}
+      
 
       {/* Contenido principal */}
-      <main className="flex-1 py-5" role="main">
-        <div className="max-w-[1150px] mx-auto px-5 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-[30px] items-start">
+      <main role="main">
+        <div className="wrap">
           {/* Sección Hero */}
-          <section 
-            className="relative overflow-hidden bg-gradient-to-br from-[#eef1f4] to-[#dce2e7] rounded-2xl p-[30px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] animate-[fadeIn_0.6s_ease] h-fit before:content-[''] before:absolute before:top-0 before:right-0 before:w-[100px] before:h-[100px] before:bg-[#1861c1] before:opacity-5 before:rounded-full before:translate-x-[30px] before:-translate-y-[30px] after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-[150px] after:h-[150px] after:bg-[#42b72a] after:opacity-5 after:rounded-full after:-translate-x-[50px] after:translate-y-[50px]"
-            aria-labelledby="bienvenido"
-          >
-            <h1 id="bienvenido" className="relative z-[1] text-[#1861c1] text-[32px] md:text-[28px] mb-3 font-bold">
-              Sistema de Gestión Alimentaria
-            </h1>
-            <p className="relative z-[1] text-[#334] text-[15px] mb-[10px]">
-              Foodsys es el sistema oficial del Centro Agropecuario La Granja (SENA Regional Tolima) para gestionar la alimentación de los aprendices.
-            </p>
-            <p className="relative z-[1] text-[#334] text-[15px] mb-[10px]">
-              Permite reservar desayuno, almuerzo o cena con un día de anticipación, ayudando a planificar las raciones y reduciendo el desperdicio de comida.
-            </p>
+          <section className="hero" aria-labelledby="bienvenido">
+            <h1 id="bienvenido">Sistema de Gestión Alimentaria</h1>
+            <p>Foodsys es el sistema oficial del Centro Agropecuario La Granja (SENA Regional Tolima) para gestionar la alimentación de los aprendices.</p>
+            <p>Permite reservar desayuno, almuerzo o cena con un día de anticipación, ayudando a planificar las raciones y reduciendo el desperdicio de comida.</p>
             
-            <p className="relative z-[1] my-[15px] font-semibold text-[#1861c1] text-base">
-              Optimizamos el control de alimentación y reducimos el desperdicio de comida.
-            </p>
+            <p className="highlight">Optimizamos el control de alimentación y reducimos el desperdicio de comida.</p>
 
-            <div className="relative z-[1] grid grid-cols-1 md:grid-cols-2 gap-3 my-5">
-              <div className="flex items-center gap-2 bg-white/70 px-3 py-[10px] rounded-lg text-sm shadow-[0_2px_8px_rgba(0,0,0,0.05)]">
-                <i className="fas fa-check-circle text-[#42b72a] text-base"></i>
+            <div className="features">
+              <div className="feature">
+                <i className="fas fa-check-circle"></i>
                 <span>Reserva anticipada de alimentos</span>
               </div>
-              <div className="flex items-center gap-2 bg-white/70 px-3 py-[10px] rounded-lg text-sm shadow-[0_2px_8px_rgba(0,0,0,0.05)]">
-                <i className="fas fa-check-circle text-[#42b72a] text-base"></i>
+              <div className="feature">
+                <i className="fas fa-check-circle"></i>
                 <span>Control de asistencia al comedor</span>
               </div>
-              <div className="flex items-center gap-2 bg-white/70 px-3 py-[10px] rounded-lg text-sm shadow-[0_2px_8px_rgba(0,0,0,0.05)]">
-                <i className="fas fa-check-circle text-[#42b72a] text-base"></i>
+              <div className="feature">
+                <i className="fas fa-check-circle"></i>
                 <span>Gestión eficiente de raciones</span>
               </div>
-              <div className="flex items-center gap-2 bg-white/70 px-3 py-[10px] rounded-lg text-sm shadow-[0_2px_8px_rgba(0,0,0,0.05)]">
-                <i className="fas fa-check-circle text-[#42b72a] text-base"></i>
+              <div className="feature">
+                <i className="fas fa-check-circle"></i>
                 <span>Reducción de desperdicios</span>
               </div>
             </div>
 
-            <div className="relative z-[1] mt-5 flex justify-center">
+            <div className="img-container">
               <img 
                 id="destacada" 
                 src={Presentacion}
                 alt="Sistema de alimentación Foodsys" 
-                className="w-full max-w-[350px] md:max-w-[280px] h-auto rounded-[14px] shadow-[0_5px_18px_rgba(0,0,0,0.15)] transition-all duration-[350ms] ease-in-out hover:scale-105 hover:shadow-[0_8px_25px_rgba(0,0,0,0.2)]"
               />
             </div>
           </section>
 
           {/* Formulario de Login */}
-          <aside 
-            className="bg-white rounded-2xl p-7 border-t-[6px] border-t-[#42b72a] shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-[350ms] ease-in-out hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] animate-[slideUp_0.6s_ease] h-fit"
-            aria-labelledby="login"
-          >
-            <h2 id="login" className="text-center text-[#42b72a] text-[26px] mb-[6px]">
-              Iniciar sesión
-            </h2>
-            <p className="text-center mb-5 text-[#666] text-sm">
-              Acceso exclusivo para el SENA
-            </p>
+          <aside className="card" aria-labelledby="login">
+            <h2 id="login">Iniciar sesión</h2>
+            <p className="sub">Acceso exclusivo para el SENA</p>
 
             <form 
               id="loginForm" 
@@ -211,132 +243,93 @@ const LoginFoodsys = ({ onLogin }) => {
               onSubmit={handleSubmit}
               noValidate
             >
-              <div className="mb-4 relative">
-                <label htmlFor="tipo" className="block text-sm mb-[6px] font-semibold">
-                  Tipo de documento
-                </label>
+              <div className="field">
+                <label htmlFor="tipo">Tipo de documento</label>
                 <select 
                   id="tipo"
-                  name="tipoDocumento"
-                  value={formData.tipoDocumento}
+                  name="TipDoc_Usuario"
+                  value={formData.TipDoc_Usuario}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  className={`w-full px-[14px] py-3 rounded-lg border text-[15px] bg-[#fbfbfb] transition-all duration-[350ms] ease-in-out focus:border-[#1861c1] focus:shadow-[0_4px_16px_rgba(24,97,193,0.08)] focus:bg-white focus:outline-none ${
-                    touched.tipoDocumento && formErrors.tipoDocumento 
-                      ? 'border-[#e74c3c]' 
-                      : touched.tipoDocumento 
-                      ? 'border-[#42b72a]' 
-                      : 'border-black/10'
-                  }`}
+                  className={touched.TipDoc_Usuario && formErrors.TipDoc_Usuario ? 'invalid' : touched.TipDoc_Usuario ? 'valid' : ''}
                   required
                 >
                   <option value="">Seleccione su documento</option>
-                  <option value="cc">Cédula de ciudadanía</option>
-                  <option value="ti">Tarjeta identidad</option>
-                  <option value="ce">Cédula de extranjería</option>
-                  <option value="passport">Pasaporte</option>
+                  <option value="CC">Cedula de Ciudadania</option>
+                  <option value="CE">Cedula de Extranjeria</option>
+                  <option value="PEP">Permiso Especial de Permanencia</option>
+                  <option value="TI">Tarjeta de Identidad</option>
+                  <option value="PPT">Permiso por Proteccion Temporal</option>
                 </select>
-                {touched.tipoDocumento && formErrors.tipoDocumento && (
-                  <div className="text-[#e74c3c] text-xs mt-[5px]">
-                    {formErrors.tipoDocumento}
-                  </div>
+                {touched.TipDoc_Usuario && formErrors.TipDoc_Usuario && (
+                  <div className="error-message">{formErrors.TipDoc_Usuario}</div>
                 )}
               </div>
 
-              <div className="mb-4 relative">
-                <label htmlFor="documento" className="block text-sm mb-[6px] font-semibold">
-                  Número de documento
-                </label>
+              <div className="field">
+                <label htmlFor="NumDoc_Usuario">Número de documento</label>
                 <input 
                   id="documento"
-                  name="documento"
+                  name="NumDoc_Usuario"
                   type="text" 
                   placeholder="Ej: 123456789" 
-                  value={formData.documento}
+                  value={formData.NumDoc_Usuario}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  className={`w-full px-[14px] py-3 rounded-lg border text-[15px] bg-[#fbfbfb] transition-all duration-[350ms] ease-in-out focus:border-[#1861c1] focus:shadow-[0_4px_16px_rgba(24,97,193,0.08)] focus:bg-white focus:outline-none ${
-                    touched.documento && formErrors.documento 
-                      ? 'border-[#e74c3c]' 
-                      : touched.documento && !formErrors.documento 
-                      ? 'border-[#42b72a]' 
-                      : 'border-black/10'
-                  }`}
+                  className={touched.NumDoc_Usuario && formErrors.NumDoc_Usuario ? 'invalid' : touched.NumDoc_Usuario && !formErrors.NumDoc_Usuario ? 'valid' : ''}
                   required 
                   inputMode="numeric"
                 />
-                {touched.documento && formErrors.documento && (
-                  <div className="text-[#e74c3c] text-xs mt-[5px]">
-                    {formErrors.documento}
-                  </div>
+                {touched.NumDoc_Usuario && formErrors.NumDoc_Usuario && (
+                  <div className="error-message">{formErrors.NumDoc_Usuario}</div>
                 )}
               </div>
 
-              <div className="mb-4 relative">
-                <label htmlFor="pass" className="block text-sm mb-[6px] font-semibold">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <input 
-                    id="pass"
-                    name="password"
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="Tu contraseña" 
-                    value={formData.password}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className={`w-full px-[14px] py-3 rounded-lg border text-[15px] bg-[#fbfbfb] transition-all duration-[350ms] ease-in-out focus:border-[#1861c1] focus:shadow-[0_4px_16px_rgba(24,97,193,0.08)] focus:bg-white focus:outline-none ${
-                      touched.password && formErrors.password 
-                        ? 'border-[#e74c3c]' 
-                        : touched.password && !formErrors.password 
-                        ? 'border-[#42b72a]' 
-                        : 'border-black/10'
-                    }`}
-                    required 
-                    minLength="6"
-                  />
-                  <button 
-                    type="button" 
-                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-[#1861c1] font-semibold transition-all duration-[350ms] ease-in-out hover:text-[#42b72a]"
-                    onClick={togglePasswordVisibility}
-                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                  >
-                    <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
-                  </button>
-                </div>
-                {touched.password && formErrors.password && (
-                  <div className="text-[#e74c3c] text-xs mt-[5px]">
-                    {formErrors.password}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col md:flex-row gap-[10px] mt-[10px]">
+              <div className="field input-row">
+                <label htmlFor="pass">Contraseña</label>
+                <input 
+                  id="pass"
+                  name="password"
+                  type={showPassword ? "text" : "password"} 
+                  placeholder="Tu contraseña" 
+                  value={formData.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={touched.password && formErrors.password ? 'invalid' : touched.password && !formErrors.password ? 'valid' : ''}
+                  required 
+                  minLength="6"
+                />
                 <button 
-                  className="flex-1 flex items-center justify-center gap-2 px-[18px] py-3 rounded-[10px] cursor-pointer border-none font-bold text-[15px] bg-[#42b72a] text-white transition-all duration-[350ms] ease-in-out hover:brightness-110 hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)] disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none"
+                  type="button" 
+                  className="show-pass" 
+                  onClick={togglePasswordVisibility}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
+                </button>
+                {touched.password && formErrors.password && (
+                  <div className="error-message">{formErrors.password}</div>
+                )}
+              </div>
+
+              <div className="actions">
+                <button 
+                  className="btn btn-primary" 
                   type="submit"
                   disabled={isLoading}
                 >
-                  <span>
+                  <span className="btn-text">
                     {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
                   </span>
-                  {isLoading && (
-                    <div className="inline-block w-5 h-5 border-[3px] border-white/30 border-t-white rounded-full animate-spin"></div>
-                  )}
+                  {isLoading && <div className="spinner"></div>}
                 </button>
-                <button 
-                  type="button" 
-                  className="flex items-center justify-center gap-2 px-[18px] py-3 rounded-[10px] cursor-pointer border-none font-bold text-[15px] bg-[#1861c1] text-white transition-all duration-[350ms] ease-in-out hover:brightness-110 hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
-                >
+                <button type="button" className="btn btn-secondary">
                   <i className="fas fa-question-circle"></i> Ayuda
                 </button>
               </div>
 
-              <div className="mt-4 flex justify-center text-sm">
-                <a 
-                  href="#" 
-                  className="text-[#1861c1] no-underline transition-all duration-[350ms] ease-in-out hover:underline hover:text-[#42b72a]"
-                >
+              <div className="extras">
+                <a href="#">
                   <i className="fas fa-key"></i> Olvidé mi contraseña
                 </a>
               </div>
@@ -344,6 +337,47 @@ const LoginFoodsys = ({ onLogin }) => {
           </aside>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer>
+        <div className="footer-content">
+          <div className="footer-column">
+            <h3>Foodsys</h3>
+            <p>Sistema de gestión alimentaria del Centro Agropecuario La Granja - SENA Regional Tolima.</p>
+            <div className="social-links">
+              <a href="#" aria-label="Facebook"><i className="fab fa-facebook-f"></i></a>
+              <a href="#" aria-label="Instagram"><i className="fab fa-instagram"></i></a>
+              <a href="#" aria-label="Twitter"><i className="fab fa-twitter"></i></a>
+            </div>
+          </div>
+          
+          <div className="footer-column">
+            <h3>Enlaces rápidos</h3>
+            <a href="Index.html">Inicio</a>
+            <a href="#">Contacto</a>
+            <a href="#">¿Qué es foodsys?</a>
+          </div>
+          
+          <div className="footer-column">
+            <h3>Recursos</h3>
+            <a href="#">Preguntas frecuentes</a>
+            <a href="#">Política de privacidad</a>
+            <a href="#">Términos de uso</a>
+            <a href="#">Soporte técnico</a>
+          </div>
+          
+          <div className="footer-column">
+            <h3>Contacto</h3>
+            <p><i className="fas fa-map-marker-alt"></i> Centro Agropecuario La Granja, Tolima</p>
+            <p><i className="fas fa-phone"></i> +57 (322) 947-3491</p>
+            <p><i className="fas fa-envelope"></i> foodsys.edu.co</p>
+          </div>
+        </div>
+        
+        <div className="footer-bottom">
+          <p>&copy; 2025 Foodsys - Sistema de Gestión Alimentaria. Todos los derechos reservados.</p>
+        </div>
+      </footer>
     </div>
   );
 };

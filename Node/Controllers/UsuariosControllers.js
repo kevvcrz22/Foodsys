@@ -1,5 +1,26 @@
 import UsuariosService from "../Services/UsuariosService.js";
 
+
+
+export const RegisterUsuarios = async (req, res) =>{
+  try {
+    const usuarios = await UsuariosService.register(req.body)
+    res.status(201).json({ message: "Usuario registrado con exito"})
+  } catch (error) {
+    res.status(400).json({message: error.message})
+  }
+  
+}
+
+export const Login = async (req, res) => {
+  try {
+    const {usuarios}= await UsuariosService.Login(req.body)
+    res.status(200).json({message: "Usuario logueado exitosamente", usuarios})
+  } catch (error){
+    res.status(400).json({message:error.message})
+  }
+}
+
 export const getAllUsuarios = async (req, res) => {
   try {
     const Usuarios = await UsuariosService.getAll();
@@ -18,14 +39,7 @@ export const getUsuarios = async (req, res) => {
   }
 };
 
-export const createUsuarios = async (req, res) => {
-  try {
-    const Usuarios = await UsuariosService.create(req.body);
-    res.status(201).json({ message: "Usuario Creado", Usuarios });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
+
 
 export const updateUsuarios = async (req, res) => {
   try {
@@ -44,4 +58,6 @@ export const deleteUsuarios = async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
+
+
 };
