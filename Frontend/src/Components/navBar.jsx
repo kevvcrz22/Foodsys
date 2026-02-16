@@ -5,7 +5,7 @@ const NavBar = () => {
     return (
         <>
             <header 
-                className="sticky top-0 z-[1000] bg-[#1861c1] text-white px-[22px] py-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.08)]" 
+                className="sticky top-0 z-[1000] bg-[#1861c1] text-white px-[22px] py-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.08)] hidden lg:flex w-full" 
                 role="banner"
             >
                 <div className="max-w-[1150px] mx-auto flex items-center gap-5">

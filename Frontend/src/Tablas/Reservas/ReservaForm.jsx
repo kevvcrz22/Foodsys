@@ -137,7 +137,7 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
         if (!Id_Usuario || !Vencimiento) return null;
 
         const usuario = await getUsuarioById(Id_Usuario);
-        return `${Id_Reserva} // ${usuario.Nom_Usuario} //  ${Tipo}`;
+        return `${Id_Reserva} // ${usuario.Nom_Usuario} //  ${Tipo} // `;
     };
 
     //Enviar formulario
@@ -277,12 +277,7 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                     />
                 </div>
 
-                {/* 🔥 Vista previa del QR en vivo */}
-                {Fec_Reserva && Id_Usuario && (
-                    <div className="flex justify-center py-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <QRCodeCanvas value={JSON.stringify(qrData)} size={200} />
-                    </div>
-                )}
+           
 
                 <div className="flex gap-3 pt-4 border-t border-gray-200">
                     <button
