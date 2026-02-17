@@ -1,7 +1,8 @@
 import logoFoodsys from "../../Components/Img/LogoFoodsys.png";
 export default function Inicio() {
   return (
-    <div className="w-full h-full px-6 py-6 overflow-hidden">
+    <div className="min-h-screen lg:pl-64">
+      <div className="w-full h-full px-6 py-6">
 
       {/* BIENVENIDA */}
       <div className="flex flex-col items-center text-center mb-8">
@@ -109,6 +110,7 @@ export default function Inicio() {
             </div>
           ))}
         </div>
+      </div>
       </div>
 
     </div>

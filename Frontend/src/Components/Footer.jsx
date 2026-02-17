@@ -142,7 +142,7 @@ const Footer = () => {
       <div className="border-t border-blue-600">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <p className="text-blue-200 text-sm text-center">
-            © 2025 Foodsys - Sistema de Gestión Alimentaria. Todos los derechos reservados.
+            © 2026 Foodsys - Sistema de Gestión Alimentaria. Todos los derechos reservados.
           </p>
         </div>
       </div>

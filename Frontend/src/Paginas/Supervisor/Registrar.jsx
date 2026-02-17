@@ -117,8 +117,9 @@ export default function Registrar() {
   };
 
   return (
-    <div className="-mr-4 -ml-4">
-      <style>{`
+    <div className="min-h-screen lg:pl-64">
+      <div className="w-full px-4 py-6">
+        <style>{`
               @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
               *{font-family:'Inter',system-ui,-apple-system,sans-serif}
               @keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
@@ -337,7 +338,7 @@ export default function Registrar() {
       
         {/* Success notification */}
         {ultimoRegistro && (
-          <div className="mt-4 animate-slide-down">
+          <div className="mt-4 px-4 animate-slide-down">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
@@ -351,6 +352,7 @@ export default function Registrar() {
             </div>
           </div>
         )}
+    </div>
     </div>
   );
 }
