@@ -1,5 +1,7 @@
 import db from "../Database/db.js";
 import { DataTypes } from "sequelize";
+import FichasModel from "./FichasModel.js";
+import RolesModel from "./RolesModel.js";
 
 const UsuariosModel = db.define('usuarios', {
   Id_Usuario: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -11,19 +13,18 @@ const UsuariosModel = db.define('usuarios', {
   Cor_Usuario: { type: DataTypes.STRING, allowNull: true },
   Tel_Usuario: { type: DataTypes.STRING, allowNull: true },
   CenCon_Usuario: { type: DataTypes.STRING, allowNull: true },
-  Tip_Usuario: { type: DataTypes.STRING, allowNull: true },
   Est_Usuario: { type: DataTypes.STRING, allowNull: true},
   Con_Usuario: { type: DataTypes.STRING, allowNull: true },
   Id_Ficha: {type: DataTypes.INTEGER,references: { model: "fichas", key: "Id_Ficha" }},
-  Sancion: {type: DataTypes.STRING, allowNull: true},
+  Id_Rol: {type: DataTypes.INTEGER, references: {model: 'roles', key: 'Id_Rol' }},
+  San_Usuario: {type: DataTypes.STRING, allowNull: true},
   CreateData: { type: DataTypes.DATE, allowNull: true },
-  UpdateData: { type: DataTypes.DATE, allowNull: true }
+  UpdateData: { type: DataTypes.DATE, allowNull: true },
 },
 {
   freezeTableName: true,
   timestamps: false
 });
-import FichasModel from "./FichasModel.js";
 
 
 UsuariosModel.belongsTo(FichasModel, {
@@ -31,4 +32,9 @@ UsuariosModel.belongsTo(FichasModel, {
   as: "Ficha"
 });
 
-export default UsuariosModel
+UsuariosModel.belongsTo(RolesModel, {
+  foreignKey: "Id_Rol",
+  as: "roles"
+});
+
+export default UsuariosModel;
