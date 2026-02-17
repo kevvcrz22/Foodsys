@@ -121,10 +121,15 @@ const gestionarForm = async (e) => {
 
   return (
     <>
-      <form onSubmit={gestionarForm} className="col-12 col-md-12">
-        <div className="mb-3">
-          <label className="form-label">Tipo De Documento:</label>
-          <select id="TipDoc_Usuario" className="form-control" value={TipDoc_Usuario} onChange={(e) => setTipDoc_Usuario(e.target.value)}>
+      <form onSubmit={gestionarForm} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Tipo De Documento:</label>
+          <select 
+          
+          id="TipDoc_Usuario" 
+          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          value={TipDoc_Usuario} 
+          onChange={(e) => setTipDoc_Usuario(e.target.value)}>
             <option value="">Seleccionar...</option>
             <option value="CC">Cedula de Ciudadania</option>
             <option value="CE">Cedula de Extranjeria</option>
@@ -134,24 +139,24 @@ const gestionarForm = async (e) => {
           </select>
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Numero de Documento:</label>
-          <input type="text" id="NumDoc_Usuario" className="form-control" value={NumDoc_Usuario} onChange={(e) => setNumDoc_Usuario(e.target.value)}/>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Numero de Documento:</label>
+          <input type="text" id="NumDoc_Usuario" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={NumDoc_Usuario} onChange={(e) => setNumDoc_Usuario(e.target.value)}/>
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Nombres:</label>
-          <input type="text" id="Nom_Usuario" className="form-control" value={Nom_Usuario} onChange={(e) => setNom_Usuario(e.target.value)}/>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Nombres:</label>
+          <input type="text" id="Nom_Usuario" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Nom_Usuario} onChange={(e) => setNom_Usuario(e.target.value)}/>
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Apellidos:</label>
-          <input type="text" id="Ape_Usuario" className="form-control"value={Ape_Usuario} onChange={(e) => setApe_Usuario(e.target.value)}/>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Apellidos:</label>
+          <input type="text" id="Ape_Usuario" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"value={Ape_Usuario} onChange={(e) => setApe_Usuario(e.target.value)}/>
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Genero:</label>
-          <select id="Gen_Usuario" className="form-control" value={Gen_Usuario} onChange={(e) => setGen_Usuario(e.target.value)}>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Genero:</label>
+          <select id="Gen_Usuario" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Gen_Usuario} onChange={(e) => setGen_Usuario(e.target.value)}>
             <option value="">Seleccionar...</option>
             <option value="F">Femenino</option>
             <option value="M">Masculino</option>
@@ -159,28 +164,28 @@ const gestionarForm = async (e) => {
           </select>
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Correo Electronico:</label>
-          <input type="text" id="Cor_Usuario" className="form-control" value={Cor_Usuario} onChange={(e) => setCor_Usuario(e.target.value)}/>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Correo Electronico:</label>
+          <input type="text" id="Cor_Usuario" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Cor_Usuario} onChange={(e) => setCor_Usuario(e.target.value)}/>
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Teléfono:</label>
-          <input type="text" id="Tel_Usuario" className="form-control" value={Tel_Usuario} onChange={(e) => setTel_Usuario(e.target.value)}/>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono:</label>
+          <input type="text" id="Tel_Usuario" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Tel_Usuario} onChange={(e) => setTel_Usuario(e.target.value)}/>
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Centro de Convivencia:</label>
-          <select id="CenCon_Usuario" className="form-control" value={CenCon_Usuario} onChange={(e) => setCenCon_Usuario(e.target.value)}>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Centro de Convivencia:</label>
+          <select id="CenCon_Usuario" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={CenCon_Usuario} onChange={(e) => setCenCon_Usuario(e.target.value)}>
             <option value="">Seleccionar...</option>
             <option value="Si">Sí</option>
             <option value="No">No</option>
           </select>
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Tipo de Usuario:</label>
-          <select id="Tip_Usuario" className="form-control" value={Tip_Usuario} onChange={(e) => setTip_Usuario(e.target.value)}>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Usuario:</label>
+          <select id="Tip_Usuario" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Tip_Usuario} onChange={(e) => setTip_Usuario(e.target.value)}>
             <option value="">Seleccionar...</option>
             <option value="Aprendiz">Aprendiz</option>
             <option value="Supervisor">Supervisor</option>
@@ -191,9 +196,9 @@ const gestionarForm = async (e) => {
           </select>
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Estado de Usuario:</label>
-          <select id="Est_Usuario" className="form-control" value={Est_Usuario} onChange={(e) => setEst_Usuario(e.target.value)}>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Estado de Usuario:</label>
+          <select id="Est_Usuario" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Est_Usuario} onChange={(e) => setEst_Usuario(e.target.value)}>
             <option value="">Seleccionar...</option>
             <option value="Aplazado">Aplazado</option>
             <option value="Apoyo de Sostenimiento">Apoyo de Sostenimiento</option>
@@ -209,23 +214,23 @@ const gestionarForm = async (e) => {
             <option value="Turno Sena Empresa">Turno Sena Empresa</option>
           </select>
         </div>
-          <div className="mb-3">
-          <label className="form-label">Sancion</label>
-          <select id="Sancion" className="form-control" value={Sancion} onChange={(e) => setSancion_Usuario(e.target.value)}>
+          <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Sancion</label>
+          <select id="Sancion" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Sancion} onChange={(e) => setSancion_Usuario(e.target.value)}>
             <option value="">Seleccionar...</option>
             <option value="Si">Si</option>
             <option value="No">No</option>
             </select>
             </div>
 
-        <div className="mb-3">
-          <label className="form-label">Contraseña:</label>
-          <input type="text" id="password"className="form-control" value={password} onChange={(e) => setpassword(e.target.value)}/>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña:</label>
+          <input type="text" id="password"className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={password} onChange={(e) => setpassword(e.target.value)}/>
         </div>
 
-        <div className="mb-3">
-        <label htmlFor="Id_Ficha" className="form-label">Ficha:</label>
-        <select id="Id_Ficha" className="form-control" value={Id_Ficha} onChange={(e) => setId_Ficha(e.target.value)}>
+        <div>
+        <label htmlFor="Id_Ficha" className="block text-sm font-medium text-gray-700 mb-2">Ficha:</label>
+        <select id="Id_Ficha" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Id_Ficha} onChange={(e) => setId_Ficha(e.target.value)}>
           <option value="">Seleccionar...</option>
           {Fichas.map((Fichas) => (
             <option key={Fichas.Id_Ficha} value={Fichas.Id_Ficha}>
@@ -241,9 +246,21 @@ const gestionarForm = async (e) => {
         
            </select>
         </div>
-        <div className="mb-3 text-center">
-          <input type="submit" className="btn btn-primary w-50" value={textFormButton} />
-        </div>
+        <div className="flex gap-3 pt-4 border-t border-gray-200">
+                    <button
+                        type="button"
+                        onClick={hideModal}
+                        className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit" 
+                        className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors"
+                    >
+                        {textFormButton}
+                    </button>
+                </div>
       </form>
     </>
   );
