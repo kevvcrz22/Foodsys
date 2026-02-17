@@ -106,12 +106,13 @@ const CrudUsuarios = () => {
           </div>
 
           <button
-          type="button"
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
-          onClick={handleNuevo}
+            type="button"
+            className="bg-blue-500 hover:bg-blue-600 text-white 
+            px-6 py-2 rounded-lg font-medium transition-colors 
+            whitespace-nowrap flex items-center gap-2"
+            onClick={handleNuevo}
           >
-          <i className="bi bi-plus-circle"></i>
-             Nuevo Usuario
+            + Nuevo Usuario
           </button>
 
         </div>
@@ -138,7 +139,6 @@ const CrudUsuarios = () => {
               className="fixed inset-0 bg-black/30 backdrop-blur-sm"
               onClick={hideModal}
             />
-nuevo usuario
             {/* Modal */}
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl 
             relative z-10 max-h-[95vh] overflow-hidden flex flex-col">

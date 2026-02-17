@@ -1,56 +1,64 @@
 import { Link } from 'react-router-dom';
+import { LogOut } from "lucide-react";
 import logo from './Img/LogoFoodsys.png';
 
 const NavBar = () => {
     return (
-        <>
-            <header 
-                className="sticky top-0 z-[1000] bg-[#1861c1] text-white px-[22px] py-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.08)] hidden lg:flex w-full" 
-                role="banner"
-            >
-                <div className="max-w-[1150px] mx-auto flex items-center gap-5">
-                    <a 
-                        className="flex items-center gap-3 no-underline text-white group" 
-                        href="#" 
-                        aria-label="Foodsys - inicio"
-                    >
-                        <img 
-                            src={logo} 
-                            alt="Logo Foodsys" 
-                            className="w-14 h-14 transition-all duration-[350ms] ease-in-out group-hover:rotate-[5deg] group-hover:scale-105" 
-                        />
-                        <span className="font-bold text-[26px] text-white uppercase tracking-[0.5px]">
-                            Foodsys
-                        </span>
-                    </a>
-                    <nav 
-                        className="ml-auto flex gap-[10px]" 
-                        role="navigation" 
-                        aria-label="Enlaces principales"
-                    >
-                        <Link 
-                            to="/" 
-                            className="relative text-white no-underline font-semibold px-[14px] py-[10px] rounded-lg transition-all duration-[350ms] ease-in-out overflow-hidden hover:bg-white/15 hover:-translate-y-[2px] bg-white/20 after:content-[''] after:absolute after:bottom-0 after:left-[10%] after:w-[80%] after:h-[2px] after:bg-[#42b72a]"
-                        >
-                            Inicio
-                        </Link>
-                        <Link 
-                            to="/contacto" 
-                            className="relative text-white no-underline font-semibold px-[14px] py-[10px] rounded-lg transition-all duration-[350ms] ease-in-out overflow-hidden hover:bg-white/15 hover:-translate-y-[2px]"
-                        >
-                            Contacto
-                        </Link>
-                        <Link 
-                            to="/about" 
-                            className="relative text-white no-underline font-semibold px-[14px] py-[10px] rounded-lg transition-all duration-[350ms] ease-in-out overflow-hidden hover:bg-white/15 hover:-translate-y-[2px]"
-                        >
-                            ¿Qué es Foodsys?
-                        </Link>
-                    </nav>
-                </div>
-            </header>
-        </>
-    )
-}
+        <header 
+            className="sticky top-0 z-50 bg-[#0f3f80] text-white px-4 py-3 shadow-md"
+            role="banner"
+        >
+            <div className="w-full flex items-center justify-center md:justify-between">
+                
+                {/* Logo */}
+                <Link 
+                    to="/" 
+                    className="flex items-center gap-3"
+                >
+                    <img 
+                        src={logo} 
+                        alt="Logo Foodsys"
+                        className="w-12 h-12"
+                    />
+                    <span className="font-bold text-2xl uppercase tracking-wide">
+                        Foodsys
+                    </span>
+                </Link>
 
-export default NavBar
+                {/* Desktop Nav */}
+                <nav className="hidden md:flex items-center gap-3">
+                    
+                    <Link 
+                        to="/" 
+                        className="px-4 py-2 rounded-lg font-semibold hover:bg-white/15 transition"
+                    >
+                        Inicio
+                    </Link>
+
+                    <Link 
+                        to="/contacto" 
+                        className="px-4 py-2 rounded-lg font-semibold hover:bg-white/15 transition"
+                    >
+                        Contacto
+                    </Link>
+
+                    <Link 
+                        to="/about" 
+                        className="px-4 py-2 rounded-lg font-semibold hover:bg-white/15 transition"
+                    >
+                        ¿Qué es Foodsys?
+                    </Link>
+
+                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition">
+                        <LogOut className="w-4 h-4" />
+                        Cerrar Sesión
+                    </button>
+
+                </nav>
+
+            </div>
+        </header>
+    );
+};
+
+export default NavBar;

@@ -1,115 +1,113 @@
-import logoFoodsys from "../../Components/Img/LogoFoodsys.png";
-export default function Inicio() {
-  return (
-    <div className="w-full h-full px-6 py-6 overflow-hidden">
+import { User } from "lucide-react";
 
-      {/* BIENVENIDA */}
-      <div className="flex flex-col items-center text-center mb-8">
-        <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mb-3">
-          <img
-            src={logoFoodsys}
-            alt="Foodsys Logo"
-            className="w-20 h-20 border-5 rounded-full border-blue-100 shadow-md"
-          />
+
+export default function Inicio() {
+  const cardsSuperiores = [
+    {
+      icon: "bi-people",
+      title: "Gestión de Aprendices",
+      desc: "Control total de asistencia al servicio de alimentación.",
+    },
+    {
+      icon: "bi-graph-up-arrow",
+      title: "Reportes Inteligentes",
+      desc: "Visualiza métricas y patrones en tiempo real.",
+    },
+    {
+      icon: "bi-shield-check",
+      title: "Seguridad Avanzada",
+      desc: "Control de accesos y protección de información.",
+    },
+  ];
+
+  const funcionalidades = [
+    {
+      title: "Registro con QR",
+      desc: "Escaneo rápido y sin fricción para registrar asistencia.",
+    },
+    {
+      title: "Control de Turnos",
+      desc: "Gestión automatizada de horarios de alimentación.",
+    },
+    {
+      title: "Análisis de Datos",
+      desc: "Insights estratégicos para toma de decisiones.",
+    },
+    {
+      title: "Gestión de Usuarios",
+      desc: "Administración segura y organizada de perfiles.",
+    },
+  ];
+
+  return (
+    <div className="w-full h-full px-8 py-8 space-y-12 bg-gray-50">
+
+      {/* HERO SECTION */}
+      <div className="grid md:grid-cols-2 gap-15 items-center bg-white p-8 rounded-3xl shadow-sm">
+        
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-4">
+            Plataforma Integral de Gestión Alimentaria
+          </h1>
+
+          <p className="text-gray-500 leading-relaxed mb-6">
+            Foodsys optimiza el control del servicio de alimentación en centros 
+            de formación, integrando registro, monitoreo y análisis en una sola solución.
+          </p>
         </div>
 
-        <h2 className="text-green-600 font-medium mb-1">
-          Bienvenido a FoodSys
-        </h2>
-
-        <p className="text-gray-500 max-w-2xl text-sm">
-          Sistema integral de gestión de alimentación para centros de formación.
-          Controla, registra y analiza el servicio de alimentación de manera
-          eficiente y moderna.
-        </p>
-      </div>
-
-      {/* CARDS SUPERIORES */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-        {[
-          {
-            icon: "bi-people",
-            title: "Gestión de Aprendices",
-            desc: "Registra y controla la asistencia de aprendices al servicio de alimentación de manera eficiente.",
-          },
-          {
-            icon: "bi-graph-up-arrow",
-            title: "Reportes Detallados",
-            desc: "Genera reportes diarios, semanales y mensuales para analizar patrones de asistencia.",
-          },
-          {
-            icon: "bi-shield-check",
-            title: "Seguro y Confiable",
-            desc: "Sistema seguro con control de acceso para proteger la información de los usuarios.",
-          },
-        ].map((card, i) => (
+        <div className="flex justify-center">
+          <div className="w-40 h-40 rounded-full bg-green-100 flex items-center justify-center shadow-lg border-2 border-green-200">
+            <User className="w-20 h-20 text-green-600" />
+          </div>
+        </div>
+</div>
+      {/* BENEFICIOS PRINCIPALES */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {cardsSuperiores.map((card, i) => (
           <div
             key={i}
-            className="bg-white rounded-2xl shadow-sm p-5"
+            className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-lg transition duration-300 hover:-translate-y-1"
           >
-            <div className="w-11 h-11 rounded-lg bg-blue-100 flex items-center justify-center mb-3">
-              <i className={`bi ${card.icon} text-blue-600 text-lg`}></i>
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+              <i className={`bi ${card.icon} text-blue-600 text-xl`}></i>
             </div>
 
-            <h3 className="font-semibold text-gray-800 mb-1 text-sm">
+            <h3 className="font-semibold text-gray-800 mb-2">
               {card.title}
             </h3>
 
-            <p className="text-sm text-gray-500 leading-snug">
+            <p className="text-gray-500 text-sm leading-relaxed">
               {card.desc}
             </p>
           </div>
         ))}
       </div>
 
-      {/* SOBRE EL PROYECTO */}
-      <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
+      {/* FUNCIONALIDADES DETALLADAS */}
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 p-8 rounded-3xl shadow-sm">
+        <h2 className="text-xl font-semibold text-gray-800 mb-6">
+          Funcionalidades Clave
+        </h2>
 
-        <h3 className="font-semibold text-gray-800 mb-2 text-sm">
-          Sobre el Proyecto
-        </h3>
-
-        <p className="text-gray-600 mb-5 max-w-4xl text-sm leading-snug">
-          FoodSys es una solución desarrollada para optimizar el proceso de
-          alimentación en centros de formación, facilitando el registro de
-          aprendices, el control de turnos y la generación de reportes
-          estadísticos.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {[
-            {
-              title: "Registro Rápido",
-              desc: "Utiliza códigos QR para registrar la asistencia de aprendices de forma ágil y sin errores.",
-            },
-            {
-              title: "Control de Turnos",
-              desc: "Turnos de alimentación con apertura y cierre automático para mejor control.",
-            },
-            {
-              title: "Análisis de Datos",
-              desc: "Obtén insights valiosos sobre patrones de asistencia con reportes personalizados.",
-            },
-            {
-              title: "Gestión de Usuarios",
-              desc: "Administra perfiles de usuario con información completa y segura.",
-            },
-          ].map((item, i) => (
+        <div className="grid md:grid-cols-2 gap-6">
+          {funcionalidades.map((item, i) => (
             <div
               key={i}
-              className="bg-white rounded-2xl shadow-sm p-5"
+              className="bg-white p-6 rounded-2xl border border-gray-100 hover:border-green-300 transition"
             >
-              <h4 className="text-blue-600 font-semibold mb-1 text-sm">
+              <h4 className="text-green-600 font-semibold mb-2">
                 {item.title}
               </h4>
-              <p className="text-sm text-gray-500 leading-snug">
+
+              <p className="text-gray-500 text-sm leading-relaxed">
                 {item.desc}
               </p>
             </div>
           ))}
         </div>
       </div>
-
+      
     </div>
   );
 }

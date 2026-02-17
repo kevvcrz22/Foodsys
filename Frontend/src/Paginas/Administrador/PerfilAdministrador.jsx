@@ -1,225 +1,181 @@
 import { useState } from "react";
-import { 
-  User, 
-  Phone, 
-  Lock, 
-  Mail, 
-  CreditCard, 
-  MapPin, 
-  BookOpen, 
-  Save, 
-  Edit, 
-  BadgeCheck,
+import {
+  User,
+  Phone,
+  CreditCard,
+  ShieldCheck,
+  Lock,
   Eye,
   EyeOff,
-  Info
+  Save,
+  BadgeCheck,
 } from "lucide-react";
 
-export default function Perfil() {
+export default function PerfilAdmin() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   return (
-    <div className="-mr-4 -ml-4">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');*{font-family:'Inter',system-ui,-apple-system,sans-serif}@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}.animate-fade-in{animation:fadeIn 0.4s ease-out}.input-focus{transition:all 0.2s ease-in-out}.input-focus:focus{border-color:#3b82f6;ring:2px;ring-color:#dbeafe}`}</style>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-6 md:px-10 xl:px-20 py-10">
+      <div className="w-full space-y-10">
 
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8 pt-16 lg:pt-0">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-            Mi Perfil
-          </h1>
-          <p className="text-gray-600">
-            Gestiona tu información personal y seguridad
-          </p>
+        {/* HEADER */}
+        <div className="bg-white rounded-3xl shadow-lg p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6 border border-gray-100">
+          
+          <div className="flex items-center gap-6">
+            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-400 flex items-center justify-center shadow-md">
+              <ShieldCheck className="w-12 h-12 text-white" />
+            </div>
+
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">
+                Kevin Steven Cruz Fierro
+              </h1>
+              <p className="text-gray-500 mt-1">
+                Administrador del Sistema
+              </p>
+
+              <div className="mt-3 inline-flex items-center gap-2 px-4 py-1.5 bg-green-50 text-green-600 rounded-full text-sm font-medium">
+                <BadgeCheck className="w-4 h-4" />
+                Cuenta Activa
+              </div>
+            </div>
+          </div>
+
         </div>
 
+        {/* GRID PRINCIPAL */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
-        {/* Layout Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* IZQUIERDA - Formulario de Edición */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Card: Información de Usuario */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Edit className="w-5 h-5 text-green-600" />
-                </div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Editar Información
-                </h2>
-              </div>
+          {/* INFORMACIÓN (OCUPA 2 COLUMNAS EN XL) */}
+          <div className="xl:col-span-2 bg-white rounded-3xl shadow-md border border-gray-100 p-8 space-y-8">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Información General
+            </h2>
 
-              {/* Campo: Nombre de Usuario */}
-              <div className="mb-5">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre de Usuario
+            <div className="grid md:grid-cols-2 gap-6">
+
+              {/* Nombre - SOLO LECTURA */}
+              <div>
+                <label className="block text-sm text-gray-500 mb-2">
+                  Nombre Completo
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed"
-                    defaultValue="santiago_grijalba"
+                    value="Kevin Steven Cruz Fierro"
                     readOnly
+                    className="w-full pl-10 py-3 rounded-xl bg-gray-100 border border-gray-200 text-gray-500 cursor-not-allowed"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1.5">El nombre de usuario no se puede modificar</p>
               </div>
 
-              {/* Campo: Teléfono */}
-              <div className="mb-5">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              {/* Tipo Documento - SOLO LECTURA */}
+              <div>
+                <label className="block text-sm text-gray-500 mb-2">
+                  Tipo de Documento
+                </label>
+                <input
+                  value="Cédula de Ciudadanía"
+                  readOnly
+                  className="w-full py-3 px-4 rounded-xl bg-gray-100 border border-gray-200 text-gray-500 cursor-not-allowed"
+                />
+              </div>
+
+              {/* Documento - SOLO LECTURA */}
+              <div>
+                <label className="block text-sm text-gray-500 mb-2">
+                  Número de Documento
+                </label>
+                <div className="relative">
+                  <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    value="1003810633"
+                    readOnly
+                    className="w-full pl-10 py-3 rounded-xl bg-gray-100 border border-gray-200 text-gray-500 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              {/* Teléfono - EDITABLE */}
+              <div>
+                <label className="block text-sm text-gray-500 mb-2">
                   Teléfono
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500" />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
-                    type="tel"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none transition-all"
-                    defaultValue="+57 3188520999"
+                    defaultValue="3001234567"
+                    className="w-full pl-10 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition"
                   />
                 </div>
               </div>
-            </div>
 
-            {/* Card: Cambiar Contraseña */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-100 rounded-lg">
-                  <Lock className="w-5 h-5 text-amber-600" />
-                </div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Cambiar Contraseña
-                </h2>
-              </div>
-
-              {/* Nueva Contraseña */}
-              <div className="mb-5">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nueva Contraseña
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-600" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Dejar en blanco para no cambiar"
-                    className="w-full pl-10 pr-12 py-2.5 rounded-lg border border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-                <p className="text-xs text-red-400 mt-1.5 flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                  Mínimo 8 caracteres
-                </p>
-              </div>
-
-              {/* Confirmar Contraseña */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirmar Contraseña
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-600" />
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Confirma tu nueva contraseña"
-                    className="w-full pl-10 pr-12 py-2.5 rounded-lg border border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-                <p className="text-xs text-red-400 mt-1.5">
-                  Debe coincidir con la nueva contraseña
-                </p>
-              </div>
-
-              {/* Botón Guardar */}
-              <button className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
-                <Save className="w-4 h-4" />
-                Guardar Cambios
-              </button>
             </div>
           </div>
 
-          {/* DERECHA - Información Personal */}
-          <div className="space-y-6">
-            {/* Card: Información Personal */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow animate-fade-in">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <User className="w-5 h-5 text-green-600" />
-                </div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Información Personal
-                </h2>
-              </div>
+          {/* SEGURIDAD */}
+          <div className="bg-white rounded-3xl shadow-md border border-gray-100 p-8 space-y-6">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Seguridad
+            </h2>
 
-              <div className="space-y-3">
-                {[
-                  { label: "Nombre Completo", value: "Santiago Grijalba Cardenas", Icon: User },
-                  { label: "Correo Electrónico", value: "santigrijalba007@gmail.com", Icon: Mail },
-                  { label: "Documento", value: "1109291696", Icon: CreditCard },
-                  { label: "Sede", value: "Centro Agropecuario La Granja", Icon: MapPin },
-                ].map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-blue-100/60 border border-gray-100 hover:border-gray-200 transition-colors"
-                  >
-                    <div className="p-1.5 bg-white rounded-lg border border-blue-500 flex-shrink-0">
-                      <item.Icon className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-500 mb-0.5">{item.label}</p>
-                      <p className="font-medium text-gray-900 text-sm truncate">{item.value}</p>
-                    </div>
-                  </div>
-                ))}
+            {/* Nueva contraseña */}
+            <div>
+              <label className="block text-sm text-gray-500 mb-2">
+                Nueva Contraseña
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Mínimo 8 caracteres"
+                  className="w-full pl-10 pr-12 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
-            {/* Card: Programa de Formación */}
-            <div className="bg-gradient-to-br from-green-400 to-green-200 rounded-lg p-6 text-white shadow-lg hover:shadow-xl transition-shadow animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              <div className="flex items-center gap-2 mb-4">
-                <BookOpen className="w-5 h-5" />
-                <h3 className="font-semibold text-lg">Programa de Formación</h3>
-              </div>
-              
-              <p className="mb-4 leading-relaxed opacity-95">
-                Tecnología en Análisis y Desarrollo de Software
-              </p>
-              
-              <div className="flex items-center gap-2">
-                <div className="px-3 py-1.5 bg-blue-500 backdrop-blur-sm rounded-lg border border-white/30">
-                  <div className="flex items-center gap-2">
-                    <BadgeCheck className="w-4 h-4 text-green" />
-                    <span className="text-sm font-semibold">Ficha: 3140221</span>
-                  </div>
-                </div>
+            {/* Confirmar */}
+            <div>
+              <label className="block text-sm text-gray-500 mb-2">
+                Confirmar Contraseña
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Repite la contraseña"
+                  className="w-full pl-10 pr-12 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowConfirmPassword(!showConfirmPassword)
+                  }
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
+            <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl flex justify-center items-center gap-2 shadow-md hover:shadow-lg transition">
+              <Save className="w-4 h-4" />
+              Guardar Cambios
+            </button>
+
+            <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl text-sm text-indigo-700">
+              Cambiar la contraseña cerrará sesiones activas automáticamente.
+            </div>
           </div>
+
         </div>
       </div>
     </div>
