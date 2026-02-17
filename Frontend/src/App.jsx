@@ -32,6 +32,7 @@ import CrudUsuarios from "./Tablas/Usuarios/CrudUsuarios.jsx";
 import CrudFichas from "./Tablas/Fichas/CrudFichas.jsx";
 import CrudPrograma from "./Tablas/Programas/CrudPrograma.jsx";
 import CrudReservas from "./Tablas/Reservas/CrudReservas.jsx";
+import CrudRoles from "./Tablas/Roles/CrudRoles.jsx";
 
 function App() {
   const [usuarioLogeado, setUsuarioLogeado] = useState(null);
@@ -138,6 +139,16 @@ function App() {
             <div className="min-h-screen bg-gray-50">
               <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <CrudReservas />
+              </main>
+            </div>
+          }
+        />
+        <Route
+          path="/roles"
+          element={
+            <div className="min-h-screen bg-gray-50">
+              <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <CrudRoles />
               </main>
             </div>
           }

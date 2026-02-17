@@ -6,10 +6,13 @@ import UsuariosRoute from './Routes/UsuariosRoute.js';
 import FichasRoute from "./Routes/FichasRoute.js";
 import ReservasRoute from "./Routes/ReservasRoute.js";
 import ProgramaRoute from "./Routes/ProgramaRoutes.js";
+import RolesRoute from "./Routes/RolesRoute.js";
 import FichasModel from './Models/FichasModel.js';
 import UsuariosModel from "./Models/UsuariosModel.js";
 import ProgramaModel from "./Models/ProgramaModel.js"; 
 import ReservasModel from './Models/ReservasModel.js';
+import RolesModel from './Models/RolesModel.js';
+
 dotenv.config();
 import { fileURLToPath } from 'url';
 import Path from 'path';
@@ -23,6 +26,7 @@ app.use('/api/Usuarios', UsuariosRoute);
 app.use('/api/fichas', FichasRoute);
 app.use('/api/Reservas', ReservasRoute);
 app.use('/api/Programa', ProgramaRoute);
+app.use('/api/Roles', RolesRoute);
 
 
 
@@ -57,5 +61,8 @@ FichasModel.belongsTo(ProgramaModel, {foreignKey: 'Id_Programa', as:'programa'})
 
 UsuariosModel.hasMany(ReservasModel, { foreignKey: 'Id_Usuario', as: 'reservas' });
 ReservasModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' });
+
+RolesModel.hasMany(UsuariosModel, { foreignKey: 'Id_Rol', as: 'usuarios' });
+UsuariosModel.belongsTo(RolesModel, { foreignKey: 'Id_Rol', as: 'Roles' });
 
 export default app;
