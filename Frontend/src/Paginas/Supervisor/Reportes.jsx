@@ -1,6 +1,8 @@
 export default function Reportes() {
   return (
-    <div className="col-md-8">
+    <div className="min-h-screen lg:pl-64">
+      <div className="w-full px-4 py-6">
+        <div className="col-md-8">
       <h2 className="mb-4">Reportes</h2>
 
       <div className="card shadow-sm">
@@ -21,5 +23,7 @@ export default function Reportes() {
         </div>
       </div>
     </div>
+      </div>
+    </div>  
   );
 }
