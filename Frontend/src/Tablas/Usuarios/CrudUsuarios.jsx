@@ -2,7 +2,6 @@ import apiAxios from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
 import DataTable from "react-data-table-component";
 import UsuariosForm from "./UsuariosForm.jsx";
-import { Modal } from "bootstrap";
 
 const CrudUsuarios = () => {
 
@@ -10,6 +9,7 @@ const CrudUsuarios = () => {
   const [filterText, setFilterText] = useState("");
   const [selectedUsuario, setselectedUsuario] = useState(null);
   const [isEdit, setIsEdit] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const columnsTable = [
     { name: "ID", selector: row => row.Id_Usuario },
@@ -23,128 +23,142 @@ const CrudUsuarios = () => {
     { name: "Centro Convivencia", selector: row => row.CenCon_Usuario },
     { name: "Tipo De Usuario", selector: row => row.Tip_Usuario },
     { name: "Estado De Usuario", selector: row => row.Est_Usuario },
-    { name: "Contraseña", selector: row => row.Con_Usuario },
-    { name: "Sancion", selector: row => row.Sancion},
+    { name: "Contraseña", selector: row => row.password },
+    { name: "Sancion", selector: row => row.Sancion },
     { name: "Ficha", selector: row => row.ficha?.Num_Ficha || "Sin ficha" },
     { name: "Fecha de Creación", selector: row => new Date(row.CreateData).toLocaleDateString() },
     { name: "Fecha de Actualización", selector: row => new Date(row.UpdateData).toLocaleDateString() },
-
     {
       name: "Acciones",
-      selector: row => (
+      cell: row => (
         <button
-          className="btn btn-sm bg-info"
+          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors flex items-center gap-2"
           onClick={() => editUsuario(row)}
         >
-          <i className="fa-solid fa-pencil"></i>
+          <i className="bi bi-pencil-square"></i> Editar
         </button>
+
       )
     }
   ];
 
-useEffect(() => {
-  getAllUsuarios();
-}, []);
+  useEffect(() => {
+    getAllUsuarios();
+  }, []);
 
-const getAllUsuarios = async () => {
-  try {
-    const response = await apiAxios.get("/api/Usuarios/");
-    setUsuarios(response.data);
-  } catch (error) {
-    console.error("Error al obtener Usuario:", error);
-  }
-};
+  const getAllUsuarios = async () => {
+    try {
+      const response = await apiAxios.get("/api/Usuarios/");
+      setUsuarios(response.data);
+    } catch (error) {
+      console.error("Error al obtener Usuario:", error);
+    }
+  };
 
+  const editUsuario = (row) => {
+    setselectedUsuario(row);
+    setIsEdit(true);
+    setIsModalOpen(true);
+  };
 
-const editUsuario = (row) => {
-  setselectedUsuario(row);
-  setIsEdit(true);
-  const modal = new Modal(document.getElementById("exampleModal"));
-  modal.show();
-};
-
+  const handleNuevo = () => {
+    setselectedUsuario(null);
+    setIsEdit(false);
+    setIsModalOpen(true);
+  };
 
   const newListUsuarios = Usuarios.filter(a => {
     const textToSearch = filterText.toLowerCase();
     const NumDoc = String(a.NumDoc_Usuario || "").toLowerCase();
     const Nombre = String(a.Nom_Usuario || "").toLowerCase();
-    const NumFicha = String(
-        a.ficha?.Num_Ficha || a.ficha?.Num_Ficha || ""
-    ).toLowerCase();
+    const NumFicha = String(a.ficha?.Num_Ficha || "").toLowerCase();
 
     return (
-        NumDoc.includes(textToSearch) ||
-        Nombre.includes(textToSearch) ||
-        NumFicha.includes(textToSearch)
+      NumDoc.includes(textToSearch) ||
+      Nombre.includes(textToSearch) ||
+      NumFicha.includes(textToSearch)
     );
   });
 
   const hideModal = () => {
-    document.getElementById("closeModal").click();
+    setIsModalOpen(false);
+    setselectedUsuario(null);
+    setIsEdit(false);
   };
 
   return (
     <>
-      <div className="container mt-5">
+      <div className="container mx-auto px-4 py-6">
 
-        <div className="row d-flex justify-content-between">
-          <div className="col-4">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6 gap-4">
+
+          <div className="w-full md:w-1/3">
             <input
-              className="form-control"
+              type="text"
+              placeholder="Buscar usuario..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg 
+              focus:outline-none focus:ring-2 focus:ring-blue-500 
+              focus:border-transparent"
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
             />
           </div>
 
-          <div className="col-2">
-            <button
-              type="button"
-              className="btn btn-primary"
-              data-bs-toggle="modal"
-              data-bs-target="#exampleModal"
-            >
-              Nuevo
-            </button>
-          </div>
+          <button
+            type="button"
+            className="bg-blue-500 hover:bg-blue-600 text-white 
+            px-6 py-2 rounded-lg font-medium transition-colors 
+            whitespace-nowrap flex items-center gap-2"
+            onClick={handleNuevo}
+          >
+            + Nuevo Usuario
+          </button>
+
         </div>
 
-        <DataTable
-          title="Usuarios"
-          columns={columnsTable}
-          data={newListUsuarios}
-          keyField="Id_Usuario"
-          pagination
-          highlightOnHover
-          striped
-        />
+        {/* Tabla */}
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <DataTable
+            title="Usuarios"
+            columns={columnsTable}
+            data={newListUsuarios}
+            keyField="Id_Usuario"
+            pagination
+            highlightOnHover
+            striped
+          />
+        </div>
 
-        {/* Modal */}
-        <div
-          className="modal fade"
-          id="exampleModal"
-          tabIndex="-1"
-          aria-labelledby="exampleModalLabel"
-          aria-hidden="true"
-        >
-          <div className="modal-dialog">
-            <div className="modal-content">
+        {/* Modal Tailwind */}
+        {isModalOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
 
-              <div className="modal-header">
-                <h1 className="modal-title fs-5" id="exampleModalLabel">
+            {/* Fondo blur */}
+            <div 
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm"
+              onClick={hideModal}
+            />
+            {/* Modal */}
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl 
+            relative z-10 max-h-[95vh] overflow-hidden flex flex-col">
+
+              <div className="flex items-center justify-between 
+              border-b border-gray-200 px-6 py-4">
+
+                <h2 className="text-xl font-semibold text-gray-800">
                   {isEdit ? "Editar Usuario" : "Agregar Usuario"}
-                </h1>
-
+                </h2>
 
                 <button
-                  type="button"
-                  className="btn-close"
-                  data-bs-dismiss="modal"
-                  aria-label="Close"
-                  id="closeModal"
-                ></button>
+                  onClick={hideModal}
+                  className="text-gray-400 hover:text-gray-600 text-xl"
+                >
+                  ✕
+                </button>
               </div>
 
-              <div className="modal-body">
+              <div className="px-6 py-4 overflow-y-auto flex-1">
                 <UsuariosForm
                   hideModal={hideModal}
                   UsuarioSeleccionado={selectedUsuario}
@@ -155,11 +169,11 @@ const editUsuario = (row) => {
 
             </div>
           </div>
-        </div>
+        )}
 
       </div>
     </>
   );
 };
 
-export default CrudUsuarios
+export default CrudUsuarios;

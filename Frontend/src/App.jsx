@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
@@ -67,23 +68,23 @@ function App() {
 
         {/* ================= ADMINISTRADOR ================= */}
         <Route path="/Administrador/*" element={
-            <div className="flex min-h-screen bg-gray-100">
-              <Sidebar />
+            <div className="flex h-full bg-gray-100">
+            <Sidebar />
               <div className="flex-1">
                 <main className="p-6">
                   <Routes>
                     <Route index element={<InicioAdministrador />} />
-                    <Route path="perfil" element={<PerfilAdministrador />} />
+                    <Route path="Perfil" element={<PerfilAdministrador />} />
                     <Route path="registrar" element={<RegistrarAdministrador />} />
                     <Route path="reportes" element={<ReportesAdministrador />} />
-                    <Route path="*" element={<Navigate to="/supervisor" replace />} />
+                    <Route path="*" element={<Navigate to="/Administrador" replace />} />
                   </Routes>
                 </main>
               </div>
             </div>
           }
         />
-
+        
         {/* ================= APRENDIZ EXTERNO (SIN NavBar) ================= */}
         <Route
           path="/aprendiz/*"

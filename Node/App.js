@@ -14,6 +14,9 @@ import ReservasModel from './Models/ReservasModel.js';
 import RolesModel from './Models/RolesModel.js';
 
 dotenv.config();
+import { fileURLToPath } from 'url';
+import Path from 'path';
+
 
 const app = Express();
 app.use(Express.json());
@@ -24,6 +27,14 @@ app.use('/api/fichas', FichasRoute);
 app.use('/api/Reservas', ReservasRoute);
 app.use('/api/Programa', ProgramaRoute);
 app.use('/api/Roles', RolesRoute);
+
+
+
+const __filename =fileURLToPath(import.meta.url)
+const __dirname = Path.dirname(__filename)
+
+
+app.use('/public/uploads', Express.static(Path.join(__dirname,'public/uploads')));
 
 app.get('/', (req, res) => {
   res.send('Hola Mundo Foodsys');

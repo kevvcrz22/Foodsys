@@ -69,7 +69,7 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
 
     // 🔹 Mantener Tex_Qr sincronizado con lo que va dentro del QR (opcional)
     useEffect(() => {
-        setTex_Qr(qrData);
+        setTex_Qr(JSON.stringify(qrData));
     }, [qrData]);
 
     // Obtener un usuario por Id
@@ -137,8 +137,7 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
         if (!Id_Usuario || !Vencimiento) return null;
 
         const usuario = await getUsuarioById(Id_Usuario);
-        return `${Id_Reserva} // ${usuario.Nom_Usuario} //  ${Tipo}`;
-        
+        return `${Id_Reserva} // ${usuario.Nom_Usuario} //  ${Tipo} // `;
     };
 
     //Enviar formulario
@@ -187,7 +186,7 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                     Vencimiento,
                     Est_Reserva,
                     Tipo,
-                    Tex_Qr: qrData,
+                    Tex_Qr: JSON.stringify(qrData),
                     Id_Usuario
                 });
 
@@ -204,23 +203,27 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
 
     return (
         <>
-            <form onSubmit={gestionarForm} className="col-12 col-md-6">
+            <form onSubmit={gestionarForm} className="space-y-4">
 
-                <div className="mb-3">
-                    <label className="form-label">Fec_Reserva</label>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fecha de Reserva
+                    </label>
                     <input
                         type="date"
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                         value={Fec_Reserva}
                         onChange={(e) => setFec_Reserva(e.target.value)}
                         readOnly
                     />
                 </div>
 
-                <div className="mb-3">
-                    <label className="form-label">Tipo</label>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tipo de Comida
+                    </label>
                     <select
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                         value={Tipo}
                         onChange={(e) => setTipo(e.target.value)}
                     >
@@ -231,21 +234,25 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                     </select>
                 </div>
 
-                <div className="mb-3">
-                    <label className="form-label">Vencimiento</label>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Vencimiento
+                    </label>
                     <input
                         type="datetime-local"
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                         value={Vencimiento}
                         readOnly
                     />
                 </div>
 
-                <div className="mb-3">
-                    <label htmlFor="Id_Usuario" className="form-label">Usuario</label>
+                <div>
+                    <label htmlFor="Id_Usuario" className="block text-sm font-medium text-gray-700 mb-2">
+                        Usuario
+                    </label>
                     <select
                         id="Id_Usuario"
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                         value={Id_Usuario}
                         disabled
                     >
@@ -258,19 +265,35 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                     </select>
                 </div>
 
-                <div className="mb-3">
-                    <label className="form-label">Tex_Qr</label>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Código QR
+                    </label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                         value={Tex_Qr}
                         readOnly
                     />
                 </div>
 
-                <button type="submit" className="btn btn-primary mt-3">
-                    {textFormButton}
-                </button>
+           
+
+                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                    <button
+                        type="button"
+                        onClick={hideModal}
+                        className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit" 
+                        className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors"
+                    >
+                        {textFormButton}
+                    </button>
+                </div>
 
             </form>
         </>

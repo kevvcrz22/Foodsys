@@ -5,49 +5,57 @@ import ReservasForm from "./ReservaForm.jsx";
 import { QRCodeCanvas } from "qrcode.react";
 
 const CrudReservas = () => {
-
     const [reservas, setReservas] = useState([]);
     const [filterText, setFilterText] = useState("");
     const [selectedReserva, setSelectedReserva] = useState(null);
     const [Editar, setEditar] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // 🔥 ESTADOS NUEVOS PARA QR
-    const [showQRModal, setShowQRModal] = useState(false);
-    const [qrGenerado, setQrGenerado] = useState("");
+    // NUEVOS ESTADOS PARA MODAL QR
+    const [qrModalOpen, setQrModalOpen] = useState(false);
+    const [qrTexto, setQrTexto] = useState("");
+
+    // Mostrar QR desde tabla o desde form
+    const verQr = (row) => {
+        setQrTexto(row.Tex_Qr);
+        setQrModalOpen(true);
+    };
+
+    // Mostrar QR cuando el form lo envíe
+    const mostrarQR = (textoQR) => {
+        setQrTexto(textoQR);
+        setQrModalOpen(true);
+    };
 
     const columnsTable = [
-        { name: "Id_Reserva", selector: row => row.Id_Reserva },
-        { name: "Fec_Reserva", selector: row => row.Fec_Reserva },
-        { name: "Vencimiento", selector: row => new Date(row.Vencimiento).toLocaleString() },
-        { name: "Est_Reserva", selector: row => row.Est_Reserva },
-        { name: "Tipo", selector: row => row.Tipo },
-
-    
-        {
-            name: "Tex_Qr",
-            cell: row => (
-                <button
-                    className="btn btn-sm btn-info"
-                    onClick={() => mostrarQR(row.Tex_Qr)}
-                >
-                    Ver QR
-                </button>
-            )
-        },
-
-        { name: "Id_Usuario", selector: row => row.Id_Usuario },
+        { name: "Id_Reserva", selector: row => row.Id_Reserva, sortable: true },
+        { name: "Fec_Reserva", selector: row => row.Fec_Reserva, sortable: true },
+        { name: "Vencimiento", selector: row => new Date(row.Vencimiento).toLocaleString(), sortable: true },
+        { name: "Est_Reserva", selector: row => row.Est_Reserva, sortable: true },
+        { name: "Tipo", selector: row => row.Tipo, sortable: true },
+        { name: "Tex_Qr", selector: row => row.Tex_Qr },
+        { name: "Id_Usuario", selector: row => row.Id_Usuario, sortable: true },
 
         {
             name: "Acciones",
             cell: row => (
-                <button
-                    className="btn btn-sm bg-info"
-                    data-bs-toggle="modal"
-                    data-bs-target="#exampleModal1"
-                    onClick={() => editReserva(row)}
-                >
-                    <i className="fa-solid fa-pencil"></i>
-                </button>
+                <div className="flex gap-2">
+
+                    <button
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm flex items-center gap-2"
+                        onClick={() => editReserva(row)}
+                    >
+                        <i className="bi bi-pencil-square"></i> Editar
+                    </button>
+
+                    <button
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-2"
+                        onClick={() => verQr(row)}
+                    >
+                        <i className="bi bi-qr-code"></i> Ver QR
+                    </button>
+
+                </div>
             )
         }
     ];
@@ -68,12 +76,11 @@ const CrudReservas = () => {
     const editReserva = (row) => {
         setSelectedReserva(row);
         setEditar(true);
-        document.getElementById("openModalBtn")?.click();
+        setIsModalOpen(true);
     };
 
     const newListReservas = reservas.filter(reserva => {
         const text = filterText.toLowerCase();
-
         return (
             reserva.Tipo?.toLowerCase().includes(text) ||
             reserva.Fec_Reserva?.toLowerCase().includes(text) ||
@@ -83,105 +90,93 @@ const CrudReservas = () => {
     });
 
     const hideModal = () => {
-        document.getElementById("closeModal").click();
+        setIsModalOpen(false);
         setSelectedReserva(null);
     };
 
     const handleNuevo = () => {
         setSelectedReserva(null);
         setEditar(false);
-    };
-
-    // 🔥 FUNCIÓN QUE RECIBE EL QR DESDE EL FORM O DESDE LA TABLA
-    const mostrarQR = (qr) => {
-        if (!qr) return;
-
-        setQrGenerado(qr);
-        setShowQRModal(true);
+        setIsModalOpen(true);
     };
 
     return (
         <>
-            <div className="container mt-5">
+            <div className="container mx-auto px-4 py-6">
 
-                <div className="row d-flex justify-content-between mb-3">
-                    <div className="col-4">
-                        <input
-                            className="form-control"
-                            value={filterText}
-                            onChange={(e) => setFilterText(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="col-2">
-                        <button
-                            type="button"
-                            className="btn btn-primary"
-                            data-bs-toggle="modal"
-                            data-bs-target="#exampleModal1"
-                            onClick={handleNuevo}
-                        >
-                            Nuevo
-                        </button>
-                    </div>
-                </div>
-
-                <div style={{ width: "100%", overflowX: "auto" }}>
-                    <DataTable
-                        title="Reservas"
-                        columns={columnsTable}
-                        data={newListReservas}
-                        keyField="Id_Reserva"
-                        pagination
-                        highlightOnHover
-                        striped
+                <div className="flex justify-between mb-6 gap-4">
+                    <input
+                        type="text"
+                        placeholder="Buscar reserva..."
+                        className="w-full md:w-1/3 px-4 py-2 border rounded-lg"
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
                     />
+
+                    <button
+                        className="bg-blue-500 text-white px-6 py-2 rounded-lg flex gap-2"
+                        onClick={handleNuevo}
+                    >
+                        Nueva Reserva
+                    </button>
                 </div>
 
-                {/* MODAL FORMULARIO */}
-                <div className="modal fade" id="exampleModal1" tabIndex="-1" aria-hidden="true">
-                    <div className="modal-dialog">
-                        <div className="modal-content">
+                <DataTable
+                    title="Reservas"
+                    columns={columnsTable}
+                    data={newListReservas}
+                    pagination
+                    highlightOnHover
+                    striped
+                />
 
-                            <div className="modal-header">
-                                <h1 className="modal-title fs-5">
-                                    {selectedReserva ? "Editar Reserva" : "Agregar Reserva"}
-                                </h1>
-                                <button type="button" className="btn-close" data-bs-dismiss="modal" id="closeModal"></button>
-                            </div>
+                {/* MODAL FORM */}
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-[9999] flex justify-center items-center">
 
-                            <div className="modal-body">
-                                <ReservasForm
-                                    hideModal={hideModal}
-                                    reserva={selectedReserva}
-                                    Edit={Editar}
-                                    reload={getAllReservas}
-                                    mostrarQR={mostrarQR}
-                                />
-                            </div>
+                        <div
+                            className="fixed inset-0 bg-black/30"
+                            onClick={hideModal}
+                        />
+
+                        <div className="bg-white p-6 rounded-xl shadow-xl z-10 w-full max-w-lg">
+
+                            <ReservasForm
+                                hideModal={hideModal}
+                                reserva={selectedReserva}
+                                Edit={Editar}
+                                reload={getAllReservas}
+                                mostrarQR={mostrarQR}
+                            />
 
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* 🔥 MODAL QR */}
-                {showQRModal && (
-                    <div className="modal show d-block">
-                        <div className="modal-dialog modal-dialog-centered">
-                            <div className="modal-content p-4 text-center">
+                {qrModalOpen && (
+                    <div className="fixed inset-0 z-[9999] flex justify-center items-center">
 
-                                <h4>QR de la reserva</h4>
+                        <div
+                            className="fixed inset-0 bg-black/40"
+                            onClick={() => setQrModalOpen(false)}
+                        />
 
-                                <QRCodeCanvas value={qrGenerado} size={200} />
+                        <div className="bg-white p-6 rounded-xl shadow-xl z-10 text-center">
 
-                                <button
-                                    className="btn btn-primary mt-3"
-                                    onClick={() => setShowQRModal(false)}
-                                >
-                                    Cerrar
-                                </button>
+                            <h2 className="text-lg font-bold mb-4">
+                                Código QR Reserva
+                            </h2>
 
-                            </div>
+                            <QRCodeCanvas value={qrTexto} size={220} />
+
+                            <button
+                                className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+                                onClick={() => setQrModalOpen(false)}
+                            >
+                                Cerrar
+                            </button>
+
                         </div>
                     </div>
                 )}
