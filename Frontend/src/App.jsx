@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
@@ -33,6 +32,7 @@ import CrudFichas from "./Tablas/Fichas/CrudFichas.jsx";
 import CrudPrograma from "./Tablas/Programas/CrudPrograma.jsx";
 import CrudReservas from "./Tablas/Reservas/CrudReservas.jsx";
 import CrudRoles from "./Tablas/Roles/CrudRoles.jsx";
+import CrudUsuariosRol from "./Tablas/Usuarios_Rol/CRUDusuariosRol.jsx";
 
 function App() {
   const [usuarioLogeado, setUsuarioLogeado] = useState(null);
@@ -41,8 +41,9 @@ function App() {
     <>
       {/* Chatbot siempre visible */}
       <Chatbot />
-      <NavBar/>
+      <NavBar />
       <Routes>
+
         {/* ================= LOGIN ================= */}
         <Route path="/" element={<Login onLogin={setUsuarioLogeado} />} />
         <Route path="/login" element={<Navigate to="/" replace />} />
@@ -69,7 +70,7 @@ function App() {
         {/* ================= ADMINISTRADOR ================= */}
         <Route path="/Administrador/*" element={
             <div className="flex h-full bg-gray-100">
-            <Sidebar />
+              <Sidebar />
               <div className="flex-1">
                 <main className="p-6">
                   <Routes>
@@ -84,7 +85,7 @@ function App() {
             </div>
           }
         />
-        
+
         {/* ================= APRENDIZ EXTERNO (SIN NavBar) ================= */}
         <Route
           path="/aprendiz/*"
@@ -113,6 +114,7 @@ function App() {
             </div>
           }
         />
+
         <Route
           path="/fichas"
           element={
@@ -123,6 +125,7 @@ function App() {
             </div>
           }
         />
+
         <Route
           path="/programas"
           element={
@@ -133,6 +136,7 @@ function App() {
             </div>
           }
         />
+
         <Route
           path="/reservas"
           element={
@@ -143,6 +147,7 @@ function App() {
             </div>
           }
         />
+
         <Route
           path="/roles"
           element={
@@ -154,10 +159,24 @@ function App() {
           }
         />
 
+        <Route
+          path="/usuariosrol"
+          element={
+            <div className="min-h-screen bg-gray-50">
+              <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <CrudUsuariosRol />
+              </main>
+            </div>
+          }
+        />
+
         {/* Fallback general */}
         <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
-      <Footer/>
+
+      <Footer />
+
       {usuarioLogeado && (
         <h2 style={{ textAlign: "center", marginTop: "50px" }}>
           Bienvenido {usuarioLogeado.Nom_Usuario}
