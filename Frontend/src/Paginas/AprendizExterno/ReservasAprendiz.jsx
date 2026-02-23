@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import apiAxios from "../../api/axiosConfig";
-import "./Reservas.css";
 import ReservasForm from "../../Tablas/Reservas/ReservaForm";
 
 const Reservas = ({ localMode = true }) => {
