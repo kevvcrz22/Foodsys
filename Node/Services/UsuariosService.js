@@ -4,7 +4,7 @@ import RolesModel from "../Models/RolesModel.js";
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import {v4 as uuidv4} from 'uuid'
-
+import ProgramaModel from "../Models/ProgramaModel.js";
 
 
 class UsuariosService {
@@ -112,11 +112,26 @@ class UsuariosService {
     });
   }
 
-  async getById(Id) {
-    const Usuarios = await UsuariosModel.findByPk(Id)
-    if(!Usuarios) throw new Error("Usuario no encontrado")
-      return Usuarios
-  }
+async getById(Id) {
+  const usuarios = await UsuariosModel.findByPk(Id, {
+    include: [
+      {
+        model: FichasModel,
+        as: 'Ficha',
+        include: [
+          {
+            model: ProgramaModel,
+            as: 'Programa',
+            attributes: ['Nom_Programa']
+          }
+        ],
+        attributes: ['Id_Ficha', 'Num_Ficha']
+      }
+    ]
+  });
+  if (!usuarios) throw new Error("Usuario no encontrado");
+  return usuarios;
+}
 
   async create(data) {
     return await UsuariosModel.create(data);
