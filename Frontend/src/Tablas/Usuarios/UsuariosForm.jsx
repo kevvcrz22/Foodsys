@@ -180,7 +180,7 @@ const gestionarForm = async (e) => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Rol:</label>
-          <select id="Id_Rol" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Tip_Usuario} onChange={(e) => setTip_Usuario(e.target.value)}>
+          <select id="Id_Rol" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Id_Rol} onChange={(e) => setId_Rol(e.target.value)}>
             <option value="">Seleccionar...</option>
             <option value="Aprendiz Interno">Aprendiz</option>
             <option value="Aprendiz Externo">Aprendiz</option>
