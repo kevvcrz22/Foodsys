@@ -21,8 +21,8 @@ const CrudUsuarios = () => {
     { name: "Correo", selector: row => row.Cor_Usuario },
     { name: "Telefono", selector: row => row.Tel_Usuario },
     { name: "Centro Convivencia", selector: row => row.CenCon_Usuario },
-    { name: "ID", selector: row => row.Id_Rol },
-    { name: "Estado De Usuario", selector: row => row.Est_Usuario }, //
+    { name: "Tipo De Usuario", selector: row => row.Tip_Usuario },
+    { name: "Estado De Usuario", selector: row => row.rol?.Nom_Rol || "Sin ficha" },
     { name: "Contraseña", selector: row => row.password },
     { name: "Sancion", selector: row => row.Sancion },
     { name: "Ficha", selector: row => row.ficha?.Num_Ficha || "Sin ficha" },
