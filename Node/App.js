@@ -57,17 +57,17 @@ app.listen(PORT, () => {
   console.log(`Server up running at http://localhost:${PORT}`)
 })
 
-FichasModel.hasMany(UsuariosModel, {foreignKey: 'Id_Ficha', as: 'usuarios'})
+FichasModel.hasMany(UsuariosModel, {foreignKey: 'Id_Ficha', as: 'usuariosFicha'})
 UsuariosModel.belongsTo(FichasModel, {foreignKey: 'Id_Ficha', as: 'ficha'})
 
-ProgramaModel.hasMany(FichasModel, {foreignKey: 'Id_Programa', as: 'ficha'})
+ProgramaModel.hasMany(FichasModel, {foreignKey: 'Id_Programa', as: 'fichas'})
 FichasModel.belongsTo(ProgramaModel, {foreignKey: 'Id_Programa', as:'programa'})
 
 
 UsuariosModel.hasMany(ReservasModel, { foreignKey: 'Id_Usuario', as: 'reservas' });
 ReservasModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' });
 
-RolesModel.hasMany(UsuariosModel, { foreignKey: 'Id_Rol', as: 'usuarios' });
-UsuariosModel.belongsTo(RolesModel, { foreignKey: 'Id_Rol', as: 'Roles' });
+RolesModel.hasMany(UsuariosModel, { foreignKey: 'Id_Rol', as: 'usuariosRol' });
+UsuariosModel.belongsTo(RolesModel, { foreignKey: 'Id_Rol', as: 'Rol' });
 
 export default app;

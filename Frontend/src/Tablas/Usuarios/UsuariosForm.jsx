@@ -11,8 +11,7 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
   const [Cor_Usuario, setCor_Usuario] = useState("");
   const [Tel_Usuario, setTel_Usuario] = useState("");
   const [CenCon_Usuario, setCenCon_Usuario] = useState("");
-  const [Tip_Usuario, setTip_Usuario] = useState("");
-  const [Est_Usuario, setEst_Usuario] = useState("");
+  const [Id_Rol, setId_Rol] = useState("");
   const [password, setpassword] = useState("");
   const [Sancion, setSancion_Usuario] = useState("");
   const [Id_Ficha, setId_Ficha] = useState("")
@@ -32,8 +31,7 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
       setCor_Usuario(UsuarioSeleccionado.Cor_Usuario);
       setTel_Usuario(UsuarioSeleccionado.Tel_Usuario);
       setCenCon_Usuario(UsuarioSeleccionado.CenCon_Usuario);
-      setTip_Usuario(UsuarioSeleccionado.Tip_Usuario);
-      setEst_Usuario(UsuarioSeleccionado.Est_Usuario);
+      setId_Rol(UsuarioSeleccionado.Id_Rol);
       setpassword(UsuarioSeleccionado.password);
       setSancion_Usuario(UsuarioSeleccionado.Sancion);
       setId_Ficha(UsuarioSeleccionado.Id_Ficha);
@@ -60,8 +58,7 @@ const gestionarForm = async (e) => {
         Cor_Usuario,
         Tel_Usuario,
         CenCon_Usuario,
-        Tip_Usuario,
-        Est_Usuario,
+        Id_Rol,
         password,
         Sancion,
         Id_Ficha
@@ -78,8 +75,7 @@ const gestionarForm = async (e) => {
       setCor_Usuario("");
       setTel_Usuario("");
       setCenCon_Usuario("");
-      setTip_Usuario("");
-      setEst_Usuario("");
+      setId_Rol("");
       setpassword("");
       setSancion_Usuario("");
       setId_Ficha("");
@@ -101,8 +97,7 @@ const gestionarForm = async (e) => {
         Cor_Usuario,
         Tel_Usuario,
         CenCon_Usuario,
-        Tip_Usuario,
-        Est_Usuario,
+        Id_Rol,
         password,
         Sancion,
         Id_Ficha
@@ -184,21 +179,21 @@ const gestionarForm = async (e) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Usuario:</label>
-          <select id="Tip_Usuario" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Tip_Usuario} onChange={(e) => setTip_Usuario(e.target.value)}>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Rol:</label>
+          <select id="Id_Rol" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Tip_Usuario} onChange={(e) => setTip_Usuario(e.target.value)}>
             <option value="">Seleccionar...</option>
-            <option value="Aprendiz">Aprendiz</option>
+            <option value="Aprendiz Interno">Aprendiz</option>
+            <option value="Aprendiz Externo">Aprendiz</option>
             <option value="Supervisor">Supervisor</option>
             <option value="Coordinador">Coordinador</option>
             <option value="Bienestar">Bienestar</option>
             <option value="Administrador">Administrador</option>
-            <option value="Invitado">Invitado</option>
           </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Estado de Usuario:</label>
-          <select id="Est_Usuario" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Est_Usuario} onChange={(e) => setEst_Usuario(e.target.value)}>
+          <select id="Id_Rol" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={Id_Rol} onChange={(e) => setId_Rol(e.target.value)}>
             <option value="">Seleccionar...</option>
             <option value="Aplazado">Aplazado</option>
             <option value="Apoyo de Sostenimiento">Apoyo de Sostenimiento</option>
@@ -237,13 +232,8 @@ const gestionarForm = async (e) => {
               {Fichas.Num_Ficha}
             </option>
 
-
-
-
-
           ))}
 
-        
            </select>
         </div>
         <div className="flex gap-3 pt-4 border-t border-gray-200">

@@ -1,5 +1,6 @@
 import UsuariosModel from "../Models/UsuariosModel.js";
 import FichasModel from "../Models/FichasModel.js";
+import RolesModel from "../Models/RolesModel.js";
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import {v4 as uuidv4} from 'uuid'
@@ -53,7 +54,7 @@ class UsuariosService {
     Cor_Usuario,
     Tel_Usuario,
     CenCon_Usuario,
-    Tip_Usuario,
+    Id_Rol,
     Est_Usuario,
     password,
     Sancion,
@@ -83,8 +84,7 @@ class UsuariosService {
     Cor_Usuario,
     CenCon_Usuario,
     Tel_Usuario,
-    CenCon_Usuario,
-    Tip_Usuario,
+    Id_Rol,
     Est_Usuario,
     password: hashedPassword,
     uuid: usuariosUuid,
@@ -97,6 +97,14 @@ class UsuariosService {
 
 
   async getAll() {
+    return await UsuariosModel.findAll({
+      include: [
+        {model: RolesModel, as: 'ficha', attributes: ['Id_Rol', 'Nom_Rol']}
+      ]
+    });
+  }
+
+   async getAll() {
     return await UsuariosModel.findAll({
       include: [
         {model: FichasModel, as: 'ficha', attributes: ['Id_Ficha', 'Num_Ficha']}

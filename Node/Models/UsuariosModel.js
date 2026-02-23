@@ -19,7 +19,7 @@ const UsuariosModel = db.define('usuarios', {
   token: { type: DataTypes.STRING, allowNull: true },
   Id_Ficha: {type: DataTypes.INTEGER,references: { model: "fichas", key: "Id_Ficha" }},
   Id_Rol: {type: DataTypes.INTEGER, references: {model: 'roles', key: 'Id_Rol' }},
-  San_Usuario: {type: DataTypes.STRING, allowNull: true},
+  Sancion: {type: DataTypes.STRING, allowNull: true},
   CreateData: { type: DataTypes.DATE, allowNull: true },
   UpdateData: { type: DataTypes.DATE, allowNull: true },
 },
