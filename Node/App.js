@@ -7,15 +7,19 @@ import FichasRoute from "./Routes/FichasRoute.js";
 import ReservasRoute from "./Routes/ReservasRoute.js";
 import ProgramaRoute from "./Routes/ProgramaRoutes.js";
 import RolesRoute from "./Routes/RolesRoute.js";
+import UsuariosRolRoute from './Routes/UsuariosRolRoutes.js';
 import FichasModel from './Models/FichasModel.js';
 import UsuariosModel from "./Models/UsuariosModel.js";
 import ProgramaModel from "./Models/ProgramaModel.js"; 
 import ReservasModel from './Models/ReservasModel.js';
 import RolesModel from './Models/RolesModel.js';
+import UsuariosRolModel from './Models/UsuariosRolModel.js';
+
 
 dotenv.config();
 import { fileURLToPath } from 'url';
 import Path from 'path';
+
 
 
 const app = Express();
@@ -27,6 +31,7 @@ app.use('/api/fichas', FichasRoute);
 app.use('/api/Reservas', ReservasRoute);
 app.use('/api/Programa', ProgramaRoute);
 app.use('/api/Roles', RolesRoute);
+app.use('/api/UsuariosRol', UsuariosRolRoute);
 
 
 
