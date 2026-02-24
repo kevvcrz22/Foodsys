@@ -53,7 +53,7 @@ function App() {
             <div className="flex min-h-screen bg-gray-100">
               <Sidebar />
               <div className="flex-1">
-                <main className="p-6">
+                <main className="p-1">
                   <Routes>
                     <Route index element={<Inicio />} />
                     <Route path="perfil" element={<PerfilSupervisor />} />
