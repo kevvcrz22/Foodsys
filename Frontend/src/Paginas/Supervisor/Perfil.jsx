@@ -118,7 +118,7 @@ export default function Perfil() {
 
   return (
     <div className="min-h-screen lg:pl-64">
-      <div className="w-full px-4 py-6">
+      <div className="w-full px-1 py-6 lg:px-4">
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');*{font-family:'Inter',system-ui,-apple-system,sans-serif}@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}.animate-fade-in{animation:fadeIn 0.4s ease-out}`}</style>
 
         <div className="max-w-6xl mx-auto pb-10">
