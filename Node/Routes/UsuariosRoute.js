@@ -1,6 +1,7 @@
 import Express from "express";
 import {RegisterUsuarios, Login, getAllUsuarios, getUsuarios, updateUsuarios, deleteUsuarios} from "../Controllers/UsuariosControllers.js";
 import { check } from 'express-validator';
+import authMiddleware from "../Middleware/authMiddleware.js";
 
 
 const router = Express.Router();
@@ -12,14 +13,12 @@ router.post('/',
         check('password', 'Mínimo 8 caracteres').isLength({ min: 8 })
     ],
     RegisterUsuarios);
-
+router.get("/", authMiddleware, getAllUsuarios);
 router.post('/login', Login);
-
-
-
 router.get("/", getAllUsuarios);
 router.get("/:Id", getUsuarios);
 router.put("/:Id", updateUsuarios);
 router.delete("/:Id", deleteUsuarios);
+router.delete("/:Id", authMiddleware ,deleteUsuarios);
 
 export default router;

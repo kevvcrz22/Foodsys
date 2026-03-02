@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 /* LOGIN */
@@ -26,6 +26,10 @@ import Reportes from "./Paginas/Supervisor/Reportes";
 import PerfilAprendiz from "./Paginas/AprendizExterno/Perfil.jsx";
 import ReservasAprendiz from "./Paginas/AprendizExterno/ReservasAprendiz.jsx";
 
+/* APRENDIZ INTERNO */
+import InicioInterno from "./Paginas/AprendizInterno/InicioInterno.jsx";
+import PerfilInterno from "./Paginas/AprendizInterno/PerfilInterno.jsx";
+
 /* CRUD */
 import CrudUsuarios from "./Tablas/Usuarios/CrudUsuarios.jsx";
 import CrudFichas from "./Tablas/Fichas/CrudFichas.jsx";
@@ -35,7 +39,37 @@ import CrudRoles from "./Tablas/Roles/CrudRoles.jsx";
 import CrudUsuariosRol from "./Tablas/Usuarios_Rol/CRUDusuariosRol.jsx";
 
 function App() {
+
   const [usuarioLogeado, setUsuarioLogeado] = useState(null);
+  const [isAuth, setIsAuth] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const usuario = localStorage.getItem("usuario");
+
+    if (!token || !usuario) {
+      setIsAuth(false);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(usuario);
+      setUsuarioLogeado(parsedUser);
+      setIsAuth(true);
+    } catch (error) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      setIsAuth(false);
+    }
+
+    setIsLoading(false);
+  }, []);
+
+  if (isLoading) {
+  return <div className="text-center mt-20">Cargando...</div>;
+}
 
   return (
     <>
@@ -103,48 +137,78 @@ function App() {
           }
         />
 
-        {/* ================= CRUD (CON NavBar) ================= */}
-        <Route
-          path="/usuarios"
-          element={
-            <div className="min-h-screen bg-gray-50">
-              <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                <CrudUsuarios />
-              </main>
+        {/* ================= APRENDIZ INTERNO ================= */}
+        <Route path="/AprendizInterno/*" element={
+            <div className="flex min-h-screen bg-gray-100">
+              <Sidebar />
+              <div className="flex-1">
+                <main className="p-6">
+                  <Routes>
+                    <Route index element={<InicioInterno />} />
+                    <Route path="perfil" element={<PerfilInterno />} />
+                    <Route path="*" element={<Navigate to="/AprendizInterno" replace />} />
+                  </Routes>
+                </main>
+              </div>
             </div>
           }
         />
 
+        {/* ================= CRUD (CON NavBar) ================= */}
+        <Route
+  path="/usuarios"
+  element={
+    isAuth ? (
+      <div className="min-h-screen bg-gray-50">
+        <main className="max-w-7xl mx-auto py-6 px-4">
+          <CrudUsuarios />
+        </main>
+      </div>
+    ) : (
+      <Navigate to="/" replace />
+    )
+  }
+/>
         <Route
           path="/fichas"
           element={
+            isAuth ? (
+
             <div className="min-h-screen bg-gray-50">
               <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <CrudFichas />
               </main>
             </div>
+            ) : (
+      <Navigate to="/" replace />
+    )
+            
           }
         />
 
         <Route
           path="/programas"
-          element={
+          element={ isAuth ? (
             <div className="min-h-screen bg-gray-50">
               <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <CrudPrograma />
               </main>
-            </div>
+            </div>) : (
+      <Navigate to="/" replace />
+    )
           }
         />
 
         <Route
           path="/reservas"
-          element={
+          element={isAuth ? (
             <div className="min-h-screen bg-gray-50">
               <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <CrudReservas />
               </main>
-            </div>
+            </div> ) : (
+      <Navigate to="/" replace />
+    )
           }
         />
 
@@ -174,14 +238,8 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
 
       </Routes>
-
-      <Footer />
-
-      {usuarioLogeado && (
-        <h2 style={{ textAlign: "center", marginTop: "50px" }}>
-          Bienvenido {usuarioLogeado.Nom_Usuario}
-        </h2>
-      )}
+      <Footer/>
+      
     </>
   );
 }

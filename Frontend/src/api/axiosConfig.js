@@ -1,11 +1,23 @@
-import axios from 'axios'
-const API_URL = import.meta.env.VITE_API_URL
+import axios from "axios";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const apiNode = axios.create({
-    baseURL: API_URL,
-    headers:{
-        'Content-Type':'application/json'
-    }
-})
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-export default apiNode 
+// 🔐 Interceptor para enviar token automáticamente
+apiNode.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+export default apiNode;

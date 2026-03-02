@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 import Presentacion from '../../Components/Img/Casino.jpg';
+import { useNavigate } from "react-router-dom";
+
 
 const LoginFoodsys = ({ onLogin }) => {
+
+ 
+  const navigate = useNavigate();
+
   // Estados para los campos del formulario
   const [formData, setFormData] = useState({
     TipDoc_Usuario: '',
@@ -167,6 +173,8 @@ const LoginFoodsys = ({ onLogin }) => {
     });
 
     const data = await response.json();
+    console.log("DATA QUE LLEGA DEL BACKEND:", data);
+    
 
     if (!response.ok) {
       throw new Error(data.message || "Error al iniciar sesión");
@@ -174,7 +182,20 @@ const LoginFoodsys = ({ onLogin }) => {
 
     // Guardar token en localStorage
     localStorage.setItem("token", data.usuarios.token);
-    localStorage.setItem("usuario", JSON.stringify(data.usuarios));
+localStorage.setItem("usuario", JSON.stringify(data.usuarios));
+   
+
+// Redirección según tipo
+    if (data.usuarios.Tip_Usuario === "Administrador") {
+      navigate("/Administrador");
+    } 
+    else if (data.usuarios.Tip_Usuario === "Supervisor") {
+      navigate("/Supervisor");
+    }
+    else if (data.usuarios.Tip_Usuario === "Aprendiz") {
+      navigate("/Aprendiz");
+    }
+
 
     // Enviar datos al componente padre
     onLogin(data.usuarios);

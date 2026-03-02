@@ -36,10 +36,10 @@ class UsuariosService {
 
   usuarios.token = token;
   await usuarios.save();
-
+//Consultar la tabla compuesta con el Id de ese usuario, para saber cuales son los roles que tiene asignados
   const { password: _, ...usuarioSinPassword } = usuarios.toJSON();
-
-  return { usuarios: usuarioSinPassword };
+// Retornar junto con el usuario y el token los roles de esta persona del usuario, dependiendo de este rol o bueno haya en el frontend muestra una pagina inicial para que selecciones con que rol quiere avanzar, si es como monitor puede hacer lectura con codigo QR y si es como aprendiz solo reservar 
+  return { usuarios: usuarioSinPassword, token };
 }
 
 
