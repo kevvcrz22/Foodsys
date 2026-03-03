@@ -1,7 +1,7 @@
 import db from "../Database/db.js";
 import { DataTypes } from "sequelize";
 import FichasModel from "./FichasModel.js";
-import RolesModel from "./RolesModel.js";
+
 
 const UsuariosModel = db.define('usuarios', {
   Id_Usuario: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -18,8 +18,7 @@ const UsuariosModel = db.define('usuarios', {
   uuid: { type: DataTypes.STRING, allowNull: true },
   token: { type: DataTypes.STRING, allowNull: true },
   Id_Ficha: {type: DataTypes.INTEGER,references: { model: "fichas", key: "Id_Ficha" }},
-  Id_Rol: {type: DataTypes.INTEGER, references: {model: 'roles', key: 'Id_Rol' }},
-  Sancion: {type: DataTypes.STRING, allowNull: true},
+  San_Usuario: {type: DataTypes.STRING, allowNull: true},
   CreateData: { type: DataTypes.DATE, allowNull: true },
   UpdateData: { type: DataTypes.DATE, allowNull: true },
 },
@@ -34,9 +33,6 @@ UsuariosModel.belongsTo(FichasModel, {
   as: "Ficha"
 });
 
-UsuariosModel.belongsTo(RolesModel, {
-  foreignKey: "Id_Rol",
-  as: "roles"
-});
+
 
 export default UsuariosModel;

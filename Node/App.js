@@ -67,7 +67,18 @@ FichasModel.belongsTo(ProgramaModel, {foreignKey: 'Id_Programa', as:'programa'})
 UsuariosModel.hasMany(ReservasModel, { foreignKey: 'Id_Usuario', as: 'reservas' });
 ReservasModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' });
 
-RolesModel.hasMany(UsuariosModel, { foreignKey: 'Id_Rol', as: 'usuariosRol' });
-UsuariosModel.belongsTo(RolesModel, { foreignKey: 'Id_Rol', as: 'Rol' });
+// RolesModel.hasMany(UsuariosModel, { foreignKey: 'Id_Rol', as: 'usuariosRol' });
+// UsuariosModel.belongsTo(RolesModel, { foreignKey: 'Id_Rol', as: 'Rol' });
+UsuariosModel.belongsToMany(RolesModel, {
+  through: UsuariosRolModel,
+  foreignKey: "Id_Usuario",
+  as: "Roles"
+});
+
+RolesModel.belongsToMany(UsuariosModel, {
+  through: UsuariosRolModel,
+  foreignKey: "Id_Rol",
+  as: "Usuarios"
+});
 
 export default app;

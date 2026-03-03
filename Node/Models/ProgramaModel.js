@@ -1,7 +1,7 @@
 import db from "../Database/db.js";
 import { DataTypes } from "sequelize";
 
-const ProgramaModel = db.define('programas', {
+const ProgramasModel = db.define('programas', {
   Id_Programa: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   Nom_Programa: { type: DataTypes.STRING, },
   Area: { type: DataTypes.STRING, },
@@ -11,4 +11,4 @@ const ProgramaModel = db.define('programas', {
   timestamps: false
 });
 
-export default ProgramaModel;
+export default ProgramasModel;

@@ -4,7 +4,7 @@ import UsuariosService from "../Services/UsuariosService.js";
 
 export const RegisterUsuarios = async (req, res) =>{
   try {
-    const usuarios = await UsuariosService.register(req.body)
+    const Usuarios  = await UsuariosService.register(req.body)
     res.status(201).json({ message: "Usuario registrado con exito"})
   } catch (error) {
     res.status(400).json({message: error.message})

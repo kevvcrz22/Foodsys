@@ -54,12 +54,14 @@ class UsuariosService {
     Cor_Usuario,
     Tel_Usuario,
     CenCon_Usuario,
-    Id_Rol,
     Est_Usuario,
     password,
-    Sancion,
-    Id_Ficha
+    San_Usuario,
+    Id_Ficha,
+    Roles
   } = data;
+  console.log("DATA COMPLETA:", data);
+console.log("Roles recibidos:", Roles);
 
   const userExist = await UsuariosModel.findOne({
     where: {
@@ -74,8 +76,10 @@ class UsuariosService {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const usuariosUuid = uuidv4();
+  let usuarios;
+  try {
 
-  const usuarios = await UsuariosModel.create({
+   usuarios = await UsuariosModel.create({
     TipDoc_Usuario,
     NumDoc_Usuario,
     Nom_Usuario,
@@ -84,33 +88,54 @@ class UsuariosService {
     Cor_Usuario,
     CenCon_Usuario,
     Tel_Usuario,
-    Id_Rol,
     Est_Usuario,
     password: hashedPassword,
     uuid: usuariosUuid,
-    Sancion,
+    San_Usuario,
     Id_Ficha
   });
+  console.log("Usuario creado:", usuarios.Id_Usuario);
+
+} catch (error) {
+  console.error("ERROR EN CREATE:", error);
+  throw error;
+}
+
+
+
+   // 🔥 AQUÍ asignas roles
+  if (Roles && Roles.length > 0) {
+    console.log("Entró al if de roles");
+    await usuarios.addRoles(Roles); 
+    // Roles debe ser array de IDs → [1, 2]
+     console.log("Roles asignados");
+  }
 
   return usuarios;
 }
 
 
-  async getAll() {
-    return await UsuariosModel.findAll({
-      include: [
-        {model: RolesModel, as: 'ficha', attributes: ['Id_Rol', 'Nom_Rol']}
-      ]
-    });
-  }
+  // async getAll() {
+  //   return await UsuariosModel.findAll({
+  //     include: [
+  //       {model: RolesModel, as: 'ficha', attributes: ['Id_Rol', 'Nom_Rol']}
+  //     ]
+  //   });
+  // }
 
-   async getAll() {
-    return await UsuariosModel.findAll({
-      include: [
-        {model: FichasModel, as: 'ficha', attributes: ['Id_Ficha', 'Num_Ficha']}
-      ]
-    });
-  }
+ async getAll() {
+  return await UsuariosModel.findAll({
+    include: [
+      {
+        model: RolesModel,
+        as: 'Roles',
+        through: { attributes: [] }
+      
+      },
+    
+    ]
+  });
+}
 
 async getById(Id) {
   const usuarios = await UsuariosModel.findByPk(Id, {

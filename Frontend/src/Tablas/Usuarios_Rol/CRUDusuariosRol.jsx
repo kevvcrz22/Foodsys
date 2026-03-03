@@ -27,11 +27,8 @@ const CrudUsuariosRol = () => {
             selector: row => row.Id_Rol, 
             sortable: true 
         },
-        { 
-            name: "Fecha Ingreso", 
-            selector: row => new Date(row.Fec_Ingreso).toLocaleDateString(),
-            sortable: true 
-        },
+        
+    
         {
             name: "Acciones",
             cell: row => (
