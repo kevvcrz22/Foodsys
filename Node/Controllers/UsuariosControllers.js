@@ -1,7 +1,5 @@
 import UsuariosService from "../Services/UsuariosService.js";
 
-
-
 export const RegisterUsuarios = async (req, res) =>{
   try {
     const usuarios = await UsuariosService.register(req.body)
@@ -14,10 +12,17 @@ export const RegisterUsuarios = async (req, res) =>{
 
 export const Login = async (req, res) => {
   try {
-    const {usuarios}= await UsuariosService.Login(req.body)
-    res.status(200).json({message: "Usuario logueado exitosamente", usuarios})
+    const { usuario, roles, token } = await UsuariosService.Login(req.body);
+
+    res.status(200).json({
+      message: "Usuario logueado exitosamente",
+      usuario,
+      roles,
+      token
+    });
+
   } catch (error){
-    res.status(400).json({message:error.message})
+    res.status(400).json({ message: error.message });
   }
 }
 

@@ -1,9 +1,11 @@
 import UsuariosModel from "../Models/UsuariosModel.js";
 import FichasModel from "../Models/FichasModel.js";
-import bcrypt from 'bcrypt'
+import UsuariosRolModel from "../Models/UsuariosRolModel.js";
+import RolesModel from "../Models/RolesModel.js";
+import ProgramaModel from "../Models/ProgramaModel.js";
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken'
 import {v4 as uuidv4} from 'uuid'
-
 
 
 class UsuariosService {
@@ -11,10 +13,15 @@ class UsuariosService {
   const { TipDoc_Usuario, NumDoc_Usuario, password } = data;
 
   const usuarios = await UsuariosModel.findOne({
-    where: {
-      TipDoc_Usuario,
-      NumDoc_Usuario
-    }
+    where: { TipDoc_Usuario, NumDoc_Usuario },
+    include: [{
+      model: UsuariosRolModel,
+      as: "rolesUsuario",
+      include: [{
+        model: RolesModel,
+        as: "rol"
+      }]
+    }]
   });
 
   if (!usuarios) {
@@ -30,20 +37,27 @@ class UsuariosService {
   const token = jwt.sign(
     { id: usuarios.Id_Usuario, uuid: usuarios.uuid },
     process.env.JWT_SECRET,
-    { expiresIn: "1h" }
+    { expiresIn: "6h" }
   );
 
-  usuarios.token = token;
-  await usuarios.save();
+  const usuarioJson = usuarios.toJSON();
 
-  const { password: _, ...usuarioSinPassword } = usuarios.toJSON();
+/* EXTRAER ROLES DEL USUARIO */
+const roles = usuarioJson.rolesUsuario
+  ?.map(r => r.rol?.Nom_Rol)
+  .filter(Boolean);
+/* QUITAR PASSWORD */
+const { password: _, ...usuarioSinPassword } = usuarioJson;
 
-  return { usuarios: usuarioSinPassword };
+/* RESPUESTA FINAL */
+return {
+  usuario: usuarioSinPassword,
+  roles,
+  token
+};
 }
 
-
-
-  async register(data) {
+async register(data) {
   const {
     TipDoc_Usuario,
     NumDoc_Usuario,
@@ -53,10 +67,8 @@ class UsuariosService {
     Cor_Usuario,
     Tel_Usuario,
     CenCon_Usuario,
-    Tip_Usuario,
     Est_Usuario,
-    password,
-    Sancion,
+    San_Usuario,
     Id_Ficha
   } = data;
 
@@ -71,7 +83,9 @@ class UsuariosService {
     throw new Error("El usuario ya existe con ese documento");
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  // 🔐 La contraseña será el número de documento
+  const hashedPassword = await bcrypt.hash(NumDoc_Usuario, 10);
+
   const usuariosUuid = uuidv4();
 
   const usuarios = await UsuariosModel.create({
@@ -81,34 +95,53 @@ class UsuariosService {
     Ape_Usuario,
     Gen_Usuario,
     Cor_Usuario,
-    CenCon_Usuario,
     Tel_Usuario,
     CenCon_Usuario,
-    Tip_Usuario,
     Est_Usuario,
     password: hashedPassword,
     uuid: usuariosUuid,
-    Sancion,
+    San_Usuario,
     Id_Ficha
   });
 
   return usuarios;
 }
 
-
   async getAll() {
     return await UsuariosModel.findAll({
       include: [
-        {model: FichasModel, as: 'ficha', attributes: ['Id_Ficha', 'Num_Ficha']}
+        {model: FichasModel, as: 'ficha', include: [
+          {
+            model: ProgramaModel,
+            as: 'Programa',
+            attributes: ['Id_Programa', 'Nom_Programa']
+          }
+        ], 
+      attributes: ['Id_Ficha', 'Num_Ficha']}
       ]
     });
   }
 
-  async getById(Id) {
-    const Usuarios = await UsuariosModel.findByPk(Id)
-    if(!Usuarios) throw new Error("Usuario no encontrado")
-      return Usuarios
-  }
+async getById(Id) {
+  const usuarios = await UsuariosModel.findByPk(Id, {
+    include: [
+      {
+        model: FichasModel,
+        as: 'Ficha',
+        include: [
+          {
+            model: ProgramaModel,
+            as: 'Programa',
+            attributes: ['Nom_Programa']
+          }
+        ],
+        attributes: ['Id_Ficha', 'Num_Ficha']
+      }
+    ]
+  });
+  if (!usuarios) throw new Error("Usuario no encontrado");
+  return usuarios;
+}
 
   async create(data) {
     return await UsuariosModel.create(data);

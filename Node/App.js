@@ -2,17 +2,24 @@ import Express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import db from './Database/db.js';
+
 import UsuariosRoute from './Routes/UsuariosRoute.js';
 import FichasRoute from "./Routes/FichasRoute.js";
 import ReservasRoute from "./Routes/ReservasRoute.js";
 import ProgramaRoute from "./Routes/ProgramaRoutes.js";
+import RolesRoute from "./Routes/RolesRoute.js";
+import UsuariosRolRoute from './Routes/UsuariosRolRoutes.js';
 import FichasModel from './Models/FichasModel.js';
 import UsuariosModel from "./Models/UsuariosModel.js";
 import ProgramaModel from "./Models/ProgramaModel.js"; 
 import ReservasModel from './Models/ReservasModel.js';
+import RolesModel from './Models/RolesModel.js';
+import UsuariosRolModel from './Models/UsuariosRolModel.js';
+
 dotenv.config();
 import { fileURLToPath } from 'url';
 import Path from 'path';
+
 
 
 const app = Express();
@@ -22,7 +29,9 @@ app.use(cors());
 app.use('/api/Usuarios', UsuariosRoute);
 app.use('/api/fichas', FichasRoute);
 app.use('/api/Reservas', ReservasRoute);
-app.use('/api/Programa', ProgramaRoute);
+app.use('/api/Programas', ProgramaRoute);
+app.use('/api/Roles', RolesRoute);
+app.use('/api/UsuariosRoles', UsuariosRolRoute);
 
 
 
@@ -48,14 +57,19 @@ app.listen(PORT, () => {
   console.log(`Server up running at http://localhost:${PORT}`)
 })
 
-FichasModel.hasMany(UsuariosModel, {foreignKey: 'Id_Ficha', as: 'usuarios'})
+FichasModel.hasMany(UsuariosModel, {foreignKey: 'Id_Ficha', as: 'usuariosFicha'})
 UsuariosModel.belongsTo(FichasModel, {foreignKey: 'Id_Ficha', as: 'ficha'})
 
-ProgramaModel.hasMany(FichasModel, {foreignKey: 'Id_Programa', as: 'ficha'})
+ProgramaModel.hasMany(FichasModel, {foreignKey: 'Id_Programa', as: 'fichas'})
 FichasModel.belongsTo(ProgramaModel, {foreignKey: 'Id_Programa', as:'programa'})
-
 
 UsuariosModel.hasMany(ReservasModel, { foreignKey: 'Id_Usuario', as: 'reservas' });
 ReservasModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' });
+
+UsuariosModel.hasMany(UsuariosRolModel, {foreignKey: "Id_Usuario",as: "rolesUsuario"});
+UsuariosRolModel.belongsTo(UsuariosModel, {foreignKey: "Id_Usuario"});
+
+UsuariosRolModel.belongsTo(RolesModel, {foreignKey: "Id_Rol", as: "rol"});
+RolesModel.hasMany(UsuariosRolModel, { foreignKey: "Id_Rol", as: "usuariosRol"});
 
 export default app;

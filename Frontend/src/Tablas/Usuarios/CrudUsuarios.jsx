@@ -2,49 +2,208 @@ import apiAxios from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
 import DataTable from "react-data-table-component";
 import UsuariosForm from "./UsuariosForm.jsx";
+import { Users, Eye, Pencil, Plus, Search, X, Mail, Phone, FileText, CheckCircle, XCircle, Hash } from "lucide-react";
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
+
+const getInitials = (nom, ape) => {
+  const a = (nom || "").charAt(0).toUpperCase();
+  const b = (ape || "").charAt(0).toUpperCase();
+  return `${a}${b}` || "??";
+};
+
+const avatarColor = (str) => {
+  const colors = [
+    "from-blue-500 to-blue-600",
+    "from-purple-500 to-purple-600",
+    "from-emerald-500 to-emerald-600",
+    "from-amber-500 to-amber-600",
+    "from-rose-500 to-rose-600",
+    "from-cyan-500 to-cyan-600",
+    "from-indigo-500 to-indigo-600",
+  ];
+  let hash = 0;
+  for (let i = 0; i < (str || "").length; i++) hash = str.charCodeAt(i) + hash;
+  return colors[hash % colors.length];
+};
+
+const EstadoBadge = ({ estado }) => {
+  const activo = estado === "Activo" || estado === "activo";
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${activo ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
+      {activo ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+      {estado}
+    </span>
+  );
+};
+
+/* ── Modal Detalle ── */
+const DetalleModal = ({ usuario, onClose, onEdit }) => {
+  if (!usuario) return null;
+  const nombreCompleto = `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim();
+  const rows = [
+    { label: "ID", value: usuario.Id_Usuario },
+    { label: "Tipo Doc.", value: usuario.TipDoc_Usuario },
+    { label: "N° Documento", value: usuario.NumDoc_Usuario },
+    { label: "Nombres", value: usuario.Nom_Usuario },
+    { label: "Apellidos", value: usuario.Ape_Usuario },
+    { label: "Género", value: usuario.Gen_Usuario },
+    { label: "Correo", value: usuario.Cor_Usuario },
+    { label: "Teléfono", value: usuario.Tel_Usuario },
+    { label: "Centro Conv.", value: usuario.CenCon_Usuario },
+    { label: "Estado", value: usuario.Est_Usuario, isEstado: true },
+    { label: "Sanción", value: usuario.San_Usuario },
+    { label: "Ficha", value: usuario.ficha?.Num_Ficha || "Sin ficha" },
+    { label: "Creado", value: usuario.CreateData ? new Date(usuario.CreateData).toLocaleDateString() : "—" },
+    { label: "Actualizado", value: usuario.UpdateData ? new Date(usuario.UpdateData).toLocaleDateString() : "—" },
+  ];
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Header con avatar */}
+        <div className={`flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-blue-500`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${avatarColor(nombreCompleto)} flex items-center justify-center flex-shrink-0 shadow-lg`}>
+              <span className="text-white font-bold text-sm">{getInitials(usuario.Nom_Usuario, usuario.Ape_Usuario)}</span>
+            </div>
+            <div>
+              <p className="text-white font-bold text-sm">{nombreCompleto}</p>
+              <p className="text-blue-100 text-xs">{usuario.Cor_Usuario}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 transition-colors">
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-5 space-y-2">
+          {rows.map(({ label, value, isEstado }) => (
+            <div key={label} className="flex justify-between items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide min-w-[90px]">{label}</span>
+              {isEstado ? <EstadoBadge estado={value} /> : (
+                <span className="text-sm text-gray-800 font-medium text-right break-all">{value || "—"}</span>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="p-4 border-t border-gray-100">
+          <button
+            onClick={() => { onEdit(usuario); onClose(); }}
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors"
+          >
+            <Pencil className="w-4 h-4" /> Editar Usuario
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ── Tarjeta Móvil ── */
+const UsuarioCard = ({ usuario, onEdit, onView }) => {
+  const nombreCompleto = `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim();
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-3 active:scale-[0.99] transition-transform">
+      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${avatarColor(nombreCompleto)} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+        <span className="text-white font-bold text-sm">{getInitials(usuario.Nom_Usuario, usuario.Ape_Usuario)}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-bold text-gray-900 text-sm truncate">{nombreCompleto}</span>
+          <EstadoBadge estado={usuario.Est_Usuario} />
+        </div>
+        <p className="text-xs text-gray-500 mt-0.5 truncate flex items-center gap-1">
+          <Mail className="w-3 h-3 flex-shrink-0" />
+          {usuario.Cor_Usuario || "Sin correo"}
+        </p>
+        <p className="text-xs text-gray-400 flex items-center gap-1">
+          <Hash className="w-3 h-3 flex-shrink-0" />
+          {usuario.NumDoc_Usuario || "—"}
+        </p>
+      </div>
+      <div className="flex flex-col gap-2 flex-shrink-0">
+        <button
+          onClick={() => onView(usuario)}
+          className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-gray-100 flex items-center justify-center transition-colors"
+        >
+          <Eye className="w-4 h-4 text-gray-500" />
+        </button>
+        <button
+          onClick={() => onEdit(usuario)}
+          className="w-9 h-9 rounded-xl bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors"
+        >
+          <Pencil className="w-4 h-4 text-blue-600" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────── MAIN ─────────────── */
 const CrudUsuarios = () => {
-
   const [Usuarios, setUsuarios] = useState([]);
   const [filterText, setFilterText] = useState("");
   const [selectedUsuario, setselectedUsuario] = useState(null);
   const [isEdit, setIsEdit] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [detalleOpen, setDetalleOpen] = useState(false);
+  const [usuarioDetalle, setUsuarioDetalle] = useState(null);
+  const isMobile = useIsMobile();
 
   const columnsTable = [
-    { name: "ID", selector: row => row.Id_Usuario },
-    { name: "Tipo de Documento", selector: row => row.TipDoc_Usuario },
-    { name: "Documento", selector: row => row.NumDoc_Usuario },
-    { name: "Nombres", selector: row => row.Nom_Usuario },
-    { name: "Apellidos", selector: row => row.Ape_Usuario },
-    { name: "Genero", selector: row => row.Gen_Usuario },
-    { name: "Correo", selector: row => row.Cor_Usuario },
-    { name: "Telefono", selector: row => row.Tel_Usuario },
-    { name: "Centro Convivencia", selector: row => row.CenCon_Usuario },
-    { name: "Tipo De Usuario", selector: row => row.Tip_Usuario },
-    { name: "Estado De Usuario", selector: row => row.Est_Usuario },
-    { name: "Contraseña", selector: row => row.password },
-    { name: "Sancion", selector: row => row.Sancion },
-    { name: "Ficha", selector: row => row.ficha?.Num_Ficha || "Sin ficha" },
-    { name: "Fecha de Creación", selector: row => new Date(row.CreateData).toLocaleDateString() },
-    { name: "Fecha de Actualización", selector: row => new Date(row.UpdateData).toLocaleDateString() },
+    { name: "ID", selector: (r) => r.Id_Usuario, sortable: true, width: "65px" },
+    {
+      name: "Usuario",
+      selector: (r) => `${r.Nom_Usuario} ${r.Ape_Usuario}`,
+      sortable: true,
+      grow: 2,
+      cell: (r) => {
+        const nombre = `${r.Nom_Usuario || ""} ${r.Ape_Usuario || ""}`.trim();
+        return (
+          <div className="flex items-center gap-2 py-1">
+            <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${avatarColor(nombre)} flex items-center justify-center flex-shrink-0`}>
+              <span className="text-white font-bold text-xs">{getInitials(r.Nom_Usuario, r.Ape_Usuario)}</span>
+            </div>
+            <div>
+              <p className="font-semibold text-gray-800 text-sm leading-tight">{nombre}</p>
+              <p className="text-xs text-gray-400">{r.Cor_Usuario}</p>
+            </div>
+          </div>
+        );
+      },
+    },
+    { name: "Documento", selector: (r) => r.NumDoc_Usuario, sortable: true },
+    { name: "Teléfono", selector: (r) => r.Tel_Usuario, sortable: true },
+    {
+      name: "Estado",
+      selector: (r) => r.Est_Usuario,
+      sortable: true,
+      cell: (r) => <EstadoBadge estado={r.Est_Usuario} />,
+    },
+    { name: "Ficha", selector: (r) => r.ficha?.Num_Ficha || "Sin ficha", sortable: true },
+    { name: "Sanción", selector: (r) => r.San_Usuario },
     {
       name: "Acciones",
-      cell: row => (
+      cell: (row) => (
         <button
-          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors flex items-center gap-2"
+          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
           onClick={() => editUsuario(row)}
         >
-          <i className="bi bi-pencil-square"></i> Editar
+          <Pencil className="w-3 h-3" /> Editar
         </button>
-
-      )
-    }
+      ),
+    },
   ];
 
-  useEffect(() => {
-    getAllUsuarios();
-  }, []);
+  useEffect(() => { getAllUsuarios(); }, []);
 
   const getAllUsuarios = async () => {
     try {
@@ -55,123 +214,132 @@ const CrudUsuarios = () => {
     }
   };
 
-  const editUsuario = (row) => {
-    setselectedUsuario(row);
-    setIsEdit(true);
-    setIsModalOpen(true);
-  };
+  const editUsuario = (row) => { setselectedUsuario(row); setIsEdit(true); setIsModalOpen(true); };
+  const hideModal = () => { setIsModalOpen(false); setselectedUsuario(null); setIsEdit(false); };
 
-  const handleNuevo = () => {
-    setselectedUsuario(null);
-    setIsEdit(false);
-    setIsModalOpen(true);
-  };
-
-  const newListUsuarios = Usuarios.filter(a => {
-    const textToSearch = filterText.toLowerCase();
-    const NumDoc = String(a.NumDoc_Usuario || "").toLowerCase();
-    const Nombre = String(a.Nom_Usuario || "").toLowerCase();
-    const NumFicha = String(a.ficha?.Num_Ficha || "").toLowerCase();
-
+  const newList = Usuarios.filter((a) => {
+    const t = filterText.toLowerCase();
     return (
-      NumDoc.includes(textToSearch) ||
-      Nombre.includes(textToSearch) ||
-      NumFicha.includes(textToSearch)
+      String(a.NumDoc_Usuario || "").toLowerCase().includes(t) ||
+      String(a.Nom_Usuario || "").toLowerCase().includes(t) ||
+      String(a.Ape_Usuario || "").toLowerCase().includes(t) ||
+      String(a.ficha?.Num_Ficha || "").toLowerCase().includes(t)
     );
   });
 
-  const hideModal = () => {
-    setIsModalOpen(false);
-    setselectedUsuario(null);
-    setIsEdit(false);
+  const customStyles = {
+    headRow: { style: { backgroundColor: "#f8fafc", fontSize: "13px", fontWeight: "700", color: "#374151", borderBottom: "2px solid #e5e7eb" } },
+    rows: { style: { fontSize: "13px", "&:hover": { backgroundColor: "#eff6ff" }, borderBottom: "1px solid #f3f4f6" } },
+    pagination: { style: { borderTop: "1px solid #e5e7eb", fontSize: "13px" } },
   };
 
   return (
     <>
-      <div className="container mx-auto px-4 py-6">
-
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6 gap-4">
-
-          <div className="w-full md:w-1/3">
+      <div className="w-full h-full flex flex-col bg-gray-50 min-h-0">
+        <div className="bg-white border-b border-gray-200 px-4 py-3 lg:px-6 lg:py-4 flex-shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+                <Users className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h1 className="font-bold text-gray-900 text-base lg:text-lg leading-tight">Usuarios</h1>
+                <p className="text-xs text-gray-400 hidden sm:block">{Usuarios.length} registros</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setselectedUsuario(null); setIsEdit(false); setIsModalOpen(true); }}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 lg:px-5 lg:py-2.5 rounded-xl text-sm font-semibold transition-colors flex-shrink-0 shadow-sm shadow-blue-200"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Nuevo Usuario</span>
+            </button>
+          </div>
+          <div className="mt-3 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar usuario..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg 
-              focus:outline-none focus:ring-2 focus:ring-blue-500 
-              focus:border-transparent"
+              placeholder="Buscar por nombre, documento o ficha..."
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
             />
           </div>
-
-          <button
-          type="button"
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
-          onClick={handleNuevo}
-          >
-          <i className="bi bi-plus-circle"></i>
-             Nuevo Usuario
-          </button>
-
         </div>
 
-        {/* Tabla */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <DataTable
-            title="Usuarios"
-            columns={columnsTable}
-            data={newListUsuarios}
-            keyField="Id_Usuario"
-            pagination
-            highlightOnHover
-            striped
-          />
-        </div>
-
-        {/* Modal Tailwind */}
-        {isModalOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-
-            {/* Fondo blur */}
-            <div 
-              className="fixed inset-0 bg-black/30 backdrop-blur-sm"
-              onClick={hideModal}
-            />
-nuevo usuario
-            {/* Modal */}
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl 
-            relative z-10 max-h-[95vh] overflow-hidden flex flex-col">
-
-              <div className="flex items-center justify-between 
-              border-b border-gray-200 px-6 py-4">
-
-                <h2 className="text-xl font-semibold text-gray-800">
-                  {isEdit ? "Editar Usuario" : "Agregar Usuario"}
-                </h2>
-
-                <button
-                  onClick={hideModal}
-                  className="text-gray-400 hover:text-gray-600 text-xl"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="px-6 py-4 overflow-y-auto flex-1">
-                <UsuariosForm
-                  hideModal={hideModal}
-                  UsuarioSeleccionado={selectedUsuario}
-                  Editar={isEdit}
-                  reload={getAllUsuarios}
+        <div className="flex-1 overflow-y-auto">
+          {isMobile ? (
+            <div className="p-3 space-y-2">
+              {newList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                  <Users className="w-10 h-10 mb-2 opacity-30" />
+                  <p className="text-sm">No hay usuarios para mostrar</p>
+                </div>
+              ) : (
+                newList.map((u) => (
+                  <UsuarioCard
+                    key={u.Id_Usuario}
+                    usuario={u}
+                    onEdit={editUsuario}
+                    onView={(usr) => { setUsuarioDetalle(usr); setDetalleOpen(true); }}
+                  />
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="p-4 lg:p-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <DataTable
+                  title="Usuarios"
+                  columns={columnsTable}
+                  data={newList}
+                  keyField="Id_Usuario"
+                  pagination
+                  highlightOnHover
+                  striped
+                  customStyles={customStyles}
+                  noDataComponent={
+                    <div className="flex flex-col items-center py-12 text-gray-400">
+                      <Users className="w-8 h-8 mb-2 opacity-30" />
+                      <p className="text-sm">No hay usuarios para mostrar</p>
+                    </div>
+                  }
                 />
               </div>
+            </div>
+          )}
+        </div>
+      </div>
 
+      {detalleOpen && (
+        <DetalleModal
+          usuario={usuarioDetalle}
+          onClose={() => setDetalleOpen(false)}
+          onEdit={editUsuario}
+        />
+      )}
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={hideModal} />
+          <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 max-h-[95vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 flex-shrink-0">
+              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
+                  {isEdit ? <Pencil className="w-3.5 h-3.5 text-blue-600" /> : <Plus className="w-3.5 h-3.5 text-blue-600" />}
+                </div>
+                {isEdit ? "Editar Usuario" : "Nuevo Usuario"}
+              </h2>
+              <button onClick={hideModal} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+            <div className="px-5 py-4 overflow-y-auto flex-1">
+              <UsuariosForm hideModal={hideModal} UsuarioSeleccionado={selectedUsuario} Editar={isEdit} reload={getAllUsuarios} />
             </div>
           </div>
-        )}
-
-      </div>
+        </div>
+      )}
     </>
   );
 };

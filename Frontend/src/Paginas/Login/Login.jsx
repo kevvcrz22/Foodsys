@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 import Presentacion from '../../Components/Img/Casino.jpg';
+import { useNavigate } from "react-router-dom";
+
 
 const LoginFoodsys = ({ onLogin }) => {
+
+  const navigate = useNavigate();
+  
+
   // Estados para los campos del formulario
   const [formData, setFormData] = useState({
     TipDoc_Usuario: '',
@@ -139,30 +145,17 @@ const LoginFoodsys = ({ onLogin }) => {
     return !errors.TipDoc_Usuario && !errors.NumDoc_Usuario && !errors.password;
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
   e.preventDefault();
 
-  if (!validateForm()) {
-    if (loginFormRef.current) {
-      loginFormRef.current.classList.add('invalid');
-      setTimeout(() => {
-        if (loginFormRef.current) {
-          loginFormRef.current.classList.remove('invalid');
-        }
-      }, 600);
-    }
-    return;
-  }
+  if (!validateForm()) return;
 
   try {
     setIsLoading(true);
 
     const response = await fetch("http://localhost:8000/api/Usuarios/login", {
-
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData)
     });
 
@@ -172,12 +165,24 @@ const LoginFoodsys = ({ onLogin }) => {
       throw new Error(data.message || "Error al iniciar sesión");
     }
 
-    // Guardar token en localStorage
-    localStorage.setItem("token", data.usuarios.token);
-    localStorage.setItem("usuario", JSON.stringify(data.usuarios));
+    // Guardar datos
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("usuario", JSON.stringify(data.usuario));
+    localStorage.setItem("roles", JSON.stringify(data.roles));
 
-    // Enviar datos al componente padre
-    onLogin(data.usuarios);
+    const roles = data.roles;
+
+    // Determinar rol activo
+    let rolActivo = roles.includes("Administrador")
+      ? "Administrador"
+      : roles[0];
+
+    localStorage.setItem("rolActivo", rolActivo);
+
+    // 🔥 IMPORTANTE: Avisar a App que el login fue exitoso
+    if (onLogin) {
+      onLogin(data.usuario, roles, rolActivo);
+    }
 
   } catch (error) {
     alert(error.message);
@@ -185,7 +190,6 @@ const LoginFoodsys = ({ onLogin }) => {
     setIsLoading(false);
   }
 };
-
 
   return (
   <div className="min-h-screen flex flex-col bg-[#f6f7fb] font-['Poppins',Arial,sans-serif] text-[#222222]">
@@ -388,4 +392,4 @@ const LoginFoodsys = ({ onLogin }) => {
 
 };
 
-export default LoginFoodsys;
+export default LoginFoodsys; 

@@ -14,6 +14,6 @@ const ReservasModel = db.define ('reservas',{
 }
 },
     {freezeTableName: true
-        
+      
     })
 export default ReservasModel;
