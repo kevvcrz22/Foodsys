@@ -102,9 +102,8 @@ export default function Perfil() {
     ? `${usuario.Nom_Usuario} ${usuario.Ape_Usuario}`
     : "";
 
-  const nombrePrograma = usuario?.Ficha?.Programa?.Nom_Programa || "Sin programa asignado";
-  const numFicha = usuario?.Ficha?.Num_Ficha || "Sin ficha";
-
+  const nombrePrograma = usuario?.ficha?.programa?.Nom_Programa || "Sin programa asignado";
+  const numFicha = usuario?.ficha?.Num_Ficha || "Sin ficha";
   if (loading) {
     return (
       <div className="min-h-screen lg:pl-64 flex items-center justify-center">

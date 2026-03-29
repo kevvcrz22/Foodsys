@@ -15,9 +15,33 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
     const [Nom_Usuario, setNom_Usuario] = useState("");
     const [Ape_Usuario, setApe_Usuario] = useState("");
     const [Tipo, setTipo] = useState("");
-    const [Tex_Qr, setTex_Qr] = useState("");
+    const [platos, setPlatos] = useState([]);
+    const [Id_Plato, setId_Plato] = useState("");
+    const [platosLoading, setPlatosLoading] = useState(false);
 
     const [textFormButton, setTextFormButton] = useState("Enviar");
+
+    // ✅ Cargar platos al montar el componente
+    useEffect(() => {
+        const cargarPlatos = async () => {
+            setPlatosLoading(true);
+            try {
+                const res = await apiAxios.get("/api/platos");
+                setPlatos(res.data);
+            } catch (error) {
+                console.error("Error cargando platos:", error);
+            } finally {
+                setPlatosLoading(false);
+            }
+        };
+        cargarPlatos();
+    }, []);
+
+    // ✅ Filtrar platos según el Tipo de comida seleccionado
+    const platosFiltrados = useMemo(() => {
+        if (!Tipo) return platos;
+        return platos.filter(p => p.Tip_Plato === Tipo);
+    }, [platos, Tipo]);
 
     // ✅ Leer el usuario logueado desde localStorage al montar
     useEffect(() => {
@@ -49,17 +73,22 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
             setNom_Usuario(reserva.Nom_Usuario || reserva.Id_Usuario || "");
             setApe_Usuario(reserva.Ape_Usuario || reserva.Id_Usuario || "");
             setTipo(reserva.Tipo);
-            setTex_Qr(reserva.Tex_Qr || "");
+            setId_Plato(reserva.Id_Plato || ""); // ✅ cargar plato si existe
             setTextFormButton("Actualizar");
         } else {
             setId_Reserva("");
             setVencimiento("");
             setEst_Reserva("Generada");
             setTipo("");
-            setTex_Qr("");
+            setId_Plato(""); // ✅ limpiar plato
             setTextFormButton("Enviar");
         }
     }, [reserva, Edit]);
+
+    // ✅ Resetear plato seleccionado cuando cambia el tipo
+    useEffect(() => {
+        setId_Plato("");
+    }, [Tipo]);
 
     const qrData = useMemo(() => ({
         fecha: Fec_Reserva || '-',
@@ -70,7 +99,6 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
     }), [Fec_Reserva, Vencimiento, Est_Reserva, Tipo, Id_Usuario]);
 
     useEffect(() => {
-        setTex_Qr(JSON.stringify(qrData));
     }, [qrData]);
 
     // Establecer Vencimiento automático según Tipo de comida
@@ -97,7 +125,6 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                 try {
                     const response = await apiAxios.get(`/api/Usuarios/${Id_Usuario}`);
                     const usuario = response.data;
-                    setTex_Qr(`${usuario.NumDoc_Usuario}_${Vencimiento}`);
                 } catch (error) {
                     console.error("Error obteniendo usuario para QR:", error);
                 }
@@ -130,6 +157,7 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                     Vencimiento,
                     Est_Reserva,
                     Tipo,
+                    Id_Plato: Id_Plato || null, // ✅ enviar plato seleccionado
                     Tex_Qr: JSON.stringify(qrData),
                     Id_Usuario
                 });
@@ -143,7 +171,7 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                 setVencimiento("");
                 setEst_Reserva("Generada");
                 setTipo("");
-                setTex_Qr("");
+                setId_Plato(""); // ✅ limpiar plato
 
             } catch (error) {
                 console.error("Error creando reserva", error);
@@ -157,6 +185,7 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                     Vencimiento,
                     Est_Reserva,
                     Tipo,
+                    Id_Plato: Id_Plato || null, // ✅ enviar plato seleccionado
                     Tex_Qr: JSON.stringify(qrData),
                     Id_Usuario
                 });
@@ -205,6 +234,39 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                 </select>
             </div>
 
+            {/* ✅ SELECTOR DE PLATO — aparece solo cuando hay Tipo seleccionado */}
+            {Tipo && (
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Plato
+                    </label>
+                    {platosLoading ? (
+                        <div className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-400 text-sm">
+                            Cargando platos...
+                        </div>
+                    ) : platosFiltrados.length === 0 ? (
+                        <div className="w-full px-4 py-2.5 border border-orange-200 rounded-lg bg-orange-50 text-orange-500 text-sm">
+                            No hay platos disponibles para {Tipo}
+                        </div>
+                    ) : (
+                        <select
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            value={Id_Plato}
+                            onChange={(e) => setId_Plato(e.target.value)}
+                            required
+                        >
+                            <option value="">Selecciona un plato...</option>
+                            {platosFiltrados.map((plato) => (
+                                <option key={plato.Id_Plato} value={plato.Id_Plato}>
+                                    {plato.Nom_Plato}
+                                    {plato.Des_Plato ? ` — ${plato.Des_Plato}` : ""}
+                                </option>
+                            ))}
+                        </select>
+                    )}
+                </div>
+            )}
+
             {/* Vencimiento */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -218,7 +280,7 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                 />
             </div>
 
-            {/* ✅ Usuario logueado - solo lectura, muestra el nombre */}
+            {/* Usuario logueado - solo lectura */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     Usuario
@@ -238,7 +300,6 @@ const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }
                 <input
                     type="text"
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-xs"
-                    value={Tex_Qr}
                     readOnly
                 />
             </div>

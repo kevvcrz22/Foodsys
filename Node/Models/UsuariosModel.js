@@ -1,8 +1,5 @@
 import db from "../Database/db.js";
 import { DataTypes } from "sequelize";
-import FichasModel from "./FichasModel.js";
-import RolesModel from "./RolesModel.js";
-
 
 const UsuariosModel = db.define('usuarios', {
   Id_Usuario: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -17,6 +14,7 @@ const UsuariosModel = db.define('usuarios', {
   Est_Usuario: { type: DataTypes.STRING, allowNull: true},
   Id_Ficha: {type: DataTypes.INTEGER,references: { model: "fichas", key: "Id_Ficha" }},
   San_Usuario: {type: DataTypes.STRING, allowNull: true},
+  Pol_Usuario: {type: DataTypes.STRING, allowNull: true},
   password: { type: DataTypes.STRING, allowNull: true },
   uuid: { type: DataTypes.STRING, allowNull: true },
   token: { type: DataTypes.STRING, allowNull: true },

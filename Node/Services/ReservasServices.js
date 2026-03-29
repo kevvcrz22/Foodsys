@@ -1,4 +1,5 @@
 import ReservasModel from "../Models/ReservasModel.js";
+import { Op } from "sequelize";
 class ReservasServices {
     async getAll() {
         return await ReservasModel.findAll({
@@ -8,6 +9,18 @@ class ReservasServices {
         })
 
     }
+        async checkDisponibilidad(usuario, fecha, tipo) {
+        const reserva = await ReservasModel.findOne({
+            where: {
+                Id_Usuario: usuario,
+                Fec_Reserva: fecha,
+                Tipo: tipo,
+                Est_Reserva: { [Op.ne]: "Cancelada" }
+            }
+        });
+        return reserva === null;
+    }
+
     async getById(id) {
         const Reservas = await ReservasModel.findByPk(id)
         if (!Reservas) throw new Error("Reserva no encontrada")
@@ -58,9 +71,22 @@ class ReservasServices {
     }
 
     async delete(id) {
-        const deleted = await ReservasModel.destroy({ where: { Id_Reservad: id } })
+        const deleted = await ReservasModel.destroy({ where: { Id_Reserva: id } })
         if (!deleted) throw new Error("Reservas no encontrada")
-        return true
+        await ReservasModel.update(
+            { Est_Reserva: "Cancelada" },
+            { where: { Id_Reserva: id } }
+        );
+
+            return true
     }
+    // 🔢 Cuenta total de reservas canceladas (para el contador en tiempo real)
+    async countCanceladas() {
+        return await ReservasModel.count({
+            where: { Est_Reserva: "Cancelada" }
+        });
+    }
+
 }
+
 export default new ReservasServices

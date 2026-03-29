@@ -69,8 +69,11 @@ async register(data) {
     CenCon_Usuario,
     Est_Usuario,
     San_Usuario,
-    Id_Ficha
+    Id_Ficha,
+    Roles
   } = data;
+  console.log("DATA COMPLETA:", data);
+  console.log("Roles recibidos:", Roles);
 
   const userExist = await UsuariosModel.findOne({
     where: {
@@ -87,8 +90,7 @@ async register(data) {
   const hashedPassword = await bcrypt.hash(NumDoc_Usuario, 10);
 
   const usuariosUuid = uuidv4();
-
-  const usuarios = await UsuariosModel.create({
+  usuarios = await UsuariosModel.create({
     TipDoc_Usuario,
     NumDoc_Usuario,
     Nom_Usuario,
@@ -127,11 +129,11 @@ async getById(Id) {
     include: [
       {
         model: FichasModel,
-        as: 'Ficha',
+        as: 'ficha',
         include: [
           {
             model: ProgramaModel,
-            as: 'Programa',
+            as: 'programa',
             attributes: ['Nom_Programa']
           }
         ],
@@ -166,6 +168,14 @@ async getById(Id) {
     if (!deleted) throw new Error("Usuario No encontrado");
     return true;
   }
+    async aceptarPolitica(Id_Usuario) {
+  const result = await UsuariosModel.update(
+    { Pol_Aceptada: 'Si' },
+    { where: { Id_Usuario } }
+  );
+  if (result[0] === 0) throw new Error("Usuario no encontrado");
+  return true;
+}
 }
 
 export default new UsuariosService ()

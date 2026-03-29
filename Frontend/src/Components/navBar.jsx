@@ -45,7 +45,7 @@ const NavBar = ({ usuario, roles = [], rolActivo, onCambioRol, onCerrarSesion })
             <select
               value={rolActivo || ""}
               onChange={handleCambioRol}
-              className="text-black rounded px-2 py-1 ml-2"
+              className="px-4 py-2 rounded-lg font-semibold hover:bg-white/15 transition"
             >
               {roles.map((r) => (
                 <option key={r} value={r}>{r}</option>
@@ -69,4 +69,4 @@ const NavBar = ({ usuario, roles = [], rolActivo, onCambioRol, onCerrarSesion })
   );
 };
 
-export default NavBar;0 
+export default NavBar;

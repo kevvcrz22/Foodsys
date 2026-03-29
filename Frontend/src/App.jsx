@@ -24,30 +24,33 @@ import RegistrarSupervisor from "./Paginas/Supervisor/RegistrarSupervisor";
 import ReportesSupervisor from "./Paginas/Supervisor/ReportesSupervisor";
 
 /* APRENDIZ EXTERNO */
+import InicioExterno from "./Paginas/Externo/InicioExterno.jsx";
 import PerfilExterno from "./Paginas/Externo/PerfilExterno.jsx";
 import ReservasExterno from "./Paginas/Externo/ReservasExterno.jsx";
+import HistorialExterno from "./Paginas/Externo/HistorialExterno.jsx";
 
-/* CRUD / TABLAS */
+/* CRUD EXISTENTES */
 import CrudUsuarios from "./Tablas/Usuarios/CrudUsuarios.jsx";
 import CrudUsuariosRoles from "./Tablas/RolesUsuarios/CrudUsuariosRoles.jsx";
 import CrudFichas from "./Tablas/Fichas/CrudFichas.jsx";
 import CrudPrograma from "./Tablas/Programas/CrudPrograma.jsx";
 import CrudReservas from "./Tablas/Reservas/CrudReservas.jsx";
 import CrudRoles from "./Tablas/Roles/CrudRoles.jsx";
+import CrudPlatos from "./Tablas/Platos/CrudPlatos.jsx";
+import CrudMenus from "./Tablas/Menus/CrudMenus.jsx";
+import CrudReservasMenu from "./Tablas/ReservasMenu/CrudReservasMenu.jsx";
 
 /* ─────────────────────────────────────────────────────── */
 
 const RUTAS_POR_ROL = {
-  Administrador:      "/Administrador",
-  Supervisor:         "/supervisor",
-  Coordinador:        "/coordinador",
+  Administrador: "/Administrador",
+  Supervisor: "/supervisor",
+  Coordinador: "/coordinador",
   "Aprendiz Interno": "/interno",
   "Aprendiz Externo": "/Externo",
 };
 
-/* ── ProtectedRoute ──
-   - Si no está autenticado → redirige a login "/"
-   - Si su rol no está en allowedRoles → redirige a la ruta de su propio rol */
+/* PROTECCIÓN */
 const ProtectedRoute = ({ children, allowedRoles, isAuth, rolActivo }) => {
   if (!isAuth) return <Navigate to="/" replace />;
   if (!allowedRoles.includes(rolActivo)) {
@@ -56,7 +59,7 @@ const ProtectedRoute = ({ children, allowedRoles, isAuth, rolActivo }) => {
   return children;
 };
 
-/* Layout con Sidebar */
+/* LAYOUT */
 const LayoutConSidebar = ({ children }) => (
   <div className="flex h-full bg-gray-100">
     <Sidebar />
@@ -72,36 +75,43 @@ function App() {
   const navigate = useNavigate();
 
   const [usuarioLogeado, setUsuarioLogeado] = useState(null);
-  const [isAuth, setIsAuth]       = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [roles, setRoles]         = useState([]);
-  const [rolActivo, setRolActivo] = useState(null);
+  const [isAuth, setIsAuth]                 = useState(false);
+  const [isLoading, setIsLoading]           = useState(true);
+  const [roles, setRoles]                   = useState([]);
+  const [rolActivo, setRolActivo]           = useState(null);
 
+  /* ── Rehidratar sesión al recargar ── */
   useEffect(() => {
     const syncAuthState = () => {
-      const token           = localStorage.getItem("token");
-      const usuario         = localStorage.getItem("usuario");
-      const storedRoles     = JSON.parse(localStorage.getItem("roles")) || [];
-      const storedRolActivo = localStorage.getItem("rolActivo");
+      const token        = localStorage.getItem("token");
+      const usuarioRaw   = localStorage.getItem("usuario");
+      const storedRoles  = JSON.parse(localStorage.getItem("roles") || "[]");
+      const storedRol    = localStorage.getItem("rolActivo");
 
-      if (!token || !usuario) {
+      // ✅ Validación real: token debe existir y ser un JWT (3 partes separadas por punto)
+      const tokenValido =
+        token &&
+        token !== "ok" &&          // descarta el placeholder incorrecto
+        token.split(".").length === 3;
+
+      if (!tokenValido || !usuarioRaw) {
+        localStorage.clear();      // limpia datos inconsistentes
         setIsAuth(false);
         setIsLoading(false);
         return;
       }
 
       try {
-        setUsuarioLogeado(JSON.parse(usuario));
+        setUsuarioLogeado(JSON.parse(usuarioRaw));
         setIsAuth(true);
+        setRoles(storedRoles);
+        setRolActivo(storedRol);
       } catch {
-        localStorage.removeItem("token");
-        localStorage.removeItem("usuario");
+        localStorage.clear();
         setIsAuth(false);
+      } finally {
+        setIsLoading(false);
       }
-
-      setRoles(storedRoles);
-      setRolActivo(storedRolActivo);
-      setIsLoading(false);
     };
 
     syncAuthState();
@@ -112,6 +122,32 @@ function App() {
   const authProps = { isAuth, rolActivo };
 
   if (isLoading) return <div className="text-center mt-20">Cargando...</div>;
+
+  /* ── Manejador de login ── */
+  const handleLogin = (user, rolesRecibidos, rolActivoRecibido, tokenJWT) => {
+    // ✅ Guardar el JWT real que viene del backend
+    localStorage.setItem("token",    tokenJWT);
+    localStorage.setItem("usuario",  JSON.stringify(user));
+    localStorage.setItem("roles",    JSON.stringify(rolesRecibidos));
+    localStorage.setItem("rolActivo", rolActivoRecibido);
+
+    setUsuarioLogeado(user);
+    setIsAuth(true);
+    setRoles(rolesRecibidos);
+    setRolActivo(rolActivoRecibido);
+
+    navigate(RUTAS_POR_ROL[rolActivoRecibido] || "/");
+  };
+
+  /* ── Manejador de cerrar sesión ── */
+  const handleCerrarSesion = () => {
+    localStorage.clear();
+    setUsuarioLogeado(null);
+    setIsAuth(false);
+    setRoles([]);
+    setRolActivo(null);
+    navigate("/");
+  };
 
   return (
     <>
@@ -126,53 +162,33 @@ function App() {
           setRolActivo(nuevoRol);
           navigate(RUTAS_POR_ROL[nuevoRol] || "/");
         }}
-        onCerrarSesion={() => {
-          localStorage.clear();
-          setUsuarioLogeado(null);
-          setIsAuth(false);
-          setRoles([]);
-          setRolActivo(null);
-          navigate("/");
-        }}
+        onCerrarSesion={handleCerrarSesion}
       />
 
       <Routes>
 
-        {/* ── LOGIN ─────────────────────────────────────────── */}
+        {/* ── LOGIN ── */}
         <Route
           path="/"
           element={
             isAuth
-              ? <Navigate to={RUTAS_POR_ROL[rolActivo] || "/"} replace />
-              : <Login
-                  onLogin={(user, rolesFromBackend, rolActivoFromLogin) => {
-                    localStorage.setItem("usuario", JSON.stringify(user));
-                    localStorage.setItem("roles", JSON.stringify(rolesFromBackend));
-                    localStorage.setItem("rolActivo", rolActivoFromLogin);
-                    localStorage.setItem("token", "ok");
-                    setUsuarioLogeado(user);
-                    setIsAuth(true);
-                    setRoles(rolesFromBackend);
-                    setRolActivo(rolActivoFromLogin);
-                    navigate(RUTAS_POR_ROL[rolActivoFromLogin] || "/");
-                  }}
-                />
+              ? <Navigate to={RUTAS_POR_ROL[rolActivo]} />
+              : <Login onLogin={handleLogin} />
           }
         />
 
-        {/* ── ADMINISTRADOR ─────────────────────────────────── */}
+        {/* ── ADMIN ── */}
         <Route
           path="/Administrador/*"
           element={
             <ProtectedRoute {...authProps} allowedRoles={["Administrador"]}>
               <LayoutConSidebar>
                 <Routes>
-                  <Route index            element={<InicioAdministrador />} />
-                  <Route path="Perfil"    element={<PerfilAdministrador />} />
-                  <Route path="Registrar" element={<RegistrarAdministrador />} />
-                  <Route path="Reportes"  element={<ReportesAdministrador />} />
-                  <Route path="Reservas"  element={<ReservasAdministrador />} />
-                  <Route path="*"         element={<Navigate to="/Administrador" replace />} />
+                  <Route index                  element={<InicioAdministrador />}    />
+                  <Route path="Perfil"          element={<PerfilAdministrador />}    />
+                  <Route path="Registrar"       element={<RegistrarAdministrador />} />
+                  <Route path="Reportes"        element={<ReportesAdministrador />}  />
+                  <Route path="Reservas"        element={<ReservasAdministrador />}  />
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>
@@ -197,81 +213,36 @@ function App() {
           }
         />
 
-        {/* ── APRENDIZ EXTERNO ──────────────────────────────── */}
+        {/* ── CRUD ADMIN ── */}
+        <Route path="/usuarios"     element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudUsuarios /></LayoutConSidebar></ProtectedRoute>} />
+        <Route path="/UsuariosRoles" element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudUsuariosRoles /></LayoutConSidebar></ProtectedRoute>} />
+        <Route path="/fichas"       element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudFichas /></LayoutConSidebar></ProtectedRoute>} />
+        <Route path="/programas"    element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudPrograma /></LayoutConSidebar></ProtectedRoute>} />
+        <Route path="/roles"        element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudRoles /></LayoutConSidebar></ProtectedRoute>} />
+        <Route path="/platos"        element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudPlatos /></LayoutConSidebar></ProtectedRoute>} />
+        <Route path="/menus"         element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudMenus /></LayoutConSidebar></ProtectedRoute>} />
+        <Route path="/reservas-menu" element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudReservasMenu /></LayoutConSidebar></ProtectedRoute>} />
+
+        {/* ── RESERVAS ── */}
+        <Route path="/reservas" element={<ProtectedRoute {...authProps} allowedRoles={["Administrador", "Supervisor"]}><LayoutConSidebar><CrudReservas /></LayoutConSidebar></ProtectedRoute>} />
+
+        {/* ── EXTERNO ── */}
         <Route
           path="/Externo/*"
           element={
             <ProtectedRoute {...authProps} allowedRoles={["Aprendiz Externo"]}>
               <LayoutConSidebar>
                 <Routes>
-                  <Route index           element={<PerfilExterno />} />
-                  <Route path="Perfil"   element={<PerfilExterno />} />
+                  <Route index           element={<PerfilExterno />}   />
                   <Route path="Reservas" element={<ReservasExterno />} />
-                  <Route path="*"        element={<Navigate to="/Externo" replace />} />
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>
           }
         />
 
-        {/* ── TABLAS — solo Administrador ───────────────────── */}
-        <Route
-          path="/fichas"
-          element={
-            <ProtectedRoute {...authProps} allowedRoles={["Administrador"]}>
-              <LayoutConSidebar><CrudFichas /></LayoutConSidebar>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/programas"
-          element={
-            <ProtectedRoute {...authProps} allowedRoles={["Administrador"]}>
-              <LayoutConSidebar><CrudPrograma /></LayoutConSidebar>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/roles"
-          element={
-            <ProtectedRoute {...authProps} allowedRoles={["Administrador"]}>
-              <LayoutConSidebar><CrudRoles /></LayoutConSidebar>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/UsuariosRoles"
-          element={
-            <ProtectedRoute {...authProps} allowedRoles={["Administrador"]}>
-              <LayoutConSidebar><CrudUsuariosRoles /></LayoutConSidebar>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/usuarios"
-          element={
-            <ProtectedRoute {...authProps} allowedRoles={["Administrador"]}>
-              <LayoutConSidebar><CrudUsuarios /></LayoutConSidebar>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* ── TABLA RESERVAS — Administrador y Supervisor ───── */}
-        <Route
-          path="/reservas"
-          element={
-            <ProtectedRoute {...authProps} allowedRoles={["Administrador", "Supervisor"]}>
-              <LayoutConSidebar><CrudReservas /></LayoutConSidebar>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* ── FALLBACK ──────────────────────────────────────── */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* ── FALLBACK ── */}
+        <Route path="*" element={<Navigate to="/" />} />
 
       </Routes>
 

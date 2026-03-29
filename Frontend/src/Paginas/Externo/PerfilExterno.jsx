@@ -1,15 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import apiAxios from "../../api/axiosConfig";
 
-const Perfil = () => {
+const PerfilExterno = () => {
   const usuario = JSON.parse(localStorage.getItem("usuario"));
 
-  const [seccionActiva, ] = useState("informacion");
+  const [screen, setScreen] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setScreen(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isMobile = screen < 640;
+
+  // DATOS
+  const [Nom_Programa, setNom_Programa] = useState(usuario?.Nom_Programa || "");
+  const [Id_Ficha, setId_Ficha] = useState(usuario?.Id_Ficha || "");
   const [telefono, setTelefono] = useState(usuario?.Tel_Usuario || "");
   const [correo, setCorreo] = useState(usuario?.Cor_Usuario || "");
+
+  // 🔥 PASSWORD
   const [password, setPassword] = useState("");
 
-  /* ───────────── ACTUALIZAR DATOS ───────────── */
   const guardarDatos = async () => {
     if (!usuario?.Id_Usuario) {
       alert("Usuario no disponible");
@@ -24,12 +37,12 @@ const Perfil = () => {
 
       alert("Datos actualizados correctamente");
 
-      // Actualiza también el localStorage
       const usuarioActualizado = {
         ...usuario,
         Tel_Usuario: telefono,
         Cor_Usuario: correo,
       };
+
       localStorage.setItem("usuario", JSON.stringify(usuarioActualizado));
     } catch (error) {
       alert("Error al actualizar la información");
@@ -37,128 +50,163 @@ const Perfil = () => {
     }
   };
 
-  /* ───────────── CAMBIAR CONTRASEÑA ───────────── */
-  const cambiarPassword = () => {
+  // 🔥 CAMBIO DE CONTRASEÑA REAL
+  const cambiarPassword = async () => {
     if (!password) {
       alert("Ingrese una contraseña");
       return;
     }
 
-    // Aquí deberías hacer petición real al backend
-    alert("Contraseña actualizada");
-    setPassword("");
+    try {
+      await apiAxios.put(`/api/Usuarios/${usuario.Id_Usuario}/password`, {
+        password: password,
+      });
+
+      alert("Contraseña actualizada correctamente");
+      setPassword("");
+    } catch (error) {
+      console.error(error);
+      alert("Error al cambiar la contraseña");
+    }
   };
 
   return (
-    <div className="flex-1 bg-gray-50 min-h-screen p-4 md:p-8 lg:p-10">
+    <div className="flex-1 bg-slate-50 min-h-screen p-4 md:p-8 lg:p-10">
       <div className="max-w-5xl mx-auto">
 
-        {/* ───────────── INFORMACIÓN ───────────── */}
-        {seccionActiva === "informacion" && (
-          <>
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                Mi Perfil
-              </h1>
-              <p className="text-gray-600">
-                Gestiona tu información personal y seguridad
+        {/* HEADER */}
+        <div className="mb-8">
+          <h1 className={`font-bold text-gray-800 mb-2 ${isMobile ? "text-xl" : "text-3xl"}`}>
+            Mi Perfil
+          </h1>
+          <p className="text-gray-600">
+            Información personal del aprendiz externo
+          </p>
+        </div>
+
+        {/* TARJETA */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mb-6 border border-slate-200">
+          <div className={`flex ${isMobile ? "flex-col gap-4" : "items-center justify-between"}`}>
+
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-lg">
+                {usuario?.Nom_Usuario?.charAt(0) || "U"}
+              </div>
+
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800">
+                  {usuario?.Nom_Usuario || "Aprendiz"}
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Aprendiz externo
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 text-center">
+              <p className="text-xs text-slate-500">Documento</p>
+              <p className="font-semibold text-slate-800 text-sm tracking-wide">
+                {usuario?.NumDoc_Usuario || "—"}
               </p>
             </div>
 
-            {/* Información Personal */}
-            <div className="bg-white rounded-xl shadow-sm p-6 md:p-8 mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-6">
-                Información personal
-              </h2>
+          </div>
+        </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Programa de formación
-                  </label>
-                  <input
-                    type="text"
-                    value={usuario?.Programa || "No asignado"}
-                    readOnly
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-50 text-gray-600"
-                  />
-                </div>
+        {/* ACADÉMICA */}
+        <div className="bg-white rounded-xl shadow-sm p-6 md:p-8 mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-6">
+            Información académica
+          </h2>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ficha
-                  </label>
-                  <input
-                    type="text"
-                    value={usuario?.ficha?.Num_Ficha || "Sin ficha"}
-                    readOnly
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-50 text-gray-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Correo electrónico
-                  </label>
-                  <input
-                    type="email"
-                    value={correo}
-                    onChange={(e) => setCorreo(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Teléfono
-                  </label>
-                  <input
-                    type="tel"
-                    value={telefono}
-                    onChange={(e) => setTelefono(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <button
-                onClick={guardarDatos}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700
-                           text-white font-medium rounded-lg transition-all"
-              >
-                Guardar cambios
-              </button>
+          <div className={`grid gap-4 ${isMobile ? "grid-cols-1" : "grid-cols-2"}`}>
+            <div className="bg-slate-50 border rounded-lg p-4">
+              <p className="text-xs text-slate-500 mb-1">Programa</p>
+              <input
+                value={Nom_Programa}
+                onChange={(e) => setNom_Programa(e.target.value)}
+                className="w-full bg-transparent outline-none text-sm"
+              />
             </div>
 
-            {/* Seguridad */}
-            <div className="bg-white rounded-xl shadow-sm p-6 md:p-8 border-l-4 border-blue-600">
-              <h2 className="text-xl font-semibold text-gray-800 mb-6">
-                Seguridad
-              </h2>
-
-              <div className="max-w-md">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Nueva contraseña"
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 mb-4 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-
-                <button
-                  onClick={cambiarPassword}
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700
-                             text-white font-medium rounded-lg transition-all"
-                >
-                  Cambiar contraseña
-                </button>
-              </div>
+            <div className="bg-slate-50 border rounded-lg p-4">
+              <p className="text-xs text-slate-500 mb-1">Ficha</p>
+              <input
+                value={Id_Ficha}
+                onChange={(e) => setId_Ficha(e.target.value)}
+                className="w-full bg-transparent outline-none text-sm"
+              />
             </div>
-          </>
-        )}
+          </div>
+        </div>
+
+        {/* CONTACTO */}
+        <div className="bg-white rounded-xl shadow-sm p-6 md:p-8 mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-6">
+            Información de contacto
+          </h2>
+
+          <div className={`grid gap-4 ${isMobile ? "grid-cols-1" : "grid-cols-2"}`}>
+            <div className="bg-slate-50 border rounded-lg p-4">
+              <p className="text-xs text-slate-500 mb-1">Correo</p>
+              <input
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
+                className="w-full bg-transparent outline-none text-sm"
+              />
+            </div>
+
+            <div className="bg-slate-50 border rounded-lg p-4">
+              <p className="text-xs text-slate-500 mb-1">Teléfono</p>
+              <input
+                value={telefono}
+                onChange={(e) => setTelefono(e.target.value)}
+                className="w-full bg-transparent outline-none text-sm"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={guardarDatos}
+            className={`mt-6 bg-indigo-600 text-white px-6 py-2 rounded ${
+              isMobile ? "w-full" : ""
+            }`}
+          >
+            Guardar cambios
+          </button>
+        </div>
+
+        {/* 🔥 SEGURIDAD */}
+        <div className="bg-white rounded-xl shadow-sm p-6 md:p-8 border-l-4 border-indigo-500">
+          <h2 className="text-xl font-semibold text-gray-800 mb-6">
+            Seguridad
+          </h2>
+
+          <div className="max-w-md">
+            <div className="bg-slate-50 border rounded-lg p-4 mb-4">
+              <p className="text-xs text-slate-500 mb-1">Nueva contraseña</p>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-transparent outline-none text-sm"
+              />
+            </div>
+
+            <button
+              onClick={cambiarPassword}
+              className={`bg-indigo-600 text-white px-6 py-2 rounded ${
+                isMobile ? "w-full" : ""
+              }`}
+            >
+              Cambiar contraseña
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );
 };
 
-export default Perfil;
+export default PerfilExterno;
