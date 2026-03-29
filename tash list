@@ -1,0 +1,107 @@
+[33m332eced[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mSantofimio11[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{0}: rebase (finish): returning to refs/heads/Santofimio11
+[33m332eced[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mSantofimio11[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{1}: rebase (start): checkout main
+[33m745df19[m HEAD@{2}: checkout: moving from main to Santofimio11
+[33m332eced[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mSantofimio11[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{3}: pull --rebase origin main: Fast-forward
+[33m745df19[m HEAD@{4}: checkout: moving from main to main
+[33m745df19[m HEAD@{5}: checkout: moving from Santofimio11 to main
+[33m745df19[m HEAD@{6}: rebase (finish): returning to refs/heads/Santofimio11
+[33m745df19[m HEAD@{7}: rebase (start): checkout main
+[33ma7831f3[m[33m ([m[1;31morigin/Santofimio11[m[33m)[m HEAD@{8}: checkout: moving from main to Santofimio11
+[33m745df19[m HEAD@{9}: pull --rebase origin main: Fast-forward
+[33m3c5c156[m HEAD@{10}: checkout: moving from Santofimio11 to main
+[33ma7831f3[m[33m ([m[1;31morigin/Santofimio11[m[33m)[m HEAD@{11}: rebase (finish): returning to refs/heads/Santofimio11
+[33ma7831f3[m[33m ([m[1;31morigin/Santofimio11[m[33m)[m HEAD@{12}: rebase (pick): cree el codigo qr y agregue un boton para verlo
+[33m3c5c156[m HEAD@{13}: rebase (start): checkout main
+[33m8859861[m HEAD@{14}: checkout: moving from main to Santofimio11
+[33m3c5c156[m HEAD@{15}: pull --rebase origin main: Fast-forward
+[33m78368bd[m HEAD@{16}: checkout: moving from Santofimio11 to main
+[33m8859861[m HEAD@{17}: commit: cree el codigo qr y agregue un boton para verlo
+[33m78368bd[m HEAD@{18}: rebase (finish): returning to refs/heads/Santofimio11
+[33m78368bd[m HEAD@{19}: rebase (start): checkout main
+[33mc96ec1e[m HEAD@{20}: checkout: moving from main to Santofimio11
+[33m78368bd[m HEAD@{21}: pull --rebase origin main: Fast-forward
+[33mc96ec1e[m HEAD@{22}: checkout: moving from Santofimio11 to main
+[33mc96ec1e[m HEAD@{23}: rebase (finish): returning to refs/heads/Santofimio11
+[33mc96ec1e[m HEAD@{24}: rebase (start): checkout main
+[33m78b39e7[m HEAD@{25}: checkout: moving from main to Santofimio11
+[33mc96ec1e[m HEAD@{26}: pull --rebase origin main: Fast-forward
+[33m4292a14[m HEAD@{27}: checkout: moving from main to main
+[33m4292a14[m HEAD@{28}: rebase (finish): returning to refs/heads/main
+[33m4292a14[m HEAD@{29}: rebase (continue): generar codigo qr
+[33m6d0f593[m HEAD@{30}: pull --rebase origin main (start): checkout 6d0f593aadfebf67ffed4c8c23cedd0135596b57
+[33mbee06a1[m HEAD@{31}: commit: generar codigo qr
+[33m78b39e7[m HEAD@{32}: checkout: moving from Santofimio11 to main
+[33m78b39e7[m HEAD@{33}: rebase (finish): returning to refs/heads/Santofimio11
+[33m78b39e7[m HEAD@{34}: rebase (start): checkout main
+[33m97618e6[m HEAD@{35}: checkout: moving from main to Santofimio11
+[33m78b39e7[m HEAD@{36}: pull --rebase origin main: Fast-forward
+[33mbc18e3d[m HEAD@{37}: checkout: moving from Santofimio11 to main
+[33m97618e6[m HEAD@{38}: checkout: moving from main to Santofimio11
+[33mbc18e3d[m HEAD@{39}: checkout: moving from Santofimio11 to main
+[33m97618e6[m HEAD@{40}: rebase (finish): returning to refs/heads/Santofimio11
+[33m97618e6[m HEAD@{41}: rebase (pick): agregue el campo SANCION
+[33mbc18e3d[m HEAD@{42}: rebase (start): checkout main
+[33m54f1500[m HEAD@{43}: checkout: moving from main to Santofimio11
+[33mbc18e3d[m HEAD@{44}: pull --rebase origin main: Fast-forward
+[33me8ec27d[m HEAD@{45}: checkout: moving from Santofimio11 to main
+[33m54f1500[m HEAD@{46}: commit: agregue el campo SANCION
+[33m3d7c3dd[m HEAD@{47}: checkout: moving from main to Santofimio11
+[33me8ec27d[m HEAD@{48}: checkout: moving from Santofimio11 to main
+[33m3d7c3dd[m HEAD@{49}: commit: se agregaron paginas, login y un poco de mondas mas
+[33me8ec27d[m HEAD@{50}: checkout: moving from main to Santofimio11
+[33me8ec27d[m HEAD@{51}: checkout: moving from Santofimio11 to main
+[33me8ec27d[m HEAD@{52}: merge main: Fast-forward
+[33ma56f492[m HEAD@{53}: checkout: moving from main to Santofimio11
+[33me8ec27d[m HEAD@{54}: pull origin main: Fast-forward
+[33m94a08b9[m HEAD@{55}: checkout: moving from main to main
+[33m94a08b9[m HEAD@{56}: reset: moving to 94a08b95b44bf25e6086971cd19795c29d73eb14
+[33m94a08b9[m HEAD@{57}: reset: moving to HEAD
+[33m94a08b9[m HEAD@{58}: commit: Actualizo ProgramaService
+[33ma56f492[m HEAD@{59}: pull origin main: Fast-forward
+[33m6a2da17[m HEAD@{60}: reset: moving to HEAD
+[33m6a2da17[m HEAD@{61}: checkout: moving from main to main
+[33m6a2da17[m HEAD@{62}: checkout: moving from Santofimio11 to main
+[33ma56f492[m HEAD@{63}: rebase (finish): returning to refs/heads/Santofimio11
+[33ma56f492[m HEAD@{64}: rebase (start): checkout origin/main
+[33m40995d6[m HEAD@{65}: rebase (finish): returning to refs/heads/Santofimio11
+[33m40995d6[m HEAD@{66}: rebase (continue): agregue lineas a la main
+[33mb25f633[m HEAD@{67}: rebase (pick): Agregue un mensaje de alerta
+[33m72ddd71[m HEAD@{68}: pull origin main: Merge made by the 'ort' strategy.
+[33m3f695b6[m HEAD@{69}: commit: separe los componenetes, cree unos nuevos e hice una parte del panel aprendiz
+[33m6a2da17[m HEAD@{70}: rebase (start): checkout main
+[33m9b8ca6a[m HEAD@{71}: checkout: moving from main to Santofimio11
+[33m6a2da17[m HEAD@{72}: checkout: moving from Santofimio11 to main
+[33m9b8ca6a[m HEAD@{73}: rebase (abort): returning to refs/heads/Santofimio11
+[33m6a2da17[m HEAD@{74}: rebase (start): checkout main
+[33m9b8ca6a[m HEAD@{75}: checkout: moving from main to Santofimio11
+[33m6a2da17[m HEAD@{76}: pull --rebase origin main: Fast-forward
+[33m84bf492[m[33m ([m[1;31morigin/JimenAlba[m[33m)[m HEAD@{77}: checkout: moving from Santofimio11 to main
+[33m9b8ca6a[m HEAD@{78}: commit (merge): Resolviendo conflicto en main.jsx
+[33m9958e28[m HEAD@{79}: commit: Agregue un mensaje de alerta
+[33m2d35130[m HEAD@{80}: rebase (finish): returning to refs/heads/Santofimio11
+[33m2d35130[m HEAD@{81}: rebase (continue): agregue lineas a la main
+[33m84bf492[m[33m ([m[1;31morigin/JimenAlba[m[33m)[m HEAD@{82}: rebase (start): checkout main
+[33m57ec784[m HEAD@{83}: checkout: moving from main to Santofimio11
+[33m84bf492[m[33m ([m[1;31morigin/JimenAlba[m[33m)[m HEAD@{84}: pull --rebase origin main: Fast-forward
+[33mde71d3b[m HEAD@{85}: checkout: moving from Santofimio11 to main
+[33m57ec784[m HEAD@{86}: rebase (finish): returning to refs/heads/Santofimio11
+[33m57ec784[m HEAD@{87}: rebase (pick): agregue lineas a la main
+[33mde71d3b[m HEAD@{88}: rebase (start): checkout main
+[33m10b3399[m HEAD@{89}: checkout: moving from main to Santofimio11
+[33mde71d3b[m HEAD@{90}: pull: Fast-forward
+[33m7b748d3[m HEAD@{91}: checkout: moving from Santofimio11 to main
+[33m10b3399[m HEAD@{92}: commit: agregue lineas a la main
+[33m7b748d3[m HEAD@{93}: checkout: moving from main to Santofimio11
+[33m7b748d3[m HEAD@{94}: checkout: moving from Santofimio11 to main
+[33m7b748d3[m HEAD@{95}: rebase (finish): returning to refs/heads/Santofimio11
+[33m7b748d3[m HEAD@{96}: rebase (start): checkout main
+[33m48e76a7[m HEAD@{97}: checkout: moving from main to Santofimio11
+[33m7b748d3[m HEAD@{98}: pull --rebase origin main: Fast-forward
+[33m7d6eb27[m HEAD@{99}: checkout: moving from Santofimio11 to main
+[33m48e76a7[m HEAD@{100}: commit: Agregue la tabla Programa, modifique App y main
+[33m7d6eb27[m HEAD@{101}: checkout: moving from main to Santofimio11
+[33m7d6eb27[m HEAD@{102}: checkout: moving from Santofimio11 to main
+[33m7d6eb27[m HEAD@{103}: rebase (finish): returning to refs/heads/Santofimio11
+[33m7d6eb27[m HEAD@{104}: rebase (start): checkout main
+[33m4198904[m HEAD@{105}: checkout: moving from main to Santofimio11
+[33m7d6eb27[m HEAD@{106}: clone: from https://github.com/kevvcrz22/Foodsys.git
