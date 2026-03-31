@@ -1,328 +1,229 @@
 import { useState, useEffect, useMemo } from "react";
 import apiAxios from "../../api/axiosConfig.js";
 
-const ReservasForm = ({ hideModal, reserva, reload, Edit, mostrarQR = () => {} }) => {
+const ReservasForm = ({
+  hideModal,
+  reserva,
+  reload,
+  Edit,
+  mostrarQR = () => {},
+  usuario,
+  platoSeleccionado,
+  fechaInicial,
+  tipoInicial
+}) => {
 
-    const [Id_Reserva, setId_Reserva] = useState("");
-    const [Fec_Reserva, setFec_Reserva] = useState(() => {
-        const mañana = new Date();
-        mañana.setDate(mañana.getDate() + 1);
-        return mañana.toISOString().split('T')[0];
-    });
-    const [Vencimiento, setVencimiento] = useState("");
-    const [Est_Reserva, setEst_Reserva] = useState("Generada");
-    const [Id_Usuario, setId_Usuario] = useState("");
-    const [Nom_Usuario, setNom_Usuario] = useState("");
-    const [Ape_Usuario, setApe_Usuario] = useState("");
-    const [Tipo, setTipo] = useState("");
-    const [platos, setPlatos] = useState([]);
-    const [Id_Plato, setId_Plato] = useState("");
-    const [platosLoading, setPlatosLoading] = useState(false);
+  const [Id_Reserva, setId_Reserva] = useState("");
+  const [Fec_Reserva, setFec_Reserva] = useState(fechaInicial || "");
+  const [Vencimiento, setVencimiento] = useState("");
+  const [Est_Reserva, setEst_Reserva] = useState("Generada");
+  const [Id_Usuario, setId_Usuario] = useState("");
+  const [Nom_Usuario, setNom_Usuario] = useState("");
+  const [Ape_Usuario, setApe_Usuario] = useState("");
+  const [Tipo, setTipo] = useState(tipoInicial || "");
+  const [Id_Plato, setId_Plato] = useState(platoSeleccionado || "");
 
-    const [textFormButton, setTextFormButton] = useState("Enviar");
+  const [textFormButton, setTextFormButton] = useState("Enviar");
 
-    // ✅ Cargar platos al montar el componente
-    useEffect(() => {
-        const cargarPlatos = async () => {
-            setPlatosLoading(true);
-            try {
-                const res = await apiAxios.get("/api/platos");
-                setPlatos(res.data);
-            } catch (error) {
-                console.error("Error cargando platos:", error);
-            } finally {
-                setPlatosLoading(false);
-            }
-        };
-        cargarPlatos();
-    }, []);
+  /* ─────────────────────────────
+     Cargar usuario logueado
+  ───────────────────────────── */
+  useEffect(() => {
+    if (usuario) {
+      const id = usuario.Id_Usuario || usuario.id || usuario.Id;
+      const nombre = usuario.Nom_Usuario || usuario.nombre || "Usuario";
+      const apellido = usuario.Ape_Usuario || "";
 
-    // ✅ Filtrar platos según el Tipo de comida seleccionado
-    const platosFiltrados = useMemo(() => {
-        if (!Tipo) return platos;
-        return platos.filter(p => p.Tip_Plato === Tipo);
-    }, [platos, Tipo]);
+      setId_Usuario(id);
+      setNom_Usuario(nombre);
+      setApe_Usuario(apellido);
+    }
+  }, [usuario]);
 
-    // ✅ Leer el usuario logueado desde localStorage al montar
-    useEffect(() => {
-        if (!Edit) {
-            try {
-                const usuarioGuardado = JSON.parse(localStorage.getItem("usuario"));
-                if (usuarioGuardado) {
-                    const id = usuarioGuardado.Id_Usuario || usuarioGuardado.id || usuarioGuardado.Id;
-                    const nombre = usuarioGuardado.Nom_Usuario || usuarioGuardado.nombre || usuarioGuardado.email || "Usuario";
-                    const apellido = usuarioGuardado.Ape_Usuario || usuarioGuardado.apellido || "Usuario";
-                    setId_Usuario(id);
-                    setNom_Usuario(nombre);
-                    setApe_Usuario(apellido);
-                }
-            } catch (error) {
-                console.error("Error leyendo usuario de localStorage:", error);
-            }
-        }
-    }, [Edit]);
+  /* ─────────────────────────────
+     Recibir datos del selector superior
+  ───────────────────────────── */
+  useEffect(() => {
+    if (fechaInicial) setFec_Reserva(fechaInicial);
+  }, [fechaInicial]);
 
-    // Configurar formulario según modo (Nuevo o Editar)
-    useEffect(() => {
-        if (Edit && reserva) {
-            setId_Reserva(reserva.Id_Reserva);
-            setFec_Reserva(reserva.Fec_Reserva);
-            setVencimiento(reserva.Vencimiento);
-            setEst_Reserva(reserva.Est_Reserva);
-            setId_Usuario(reserva.Id_Usuario);
-            setNom_Usuario(reserva.Nom_Usuario || reserva.Id_Usuario || "");
-            setApe_Usuario(reserva.Ape_Usuario || reserva.Id_Usuario || "");
-            setTipo(reserva.Tipo);
-            setId_Plato(reserva.Id_Plato || ""); // ✅ cargar plato si existe
-            setTextFormButton("Actualizar");
-        } else {
-            setId_Reserva("");
-            setVencimiento("");
-            setEst_Reserva("Generada");
-            setTipo("");
-            setId_Plato(""); // ✅ limpiar plato
-            setTextFormButton("Enviar");
-        }
-    }, [reserva, Edit]);
+  useEffect(() => {
+    if (tipoInicial) setTipo(tipoInicial);
+  }, [tipoInicial]);
 
-    // ✅ Resetear plato seleccionado cuando cambia el tipo
-    useEffect(() => {
-        setId_Plato("");
-    }, [Tipo]);
+  useEffect(() => {
+    if (platoSeleccionado) setId_Plato(platoSeleccionado);
+  }, [platoSeleccionado]);
 
-    const qrData = useMemo(() => ({
-        fecha: Fec_Reserva || '-',
-        vencimiento: Vencimiento || '-',
-        estado: Est_Reserva || '-',
-        tipo: Tipo || '-',
-        usuario: Id_Usuario || '-'
-    }), [Fec_Reserva, Vencimiento, Est_Reserva, Tipo, Id_Usuario]);
+  /* ─────────────────────────────
+     Vencimiento automático
+  ───────────────────────────── */
+  useEffect(() => {
+    if (Tipo && Fec_Reserva) {
 
-    useEffect(() => {
-    }, [qrData]);
+      const fecha = new Date(Fec_Reserva + "T00:00:00");
 
-    // Establecer Vencimiento automático según Tipo de comida
-    useEffect(() => {
-        if (Tipo && Fec_Reserva) {
-            const fecha = new Date(Fec_Reserva + 'T00:00:00');
-            switch (Tipo) {
-                case "Desayuno": fecha.setHours(7, 0, 0); break;
-                case "Almuerzo": fecha.setHours(14, 0, 0); break;
-                case "Cena":     fecha.setHours(19, 0, 0); break;
-                default: return;
-            }
-            const pad = (n) => n.toString().padStart(2, '0');
-            setVencimiento(
-                `${fecha.getFullYear()}-${pad(fecha.getMonth()+1)}-${pad(fecha.getDate())}T${pad(fecha.getHours())}:${pad(fecha.getMinutes())}`
-            );
-        }
-    }, [Tipo, Fec_Reserva]);
+      switch (Tipo) {
+        case "Desayuno":
+          fecha.setHours(7, 0, 0);
+          break;
 
-    // Generar Tex_Qr con documento del usuario logueado
-    useEffect(() => {
-        const generarQR = async () => {
-            if (Id_Usuario && Vencimiento) {
-                try {
-                    const response = await apiAxios.get(`/api/Usuarios/${Id_Usuario}`);
-                    const usuario = response.data;
-                } catch (error) {
-                    console.error("Error obteniendo usuario para QR:", error);
-                }
-            }
-        };
-        generarQR();
-    }, [Id_Usuario, Vencimiento]);
+        case "Almuerzo":
+          fecha.setHours(14, 0, 0);
+          break;
 
-    const generarQRFinal = async () => {
-        if (!Id_Usuario || !Vencimiento) return null;
-        try {
-            const response = await apiAxios.get(`/api/Usuarios/${Id_Usuario}`);
-            const usuario = response.data;
-            return `${Id_Reserva} // ${usuario.Nom_Usuario} // ${Tipo} //`;
-        } catch {
-            return `${Id_Reserva} // ${Nom_Usuario} // ${Tipo} //`;
-        }
-    };
+        case "Cena":
+          fecha.setHours(19, 0, 0);
+          break;
 
-    // Enviar formulario
-    const gestionarForm = async (e) => {
-        e.preventDefault();
+        default:
+          return;
+      }
 
-        if (textFormButton === "Enviar") {
-            try {
-                const QRFinal = await generarQRFinal();
+      const pad = (n) => n.toString().padStart(2, "0");
 
-                await apiAxios.post("/api/Reservas/", {
-                    Fec_Reserva,
-                    Vencimiento,
-                    Est_Reserva,
-                    Tipo,
-                    Id_Plato: Id_Plato || null, // ✅ enviar plato seleccionado
-                    Tex_Qr: JSON.stringify(qrData),
-                    Id_Usuario
-                });
+      setVencimiento(
+        `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(
+          fecha.getDate()
+        )}T${pad(fecha.getHours())}:${pad(fecha.getMinutes())}`
+      );
+    }
+  }, [Tipo, Fec_Reserva]);
 
-                alert("Reserva creada correctamente");
-                reload();
-                mostrarQR(QRFinal);
-                hideModal();
+  /* ─────────────────────────────
+     Datos QR
+  ───────────────────────────── */
+  const qrData = useMemo(
+    () => ({
+      fecha: Fec_Reserva || "-",
+      vencimiento: Vencimiento || "-",
+      estado: Est_Reserva || "-",
+      tipo: Tipo || "-",
+      usuario: Id_Usuario || "-"
+    }),
+    [Fec_Reserva, Vencimiento, Est_Reserva, Tipo, Id_Usuario]
+  );
 
-                setId_Reserva("");
-                setVencimiento("");
-                setEst_Reserva("Generada");
-                setTipo("");
-                setId_Plato(""); // ✅ limpiar plato
+  const generarQRFinal = async () => {
+    if (!Id_Usuario || !Vencimiento) return null;
 
-            } catch (error) {
-                console.error("Error creando reserva", error);
-                alert(error?.response?.data?.message || "Error creando reserva");
-            }
+    try {
+      const response = await apiAxios.get(`/api/Usuarios/${Id_Usuario}`);
+      const usuario = response.data;
 
-        } else if (textFormButton === "Actualizar") {
-            try {
-                await apiAxios.put(`/api/Reservas/${Id_Reserva}`, {
-                    Fec_Reserva,
-                    Vencimiento,
-                    Est_Reserva,
-                    Tipo,
-                    Id_Plato: Id_Plato || null, // ✅ enviar plato seleccionado
-                    Tex_Qr: JSON.stringify(qrData),
-                    Id_Usuario
-                });
-                alert("Reserva actualizada correctamente");
-                reload();
-                hideModal();
-            } catch (error) {
-                console.error(error);
-                alert("Error actualizando reserva");
-            }
-        }
-    };
+      return `${Id_Reserva} // ${usuario.Nom_Usuario} // ${Tipo} //`;
 
-    return (
-        <form onSubmit={gestionarForm} className="space-y-4">
+    } catch {
+      return `${Id_Reserva} // ${Nom_Usuario} // ${Tipo} //`;
+    }
+  };
 
-            {/* Fecha */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de Reserva
-                </label>
-                <input
-                    type="date"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-                    value={Fec_Reserva}
-                    onChange={(e) => setFec_Reserva(e.target.value)}
-                    readOnly
-                />
-            </div>
+  /* ─────────────────────────────
+     Enviar formulario
+  ───────────────────────────── */
+  const gestionarForm = async (e) => {
+    e.preventDefault();
 
-            {/* Tipo de comida */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo de Comida
-                </label>
-                <select
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    value={Tipo}
-                    onChange={(e) => setTipo(e.target.value)}
-                    required
-                >
-                    <option value="">Selecciona uno...</option>
-                    <option value="Desayuno">Desayuno</option>
-                    <option value="Almuerzo">Almuerzo</option>
-                    <option value="Cena">Cena</option>
-                </select>
-            </div>
+    if (!Id_Plato) {
+      alert("Debes seleccionar un plato");
+      return;
+    }
 
-            {/* ✅ SELECTOR DE PLATO — aparece solo cuando hay Tipo seleccionado */}
-            {Tipo && (
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Plato
-                    </label>
-                    {platosLoading ? (
-                        <div className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-400 text-sm">
-                            Cargando platos...
-                        </div>
-                    ) : platosFiltrados.length === 0 ? (
-                        <div className="w-full px-4 py-2.5 border border-orange-200 rounded-lg bg-orange-50 text-orange-500 text-sm">
-                            No hay platos disponibles para {Tipo}
-                        </div>
-                    ) : (
-                        <select
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                            value={Id_Plato}
-                            onChange={(e) => setId_Plato(e.target.value)}
-                            required
-                        >
-                            <option value="">Selecciona un plato...</option>
-                            {platosFiltrados.map((plato) => (
-                                <option key={plato.Id_Plato} value={plato.Id_Plato}>
-                                    {plato.Nom_Plato}
-                                    {plato.Des_Plato ? ` — ${plato.Des_Plato}` : ""}
-                                </option>
-                            ))}
-                        </select>
-                    )}
-                </div>
-            )}
+    try {
 
-            {/* Vencimiento */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Vencimiento
-                </label>
-                <input
-                    type="datetime-local"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-                    value={Vencimiento}
-                    readOnly
-                />
-            </div>
+      const QRFinal = await generarQRFinal();
 
-            {/* Usuario logueado - solo lectura */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Usuario
-                </label>
-                <div className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 flex items-center gap-2">
-                    <span className="font-medium">
-                        {Nom_Usuario} {Ape_Usuario || "Cargando..."}
-                    </span>
-                </div>
-            </div>
+      await apiAxios.post("/api/Reservas/", {
+        Fec_Reserva,
+        Vencimiento,
+        Est_Reserva,
+        Tipo,
+        Id_Plato,
+        Tex_Qr: JSON.stringify(qrData),
+        Id_Usuario
+      });
 
-            {/* Código QR */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Código QR
-                </label>
-                <input
-                    type="text"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-xs"
-                    readOnly
-                />
-            </div>
+      alert("Reserva creada correctamente");
 
-            {/* Botones */}
-            <div className="flex gap-3 pt-4 border-t border-gray-200">
-                <button
-                    type="button"
-                    onClick={hideModal}
-                    className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
-                >
-                    Cancelar
-                </button>
-                <button
-                    type="submit"
-                    className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors"
-                >
-                    {textFormButton}
-                </button>
-            </div>
+      reload();
+      mostrarQR(QRFinal);
 
-        </form>
-    );
+      setId_Plato("");
+
+    } catch (error) {
+
+      console.error("Error creando reserva", error);
+
+      alert(
+        error?.response?.data?.message ||
+        "Error creando reserva"
+      );
+    }
+  };
+
+  return (
+    <form onSubmit={gestionarForm} className="space-y-4">
+
+      {/* Vencimiento */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Vencimiento
+        </label>
+
+        <input
+          type="datetime-local"
+          value={Vencimiento}
+          readOnly
+          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+        />
+      </div>
+
+      {/* Usuario */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Usuario
+        </label>
+
+        <div className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+          {Nom_Usuario} {Ape_Usuario}
+        </div>
+      </div>
+
+      {/* QR */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Código QR
+        </label>
+
+        <input
+          type="text"
+          readOnly
+          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-xs"
+        />
+      </div>
+
+      {/* Botones */}
+      <div className="flex gap-3 pt-4 border-t border-gray-200">
+
+        <button
+          type="button"
+          onClick={hideModal}
+          className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg"
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="submit"
+          className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg"
+        >
+          {textFormButton}
+        </button>
+
+      </div>
+
+    </form>
+  );
 };
 
 export default ReservasForm;
