@@ -233,8 +233,10 @@ function App() {
             <ProtectedRoute {...authProps} allowedRoles={["Aprendiz Externo"]}>
               <LayoutConSidebar>
                 <Routes>
-                  <Route index           element={<PerfilExterno />}   />
+                  <Route index           element={<InicioExterno />}   />
+                  <Route path="Perfil" element={<PerfilExterno />} />
                   <Route path="Reservas" element={<ReservasExterno />} />
+                  <Route path="Historial" element={<HistorialExterno />} />
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>

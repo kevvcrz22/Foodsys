@@ -42,16 +42,29 @@ const NavBar = ({ usuario, roles = [], rolActivo, onCambioRol, onCerrarSesion })
 
           {/* Selector de rol — solo visible si tiene más de uno */}
           {usuario && roles.length > 1 && (
-            <select
-              value={rolActivo || ""}
-              onChange={handleCambioRol}
-              className="px-4 py-2 rounded-lg font-semibold hover:bg-white/15 transition"
-            >
-              {roles.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          )}
+        <select
+          value={rolActivo || ""}
+          onChange={handleCambioRol}
+          className="
+          bg-transparent
+          text-white
+          font-semibold
+          px-2 py-1
+          cursor-pointer
+          appearance-none
+          border-none
+          outline-none
+          hover:text-gray-300
+          transition-colors duration-200
+          "
+          >
+          {roles.map((r) => (
+          <option key={r} value={r} className="text-black">
+            {r}
+          </option>
+          ))}
+        </select>
+        )}
 
           {/* Logout */}
           {usuario && (
