@@ -38,7 +38,6 @@ const NAV_POR_ROL = {
     { to: "/Externo",          label: "Inicio",    icon: Home          },
     { to: "/Externo/Perfil",   label: "Mi Perfil", icon: User          },
     { to: "/Externo/Reservas", label: "Reservas",  icon: CalendarCheck },
-    { to: "/Externo/Reservas", label: "Reservas",  icon: CalendarCheck },
     { to: "/Externo/Historial", label: "Historial",  icon: CalendarCheck },
   ],
   "Aprendiz Interno": [
