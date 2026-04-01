@@ -48,6 +48,7 @@ const NAV_POR_ROL = {
   Coordinador: [
     { to: "/coordinador",           label: "Inicio",    icon: Home      },
     { to: "/coordinador/Perfil",    label: "Mi Perfil", icon: User      },
+    { to: "/coordinador/Novedades",   label: "Novedades",  icon: ClipboardList },
     { to: "/coordinador/Reportes",  label: "Reportes",  icon: BarChart3 },
     { to: "/coordinador/Programas", label: "Programas", icon: BookOpen  },
   ],

@@ -90,3 +90,11 @@ export const actualizarEstado = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+export const crearReservaExcepcional = async (req, res) => {
+    try {
+        const reserva = await ReservasServices.crearExcepcional(req.body);
+        res.status(201).json({ message: "Reserva excepcional creada", reserva });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};

@@ -78,3 +78,12 @@ export const importarCSV = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const getAprendices = async (req, res) => {
+    try {
+        const aprendices = await UsuariosService.getAprendices();
+        res.status(200).json(aprendices);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
