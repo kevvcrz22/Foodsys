@@ -108,7 +108,7 @@ const LoginFoodsys = ({ onLogin }) => {
       const rolActivo = roles.includes("Administrador") ? "Administrador" : roles[0];
 
       /* ✅ Del primero: verificar si ya aceptó la política antes de entrar */
-      if (data.usuario.Pol_Aceptada !== 'Si') {
+      if (data.usuario.Pol_Usuario !== 'Si') {
         setPendingLogin({ data, roles, rolActivo });
         setShowPolitica(true);
         return;

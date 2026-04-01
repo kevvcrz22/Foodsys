@@ -1,5 +1,5 @@
 import express from "express";
-import { aceptarPolitica } from "../Controllers/UsuariosControllers.js";
+import { aceptarPolitica, getAprendices } from "../Controllers/UsuariosControllers.js";
 import {
   RegisterUsuarios,
   Login,
@@ -28,6 +28,9 @@ router.post(
 // 🔓 Login
 router.post("/login", Login);
 
+
+router.get("/aprendices", getAprendices);
+
 // 🔓 Lectura sin auth
 router.get("/", getAllUsuarios);
 router.get("/:Id", getUsuarios);
@@ -38,5 +41,6 @@ router.delete("/:Id", authMiddleware, deleteUsuarios);
 
 // ✅ Política
 router.patch("/:Id/politica", aceptarPolitica);
+
 
 export default router;

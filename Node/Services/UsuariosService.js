@@ -170,11 +170,39 @@ async getById(Id) {
   }
     async aceptarPolitica(Id_Usuario) {
   const result = await UsuariosModel.update(
-    { Pol_Aceptada: 'Si' },
+    { Pol_Usuario: 'Si' },
     { where: { Id_Usuario } }
   );
   if (result[0] === 0) throw new Error("Usuario no encontrado");
   return true;
+}
+
+async getAprendices() {
+    const aprendices = await UsuariosModel.findAll({
+        include: [
+            {
+                model: UsuariosRolModel,
+                as: 'rolesUsuario',
+                include: [{ model: RolesModel, as: 'rol' }]
+            },
+            {
+                model: FichasModel,
+                as: 'ficha',
+                attributes: ['Id_Ficha', 'Num_Ficha']
+            }
+        ]
+    });
+
+    return aprendices
+        .filter(u => {
+            const roles = u.rolesUsuario?.map(r => r.rol?.Nom_Rol) || [];
+            return roles.includes('Aprendiz Interno') || roles.includes('Aprendiz Externo');
+        })
+        .map(u => {
+            const roles = u.rolesUsuario?.map(r => r.rol?.Nom_Rol) || [];
+            const { password, token, ...rest } = u.toJSON();
+            return { ...rest, roles };
+        });
 }
 }
 
