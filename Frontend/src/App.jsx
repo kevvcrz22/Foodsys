@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 
 /* LOGIN */
 import Login from "./Paginas/Login/Login.jsx";
@@ -28,6 +28,11 @@ import InicioExterno from "./Paginas/Externo/InicioExterno.jsx";
 import PerfilExterno from "./Paginas/Externo/PerfilExterno.jsx";
 import ReservasExterno from "./Paginas/Externo/ReservasExterno.jsx";
 import HistorialExterno from "./Paginas/Externo/HistorialExterno.jsx";
+
+/* COORDINADOR */
+import InicioCoordinador from "./Paginas/Coordinador/InicioCoordinador";
+import NovedadesCoordinador from "./Paginas/Coordinador/NovedadesCoordinador";
+
 
 /* CRUD EXISTENTES */
 import CrudUsuarios from "./Tablas/Usuarios/CrudUsuarios.jsx";
@@ -73,7 +78,8 @@ const LayoutConSidebar = ({ children }) => (
 
 function App() {
   const navigate = useNavigate();
-
+  const location = useLocation();
+  
   const [usuarioLogeado, setUsuarioLogeado] = useState(null);
   const [isAuth, setIsAuth]                 = useState(false);
   const [isLoading, setIsLoading]           = useState(true);
@@ -149,10 +155,10 @@ function App() {
     navigate("/");
   };
 
+  const ocultarChatbot = location.pathname.startsWith('/coordinador');
   return (
     <>
-      <Chatbot />
-
+      {!ocultarChatbot && <Chatbot />}
       <NavBar
         usuario={usuarioLogeado}
         roles={roles}
@@ -213,6 +219,21 @@ function App() {
           }
         />
 
+        <Route
+          path="/coordinador/*"
+          element={
+            <ProtectedRoute {...authProps} allowedRoles={["Coordinador"]}>
+              <LayoutConSidebar>
+                <Routes>
+                  <Route index             element={<InicioCoordinador />} />
+                  <Route path="Novedades"  element={<NovedadesCoordinador />} />
+                  <Route path="*"          element={<Navigate to="/coordinador" replace />} />
+                </Routes>
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+
         {/* ── CRUD ADMIN ── */}
         <Route path="/usuarios"     element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudUsuarios /></LayoutConSidebar></ProtectedRoute>} />
         <Route path="/UsuariosRoles" element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudUsuariosRoles /></LayoutConSidebar></ProtectedRoute>} />
@@ -233,7 +254,7 @@ function App() {
             <ProtectedRoute {...authProps} allowedRoles={["Aprendiz Externo"]}>
               <LayoutConSidebar>
                 <Routes>
-                  <Route index           element={<InicioExterno />}   />
+                  <Route index element={<InicioExterno />} />
                   <Route path="Perfil" element={<PerfilExterno />} />
                   <Route path="Reservas" element={<ReservasExterno />} />
                   <Route path="Historial" element={<HistorialExterno />} />

@@ -42,7 +42,7 @@ const NavBar = ({ usuario, roles = [], rolActivo, onCambioRol, onCerrarSesion })
 
           {/* Selector de rol — solo visible si tiene más de uno */}
           {usuario && roles.length > 1 && (
-        <select
+            <select
           value={rolActivo || ""}
           onChange={handleCambioRol}
           className="
@@ -64,7 +64,7 @@ const NavBar = ({ usuario, roles = [], rolActivo, onCambioRol, onCerrarSesion })
           </option>
           ))}
         </select>
-        )}
+          )}
 
           {/* Logout */}
           {usuario && (
