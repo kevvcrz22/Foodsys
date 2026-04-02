@@ -1,113 +1,142 @@
-import { User } from "lucide-react";
+import { Users, BarChart3, CalendarCheck, Shield, Database, UtensilsCrossed, CheckCircle, Settings } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
+export default function InicioAdministrador() {
+  const navigate = useNavigate();
 
-export default function Inicio() {
-  const cardsSuperiores = [
+  const modulos = [
     {
-      icon: "bi-people",
-      title: "Gestión de Aprendices",
-      desc: "Control total de asistencia al servicio de alimentación.",
+      icon: <Users className="w-6 h-6 text-indigo-600" />,
+      bg: "bg-indigo-100",
+      title: "Gestión de Usuarios",
+      desc: "Administra los usuarios del sistema, asigna roles y controla el acceso.",
+      acciones: ["Registrar nuevos usuarios", "Asignar y modificar roles", "Gestionar fichas y programas"],
+      ruta: "/usuarios",
+      boton: "Ir a Usuarios",
     },
     {
-      icon: "bi-graph-up-arrow",
-      title: "Reportes Inteligentes",
-      desc: "Visualiza métricas y patrones en tiempo real.",
+      icon: <CalendarCheck className="w-6 h-6 text-green-600" />,
+      bg: "bg-green-100",
+      title: "Reservas",
+      desc: "Consulta y administra todas las reservas del sistema de alimentación.",
+      acciones: ["Ver todas las reservas", "Filtrar por fecha y estado", "Gestionar reservas activas"],
+      ruta: "/Administrador/Reservas",
+      boton: "Ver Reservas",
     },
     {
-      icon: "bi-shield-check",
-      title: "Seguridad Avanzada",
-      desc: "Control de accesos y protección de información.",
+      icon: <BarChart3 className="w-6 h-6 text-blue-600" />,
+      bg: "bg-blue-100",
+      title: "Reportes",
+      desc: "Genera reportes detallados del servicio de alimentación y exporta datos.",
+      acciones: ["Reportes diarios y mensuales", "Estadísticas de asistencia", "Exportar datos"],
+      ruta: "/Administrador/Reportes",
+      boton: "Ver Reportes",
+    },
+    {
+      icon: <UtensilsCrossed className="w-6 h-6 text-orange-600" />,
+      bg: "bg-orange-100",
+      title: "Menús y Platos",
+      desc: "Administra el menú del comedor, los platos disponibles y las reservas de menú.",
+      acciones: ["Crear y editar platos", "Programar menús por fecha", "Gestionar reservas de menú"],
+      ruta: "/platos",
+      boton: "Gestionar Menús",
     },
   ];
 
-  const funcionalidades = [
-    {
-      title: "Registro con QR",
-      desc: "Escaneo rápido y sin fricción para registrar asistencia.",
-    },
-    {
-      title: "Control de Turnos",
-      desc: "Gestión automatizada de horarios de alimentación.",
-    },
-    {
-      title: "Análisis de Datos",
-      desc: "Insights estratégicos para toma de decisiones.",
-    },
-    {
-      title: "Gestión de Usuarios",
-      desc: "Administración segura y organizada de perfiles.",
-    },
+  const stats = [
+    { label: "Módulos disponibles", value: "8+", icon: <CheckCircle className="w-5 h-5 text-green-500" /> },
+    { label: "Tu rol", value: "Administrador", icon: <Shield className="w-5 h-5 text-indigo-500" /> },
+    { label: "Acceso", value: "Total", icon: <Settings className="w-5 h-5 text-gray-500" /> },
   ];
 
   return (
-    <div className="w-full h-full px-8 py-8 space-y-12 bg-gray-50">
+    <div className="w-full px-6 py-8 bg-gray-50 min-h-screen space-y-8">
 
-      {/* HERO SECTION */}
-      <div className="grid md:grid-cols-2 gap-15 items-center bg-white p-8 rounded-3xl shadow-sm">
-        
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-4">
-            Plataforma Integral de Gestión Alimentaria
-          </h1>
-
-          <p className="text-gray-500 leading-relaxed mb-6">
-            Foodsys optimiza el control del servicio de alimentación en centros 
-            de formación, integrando registro, monitoreo y análisis en una sola solución.
-          </p>
-        </div>
-
-        <div className="flex justify-center">
-          <div className="w-40 h-40 rounded-full bg-green-100 flex items-center justify-center shadow-lg border-2 border-green-200">
-            <User className="w-20 h-20 text-green-600" />
+      {/* HEADER */}
+      <div className="bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-3xl p-8 text-white">
+        <div className="flex items-center gap-4 mb-3">
+          <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
+            <Shield className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Panel del Administrador</h1>
+            <p className="text-indigo-200 text-sm">Centro Agropecuario La Granja — SENA Regional Tolima</p>
           </div>
         </div>
-</div>
-      {/* BENEFICIOS PRINCIPALES */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {cardsSuperiores.map((card, i) => (
-          <div
-            key={i}
-            className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-lg transition duration-300 hover:-translate-y-1"
-          >
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-              <i className={`bi ${card.icon} text-blue-600 text-xl`}></i>
+        <p className="text-indigo-100 text-sm max-w-2xl">
+          Bienvenido a Foodsys. Tienes acceso total al sistema — gestiona usuarios, roles, reservas, menús y genera reportes del servicio de alimentación.
+        </p>
+      </div>
+
+      {/* STATS */}
+      <div className="grid grid-cols-3 gap-4">
+        {stats.map((s, i) => (
+          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
+            {s.icon}
+            <div>
+              <p className="text-xs text-gray-400">{s.label}</p>
+              <p className="font-bold text-gray-700">{s.value}</p>
             </div>
-
-            <h3 className="font-semibold text-gray-800 mb-2">
-              {card.title}
-            </h3>
-
-            <p className="text-gray-500 text-sm leading-relaxed">
-              {card.desc}
-            </p>
           </div>
         ))}
       </div>
 
-      {/* FUNCIONALIDADES DETALLADAS */}
-      <div className="bg-gradient-to-r from-green-50 to-blue-50 p-8 rounded-3xl shadow-sm">
-        <h2 className="text-xl font-semibold text-gray-800 mb-6">
-          Funcionalidades Clave
-        </h2>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          {funcionalidades.map((item, i) => (
-            <div
-              key={i}
-              className="bg-white p-6 rounded-2xl border border-gray-100 hover:border-green-300 transition"
-            >
-              <h4 className="text-green-600 font-semibold mb-2">
-                {item.title}
-              </h4>
-
-              <p className="text-gray-500 text-sm leading-relaxed">
-                {item.desc}
-              </p>
+      {/* MÓDULOS */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Módulos del sistema</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {modulos.map((m, i) => (
+            <div key={i} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`w-12 h-12 ${m.bg} rounded-xl flex items-center justify-center`}>
+                  {m.icon}
+                </div>
+                <h3 className="font-bold text-gray-800">{m.title}</h3>
+              </div>
+              <p className="text-gray-500 text-sm mb-4">{m.desc}</p>
+              <ul className="space-y-2 mb-5">
+                {m.acciones.map((a, j) => (
+                  <li key={j} className="flex items-center gap-2 text-sm text-gray-600">
+                    <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span>
+                    {a}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => navigate(m.ruta)}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:brightness-110 transition"
+              >
+                {m.boton}
+              </button>
             </div>
           ))}
         </div>
       </div>
-      
+
+      {/* BASE DE DATOS */}
+      <div className="bg-gray-800 rounded-2xl p-6 text-white">
+        <div className="flex items-center gap-3 mb-4">
+          <Database className="w-6 h-6 text-gray-400" />
+          <h3 className="font-semibold">Acceso directo a Base de Datos</h3>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: "Usuarios", ruta: "/usuarios" },
+            { label: "Fichas", ruta: "/fichas" },
+            { label: "Programas", ruta: "/programas" },
+            { label: "Roles", ruta: "/roles" },
+          ].map((item, i) => (
+            <button
+              key={i}
+              onClick={() => navigate(item.ruta)}
+              className="bg-gray-700 hover:bg-gray-600 rounded-xl py-2.5 text-sm font-medium transition"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }
