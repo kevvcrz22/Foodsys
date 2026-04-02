@@ -1,116 +1,98 @@
-import logoFoodsys from "../../Components/Img/LogoFoodsys.png";
-export default function Inicio() {
+import { QrCode, BarChart3, Users, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+export default function InicioSupervisor() {
+  const navigate = useNavigate();
+
+  const modulos = [
+    {
+      icon: <QrCode className="w-6 h-6 text-blue-600" />,
+      bg: "bg-blue-100",
+      title: "Registrador de Aprendices",
+      desc: "Registra la asistencia de aprendices al comedor escaneando su código QR o ingresando su número de documento manualmente.",
+      acciones: ["Escanear código QR del aprendiz", "Registro manual por número de documento", "Ver aprendices registrados hoy en tiempo real"],
+      ruta: "/supervisor/Registrar",
+      boton: "Ir al Registrador",
+    },
+    {
+      icon: <BarChart3 className="w-6 h-6 text-green-600" />,
+      bg: "bg-green-100",
+      title: "Reportes",
+      desc: "Consulta los reportes de asistencia y estadísticas del servicio de alimentación.",
+      acciones: ["Ver reportes de asistencia diaria", "Consultar histórico de registros", "Analizar estadísticas del comedor"],
+      ruta: "/supervisor/Reportes",
+      boton: "Ver Reportes",
+    },
+  ];
+
+  const stats = [
+    { label: "Módulos disponibles", value: "2", icon: <CheckCircle className="w-5 h-5 text-green-500" /> },
+    { label: "Tu rol", value: "Supervisor", icon: <Users className="w-5 h-5 text-blue-500" /> },
+    { label: "Sistema", value: "Activo", icon: <CheckCircle className="w-5 h-5 text-green-500" /> },
+  ];
+
   return (
-    <div className="min-h-screen lg:pl-64">
-      <div className="w-full h-full px-1 py-6">
+    <div className="w-full px-6 py-8 bg-gray-50 min-h-screen space-y-8">
 
-      {/* BIENVENIDA */}
-      <div className="flex flex-col items-center text-center mb-8">
-        <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-3">
-          <img
-            src={logoFoodsys}
-            alt="FoodSys Logo"
-            className="w-20 h-20 border-5 rounded-full border-green-100 shadow-md"
-
-          />
+      {/* HEADER */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-400 rounded-3xl p-8 text-white">
+        <div className="flex items-center gap-4 mb-3">
+          <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
+  <QrCode className="w-8 h-8 text-white" />
+</div>
+          <div>
+            <h1 className="text-2xl font-bold">Panel del Supervisor</h1>
+            <p className="text-blue-200 text-sm">Centro Agropecuario La Granja — SENA Regional Tolima</p>
+          </div>
         </div>
-
-        <h2 className="text-blue-600 font-medium mb-1">
-          Bienvenido a FoodSys
-        </h2>
-
-        <p className="text-gray-500 max-w-2xl text-sm">
-          Sistema integral de gestión de alimentación para centros de formación.
-          Controla, registra y analiza el servicio de alimentación de manera
-          eficiente y moderna.
+        <p className="text-blue-100 text-sm max-w-2xl">
+          Bienvenido a Foodsys. Desde aquí puedes registrar la asistencia de aprendices al comedor usando el escáner QR o de forma manual, y consultar los reportes del servicio.
         </p>
       </div>
 
-      {/* CARDS SUPERIORES */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-        {[
-          {
-            icon: "bi-people",
-            title: "Gestión de Aprendices",
-            desc: "Registra y controla la asistencia de aprendices al servicio de alimentación de manera eficiente.",
-          },
-          {
-            icon: "bi-graph-up-arrow",
-            title: "Reportes Detallados",
-            desc: "Genera reportes diarios, semanales y mensuales para analizar patrones de asistencia.",
-          },
-          {
-            icon: "bi-shield-check",
-            title: "Seguro y Confiable",
-            desc: "Sistema seguro con control de acceso para proteger la información de los usuarios.",
-          },
-        ].map((card, i) => (
-          <div
-            key={i}
-            className="bg-white rounded-2xl shadow-sm p-5"
-          >
-            <div className="w-11 h-11 rounded-lg bg-green-100 flex items-center justify-center mb-3">
-              <i className={`bi ${card.icon} text-green-600 text-lg`}></i>
+      {/* STATS */}
+      <div className="grid grid-cols-3 gap-4">
+        {stats.map((s, i) => (
+          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
+            {s.icon}
+            <div>
+              <p className="text-xs text-gray-400">{s.label}</p>
+              <p className="font-bold text-gray-700">{s.value}</p>
             </div>
-
-            <h3 className="font-semibold text-gray-800 mb-1 text-sm">
-              {card.title}
-            </h3>
-
-            <p className="text-sm text-gray-500 leading-snug">
-              {card.desc}
-            </p>
           </div>
         ))}
       </div>
 
-      {/* SOBRE EL PROYECTO */}
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
-
-        <h3 className="font-semibold text-gray-800 mb-2 text-sm">
-          Sobre el Proyecto
-        </h3>
-
-        <p className="text-gray-600 mb-5 max-w-4xl text-sm leading-snug">
-          FoodSys es una solución desarrollada para optimizar el proceso de
-          alimentación en centros de formación, facilitando el registro de
-          aprendices, el control de turnos y la generación de reportes
-          estadísticos.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {[
-            {
-              title: "Registro Rápido",
-              desc: "Utiliza códigos QR para registrar la asistencia de aprendices de forma ágil y sin errores.",
-            },
-            {
-              title: "Control de Turnos",
-              desc: "Turnos de alimentación con apertura y cierre automático para mejor control.",
-            },
-            {
-              title: "Análisis de Datos",
-              desc: "Obtén insights valiosos sobre patrones de asistencia con reportes personalizados.",
-            },
-            {
-              title: "Gestión de Usuarios",
-              desc: "Administra perfiles de usuario con información completa y segura.",
-            },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-2xl shadow-sm p-5"
-            >
-              <h4 className="text-green-600 font-semibold mb-1 text-sm">
-                {item.title}
-              </h4>
-              <p className="text-sm text-gray-500 leading-snug">
-                {item.desc}
-              </p>
+      {/* MÓDULOS */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Tus módulos disponibles</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {modulos.map((m, i) => (
+            <div key={i} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`w-12 h-12 ${m.bg} rounded-xl flex items-center justify-center`}>
+                  {m.icon}
+                </div>
+                <h3 className="font-bold text-gray-800">{m.title}</h3>
+              </div>
+              <p className="text-gray-500 text-sm mb-4">{m.desc}</p>
+              <ul className="space-y-2 mb-5">
+                {m.acciones.map((a, j) => (
+                  <li key={j} className="flex items-center gap-2 text-sm text-gray-600">
+                    <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                    {a}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => navigate(m.ruta)}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:brightness-110 transition"
+              >
+                {m.boton}
+              </button>
             </div>
           ))}
         </div>
-      </div>
       </div>
 
     </div>
