@@ -95,30 +95,30 @@ const ReservasForm = ({
   /* ─────────────────────────────
      Datos QR
   ───────────────────────────── */
-  const qrData = useMemo(
-    () => ({
-      fecha: Fec_Reserva || "-",
-      vencimiento: Vencimiento || "-",
-      estado: Est_Reserva || "-",
-      tipo: Tipo || "-",
-      usuario: Id_Usuario || "-"
-    }),
-    [Fec_Reserva, Vencimiento, Est_Reserva, Tipo, Id_Usuario]
-  );
+  // const qrData = useMemo(
+  //   () => ({
+  //     fecha: Fec_Reserva || "-",
+  //     vencimiento: Vencimiento || "-",
+  //     estado: Est_Reserva || "-",
+  //     tipo: Tipo || "-",
+  //     usuario: Id_Usuario || "-"
+  //   }),
+  //   [Fec_Reserva, Vencimiento, Est_Reserva, Tipo, Id_Usuario]
+  // );
 
-  const generarQRFinal = async () => {
-    if (!Id_Usuario || !Vencimiento) return null;
+  // const generarQRFinal = async () => {
+  //   if (!Id_Usuario || !Vencimiento) return null;
 
-    try {
-      const response = await apiAxios.get(`/api/Usuarios/${Id_Usuario}`);
-      const usuario = response.data;
+  //   try {
+  //     const response = await apiAxios.get(`/api/Usuarios/${Id_Usuario}`);
+  //     const usuario = response.data;
 
-      return `${Id_Reserva} // ${usuario.Nom_Usuario} // ${Tipo} //`;
+  //     return `${Id_Reserva} // ${usuario.Nom_Usuario} // ${Tipo} //`;
 
-    } catch {
-      return `${Id_Reserva} // ${Nom_Usuario} // ${Tipo} //`;
-    }
-  };
+  //   } catch {
+  //     return `${Id_Reserva} // ${Nom_Usuario} // ${Tipo} //`;
+  //   }
+  // };
 
   /* ─────────────────────────────
      Enviar formulario
@@ -141,7 +141,7 @@ const ReservasForm = ({
         Est_Reserva,
         Tipo,
         Id_Plato,
-        Tex_Qr: JSON.stringify(qrData),
+      
         Id_Usuario
       });
 
@@ -191,18 +191,7 @@ const ReservasForm = ({
         </div>
       </div>
 
-      {/* QR */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Código QR
-        </label>
-
-        <input
-          type="text"
-          readOnly
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-xs"
-        />
-      </div>
+  
 
       {/* Botones */}
       <div className="flex gap-3 pt-4 border-t border-gray-200">

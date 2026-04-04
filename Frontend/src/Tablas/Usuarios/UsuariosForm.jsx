@@ -16,6 +16,7 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
   const [San_Usuario, setSan_Usuario] = useState("");
   const [Id_Ficha, setId_Ficha] = useState("");
   const [Fichas, setFichas] = useState ([]);
+  const [Id_Rol, setId_Rol] = useState("");
 
   const [textFormButton, setTextFormButton] = useState("Enviar");
   useEffect(() => {
@@ -61,7 +62,8 @@ const gestionarForm = async (e) => {
         Est_Usuario,
         password,
         San_Usuario,
-        Id_Ficha
+        Id_Ficha,
+    
       });
       const data = response.data;
 
@@ -82,7 +84,7 @@ const gestionarForm = async (e) => {
       reload();
 
     } catch (error) {
-      console.error("Error Creando Usuario", error.response ? error.response.data : error.message);
+      console.log(error.response.data);
       alert(error.message);
     }
 
@@ -101,6 +103,7 @@ const gestionarForm = async (e) => {
         password,
         San_Usuario,
         Id_Ficha,
+        Id_Rol
         
       });
 

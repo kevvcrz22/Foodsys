@@ -34,11 +34,7 @@ class UsuariosService {
     throw new Error("Documento o contraseña incorrectos");
   }
 
-  const token = jwt.sign(
-    { id: usuarios.Id_Usuario, uuid: usuarios.uuid },
-    process.env.JWT_SECRET,
-    { expiresIn: "6h" }
-  );
+  
 
   const usuarioJson = usuarios.toJSON();
 
@@ -46,6 +42,16 @@ class UsuariosService {
 const roles = usuarioJson.rolesUsuario
   ?.map(r => r.rol?.Nom_Rol)
   .filter(Boolean);
+
+  const token = jwt.sign(
+    {
+    id: usuarios.Id_Usuario, 
+    uuid: usuarios.uuid,
+    roles: roles
+     },
+    process.env.JWT_SECRET,
+    { expiresIn: "6h" }
+  );
 /* QUITAR PASSWORD */
 const { password: _, ...usuarioSinPassword } = usuarioJson;
 
@@ -90,7 +96,7 @@ async register(data) {
   const hashedPassword = await bcrypt.hash(NumDoc_Usuario, 10);
 
   const usuariosUuid = uuidv4();
-  usuarios = await UsuariosModel.create({
+  const usuarios = await UsuariosModel.create({
     TipDoc_Usuario,
     NumDoc_Usuario,
     Nom_Usuario,

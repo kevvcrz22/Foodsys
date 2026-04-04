@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 
 /* LOGIN */
@@ -9,6 +9,10 @@ import Chatbot from "./Components/Chatbot.jsx";
 import Footer from "./Components/Footer.jsx";
 import NavBar from "./Components/navBar.jsx";
 import Sidebar from "./Components/Sidebar.jsx";
+
+/*  Importaciones para el QR */
+import { AuthContext } from "./context/authContext.jsx";
+import GenerateQR from "./Tablas/Usuarios/GenerateQR.jsx";
 
 /* ADMINISTRADOR */
 import InicioAdministrador from "./Paginas/Administrador/InicioAdministrador";
@@ -44,6 +48,7 @@ import CrudRoles from "./Tablas/Roles/CrudRoles.jsx";
 import CrudPlatos from "./Tablas/Platos/CrudPlatos.jsx";
 import CrudMenus from "./Tablas/Menus/CrudMenus.jsx";
 import CrudReservasMenu from "./Tablas/ReservasMenu/CrudReservasMenu.jsx";
+import Aprendices from "./Tablas/Usuarios/Aprendices.jsx";
 
 /* ─────────────────────────────────────────────────────── */
 
@@ -79,6 +84,8 @@ const LayoutConSidebar = ({ children }) => (
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+
+   const {user, setUser} = useContext(AuthContext)//estado context global
   
   const [usuarioLogeado, setUsuarioLogeado] = useState(null);
   const [isAuth, setIsAuth]                 = useState(false);
@@ -103,6 +110,7 @@ function App() {
       if (!tokenValido || !usuarioRaw) {
         localStorage.clear();      // limpia datos inconsistentes
         setIsAuth(false);
+        setUser(usuarioRaw)//Estado del context global
         setIsLoading(false);
         return;
       }
@@ -170,8 +178,19 @@ function App() {
         }}
         onCerrarSesion={handleCerrarSesion}
       />
+   
+        
+  
 
       <Routes>
+               <Route
+  path="/generate-qr"
+  element={
+    <ProtectedRoute {...authProps} allowedRoles={["Aprendiz Externo"]}>
+      <GenerateQR />
+    </ProtectedRoute>
+  }
+/>
 
         {/* ── LOGIN ── */}
         <Route
@@ -227,6 +246,8 @@ function App() {
                 <Routes>
                   <Route index             element={<InicioCoordinador />} />
                   <Route path="Novedades"  element={<NovedadesCoordinador />} />
+                   <Route path="Aprendices"  element={<Aprendices />} />
+
                   <Route path="*"          element={<Navigate to="/coordinador" replace />} />
                 </Routes>
               </LayoutConSidebar>
@@ -260,6 +281,14 @@ function App() {
                   <Route path="Historial" element={<HistorialExterno />} />
                 </Routes>
               </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+                   <Route
+          path="/aprendices"
+          element={
+            <ProtectedRoute {...authProps} allowedRoles={["Administrador", "Coordinador"]}>
+              <LayoutConSidebar><Aprendices /></LayoutConSidebar>
             </ProtectedRoute>
           }
         />
