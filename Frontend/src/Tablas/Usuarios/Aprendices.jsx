@@ -102,14 +102,11 @@ const Aprendices = () => {
   /* 🔥 TRAER DATOS */
   const getAllUsuarios = async () => {
     try {
-      const usuariosRes = await apiAxios.get("/api/Usuarios/");
+      const usuariosRes = await apiAxios.get("/api/Usuarios/aprendices");
       const reservasRes = await apiAxios.get("/api/Reservas/");
+      console.log(usuariosRes.data[0]);
 
-      // 🔹 Filtrar aprendices
-      const aprendices = usuariosRes.data.filter(
-        (user) => user.Est_Usuario === "En Formacion"
-      );
-
+      const aprendices = usuariosRes.data;
       // 🔹 Mapear datos
       const aprendicesFull = aprendices.map((user) => {
         const reserva = reservasRes.data.find(

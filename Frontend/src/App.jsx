@@ -36,6 +36,9 @@ import HistorialExterno from "./Paginas/Externo/HistorialExterno.jsx";
 /* COORDINADOR */
 import InicioCoordinador from "./Paginas/Coordinador/InicioCoordinador";
 import NovedadesCoordinador from "./Paginas/Coordinador/NovedadesCoordinador";
+import PerfilCoordinador from "./Paginas/Coordinador/PerfilCordinador.jsx";
+import ReportesCoordinador from "./Paginas/Coordinador/ReportesCoorddinador.jsx";
+
 
 
 /* CRUD EXISTENTES */
@@ -246,7 +249,9 @@ function App() {
                 <Routes>
                   <Route index             element={<InicioCoordinador />} />
                   <Route path="Novedades"  element={<NovedadesCoordinador />} />
-                   <Route path="Aprendices"  element={<Aprendices />} />
+                  <Route path="Perfil"  element={<PerfilCoordinador />} />
+                  <Route path="Aprendices"  element={<Aprendices />} />
+                  <Route path="Reportes"  element={<ReportesCoordinador />} />
 
                   <Route path="*"          element={<Navigate to="/coordinador" replace />} />
                 </Routes>

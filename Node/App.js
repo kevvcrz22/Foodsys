@@ -79,7 +79,7 @@ ReservasModel.belongsTo(UsuariosModel,  { foreignKey: 'Id_Usuario',  as: 'usuari
 
 UsuariosModel.hasMany(UsuariosRolModel, { foreignKey: "Id_Usuario",  as: "rolesUsuario" });
 UsuariosRolModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario" });
-UsuariosRolModel.belongsTo(RolesModel,  { foreignKey: "Id_Rol",      as: "rol" });
+UsuariosRolModel.belongsTo(RolesModel,  { foreignKey: "Id_Rol",      as: "rolUsuario" });
 RolesModel.hasMany(UsuariosRolModel,    { foreignKey: "Id_Rol",      as: "usuariosRol" });
 
 PlatosModel.hasMany(MenuModel,          { foreignKey: "Id_Plato",    as: "menus" });
