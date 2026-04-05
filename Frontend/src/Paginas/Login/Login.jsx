@@ -1,9 +1,13 @@
 // Frontend/src/Paginas/Login/Login.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext} from 'react';
 import Presentacion from '../../Components/Img/Casino.jpg';
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from '../../context/authContext';
+
 
 const LoginFoodsys = ({ onLogin }) => {
+
+  const { setUser } = useContext(AuthContext);//Esatdo context global
   const navigate = useNavigate();
 
   /* ── Formulario ── */
@@ -97,12 +101,15 @@ const LoginFoodsys = ({ onLogin }) => {
 
       const data = await response.json();
 
+
       if (!response.ok) throw new Error(data.message || "Error al iniciar sesión");
 
       /* ✅ Del segundo: validar que el token sea JWT real (3 partes) */
       if (!data.token || data.token.split(".").length !== 3) {
         throw new Error("El servidor no devolvió un token válido");
       }
+
+      setUser(data.usuario) //Estado context global despues de iniciar sesion
 
       const roles     = data.roles;
       const rolActivo = roles.includes("Administrador") ? "Administrador" : roles[0];

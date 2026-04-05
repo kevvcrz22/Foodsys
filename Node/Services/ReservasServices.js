@@ -46,7 +46,7 @@ class ReservasServices {
         const reserva = await ReservasModel.create(data)
 
         const { Id_Reserva } = reserva
-        const { Tex_Qr } = data
+        
         
         const newTex_Qr = JSON.parse(Tex_Qr)
         newTex_Qr.Id_Reserva = Id_Reserva

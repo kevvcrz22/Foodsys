@@ -58,13 +58,30 @@ const NavBar = ({ usuario, roles = [], rolActivo, onCambioRol, onCerrarSesion })
           transition-colors duration-200
           "
           >
-          {roles.map((r) => (
-          <option key={r} value={r} className="text-black">
-            {r}
-          </option>
-          ))}
+      {[...new Set(roles)].map((r) => (
+  <option key={r} value={r} className="text-black">
+    {r}
+  </option>
+))}
+      
+          
         </select>
           )}
+
+            {
+  usuario && Array.isArray(roles) && roles.includes("Aprendiz Externo") && (
+    <div>
+      <Link 
+        to="/generate-qr"
+        className="px-4 py-2 rounded-lg font-semibold hover:bg-white/15 transition"
+      >
+        Generar QR para mañana
+      </Link>
+    </div>
+  )}
+    
+              
+
 
           {/* Logout */}
           {usuario && (

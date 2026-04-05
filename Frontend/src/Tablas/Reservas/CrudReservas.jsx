@@ -39,7 +39,7 @@ const DetalleModal = ({ reserva, onClose, onEdit, onVerQr }) => {
     { label: "Vencimiento", value: new Date(reserva.Vencimiento).toLocaleString() },
     { label: "Estado", value: reserva.Est_Reserva },
     { label: "Tipo", value: reserva.Tipo },
-    { label: "QR", value: reserva.Tex_Qr },
+
     { label: "ID Usuario", value: reserva.Id_Usuario },
   ];
   return (
@@ -172,12 +172,7 @@ const CrudReservas = () => {
           >
             <Pencil className="w-3 h-3" /> Editar
           </button>
-          <button
-            className="bg-emerald-500 hover:bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors"
-            onClick={() => verQr(row)}
-          >
-            <QrCode className="w-3 h-3" /> QR
-          </button>
+        
         </div>
       ),
     },

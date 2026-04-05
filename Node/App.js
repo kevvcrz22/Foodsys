@@ -29,6 +29,7 @@ import UsuariosRolModel  from './Models/UsuariosRolModel.js';
 import PlatosModel       from './Models/PlatosModels.js';
 import MenuModel         from './Models/MenusModels.js';
 import ReservasMenuModel from './Models/ReservasMenuModels.js';
+import routerCheckinpass from './Routes/CheckinPassRoutes.js';
 
 dotenv.config();
 
@@ -46,7 +47,8 @@ app.use('/api/UsuariosRoles', UsuariosRolRoute);
 app.use('/api/platos',        PlatosRoutes);
 app.use('/api/menu',          MenusRoutes);
 app.use('/api/reservasmenu',  ReservasMenuRoutes);
-app.use('/api/reportes',      ReportesRoute);            // ✅ NUEVO
+app.use('/api/reportes',      ReportesRoute);    
+app.use('/api/checkin-passes', routerCheckinpass)        // ✅ NUEVO
 
 /* ===================== STATIC ===================== */
 const __filename = fileURLToPath(import.meta.url);

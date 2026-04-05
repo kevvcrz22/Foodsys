@@ -16,8 +16,10 @@ import {
   Database,
   ShieldCheck,
   Utensils,      // 🍽️ NUEVO
-  ClipboardList  // 📋 NUEVO
+  ClipboardList,  // 📋 NUEVO
+  icons
 } from "lucide-react";
+import Aprendices from "../Tablas/Usuarios/Aprendices";
 
 // ─── Navegación principal por rol ──────────────────────────────────────────
 const NAV_POR_ROL = {
@@ -27,6 +29,8 @@ const NAV_POR_ROL = {
     { to: "/Administrador/Registrar", label: "Registrar", icon: Edit          },
     { to: "/Administrador/Reportes",  label: "Reportes",  icon: BarChart3     },
     { to: "/Administrador/Reservas",  label: "Reservas",  icon: CalendarCheck },
+     
+
   ],
   Supervisor: [
     { to: "/supervisor",           label: "Inicio",    icon: Home      },
@@ -50,7 +54,8 @@ const NAV_POR_ROL = {
     { to: "/coordinador/Perfil",    label: "Mi Perfil", icon: User      },
     { to: "/coordinador/Novedades",   label: "Novedades",  icon: ClipboardList },
     { to: "/coordinador/Reportes",  label: "Reportes",  icon: BarChart3 },
-    { to: "/coordinador/Programas", label: "Programas", icon: BookOpen  },
+    
+   
   ],
 };
 
@@ -58,16 +63,22 @@ const NAV_POR_ROL = {
 const TABLAS_POR_ROL = {
   Administrador: [
     { to: "/usuarios",        label: "Usuarios",        icon: Users         },
+    { to: "/aprendices",      label: "Aprendices",  icon: User },
     { to: "/UsuariosRoles",   label: "Usuarios Roles",  icon: User          },
     { to: "/roles",           label: "Roles",           icon: ShieldCheck   },
     { to: "/fichas",          label: "Fichas",          icon: FileText      },
     { to: "/programas",       label: "Programas",       icon: GraduationCap },
     { to: "/reservas",        label: "Reservas",        icon: Database      },
+   
 
     // 🔥 NUEVO SISTEMA RESTAURANTE
     { to: "/platos",          label: "Platos",          icon: Utensils      },
     { to: "/menus",           label: "Menús",           icon: ClipboardList },
     { to: "/reservasmenu",   label: "Reservas Menú",   icon: CalendarCheck },
+  ],
+
+  Coordinador: [
+      { to: "/aprendices",  label: "Aprendices",  icon: User },
   ],
 };
 
