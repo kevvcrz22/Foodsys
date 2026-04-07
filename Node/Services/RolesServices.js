@@ -2,6 +2,9 @@ import RolesModel from "../Models/RolesModel.js";
 class RolesServices {
     async getAll() {
         return await RolesModel.findAll()
+         
+    
+    
     }
     async getById(id) {
         const Roles = await RolesModel.findByPk(id)

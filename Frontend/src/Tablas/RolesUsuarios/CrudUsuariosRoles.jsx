@@ -14,18 +14,21 @@ const CrudUsuariosRoles = () => {
     const columnsTable = [
         { 
             name: "Id", 
-            selector: row => row.Id_UsuarioRol, 
+            selector: row => row.Id_UsuariosRol, 
             sortable: true 
         },
         { 
-            name: "Id_Usuario", 
-            selector: row => row.Id_Usuario, 
-            sortable: true 
+         
+        name: "Usuario", 
+        selector: row => 
+            `${row.usuario?.Nom_Usuario || ""} ${row.usuario?.Ape_Usuario || ""}`,
+        sortable: true
+        
         },
         { 
-            name: "Id_Rol", 
-            selector: row => row.Id_Rol, 
-            sortable: true 
+        name: "Rol", 
+        selector: row => row.rol?.Nom_Rol || "Sin rol",
+        sortable: true
         },
         
     
@@ -51,6 +54,7 @@ const CrudUsuariosRoles = () => {
     const getAllUsuariosRol = async () => {
         try {
             const response = await apiAxios.get("/api/UsuariosRoles");
+            console.log(response.data);
             setUsuariosRol(response.data);
         } catch (error) {
             console.error("Error al cargar UsuariosRol:", error);
@@ -65,10 +69,15 @@ const CrudUsuariosRoles = () => {
 
     const newList = usuariosRol.filter(item => {
         const text = filterText.toLowerCase();
+        
         return (
-            item.Id_Usuario?.toString().includes(text) ||
-            item.Id_Rol?.toString().includes(text)
+        (item.usuario?.NumDoc_Usuario || "").toString().includes(text) ||    
+        (item.usuario?.Nom_Usuario || "").toLowerCase().includes(text) ||
+        (item.usuario?.Ape_Usuario || "").toLowerCase().includes(text) ||
+        (item.rol?.Nom_Rol || "").toLowerCase().includes(text)
+
         );
+        
     });
 
     const hideModal = () => {

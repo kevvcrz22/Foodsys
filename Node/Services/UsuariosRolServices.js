@@ -1,13 +1,26 @@
 import db_store from "../Database/db.js";
 import UsuariosRolModel from "../Models/UsuariosRolModel.js";
+import UsuariosModel from "../Models/UsuariosModel.js";
+import RolesModel from "../Models/RolesModel.js";
 
 class UsuariosRolService {
-    async getAll() {
-    return await UsuariosRolModel.findAll({
-        order:[['Id_UsuariosRol', 'DESC']]
-    });
-    }
-
+async getAll() {
+  return await UsuariosRolModel.findAll({
+    include: [
+      {
+        model: UsuariosModel,
+        as: "usuario",
+        attributes: ["Id_Usuario", "Nom_Usuario", "Ape_Usuario", "NumDoc_Usuario"]
+      },
+      {
+        model: RolesModel,
+        as: "rol",
+        attributes: ["Id_Rol", "Nom_Rol"]
+      }
+    ],
+    order: [['Id_UsuariosRol', 'DESC']]
+  });
+}
 
     async getById(id) {
         const UsuariosRol = await UsuariosRolModel.findByPk(id);

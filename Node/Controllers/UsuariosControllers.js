@@ -86,4 +86,13 @@ export const getAprendices = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
+
+  router.get("/aprendices", async (req, res) => {
+  try {
+    const data = await UsuariosService.getAprendices();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 };
