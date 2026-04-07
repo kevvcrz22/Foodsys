@@ -48,6 +48,8 @@ const NAV_POR_ROL = {
     { to: "/interno",          label: "Inicio",    icon: Home          },
     { to: "/interno/Perfil",   label: "Mi Perfil", icon: User          },
     { to: "/interno/Reservas", label: "Reservas",  icon: CalendarCheck },
+     
+
   ],
   Coordinador: [
     { to: "/coordinador",           label: "Inicio",    icon: Home      },
