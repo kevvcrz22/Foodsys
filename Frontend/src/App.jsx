@@ -53,6 +53,12 @@ import CrudMenus from "./Tablas/Menus/CrudMenus.jsx";
 import CrudReservasMenu from "./Tablas/ReservasMenu/CrudReservasMenu.jsx";
 import Aprendices from "./Tablas/Usuarios/Aprendices.jsx";
 
+/*Aprendiz Interno */
+import PerfilInterno from "./Paginas/Interno/PerfilInterno.jsx";
+import InicioInterno from "./Paginas/Interno/inicioInterno.jsx";
+import ReservasInterno from "./Paginas/Interno/ReservasInterno.jsx";
+
+
 /* ─────────────────────────────────────────────────────── */
 
 const RUTAS_POR_ROL = {
@@ -289,6 +295,24 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+          {/* ── Interno ── */}
+        <Route
+          path="/Interno/*"
+          element={
+            <ProtectedRoute {...authProps} allowedRoles={["Aprendiz Interno"]}>
+              <LayoutConSidebar>
+                <Routes>
+                  <Route index element={<InicioInterno />} />
+                  <Route path="Perfil" element={<PerfilInterno />} />
+                  <Route path="Reservas" element={<ReservasInterno />} />
+                  
+                </Routes>
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+
                    <Route
           path="/aprendices"
           element={

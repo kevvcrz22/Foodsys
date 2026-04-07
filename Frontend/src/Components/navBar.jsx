@@ -58,7 +58,9 @@ const NavBar = ({ usuario, roles = [], rolActivo, onCambioRol, onCerrarSesion })
           transition-colors duration-200
           "
           >
-      {[...new Set(roles)].map((r) => (
+    {[...new Set(roles)]
+  .filter(r => r !== "Aprendiz Interno")
+  .map((r) => (
   <option key={r} value={r} className="text-black">
     {r}
   </option>
