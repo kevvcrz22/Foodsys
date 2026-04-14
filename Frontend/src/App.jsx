@@ -18,8 +18,9 @@ import GenerateQR from "./Tablas/Usuarios/GenerateQR.jsx";
 import InicioAdministrador from "./Paginas/Administrador/InicioAdministrador";
 import PerfilAdministrador from "./Paginas/Administrador/PerfilAdministrador";
 import RegistrarAdministrador from "./Paginas/Administrador/RegistrarAdministrador";
-import ReportesAdministrador from "./Paginas/Administrador/ReportesAdministrador";
+import ReportesAdministrador from "./Paginas/Administrador/ReportesAdministrador.jsx";
 import ReservasAdministrador from "./Paginas/Administrador/ReservasAdministrador.jsx";
+import ReporteAprendices from "./Paginas/Administrador/ReporteAprendices.jsx";
 
 /* SUPERVISOR */
 import Inicio from "./Paginas/Supervisor/InicioSupervisor";
@@ -223,6 +224,8 @@ function App() {
                   <Route path="Registrar"       element={<RegistrarAdministrador />} />
                   <Route path="Reportes"        element={<ReportesAdministrador />}  />
                   <Route path="Reservas"        element={<ReservasAdministrador />}  />
+                  <Route path="reporte-aprendices"        element={<ReporteAprendices />}  />
+                 
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>
