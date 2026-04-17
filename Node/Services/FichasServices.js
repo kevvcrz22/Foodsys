@@ -5,7 +5,7 @@ class FichasServices {
 
         return await FichasModel.findAll({
             include: [
-                { model: ProgramaModel, as: 'programa', attributes: ['Id_Programa', 'Nom_Programa'] }
+                { model: ProgramaModel, as: 'Programa', attributes: ['Id_Programa', 'Nom_Programa'] }
             ]
         })
 
@@ -13,7 +13,7 @@ class FichasServices {
     async getById(Id) {
         const Fichas = await FichasModel.findByPk(Id, {
             include: [
-                { model: ProgramaModel, as: 'programa', attributes: ['Id_Programa', 'Nom_Programa'] }
+                { model: ProgramaModel, as: 'Programa', attributes: ['Id_Programa', 'Nom_Programa'] }
             ]
         });
 
