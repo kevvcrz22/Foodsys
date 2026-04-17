@@ -1,108 +1,325 @@
 // Frontend/src/Paginas/Externo/HistorialExterno.jsx
+// ── Muestra el historial de reservas del aprendiz externo ──
+// ── Mismo comportamiento que tenía ReservasExterno: QR, cancelar, estados ──
+
 import { useState, useEffect } from "react";
-import logoFoodsys from "../../Components/Img/LogoFoodsys.png";
+import apiAxios from "../../api/axiosConfig";
+import { QRCodeCanvas } from "qrcode.react";
+import {
+  UtensilsCrossed, ClipboardList, Clock,
+  CheckCircle2, XCircle, AlertCircle, Inbox, ChefHat,
+  QrCode, X, CalendarDays, Timer,
+} from "lucide-react";
 
-export default function InicioExterno() {
-  const [screen, setScreen] = useState(window.innerWidth);
+/* ─────────────────────────────────────────────────────────
+   CONFIG DE ESTADOS — igual que en ReservasExterno original
+───────────────────────────────────────────────────────── */
+const estadoConfig = {
+  pendiente:  { label: "Pendiente",  icon: Clock,        color: "text-amber-700",  bg: "bg-amber-50",   border: "border-amber-300",  dot: "bg-amber-400",  headerBg: "bg-amber-100"  },
+  aprobado:   { label: "Aprobado",   icon: CheckCircle2, color: "text-emerald-700",bg: "bg-emerald-50", border: "border-emerald-300",dot: "bg-emerald-500",headerBg: "bg-emerald-100"},
+  rechazado:  { label: "Rechazado",  icon: XCircle,      color: "text-red-700",    bg: "bg-red-50",     border: "border-red-300",    dot: "bg-red-400",    headerBg: "bg-red-100"    },
+  generada:   { label: "Generada",   icon: CheckCircle2, color: "text-blue-700",   bg: "bg-blue-50",    border: "border-blue-300",   dot: "bg-blue-400",   headerBg: "bg-blue-100"   },
+  usada:      { label: "Usada",      icon: CheckCircle2, color: "text-green-700",  bg: "bg-green-50",   border: "border-green-300",  dot: "bg-green-500",  headerBg: "bg-green-100"  },
+  vencida:    { label: "Vencida",    icon: XCircle,      color: "text-red-700",    bg: "bg-red-50",     border: "border-red-300",    dot: "bg-red-400",    headerBg: "bg-red-100"    },
+  cancelada:  { label: "Cancelada",  icon: XCircle,      color: "text-gray-600",   bg: "bg-gray-50",    border: "border-gray-300",   dot: "bg-gray-400",   headerBg: "bg-gray-100"   },
+};
 
-  useEffect(() => {
-    const handleResize = () => setScreen(window.innerWidth);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+const getEstado = (estado) =>
+  estadoConfig[estado?.toLowerCase()] ?? {
+    label: estado ?? "–", icon: AlertCircle,
+    color: "text-slate-500", bg: "bg-slate-100",
+    border: "border-slate-200", dot: "bg-slate-400", headerBg: "bg-slate-100",
+  };
 
-  const isDesktop = screen >= 1024;
+/* ─────────────────────────────────────────────────────────
+   HELPERS DE FECHA — exactamente iguales al original
+───────────────────────────────────────────────────────── */
+const formatFecha = (fecha) => {
+  if (!fecha) return "–";
+  return new Date(fecha + "T00:00:00").toLocaleDateString("es-CO", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
+};
 
-  const cards = [
-    {
-      icon: "bi-people",
-      title: "Gestión de Reservas",
-      desc: "Administra fácilmente tus reservas y mantén el control de asistencia en tiempo real.",
-    },
-    {
-      icon: "bi-shield-check",
-      title: "Seguridad del Sistema",
-      desc: "Accesos protegidos y controlados para garantizar la integridad de la información.",
-    },
-    {
-      icon: "bi-clock-history",
-      title: "Optimización del Tiempo",
-      desc: "Reduce tiempos de espera y mejora la organización del servicio de alimentación.",
-    },
-  ];
+const formatFechaCorta = (fecha) => {
+  if (!fecha) return "–";
+  return new Date(fecha + "T00:00:00").toLocaleDateString("es-CO", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+};
 
-  /* ══════════════════════════════
-     RENDER
-  ══════════════════════════════ */
+const formatVencimiento = (fecha) => {
+  if (!fecha) return "–";
+  return new Date(fecha).toLocaleString("es-CO", {
+    day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+  });
+};
+
+/* Horas de vencimiento — exactamente iguales al original */
+const getVencimientoReal = (fecReserva, tipo) => {
+  if (!fecReserva || !tipo) return null;
+  const horas = { Desayuno: 7, Almuerzo: 14, Cena: 19 };
+  const h = horas[tipo];
+  if (h === undefined) return null;
+  const fecha = new Date(`${fecReserva}T00:00:00`);
+  fecha.setHours(h, 0, 0, 0);
+  return fecha;
+};
+
+/* ═══════════════════════════════════════════════════════════
+   COMPONENTE PRINCIPAL
+═══════════════════════════════════════════════════════════ */
+const HistorialExterno = () => {
+  const [usuarioLogueado] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("usuario")) || null; }
+    catch { return null; }
+  });
+
+  const [reservasDB, setReservasDB] = useState([]);
+  const [loading, setLoading]       = useState(false);
+
+  /* Modal QR */
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrTexto,     setQrTexto]     = useState("");
+  const [qrFecha,     setQrFecha]     = useState("");
+  const [qrTipo,      setQrTipo]      = useState("");
+
+  /* ── Fetch reservas — idéntico al original ── */
+  const fetchReservas = async () => {
+    if (!usuarioLogueado) return;
+    setLoading(true);
+    try {
+      const { data } = await apiAxios.get("/api/Reservas");
+      const userId = usuarioLogueado.Id_Usuario || usuarioLogueado.id || usuarioLogueado.Id;
+      const mis = data
+        .filter((r) => String(r.Id_Usuario) === String(userId))
+        .sort((a, b) => new Date(b.Fec_Reserva) - new Date(a.Fec_Reserva));
+      setReservasDB(mis);
+    } catch (err) {
+      console.error("Error cargando reservas", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ── Cancelar reserva — idéntico al original ── */
+  const cancelarReserva = async (id) => {
+    if (!window.confirm("¿Seguro que deseas cancelar la reserva?")) return;
+    try {
+      await apiAxios.delete(`/api/Reservas/${id}`);
+      alert("Reserva cancelada correctamente");
+      fetchReservas();
+    } catch (err) {
+      console.error(err);
+      alert("Error al cancelar la reserva");
+    }
+  };
+
+  /* ── Ver QR — idéntico al original ── */
+  const verQr = (reserva) => {
+    setQrTexto(reserva.Tex_Qr || "Sin QR");
+    setQrFecha(reserva.Fec_Reserva);
+    setQrTipo(reserva.Tipo || "");
+    setQrModalOpen(true);
+  };
+
+  useEffect(() => { fetchReservas(); }, []);
+
+  /* ── RENDER ── */
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      
-      {/* CONTENIDO */}
-      <div className={`flex-1 w-full ${isDesktop ? "ml-30" : ""}`}>
-        
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+    <div className="w-full min-h-screen bg-gray-50">
+      <div className="w-full h-full p-4 md:p-6">
 
-          {/* HEADER */}
-          <div className="mb-10 sm:mb-12">
-            <div className="flex flex-col items-center text-center">
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Historial de Reservas</h1>
+          <p className="text-gray-500 mt-1">Consulta y gestiona tus reservas del comedor</p>
+        </div>
 
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-green-100 flex items-center justify-center mb-4 shadow-sm shrink-0">
-                <img
-                  src={logoFoodsys}
-                  alt="FoodSys Logo"
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover"
-                />
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+
+          {/* Header */}
+          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-green-100 p-2.5 rounded-xl">
+                <ClipboardList className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-gray-800 font-bold text-xl">Mis Reservas</h2>
+                {usuarioLogueado && (
+                  <p className="text-gray-400 text-sm mt-0.5">
+                    {usuarioLogueado.Nom_Usuario || usuarioLogueado.nombre || usuarioLogueado.email || "Usuario"}
+                  </p>
+                )}
+              </div>
+            </div>
+            {reservasDB.length > 0 && (
+              <span className="bg-green-600 text-white text-sm font-bold px-4 py-1.5 rounded-full">
+                {reservasDB.length} reserva{reservasDB.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+
+          {/* Contenido */}
+          <div className="p-5">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-32 text-gray-400">
+                <div className="w-12 h-12 border-4 border-green-200 border-t-green-500 rounded-full animate-spin mb-4" />
+                <p className="text-base font-medium">Cargando reservas...</p>
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-semibold text-blue-600 mb-2 leading-tight">
-                Bienvenido a Foodsys
-              </h2>
-
-              <p className="text-gray-500 max-w-md sm:max-w-xl text-sm leading-relaxed break-words">
-                Sistema integral de gestión de alimentación para centros de formación.
-                Controla, registra y optimiza el servicio de alimentación de manera
-                eficiente y moderna.
-              </p>
-            </div>
-          </div>
-
-          {/* SECCIÓN */}
-          <div>
-            <h2 className="text-base sm:text-lg font-semibold text-gray-700 mb-6 sm:mb-8">
-              ¿Qué puedes hacer aquí?
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-              {cards.map((card, i) => (
-                <div
-                  key={i}
-                  className="
-                  bg-white rounded-xl
-                  border border-gray-100
-                  p-4 sm:p-5
-                  transition-all duration-300
-                  hover:shadow-md hover:-translate-y-1
-                  min-w-0
-                  "
-                >
-                  <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-blue-50 flex items-center justify-center mb-3 sm:mb-4">
-                    <i className={`bi ${card.icon} text-blue-600 text-base sm:text-lg`}></i>
-                  </div>
-
-                  <h3 className="font-medium text-gray-800 mb-1 text-sm sm:text-base">
-                    {card.title}
-                  </h3>
-
-                  <p className="text-gray-500 text-xs sm:text-sm leading-relaxed break-words">
-                    {card.desc}
-                  </p>
+            ) : reservasDB.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-32 text-center">
+                <div className="bg-gray-100 rounded-2xl p-6 mb-5">
+                  <Inbox className="w-14 h-14 text-gray-400" />
                 </div>
-              ))}
-            </div>
-          </div>
+                <p className="font-bold text-gray-600 text-xl">Sin reservas aún</p>
+                <p className="text-gray-400 text-base mt-2 max-w-sm">
+                  Ve a <strong>Reservas</strong> para crear tu primera reserva 🍽️
+                </p>
+              </div>
 
+            ) : (
+              <div className="space-y-4">
+                {reservasDB.map((reserva) => {
+                  const cfg  = getEstado(reserva.Est_Reserva);
+                  const Icon = cfg.icon;
+
+                  const ahora         = new Date();
+                  const vencimiento   = getVencimientoReal(reserva.Fec_Reserva, reserva.Tipo);
+                  const diffHoras     = vencimiento ? (vencimiento - ahora) / 3600000 : -1;
+                  const estadoLower   = reserva.Est_Reserva?.toLowerCase();
+                  const puedeCancelar = diffHoras > 4 && estadoLower !== "cancelada";
+
+                  return (
+                    <div
+                      key={reserva.Id_Reserva}
+                      className={`border-2 ${cfg.border} rounded-2xl overflow-hidden hover:shadow-md transition-all duration-200`}
+                    >
+                      {/* Header card */}
+                      <div className={`${cfg.headerBg} px-5 py-3 flex items-center justify-between`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2.5 h-2.5 rounded-full ${cfg.dot}`} />
+                          <span className={`text-sm font-semibold ${cfg.color} flex items-center gap-1.5`}>
+                            <Icon className="w-4 h-4" /> {cfg.label}
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-500 font-medium">#{reserva.Id_Reserva}</span>
+                      </div>
+
+                      {/* Body card */}
+                      <div className="bg-white px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div className="bg-green-100 p-4 rounded-2xl shrink-0 self-start sm:self-center">
+                          <UtensilsCrossed className="w-8 h-8 text-green-600" />
+                        </div>
+
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <p className="font-bold text-gray-800 text-base md:text-lg capitalize">
+                            {formatFecha(reserva.Fec_Reserva)}
+                          </p>
+                          <div className="flex flex-wrap gap-4">
+                            <span className="flex items-center gap-1.5 text-sm text-gray-500">
+                              <ChefHat className="w-4 h-4 text-gray-400" />
+                              <span className="font-medium text-gray-700">{reserva.Tipo || "–"}</span>
+                            </span>
+                            <span className="flex items-center gap-1.5 text-sm text-gray-500">
+                              <Timer className="w-4 h-4 text-gray-400" />
+                              Vence:{" "}
+                              <span className="font-medium text-gray-700">
+                                {formatVencimiento(vencimiento)}
+                              </span>
+                            </span>
+                            <span className="flex items-center gap-1.5 text-sm text-gray-500">
+                              <CalendarDays className="w-4 h-4 text-gray-400" />
+                              {formatFechaCorta(reserva.Fec_Reserva)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Acciones */}
+                        <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                          {reserva.Tex_Qr && (
+                            <button
+                              onClick={() => verQr(reserva)}
+                              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-800 text-white hover:bg-gray-700 transition-colors"
+                              title="Ver código QR"
+                            >
+                              <QrCode className="w-4 h-4" /> Ver QR
+                            </button>
+                          )}
+
+                          {puedeCancelar ? (
+                            <button
+                              onClick={() => cancelarReserva(reserva.Id_Reserva)}
+                              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+                            >
+                              <XCircle className="w-4 h-4" /> Cancelar
+                            </button>
+                          ) : (
+                            estadoLower !== "cancelada" && (
+                              <span
+                                className="text-xs bg-gray-100 text-gray-400 px-3 py-2 rounded-xl cursor-not-allowed"
+                                title="Ya no es posible cancelar (menos de 4 horas)"
+                              >
+                                Sin cancelar
+                              </span>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
+
       </div>
+
+      {/* ── MODAL QR — idéntico al original ── */}
+      {qrModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setQrModalOpen(false)}
+          />
+          <div className="bg-white rounded-3xl shadow-2xl z-10 p-8 flex flex-col items-center w-full max-w-sm">
+            <div className="flex items-center justify-between w-full mb-2">
+              <div>
+                <h3 className="font-bold text-gray-800 text-2xl">Código QR</h3>
+                {qrTipo && (
+                  <span className="inline-block mt-1 text-xs font-semibold bg-green-100 text-green-700 px-3 py-1 rounded-full">
+                    {qrTipo}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setQrModalOpen(false)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-xl p-2.5 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-400 mb-5 self-start capitalize">
+              {formatFecha(qrFecha)}
+            </p>
+            <div className="bg-gray-50 p-5 rounded-2xl border-2 border-gray-200">
+              <QRCodeCanvas value={qrTexto} size={230} />
+            </div>
+            <p className="text-xs text-gray-400 mt-4 text-center break-all px-2 max-w-xs">
+              {qrTexto}
+            </p>
+            <button
+              onClick={() => setQrModalOpen(false)}
+              className="mt-6 w-full bg-green-600 text-white py-3.5 rounded-2xl font-bold text-base hover:bg-green-700 transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default HistorialExterno;
