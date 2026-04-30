@@ -19,7 +19,7 @@ import {
   ClipboardList,  // 📋 NUEVO
   icons
 } from "lucide-react";
-import Aprendices from "../Tablas/Usuarios/Aprendices";
+
 
 // ─── Navegación principal por rol ──────────────────────────────────────────
 const NAV_POR_ROL = {
@@ -29,6 +29,8 @@ const NAV_POR_ROL = {
     { to: "/Administrador/Registrar", label: "Registrar", icon: Edit          },
     { to: "/Administrador/Reportes",  label: "Reportes",  icon: BarChart3     },
     { to: "/Administrador/Reservas",  label: "Reservas",  icon: CalendarCheck },
+    { to: "/Administrador/reporte-aprendices",  label: "Reportes Aprendices",  icon: BarChart3  },
+   
      
 
   ],
