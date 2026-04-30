@@ -3,6 +3,38 @@ import { Op } from "sequelize";
 import UsuariosModel from "../Models/UsuariosModel.js";
 
 class ReservasServices {
+
+    async reporteDetalleAprendiz(idUsuario) {
+
+  const reservas = await ReservasModel.findAll({
+    where: {
+      Id_Usuario: idUsuario,
+      Est_Reserva: { [Op.ne]: "Cancelada" }
+    },
+    order: [["Fec_Reserva", "DESC"]]
+  });
+
+  const resultado = {};
+
+  reservas.forEach(r => {
+    if (!resultado[r.Fec_Reserva]) {
+      resultado[r.Fec_Reserva] = {
+        fecha: r.Fec_Reserva,
+        desayuno: false,
+        almuerzo: false,
+        cena: false
+      };
+    }
+
+    if (r.Tipo === "Desayuno") resultado[r.Fec_Reserva].desayuno = true;
+    if (r.Tipo === "Almuerzo") resultado[r.Fec_Reserva].almuerzo = true;
+    if (r.Tipo === "Cena") resultado[r.Fec_Reserva].cena = true;
+  });
+
+  return Object.values(resultado);
+}
+
+ 
     async getAll() {
         return await ReservasModel.findAll({
             order: [
@@ -14,6 +46,8 @@ class ReservasServices {
             attributes: ['Nom_Usuario', 'Ape_Usuario']
         }]
         })
+
+        
 
     }
         async checkDisponibilidad(usuario, fecha, tipo) {

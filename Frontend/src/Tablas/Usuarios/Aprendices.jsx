@@ -27,6 +27,10 @@ const Aprendices = () => {
   const [isEdit, setIsEdit] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const [detalleReservas, setDetalleReservas] = useState([]);
+  const [modalDetalle, setModalDetalle] = useState(false);
+  const [aprendizSeleccionado, setAprendizSeleccionado] = useState(null);
+
   /* COLUMNAS */
   const columnsTable = [
     { name: "ID", selector: (r) => r.Id_Usuario, width: "70px" },
@@ -93,6 +97,17 @@ const Aprendices = () => {
         </button>
       ),
     },
+    {
+  name: "Detalle",
+  cell: (row) => (
+    <button
+      className="bg-purple-500 text-white px-2 py-1 rounded"
+      onClick={() => verDetalle(row)}
+    >
+      Ver
+    </button>
+  ),
+}
   ];
 
   useEffect(() => {
@@ -166,6 +181,21 @@ const Aprendices = () => {
     );
   });
 
+
+  const verDetalle = async (usuario) => {
+  try {
+    const res = await apiAxios.get(
+      `/api/reservas/reporte-aprendiz-detalle/${usuario.Id_Usuario}`
+    );
+
+    setDetalleReservas(res.data);
+    setAprendizSeleccionado(usuario);
+    setModalDetalle(true);
+
+  } catch (error) {
+    console.error("Error detalle:", error);
+  }
+};
   return (
     <>
       <div className="p-4">
@@ -202,11 +232,18 @@ const Aprendices = () => {
           >
             Sin reservas
           </button>
+          
         </div>
 
         {/* TABLA */}
-        <DataTable columns={columnsTable} data={newList} pagination />
+        <DataTable columns={columnsTable} data={newList} pagination
+        
+        
+        />
+        
       </div>
+      
+      
 
       {/* MODAL */}
       {isModalOpen && (
@@ -217,6 +254,55 @@ const Aprendices = () => {
           reload={getAllUsuarios}
         />
       )}
+      {modalDetalle && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center">
+
+    {/* fondo oscuro */}
+    <div
+      className="absolute inset-0 bg-black/40"
+      onClick={() => setModalDetalle(false)}
+    />
+
+    {/* contenido */}
+    <div className="bg-white rounded-xl shadow-lg p-6 z-10 w-full max-w-3xl">
+
+      <h2 className="text-lg font-bold mb-4">
+        Reservas de {aprendizSeleccionado?.Nom_Usuario} {aprendizSeleccionado?.Ape_Usuario}
+      </h2>
+
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-gray-100 text-center">
+            <th>Fecha</th>
+            <th>Desayuno</th>
+            <th>Almuerzo</th>
+            <th>Cena</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {detalleReservas.length > 0 ? (
+            detalleReservas.map((r, i) => (
+              <tr key={i} className="border-b text-center">
+                <td>{r.fecha}</td>
+                <td>{r.desayuno ? "✔️" : "❌"}</td>
+                <td>{r.almuerzo ? "✔️" : "❌"}</td>
+                <td>{r.cena ? "✔️" : "❌"}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="4" className="text-center py-3">
+                No tiene reservas
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+)}
     </>
   );
 };
