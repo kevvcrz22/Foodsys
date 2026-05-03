@@ -102,6 +102,17 @@ const Aprendices = () => {
         </button>
       ),
     },
+    {
+  name: "Detalle",
+  cell: (row) => (
+    <button
+      className="bg-purple-500 text-white px-2 py-1 rounded"
+      onClick={() => verDetalle(row)}
+    >
+      Ver
+    </button>
+  ),
+}
   ];
 
   useEffect(() => { getAllUsuarios(); }, []);
@@ -243,6 +254,8 @@ const Aprendices = () => {
           )}
         </div>
       </div>
+      
+      
 
       {isModalOpen && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
