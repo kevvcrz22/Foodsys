@@ -9,7 +9,9 @@ const ReservaModel = db.define('reservas', {
   Tip_Reserva: { type: DataTypes.STRING },                  // Desayuno, Almuerzo, Cena
   Qr_Reserva: { type: DataTypes.STRING },                   // Texto encriptado para el QR
   Id_Plato: { type: DataTypes.INTEGER },
-  Id_Usuario: { type: DataTypes.INTEGER }
+  Id_Usuario: { type: DataTypes.INTEGER },
+  Res_Excepcional: { type: DataTypes.STRING, defaultValue: "No" },
+  Justificacion: { type: DataTypes.TEXT } // Agregar opcionalmente si es necesario
 }, {
   freezeTableName: true
 });

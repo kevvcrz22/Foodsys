@@ -10,9 +10,9 @@ class ReportesService {
       `SELECT
          DATE(Fec_Reserva)     AS periodo,
          COUNT(*)              AS total,
-         SUM(Tipo = 'Desayuno') AS desayunos,
-         SUM(Tipo = 'Almuerzo') AS almuerzos,
-         SUM(Tipo = 'Cena')     AS cenas
+         SUM(Tip_Reserva = 'Desayuno') AS desayunos,
+         SUM(Tip_Reserva = 'Almuerzo') AS almuerzos,
+         SUM(Tip_Reserva = 'Cena')     AS cenas
        FROM reservas
        WHERE Fec_Reserva >= CURDATE() - INTERVAL 7 DAY
        GROUP BY DATE(Fec_Reserva)
@@ -30,9 +30,9 @@ class ReportesService {
          WEEK(Fec_Reserva, 1)        AS semana,
          CONCAT('Sem ', WEEK(Fec_Reserva, 1), '-', YEAR(Fec_Reserva)) AS periodo,
          COUNT(*)                    AS total,
-         SUM(Tipo = 'Desayuno')      AS desayunos,
-         SUM(Tipo = 'Almuerzo')      AS almuerzos,
-         SUM(Tipo = 'Cena')          AS cenas
+         SUM(Tip_Reserva = 'Desayuno')      AS desayunos,
+         SUM(Tip_Reserva = 'Almuerzo')      AS almuerzos,
+         SUM(Tip_Reserva = 'Cena')          AS cenas
        FROM reservas
        WHERE Fec_Reserva >= CURDATE() - INTERVAL 8 WEEK
        GROUP BY anio, semana
@@ -49,9 +49,9 @@ class ReportesService {
          DATE_FORMAT(Fec_Reserva, '%Y-%m')  AS periodo,
          DATE_FORMAT(Fec_Reserva, '%b %Y')  AS label,
          COUNT(*)                           AS total,
-         SUM(Tipo = 'Desayuno')             AS desayunos,
-         SUM(Tipo = 'Almuerzo')             AS almuerzos,
-         SUM(Tipo = 'Cena')                 AS cenas
+         SUM(Tip_Reserva = 'Desayuno')             AS desayunos,
+         SUM(Tip_Reserva = 'Almuerzo')             AS almuerzos,
+         SUM(Tip_Reserva = 'Cena')                 AS cenas
        FROM reservas
        WHERE Fec_Reserva >= CURDATE() - INTERVAL 12 MONTH
        GROUP BY periodo
@@ -67,9 +67,9 @@ class ReportesService {
       `SELECT
          YEAR(Fec_Reserva)       AS periodo,
          COUNT(*)                AS total,
-         SUM(Tipo = 'Desayuno')  AS desayunos,
-         SUM(Tipo = 'Almuerzo')  AS almuerzos,
-         SUM(Tipo = 'Cena')      AS cenas
+         SUM(Tip_Reserva = 'Desayuno')  AS desayunos,
+         SUM(Tip_Reserva = 'Almuerzo')  AS almuerzos,
+         SUM(Tip_Reserva = 'Cena')      AS cenas
        FROM reservas
        WHERE YEAR(Fec_Reserva) >= YEAR(CURDATE()) - 4
        GROUP BY YEAR(Fec_Reserva)
@@ -79,12 +79,42 @@ class ReportesService {
     return rows;
   }
 
+  /* ─── PERSONALIZADO: entre fechas dadas, opcionalmente por tipo de alimento ─── */
+  async getPersonalizado(fechaInicio, fechaFin, tipoAlimento) {
+    let whereClause = `WHERE Fec_Reserva BETWEEN :fechaInicio AND :fechaFin`;
+    let replacements = { fechaInicio, fechaFin };
+
+    if (tipoAlimento && tipoAlimento !== "Todos") {
+      whereClause += ` AND Tip_Reserva = :tipoAlimento`;
+      replacements.tipoAlimento = tipoAlimento;
+    }
+
+    const rows = await db.query(
+      `SELECT
+         DATE(Fec_Reserva)     AS periodo,
+         COUNT(*)              AS total,
+         SUM(Tip_Reserva = 'Desayuno') AS desayunos,
+         SUM(Tip_Reserva = 'Almuerzo') AS almuerzos,
+         SUM(Tip_Reserva = 'Cena')     AS cenas
+       FROM reservas
+       ${whereClause}
+       GROUP BY DATE(Fec_Reserva)
+       ORDER BY periodo ASC`,
+      {
+        replacements,
+        type: QueryTypes.SELECT
+      }
+    );
+    return rows;
+  }
+
   /* ─── Helper para exportar ─── */
-  async getPorPeriodo(periodo) {
+  async getPorPeriodo(periodo, params = {}) {
     switch (periodo) {
       case "diario":   return this.getDiario();
       case "semanal":  return this.getSemanal();
       case "anual":    return this.getAnual();
+      case "personalizado": return this.getPersonalizado(params.fechaInicio, params.fechaFin, params.tipoAlimento);
       default:         return this.getMensual();
     }
   }

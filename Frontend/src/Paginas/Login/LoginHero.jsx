@@ -39,8 +39,7 @@ const LoginHero = () => (
         <span className="text-[#42b72a]">mas importa.</span>
       </h1>
       <p className="text-[#4a5568] text-[15px] leading-relaxed max-w-sm">
-        Foodsys optimiza la alimentacion de los aprendices del Centro Agropecuario La
-        Granja — reservas anticipadas, control de raciones y cero desperdicios.
+        ¡Bienvenido a la plataforma! Anímate a reservar tus platos con anticipación y mantente siempre informado sobre el comedor. Únete para disfrutar de una mejor experiencia cada día.
       </p>
     </div>
 

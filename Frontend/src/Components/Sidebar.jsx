@@ -7,72 +7,117 @@ import {
 } from "lucide-react";
 import { useNavBar } from "./CerrarSesion";
 
-// Navegacion principal organizada por rol
+// Navegacion principal organizada por rol segun matriz
 const NAV_POR_ROL = {
   Administrador: [
     { to: "/Administrador", label: "Inicio", icon: Home },
     { to: "/Administrador/Perfil", label: "Mi Perfil", icon: User },
+    { to: "/Administrador/Reservar", label: "Reservar", icon: CalendarCheck },
+    { to: "/Administrador/Menu", label: "Menú", icon: Utensils },
     { to: "/Administrador/Reportes", label: "Reportes", icon: BarChart3 },
-    { to: "/Administrador/Reservas", label: "Reservas", icon: CalendarCheck },
     { to: "/Administrador/Novedades", label: "Novedades", icon: ClipboardList },
+    { to: "/Administrador/HistorialReservas", label: "Historial", icon: Database },
+    { to: "/Administrador/Estadisticas", label: "Estadísticas", icon: BarChart3 },
   ],
   Supervisor: [
     { to: "/supervisor", label: "Inicio", icon: Home },
     { to: "/supervisor/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/supervisor/Registrar", label: "Registrar", icon: Edit },
+    { to: "/supervisor/Reservar", label: "Reservar", icon: CalendarCheck },
+    { to: "/supervisor/Menu", label: "Menú", icon: Utensils },
     { to: "/supervisor/Reportes", label: "Reportes", icon: BarChart3 },
+    { to: "/supervisor/Novedades", label: "Novedades", icon: ClipboardList },
   ],
   "Aprendiz Externo": [
     { to: "/Externo", label: "Inicio", icon: Home },
     { to: "/Externo/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Externo/Reservas", label: "Reservas", icon: CalendarCheck },
+    { to: "/Externo/Reservar", label: "Reservar", icon: CalendarCheck },
+    { to: "/Externo/Menu", label: "Menú", icon: Utensils },
+    { to: "/Externo/HistorialReservas", label: "Historial", icon: Database },
+    { to: "/Externo/Estadisticas", label: "Estadísticas", icon: BarChart3 },
   ],
   "Aprendiz Interno": [
     { to: "/Interno", label: "Inicio", icon: Home },
     { to: "/Interno/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Interno/Reservas", label: "Reservas", icon: CalendarCheck },
+    { to: "/Interno/Reservar", label: "Reservar", icon: CalendarCheck },
+    { to: "/Interno/Menu", label: "Menú", icon: Utensils },
+    { to: "/Interno/HistorialReservas", label: "Historial", icon: Database },
+    { to: "/Interno/Estadisticas", label: "Estadísticas", icon: BarChart3 },
   ],
   Coordinador: [
     { to: "/coordinador", label: "Inicio", icon: Home },
     { to: "/coordinador/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/coordinador/Novedades", label: "Novedades", icon: ClipboardList },
+    { to: "/coordinador/Reservar", label: "Reservar", icon: CalendarCheck },
+    { to: "/coordinador/Menu", label: "Menú", icon: Utensils },
     { to: "/coordinador/Reportes", label: "Reportes", icon: BarChart3 },
+    { to: "/coordinador/Novedades", label: "Novedades", icon: ClipboardList },
+    { to: "/coordinador/HistorialReservas", label: "Historial", icon: Database },
+    { to: "/coordinador/Estadisticas", label: "Estadísticas", icon: BarChart3 },
   ],
   Pasante: [
     { to: "/Pasante", label: "Inicio", icon: Home },
     { to: "/Pasante/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Pasante/Reservas", label: "Reservas", icon: CalendarCheck },
+    { to: "/Pasante/Reservar", label: "Reservar", icon: CalendarCheck },
+    { to: "/Pasante/Menu", label: "Menú", icon: Utensils },
+    { to: "/Pasante/HistorialReservas", label: "Historial", icon: Database },
   ],
   Cocina: [
     { to: "/Cocina", label: "Inicio", icon: Home },
     { to: "/Cocina/Perfil", label: "Mi Perfil", icon: User },
+    { to: "/Cocina/Menu", label: "Menú", icon: Utensils },
     { to: "/Cocina/Reportes", label: "Reportes", icon: BarChart3 },
   ],
   Bienestar: [
     { to: "/Bienestar", label: "Inicio", icon: Home },
     { to: "/Bienestar/Perfil", label: "Mi Perfil", icon: User },
+    { to: "/Bienestar/Reservar", label: "Reservar", icon: CalendarCheck },
+    { to: "/Bienestar/Menu", label: "Menú", icon: Utensils },
     { to: "/Bienestar/Reportes", label: "Reportes", icon: BarChart3 },
     { to: "/Bienestar/Novedades", label: "Novedades", icon: ClipboardList },
+    { to: "/Bienestar/Estadisticas", label: "Estadísticas", icon: BarChart3 },
   ],
 };
 
-// Tablas de administracion por rol
+// Tablas de administracion por rol segun matriz
 const TABLAS_POR_ROL = {
   Administrador: [
     { to: "/usuarios", label: "Usuarios", icon: Users },
-    { to: "/aprendices", label: "Aprendices", icon: User },
-    { to: "/UsuariosRoles", label: "Usuarios Roles", icon: ShieldCheck },
     { to: "/roles", label: "Roles", icon: ShieldCheck },
-    { to: "/fichas", label: "Fichas", icon: FileText },
+    { to: "/aprendices", label: "Aprendices", icon: User },
     { to: "/programas", label: "Programas", icon: GraduationCap },
-    { to: "/reservas", label: "Reservas", icon: Database },
     { to: "/platos", label: "Platos", icon: Utensils },
-    { to: "/menus", label: "Menus", icon: ClipboardList },
+    { to: "/fichas", label: "Fichas", icon: FileText },
+  ],
+  Supervisor: [
+    { to: "/usuarios", label: "Usuarios", icon: Users },
+    { to: "/roles", label: "Roles", icon: ShieldCheck },
+    { to: "/aprendices", label: "Aprendices", icon: User },
+    { to: "/programas", label: "Programas", icon: GraduationCap },
+    { to: "/platos", label: "Platos", icon: Utensils },
+    { to: "/fichas", label: "Fichas", icon: FileText },
   ],
   Coordinador: [
+    { to: "/usuarios", label: "Usuarios", icon: Users },
+    { to: "/roles", label: "Roles", icon: ShieldCheck },
     { to: "/aprendices", label: "Aprendices", icon: User },
+    { to: "/programas", label: "Programas", icon: GraduationCap },
+    { to: "/platos", label: "Platos", icon: Utensils },
+    { to: "/fichas", label: "Fichas", icon: FileText },
   ],
   Bienestar: [
+    { to: "/usuarios", label: "Usuarios", icon: Users },
+    { to: "/roles", label: "Roles", icon: ShieldCheck },
+    { to: "/aprendices", label: "Aprendices", icon: User },
+    { to: "/programas", label: "Programas", icon: GraduationCap },
+    { to: "/platos", label: "Platos", icon: Utensils },
+    { to: "/fichas", label: "Fichas", icon: FileText },
+  ],
+  "Aprendiz Externo": [
+    { to: "/aprendices", label: "Aprendices", icon: User },
+  ],
+  "Aprendiz Interno": [
+    { to: "/aprendices", label: "Aprendices", icon: User },
+  ],
+  Pasante: [
     { to: "/aprendices", label: "Aprendices", icon: User },
   ],
 };
@@ -173,7 +218,7 @@ export default function Sidebar() {
           className={Obtener_Clase_Link}
           onClick={() => setIsOpen(false)}
         >
-          <Icono_Comp className="w-5 h-5 flex-shrink-0" />
+          <Icono_Comp className="w-5 h-5 shrink-0" />
           <span>{Item.label}</span>
         </NavLink>
       );
@@ -185,7 +230,7 @@ export default function Sidebar() {
       <div className="p-5 border-b border-gray-100">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-11 h-11 flex items-center justify-center ${Acento.accent} rounded-full text-white text-lg font-bold`}>
+            <div className={`w-11 h-11 flex items-center justify-center ${Acento.accent} rounded-full text-white text-lg font-bold shrink-0`}>
               {Inicial}
             </div>
             <div>
@@ -198,14 +243,14 @@ export default function Sidebar() {
             </div>
           </div>
           <button onClick={() => setIsOpen(false)} className="lg:hidden">
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
       </div>
 
       {/* Menu de navegacion */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <p className="text-gray-400 text-xs font-semibold px-4 mb-2">
+        <p className="text-gray-400 text-xs font-semibold px-4 mb-2 uppercase tracking-wider">
           Menu
         </p>
         {Links.length > 0 ? Renderizar_Links(Links) : (
@@ -214,7 +259,7 @@ export default function Sidebar() {
 
         {Tablas.length > 0 && (
           <>
-            <p className="text-gray-400 text-xs font-semibold px-4 mt-4">
+            <p className="text-gray-400 text-xs font-semibold px-4 mt-6 mb-2 uppercase tracking-wider">
               Administracion
             </p>
             {Renderizar_Links(Tablas)}
@@ -227,7 +272,7 @@ export default function Sidebar() {
         <button
           onClick={handleCerrarSesion}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl
-                     text-sm font-semibold text-red-500 border border-red-200
+                     text-sm font-semibold text-red-500 border border-red-100
                      hover:bg-red-500 hover:text-white hover:border-transparent
                      transition-all duration-200"
         >
@@ -243,7 +288,7 @@ export default function Sidebar() {
       {/* Boton hamburguesa movil */}
       <button
         onClick={() => setIsOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-[70] p-2.5 bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow"
+        className="lg:hidden fixed top-4 left-4 z-70 p-2.5 bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow"
         aria-label="Abrir menu"
       >
         <Menu className="w-5 h-5 text-gray-700" />
@@ -253,19 +298,19 @@ export default function Sidebar() {
       {isOpen && (
         <div
           onClick={() => setIsOpen(false)}
-          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
+          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-60"
           aria-hidden="true"
         />
       )}
 
       {/* Sidebar escritorio */}
-      <aside className="hidden lg:flex flex-col w-64 min-h-screen flex-shrink-0">
+      <aside className="hidden lg:flex flex-col w-64 min-h-screen shrink-0">
         {Renderizar_Interior()}
       </aside>
 
       {/* Sidebar movil */}
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 z-[65] w-72 flex flex-col
+        className={`lg:hidden fixed inset-y-0 left-0 z-65 w-72 flex flex-col
                     transform transition-transform duration-300 ease-in-out
                     ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       >

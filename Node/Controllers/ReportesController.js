@@ -38,11 +38,24 @@ export const getReporteAnual = async (req, res) => {
   }
 };
 
+export const getReportePersonalizado = async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin, tipoAlimento } = req.query;
+    if (!fechaInicio || !fechaFin) {
+      return res.status(400).json({ message: "Las fechas de inicio y fin son obligatorias." });
+    }
+    const data = await ReportesService.getPersonalizado(fechaInicio, fechaFin, tipoAlimento);
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 /* ── Exportar PDF ── */
 export const exportarPDF = async (req, res) => {
   try {
-    const { periodo = "mensual" } = req.query;
-    const datos = await ReportesService.getPorPeriodo(periodo);
+    const { periodo = "mensual", fechaInicio, fechaFin, tipoAlimento } = req.query;
+    const datos = await ReportesService.getPorPeriodo(periodo, { fechaInicio, fechaFin, tipoAlimento });
     const pdfBuffer = await ExportService.generarPDF(datos, periodo);
     res.set({
       "Content-Type":        "application/pdf",
@@ -57,8 +70,8 @@ export const exportarPDF = async (req, res) => {
 /* ── Exportar Excel ── */
 export const exportarExcel = async (req, res) => {
   try {
-    const { periodo = "mensual" } = req.query;
-    const datos = await ReportesService.getPorPeriodo(periodo);
+    const { periodo = "mensual", fechaInicio, fechaFin, tipoAlimento } = req.query;
+    const datos = await ReportesService.getPorPeriodo(periodo, { fechaInicio, fechaFin, tipoAlimento });
     const buffer = await ExportService.generarExcel(datos, periodo);
     res.set({
       "Content-Type":        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
