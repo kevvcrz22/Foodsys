@@ -21,8 +21,8 @@ class ProgramaService {
 
     async update(id, data) {
         
-        console.log("🟢 ID recibido en update:", id);
-        console.log("🟢 Datos recibidos:", data);
+        console.log("ID recibido en update:", id);
+        console.log("Datos recibidos:", data);
         const result = await ProgramaModel.update(data, { where: { Id_Programa: id } });
         const updated = result[0];
         if (updated === 0) throw new Error("Programa no encontrado o sin cambios");

@@ -34,7 +34,7 @@ const QRScanner = ({ onScan, estadoDestino = "Usada" }) => {
         () => {} // error silencioso por frame
       );
       setEscaneando(true);
-    } catch (err) {
+    } catch {
       setResultado({
         exito: false,
         mensaje: "No se pudo acceder a la cámara. Verifique los permisos.",
@@ -48,7 +48,7 @@ const QRScanner = ({ onScan, estadoDestino = "Usada" }) => {
       try {
         await scannerRef.current.stop();
         scannerRef.current.clear();
-      } catch (_) { /* ignorar */ }
+      } catch { /* ignorar */ }
     }
     setEscaneando(false);
   };
@@ -56,7 +56,7 @@ const QRScanner = ({ onScan, estadoDestino = "Usada" }) => {
   /* ── Procesar QR leído ── */
   const procesarQR = async (texto, scanner) => {
     // Detener para no hacer llamadas múltiples
-    try { await scanner.stop(); scanner.clear(); } catch (_) {}
+    try { await scanner.stop(); scanner.clear(); } catch { /* ignorar */ }
     setEscaneando(false);
     setCargando(true);
 
@@ -98,8 +98,18 @@ const QRScanner = ({ onScan, estadoDestino = "Usada" }) => {
 
   /* ── Limpiar al desmontar ── */
   useEffect(() => {
-    return () => { detenerScanner(); };
-  }, []);
+    // Es seguro referenciar detenerScanner aca, eslint se quejaria si cambiara
+    // constantemente pero solo referenciamos referencias persistentes
+    const detener = async () => {
+      if (scannerRef.current && escaneando) {
+        try {
+          await scannerRef.current.stop();
+          scannerRef.current.clear();
+        } catch { /* ignorar */ }
+      }
+    };
+    return () => { detener(); };
+  }, [escaneando]);
   return (
     <div className="flex flex-col items-center gap-4 w-full">
 

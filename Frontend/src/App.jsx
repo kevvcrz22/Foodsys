@@ -1,85 +1,65 @@
 import { useState, useEffect, useContext } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import {
+  Routes, Route, Navigate,
+  useNavigate, useLocation,
+} from "react-router-dom";
 
 /* LOGIN */
 import Login from "./Paginas/Login/Login.jsx";
+import Perfil from "./Paginas/Perfil/Perfil.jsx";
+import Inicio from "./Paginas/Inicio/Inicio.jsx";
 
 /* COMPONENTES */
 import Chatbot from "./Components/Chatbot.jsx";
 import Footer from "./Components/Footer.jsx";
-import NavBar from "./Components/navBar.jsx";
+import NavBar from "./Components/NavBar/Nav.jsx";
 import Sidebar from "./Components/Sidebar.jsx";
 
-/*  Importaciones para el QR */
+/* Contexto de autenticacion */
 import { AuthContext } from "./context/authContext.jsx";
 import GenerateQR from "./Tablas/Usuarios/GenerateQR.jsx";
 
-/* ADMINISTRADOR */
-import InicioAdministrador from "./Paginas/Administrador/InicioAdministrador";
-import PerfilAdministrador from "./Paginas/Administrador/PerfilAdministrador";
-import RegistrarAdministrador from "./Paginas/Administrador/RegistrarAdministrador";
-import ReportesAdministrador from "./Paginas/Administrador/ReportesAdministrador.jsx";
-import ReservasAdministrador from "./Paginas/Administrador/ReservasAdministrador.jsx";
-import ReporteAprendices from "./Paginas/Administrador/ReporteAprendices.jsx";
-
-/* SUPERVISOR */
-import Inicio from "./Paginas/Supervisor/InicioSupervisor";
-import PerfilSupervisor from "./Paginas/Supervisor/PerfilSupervisor";
-import RegistrarSupervisor from "./Paginas/Supervisor/RegistrarSupervisor";
-import ReportesSupervisor from "./Paginas/Supervisor/ReportesSupervisor";
-
-/* APRENDIZ EXTERNO */
-import InicioExterno from "./Paginas/Externo/InicioExterno.jsx";
-import PerfilExterno from "./Paginas/Externo/PerfilExterno.jsx";
-import ReservasExterno from "./Paginas/Externo/ReservasExterno.jsx";
-import HistorialExterno from "./Paginas/Externo/HistorialExterno.jsx";
-
-/* COORDINADOR */
-import InicioCoordinador from "./Paginas/Coordinador/InicioCoordinador";
-import NovedadesCoordinador from "./Paginas/Coordinador/NovedadesCoordinador";
-import PerfilCoordinador from "./Paginas/Coordinador/PerfilCordinador.jsx";
-import ReportesCoordinador from "./Paginas/Coordinador/ReportesCoorddinador.jsx";
-
-
+/* VISTAS COMPARTIDAS */
+import Reportes from "./Paginas/Reportes/Reportes.jsx";
+import Novedades from "./Paginas/Novedades/Novedades.jsx";
+import RegistrarVista from "./Paginas/Registrar/Registro.jsx";
 
 /* CRUD EXISTENTES */
 import CrudUsuarios from "./Tablas/Usuarios/CrudUsuarios.jsx";
 import CrudUsuariosRoles from "./Tablas/RolesUsuarios/CrudUsuariosRoles.jsx";
 import CrudFichas from "./Tablas/Fichas/CrudFichas.jsx";
 import CrudPrograma from "./Tablas/Programas/CrudPrograma.jsx";
-import CrudReservas from "./Tablas/Reservas/CrudReservas.jsx";
 import CrudRoles from "./Tablas/Roles/CrudRoles.jsx";
 import CrudPlatos from "./Tablas/Platos/CrudPlatos.jsx";
 import CrudMenus from "./Tablas/Menus/CrudMenus.jsx";
-import CrudReservasMenu from "./Tablas/ReservasMenu/CrudReservasMenu.jsx";
+import CrudReservas from "./Tablas/Reservas/ReservaForm.jsx";
 import Aprendices from "./Tablas/Usuarios/Aprendices.jsx";
 
-/*Aprendiz Interno */
-import PerfilInterno from "./Paginas/Interno/PerfilInterno.jsx";
-import InicioInterno from "./Paginas/Interno/inicioInterno.jsx";
-import ReservasInterno from "./Paginas/Interno/ReservasInterno.jsx";
-
-
-/* ─────────────────────────────────────────────────────── */
-
+/* Mapa de rutas por rol para redirigir despues del login */
 const RUTAS_POR_ROL = {
   Administrador: "/Administrador",
   Supervisor: "/supervisor",
   Coordinador: "/coordinador",
-  "Aprendiz Interno": "/interno",
+  "Aprendiz Interno": "/Interno",
   "Aprendiz Externo": "/Externo",
+  Pasante: "/Pasante",
+  Cocina: "/Cocina",
+  Bienestar: "/Bienestar",
 };
 
-/* PROTECCIÓN */
-const ProtectedRoute = ({ children, allowedRoles, isAuth, rolActivo }) => {
+/* Protege rutas verificando autenticacion y rol */
+const ProtectedRoute = ({
+  children, allowedRoles, isAuth, rolActivo,
+}) => {
   if (!isAuth) return <Navigate to="/" replace />;
   if (!allowedRoles.includes(rolActivo)) {
-    return <Navigate to={RUTAS_POR_ROL[rolActivo] || "/"} replace />;
+    const Ruta = RUTAS_POR_ROL[rolActivo] || "/";
+    return <Navigate to={Ruta} replace />;
   }
   return children;
 };
 
-/* LAYOUT */
+/* Layout con sidebar para paginas internas */
 const LayoutConSidebar = ({ children }) => (
   <div className="flex h-full bg-gray-100">
     <Sidebar />
@@ -89,245 +69,445 @@ const LayoutConSidebar = ({ children }) => (
   </div>
 );
 
-/* ─────────────────────────────────────────────────────── */
-
 function App() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const Navegar = useNavigate();
+  const Ubicacion = useLocation();
+  const { setUser } = useContext(AuthContext);
 
-   const {user, setUser} = useContext(AuthContext)//estado context global
-  
-  const [usuarioLogeado, setUsuarioLogeado] = useState(null);
-  const [isAuth, setIsAuth]                 = useState(false);
-  const [isLoading, setIsLoading]           = useState(true);
-  const [roles, setRoles]                   = useState([]);
-  const [rolActivo, setRolActivo]           = useState(null);
+  const [Usuario_Logeado, Set_UsuarioLogeado] = useState(null);
+  const [Es_Auth, Set_EsAuth] = useState(false);
+  const [Cargando, Set_Cargando] = useState(true);
+  const [Roles, Set_Roles] = useState([]);
+  const [Rol_Activo, Set_RolActivo] = useState(null);
 
-  /* ── Rehidratar sesión al recargar ── */
+  /* Rehidrata sesion al recargar la pagina */
   useEffect(() => {
-    const syncAuthState = () => {
-      const token        = localStorage.getItem("token");
-      const usuarioRaw   = localStorage.getItem("usuario");
-      const storedRoles  = JSON.parse(localStorage.getItem("roles") || "[]");
-      const storedRol    = localStorage.getItem("rolActivo");
+    const Sincronizar = () => {
+      const Token_Guardado = localStorage.getItem("token");
+      const Usuario_Raw = localStorage.getItem("usuario");
+      const Roles_Guardados = JSON.parse(
+        localStorage.getItem("roles") || "[]"
+      );
+      const Rol_Guardado = localStorage.getItem("rolActivo");
 
-      // ✅ Validación real: token debe existir y ser un JWT (3 partes separadas por punto)
-      const tokenValido =
-        token &&
-        token !== "ok" &&          // descarta el placeholder incorrecto
-        token.split(".").length === 3;
+      const Token_Valido =
+        Token_Guardado &&
+        Token_Guardado !== "ok" &&
+        Token_Guardado.split(".").length === 3;
 
-      if (!tokenValido || !usuarioRaw) {
-        localStorage.clear();      // limpia datos inconsistentes
-        setIsAuth(false);
-        setUser(usuarioRaw)//Estado del context global
-        setIsLoading(false);
+      if (!Token_Valido || !Usuario_Raw) {
+        localStorage.clear();
+        Set_EsAuth(false);
+        setUser(null);
+        Set_Cargando(false);
         return;
       }
 
       try {
-        setUsuarioLogeado(JSON.parse(usuarioRaw));
-        setIsAuth(true);
-        setRoles(storedRoles);
-        setRolActivo(storedRol);
+        const Obj_Usuario = JSON.parse(Usuario_Raw);
+        Set_UsuarioLogeado(Obj_Usuario);
+        setUser(Obj_Usuario);
+        Set_EsAuth(true);
+        Set_Roles(Roles_Guardados);
+        Set_RolActivo(Rol_Guardado);
       } catch {
         localStorage.clear();
-        setIsAuth(false);
+        Set_EsAuth(false);
+        setUser(null);
       } finally {
-        setIsLoading(false);
+        Set_Cargando(false);
       }
     };
 
-    syncAuthState();
-    window.addEventListener("storage", syncAuthState);
-    return () => window.removeEventListener("storage", syncAuthState);
-  }, []);
+    Sincronizar();
+    window.addEventListener("storage", Sincronizar);
+    return () => window.removeEventListener("storage", Sincronizar);
+  }, [setUser]);
 
-  const authProps = { isAuth, rolActivo };
+  const Props_Auth = { isAuth: Es_Auth, rolActivo: Rol_Activo };
 
-  if (isLoading) return <div className="text-center mt-20">Cargando...</div>;
+  if (Cargando) {
+    return (
+      <div className="text-center mt-20">Cargando...</div>
+    );
+  }
 
-  /* ── Manejador de login ── */
-  const handleLogin = (user, rolesRecibidos, rolActivoRecibido, tokenJWT) => {
-    // ✅ Guardar el JWT real que viene del backend
-    localStorage.setItem("token",    tokenJWT);
-    localStorage.setItem("usuario",  JSON.stringify(user));
-    localStorage.setItem("roles",    JSON.stringify(rolesRecibidos));
-    localStorage.setItem("rolActivo", rolActivoRecibido);
+  /* Manejador de login exitoso */
+  const Manejar_Login = (
+    Usr, Roles_Recibidos, Rol_Recibido, Token_JWT
+  ) => {
+    localStorage.setItem("token", Token_JWT);
+    localStorage.setItem("usuario", JSON.stringify(Usr));
+    localStorage.setItem("roles", JSON.stringify(Roles_Recibidos));
+    localStorage.setItem("rolActivo", Rol_Recibido);
 
-    setUsuarioLogeado(user);
-    setIsAuth(true);
-    setRoles(rolesRecibidos);
-    setRolActivo(rolActivoRecibido);
-
-    navigate(RUTAS_POR_ROL[rolActivoRecibido] || "/");
+    Set_UsuarioLogeado(Usr);
+    Set_EsAuth(true);
+    Set_Roles(Roles_Recibidos);
+    Set_RolActivo(Rol_Recibido);
+    Navegar(RUTAS_POR_ROL[Rol_Recibido] || "/");
   };
 
-  /* ── Manejador de cerrar sesión ── */
-  const handleCerrarSesion = () => {
+  /* Manejador de cerrar sesion */
+  const Manejar_CerrarSesion = () => {
     localStorage.clear();
-    setUsuarioLogeado(null);
-    setIsAuth(false);
-    setRoles([]);
-    setRolActivo(null);
-    navigate("/");
+    Set_UsuarioLogeado(null);
+    Set_EsAuth(false);
+    Set_Roles([]);
+    Set_RolActivo(null);
+    setUser(null);
+    Navegar("/");
   };
 
-  const ocultarChatbot = location.pathname.startsWith('/coordinador');
+  const Ocultar_Chatbot =
+    Ubicacion.pathname.startsWith("/coordinador");
+
   return (
     <>
-      {!ocultarChatbot && <Chatbot />}
+      {!Ocultar_Chatbot && <Chatbot />}
       <NavBar
-        usuario={usuarioLogeado}
-        roles={roles}
-        rolActivo={rolActivo}
-        onCambioRol={(nuevoRol) => {
-          localStorage.setItem("rolActivo", nuevoRol);
-          setRolActivo(nuevoRol);
-          navigate(RUTAS_POR_ROL[nuevoRol] || "/");
+        usuario={Usuario_Logeado}
+        roles={Roles}
+        rolActivo={Rol_Activo}
+        onCambioRol={(Nuevo_Rol) => {
+          localStorage.setItem("rolActivo", Nuevo_Rol);
+          Set_RolActivo(Nuevo_Rol);
+          Navegar(RUTAS_POR_ROL[Nuevo_Rol] || "/");
         }}
-        onCerrarSesion={handleCerrarSesion}
+        onCerrarSesion={Manejar_CerrarSesion}
       />
-   
-        
-  
 
       <Routes>
-               <Route
-  path="/generate-qr"
-  element={
-    <ProtectedRoute {...authProps} allowedRoles={["Aprendiz Externo"]}>
-      <GenerateQR />
-    </ProtectedRoute>
-  }
-/>
+        {/* QR para aprendices y pasantes */}
+        <Route
+          path="/reservar/generateAlimentoqr"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={[
+                "Aprendiz Interno",
+                "Aprendiz Externo",
+                "Pasante",
+              ]}
+            >
+              <GenerateQR />
+            </ProtectedRoute>
+          }
+        />
 
-        {/* ── LOGIN ── */}
+        {/* LOGIN */}
         <Route
           path="/"
           element={
-            isAuth
-              ? <Navigate to={RUTAS_POR_ROL[rolActivo]} />
-              : <Login onLogin={handleLogin} />
+            Es_Auth
+              ? <Navigate to={RUTAS_POR_ROL[Rol_Activo]} />
+              : <Login onLogin={Manejar_Login} />
           }
         />
 
-        {/* ── ADMIN ── */}
+        {/* ADMINISTRADOR */}
         <Route
           path="/Administrador/*"
           element={
-            <ProtectedRoute {...authProps} allowedRoles={["Administrador"]}>
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Administrador"]}
+            >
               <LayoutConSidebar>
                 <Routes>
-                  <Route index                  element={<InicioAdministrador />}    />
-                  <Route path="Perfil"          element={<PerfilAdministrador />}    />
-                  <Route path="Registrar"       element={<RegistrarAdministrador />} />
-                  <Route path="Reportes"        element={<ReportesAdministrador />}  />
-                  <Route path="Reservas"        element={<ReservasAdministrador />}  />
-                  <Route path="reporte-aprendices"        element={<ReporteAprendices />}  />
-                 
+                  <Route index element={<Inicio />} />
+                  <Route path="Inicio" element={<Inicio />} />
+                  <Route path="Perfil" element={<Perfil />} />
+                  <Route path="Reportes" element={<Reportes />} />
+                  <Route path="Reservas" element={<CrudReservas />} />
+                  <Route path="Novedades" element={<Novedades />} />
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>
           }
         />
 
-        {/* ── SUPERVISOR ────────────────────────────────────── */}
+        {/* SUPERVISOR */}
         <Route
           path="/supervisor/*"
           element={
-            <ProtectedRoute {...authProps} allowedRoles={["Supervisor"]}>
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Supervisor"]}
+            >
               <LayoutConSidebar>
                 <Routes>
-                  <Route index            element={<Inicio />} />
-                  <Route path="Perfil"    element={<PerfilSupervisor />} />
-                  <Route path="Registrar" element={<RegistrarSupervisor />} />
-                  <Route path="Reportes"  element={<ReportesSupervisor />} />
-                  <Route path="*"         element={<Navigate to="/supervisor" replace />} />
+                  <Route index element={<Inicio />} />
+                  <Route path="Inicio" element={<Inicio />} />
+                  <Route path="Perfil" element={<Perfil />} />
+                  <Route path="Registrar" element={<RegistrarVista />} />
+                  <Route path="Reportes" element={<Reportes />} />
+                  <Route
+                    path="*"
+                    element={<Navigate to="/supervisor" replace />}
+                  />
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>
           }
         />
 
+        {/* COORDINADOR */}
         <Route
           path="/coordinador/*"
           element={
-            <ProtectedRoute {...authProps} allowedRoles={["Coordinador"]}>
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Coordinador"]}
+            >
               <LayoutConSidebar>
                 <Routes>
-                  <Route index             element={<InicioCoordinador />} />
-                  <Route path="Novedades"  element={<NovedadesCoordinador />} />
-                  <Route path="Perfil"  element={<PerfilCoordinador />} />
-                  <Route path="Aprendices"  element={<Aprendices />} />
-                  <Route path="Reportes"  element={<ReportesCoordinador />} />
-
-                  <Route path="*"          element={<Navigate to="/coordinador" replace />} />
+                  <Route index element={<Inicio />} />
+                  <Route path="Inicio" element={<Inicio />} />
+                  <Route path="Perfil" element={<Perfil />} />
+                  <Route path="Novedades" element={<Novedades />} />
+                  <Route path="Reportes" element={<Reportes />} />
+                  <Route path="Aprendices" element={<Aprendices />} />
+                  <Route
+                    path="*"
+                    element={<Navigate to="/coordinador" replace />}
+                  />
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>
           }
         />
 
-        {/* ── CRUD ADMIN ── */}
-        <Route path="/usuarios"     element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudUsuarios /></LayoutConSidebar></ProtectedRoute>} />
-        <Route path="/UsuariosRoles" element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudUsuariosRoles /></LayoutConSidebar></ProtectedRoute>} />
-        <Route path="/fichas"       element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudFichas /></LayoutConSidebar></ProtectedRoute>} />
-        <Route path="/programas"    element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudPrograma /></LayoutConSidebar></ProtectedRoute>} />
-        <Route path="/roles"        element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudRoles /></LayoutConSidebar></ProtectedRoute>} />
-        <Route path="/platos"        element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudPlatos /></LayoutConSidebar></ProtectedRoute>} />
-        <Route path="/menus"         element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudMenus /></LayoutConSidebar></ProtectedRoute>} />
-        <Route path="/reservas-menu" element={<ProtectedRoute {...authProps} allowedRoles={["Administrador"]}><LayoutConSidebar><CrudReservasMenu /></LayoutConSidebar></ProtectedRoute>} />
-
-        {/* ── RESERVAS ── */}
-        <Route path="/reservas" element={<ProtectedRoute {...authProps} allowedRoles={["Administrador", "Supervisor"]}><LayoutConSidebar><CrudReservas /></LayoutConSidebar></ProtectedRoute>} />
-
-        {/* ── EXTERNO ── */}
+        {/* APRENDIZ EXTERNO */}
         <Route
           path="/Externo/*"
           element={
-            <ProtectedRoute {...authProps} allowedRoles={["Aprendiz Externo"]}>
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Aprendiz Externo"]}
+            >
               <LayoutConSidebar>
                 <Routes>
-                  <Route index element={<InicioExterno />} />
-                  <Route path="Perfil" element={<PerfilExterno />} />
-                  <Route path="Reservas" element={<ReservasExterno />} />
-                  <Route path="Historial" element={<HistorialExterno />} />
+                  <Route index element={<Inicio />} />
+                  <Route path="Inicio" element={<Inicio />} />
+                  <Route path="Perfil" element={<Perfil />} />
+                  <Route path="Reservas" element={<CrudReservas />} />
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>
           }
         />
 
-          {/* ── Interno ── */}
+        {/* APRENDIZ INTERNO */}
         <Route
           path="/Interno/*"
           element={
-            <ProtectedRoute {...authProps} allowedRoles={["Aprendiz Interno"]}>
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Aprendiz Interno"]}
+            >
               <LayoutConSidebar>
                 <Routes>
-                  <Route index element={<InicioInterno />} />
-                  <Route path="Perfil" element={<PerfilInterno />} />
-                  <Route path="Reservas" element={<ReservasInterno />} />
-                  
+                  <Route index element={<Inicio />} />
+                  <Route path="Inicio" element={<Inicio />} />
+                  <Route path="Perfil" element={<Perfil />} />
+                  <Route path="Reservas" element={<CrudReservas />} />
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>
           }
         />
 
-                   <Route
-          path="/aprendices"
+        {/* PASANTE */}
+        <Route
+          path="/Pasante/*"
           element={
-            <ProtectedRoute {...authProps} allowedRoles={["Administrador", "Coordinador"]}>
-              <LayoutConSidebar><Aprendices /></LayoutConSidebar>
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Pasante"]}
+            >
+              <LayoutConSidebar>
+                <Routes>
+                  <Route index element={<Inicio />} />
+                  <Route path="Inicio" element={<Inicio />} />
+                  <Route path="Perfil" element={<Perfil />} />
+                  <Route path="Reservas" element={<CrudReservas />} />
+                </Routes>
+              </LayoutConSidebar>
             </ProtectedRoute>
           }
         />
 
-        {/* ── FALLBACK ── */}
-        <Route path="*" element={<Navigate to="/" />} />
+        {/* COCINA */}
+        <Route
+          path="/Cocina/*"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Cocina"]}
+            >
+              <LayoutConSidebar>
+                <Routes>
+                  <Route index element={<Inicio />} />
+                  <Route path="Inicio" element={<Inicio />} />
+                  <Route path="Perfil" element={<Perfil />} />
+                  <Route path="Reportes" element={<Reportes />} />
+                </Routes>
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
 
+        {/* BIENESTAR */}
+        <Route
+          path="/Bienestar/*"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Bienestar"]}
+            >
+              <LayoutConSidebar>
+                <Routes>
+                  <Route index element={<Inicio />} />
+                  <Route path="Inicio" element={<Inicio />} />
+                  <Route path="Perfil" element={<Perfil />} />
+                  <Route path="Reportes" element={<Reportes />} />
+                  <Route path="Novedades" element={<Novedades />} />
+                </Routes>
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* CRUDs (solo Admin) */}
+        <Route
+          path="/usuarios"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Administrador"]}
+            >
+              <LayoutConSidebar>
+                <CrudUsuarios />
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/UsuariosRoles"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Administrador"]}
+            >
+              <LayoutConSidebar>
+                <CrudUsuariosRoles />
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/fichas"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Administrador"]}
+            >
+              <LayoutConSidebar>
+                <CrudFichas />
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/programas"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Administrador"]}
+            >
+              <LayoutConSidebar>
+                <CrudPrograma />
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/roles"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Administrador"]}
+            >
+              <LayoutConSidebar>
+                <CrudRoles />
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/platos"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Administrador"]}
+            >
+              <LayoutConSidebar>
+                <CrudPlatos />
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/menus"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Administrador"]}
+            >
+              <LayoutConSidebar>
+                <CrudMenus />
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Reservas (Admin y Supervisor) */}
+        <Route
+          path="/reservas"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={["Administrador", "Supervisor"]}
+            >
+              <LayoutConSidebar>
+                <CrudReservas />
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Aprendices (Admin, Coordinador y Bienestar) */}
+        <Route
+          path="/aprendices"
+          element={
+            <ProtectedRoute
+              {...Props_Auth}
+              allowedRoles={[
+                "Administrador",
+                "Coordinador",
+                "Bienestar",
+              ]}
+            >
+              <LayoutConSidebar>
+                <Aprendices />
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* FALLBACK */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
 
       <Footer />

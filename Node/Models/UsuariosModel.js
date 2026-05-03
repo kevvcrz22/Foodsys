@@ -12,18 +12,16 @@ const UsuariosModel = db.define('usuarios', {
   Tel_Usuario: { type: DataTypes.STRING, allowNull: true },
   CenCon_Usuario: { type: DataTypes.STRING, allowNull: true },
   Est_Usuario: { type: DataTypes.STRING, allowNull: true},
-  Id_Ficha: {type: DataTypes.INTEGER,references: { model: "fichas", key: "Id_Ficha" }},
-  San_Usuario: {type: DataTypes.STRING, allowNull: true},
   Pol_Usuario: {type: DataTypes.STRING, allowNull: true},
+  San_Usuario: {type: DataTypes.STRING, allowNull: true},
+  Id_Ficha: {type: DataTypes.INTEGER,references: { model: "fichas", key: "Id_Ficha" }},
   password: { type: DataTypes.STRING, allowNull: true },
   uuid: { type: DataTypes.STRING, allowNull: true },
-  token: { type: DataTypes.STRING, allowNull: true },
-  CreateData: { type: DataTypes.DATE, allowNull: true },
-  UpdateData: { type: DataTypes.DATE, allowNull: true },
+  token: { type: DataTypes.STRING, allowNull: true }
 },
 {
   freezeTableName: true,
-  timestamps: false
+  
 })
 
 export default UsuariosModel;

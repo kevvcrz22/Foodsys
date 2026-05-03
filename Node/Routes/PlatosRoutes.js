@@ -1,36 +1,47 @@
+// Routes/PlatosRoutes.js
+// Rutas del modulo de platos del sistema FoodSys
+// Las rutas de escritura estan protegidas con
+// authMiddleware
+
 import express from "express";
 import multer from "multer";
-
-import { 
-  getAllPlatos, 
-  getPlato, 
-  createPlato, 
-  updatePlato, 
-  deletePlato 
+import authMiddleware from "../Middleware/authMiddleware.js";
+import {
+  getAllPlatos,
+  getPlato,
+  createPlato,
+  updatePlato,
+  deletePlato,
 } from "../Controllers/PlatosControllers.js";
 
 const router = express.Router();
 
-// 🔥 CONFIGURACIÓN MULTER
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
+// Configuracion de multer para subir imagenes de platos
+const Almacenamiento = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
   filename: (req, file, cb) => {
     cb(null, Date.now() + "-" + file.originalname);
-  }
+  },
 });
+const Subida = multer({ storage: Almacenamiento });
 
-const upload = multer({ storage });
+// Lectura publica de platos
+router.get("/", getAllPlatos);
+router.get("/:id", getPlato);
 
-// 🔥 RUTAS
-router.get('/', getAllPlatos);
-router.get('/:id', getPlato);
-
-// 👇 AQUÍ ESTÁ LA CLAVE
-router.post('/', upload.single("imagen"), createPlato);
-router.put('/:id', upload.single("imagen"), updatePlato);
-
-router.delete('/:id', deletePlato);
+// Escritura protegida con auth
+router.post(
+  "/",
+  authMiddleware,
+  Subida.single("imagen"),
+  createPlato
+);
+router.put(
+  "/:id",
+  authMiddleware,
+  Subida.single("imagen"),
+  updatePlato
+);
+router.delete("/:id", authMiddleware, deletePlato);
 
 export default router;

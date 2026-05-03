@@ -25,11 +25,11 @@ export const exportarUsuariosExcel = (usuarios) => {
     "Centro de Convivencia":u.CenCon_Usuario     ?? "",
     "Estado":               u.Est_Usuario        ?? "",
     "Sanción":              u.San_Usuario        ?? "",
-    "Fecha Creación":       u.CreateData
-                              ? new Date(u.CreateData).toLocaleDateString("es-CO")
+    "Fecha Creación":       u.createdat
+                              ? new Date(u.createdat).toLocaleDateString("es-CO")
                               : "",
-    "Última Actualización": u.UpdateData
-                              ? new Date(u.UpdateData).toLocaleDateString("es-CO")
+    "Última Actualización": u.updatedat
+                              ? new Date(u.updatedat).toLocaleDateString("es-CO")
                               : "",
   }));
 

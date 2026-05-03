@@ -1,79 +1,136 @@
+// Frontend/src/Tablas/Fichas/CrudFichas.jsx
 import apiAxios from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
 import DataTable from "react-data-table-component";
 import FichasForm from "./FichasForm";
-import { FileText, Calendar, BookOpen, Eye, Pencil, Plus, Search, X, ChevronRight } from "lucide-react";
+import { FileText, Calendar, BookOpen, Eye, Pencil, Plus, Search, X, Users } from "lucide-react";
 
-/* ── Hook para detectar móvil ── */
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
+    const h = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
   }, []);
   return isMobile;
 };
 
-/* ── Badge de estado ── */
-const Badge = ({ text }) => {
-  const colors = {
-    Activo: "bg-emerald-100 text-emerald-700",
-    Inactivo: "bg-red-100 text-red-700",
-  };
+// Modal de aprendices por ficha
+const AprendicesModal = ({ ficha, aprendices, loading, onClose }) => {
+  if (!ficha) return null;
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colors[text] || "bg-gray-100 text-gray-600"}`}>
-      {text}
-    </span>
+    <div style={{ position: "fixed", inset: 0, zIndex: 10000, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }} onClick={onClose} />
+      <div style={{
+        background: "var(--color-background-primary)", width: "100%", maxWidth: 440,
+        borderRadius: "20px 20px 0 0", boxShadow: "0 -4px 32px rgba(0,0,0,0.14)",
+        zIndex: 10, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "90vh",
+      }} className="sm:rounded-2xl">
+        <div style={{ background: "#2563eb", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Users size={18} style={{ color: "#fff" }} />
+            </div>
+            <div>
+              <p style={{ color: "#bfdbfe", fontSize: 11, margin: 0 }}>Aprendices en ficha</p>
+              <p style={{ color: "#fff", fontWeight: 600, fontSize: 14, margin: 0 }}>#{ficha.Num_Ficha}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: 8, cursor: "pointer", color: "#fff", display: "flex" }}>
+            <X size={15} />
+          </button>
+        </div>
+
+        <div style={{ padding: "10px 16px 8px", background: "#eff6ff", borderBottom: "1px solid #bfdbfe" }}>
+          <span style={{ fontSize: 13, color: "#1d4ed8", fontWeight: 600 }}>
+            {loading ? "Cargando..." : `${aprendices.length} aprendice${aprendices.length !== 1 ? "s" : ""}`}
+          </span>
+        </div>
+
+        <div style={{ overflowY: "auto", flex: 1, padding: "12px 16px" }}>
+          {loading ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 0" }}>
+              <div style={{ width: 28, height: 28, border: "3px solid #bfdbfe", borderTop: "3px solid #2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            </div>
+          ) : aprendices.length === 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 0", color: "var(--color-text-secondary)" }}>
+              <Users size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
+              <p style={{ fontSize: 13 }}>No hay aprendices en esta ficha</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {aprendices.map((ap, idx) => {
+                const nombre = `${ap.Nom_Usuario || ap.Nom_Aprendiz || ""} ${ap.Ape_Usuario || ap.Ape_Aprendiz || ""}`.trim();
+                const documento = ap.NumDoc_Usuario || ap.Doc_Aprendiz || "—";
+                const initials = nombre.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
+                return (
+                  <div key={ap.Id_Usuario || idx} style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    background: "var(--color-background-secondary)", borderRadius: 10, padding: "10px 12px",
+                  }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#dbeafe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ color: "#1d4ed8", fontSize: 12, fontWeight: 600 }}>{initials || "?"}</span>
+                    </div>
+                    <div>
+                      <p style={{ fontWeight: 600, color: "var(--color-text-primary)", fontSize: 13, margin: 0 }}>{nombre || "Sin nombre"}</p>
+                      <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: 0 }}>Doc: {documento}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
   );
 };
 
-/* ── Modal Detalle ── */
-const DetalleModal = ({ ficha, onClose, onEdit }) => {
+const DetalleModal = ({ ficha, onClose, onEdit, onVerAprendices }) => {
   if (!ficha) return null;
   const rows = [
     { label: "ID", value: ficha.Id_Ficha },
-    { label: "Número de Ficha", value: ficha.Num_Ficha },
-    { label: "Programa", value: ficha.programa?.Nom_Programa || "—" },
-    { label: "Inicio Lectiva", value: ficha.FecIniLec_Ficha },
-    { label: "Fin Lectiva", value: ficha.FecFinLec_Ficha },
-    { label: "Inicio Práctica", value: ficha.FecIniPra_Ficha },
-    { label: "Fin Práctica", value: ficha.FecFinPra_Ficha },
-    { label: "Creado", value: new Date(ficha.createdAt).toLocaleDateString() },
-    { label: "Actualizado", value: new Date(ficha.updatedAt).toLocaleDateString() },
+    { label: "N° Ficha", value: ficha.Num_Ficha },
+    { label: "Programa", value: ficha.programas?.Nom_Programa || "—" },
+    { label: "Inicio Lectiva", value: ficha.FecIniLec_Ficha?.slice?.(0, 10) || "—" },
+    { label: "Fin Lectiva", value: ficha.FecFinLec_Ficha?.slice?.(0, 10) || "—" },
+    { label: "Inicio Práctica", value: ficha.FecIniPra_Ficha?.slice?.(0, 10) || "—" },
+    { label: "Fin Práctica", value: ficha.FecFinPra_Ficha?.slice?.(0, 10) || "—" },
   ];
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-blue-500">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
-              <FileText className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-blue-100 font-medium">Detalle</p>
-              <p className="text-white font-bold text-sm">Ficha #{ficha.Num_Ficha}</p>
-            </div>
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(2px)" }} onClick={onClose} />
+      <div style={{
+        background: "var(--color-background-primary)", width: "100%", maxWidth: 420,
+        borderRadius: "20px 20px 0 0", boxShadow: "0 -4px 32px rgba(0,0,0,0.14)",
+        zIndex: 10, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "88vh",
+      }} className="sm:rounded-2xl">
+        <div style={{ background: "#2563eb", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <FileText size={18} style={{ color: "#fff" }} />
+            <p style={{ color: "#fff", fontWeight: 600, fontSize: 14, margin: 0 }}>Ficha #{ficha.Num_Ficha}</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 transition-colors">
-            <X className="w-4 h-4 text-white" />
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: 8, cursor: "pointer", color: "#fff", display: "flex" }}>
+            <X size={15} />
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 p-5 space-y-3">
+        <div style={{ padding: "16px 20px", overflowY: "auto", flex: 1 }}>
           {rows.map(({ label, value }) => (
-            <div key={label} className="flex justify-between items-start gap-3 py-2 border-b border-gray-50 last:border-0">
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide min-w-[110px]">{label}</span>
-              <span className="text-sm text-gray-800 font-medium text-right">{value || "—"}</span>
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--color-border-tertiary)" }}>
+              <span style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase", fontWeight: 600 }}>{label}</span>
+              <span style={{ fontSize: 13, color: "var(--color-text-primary)", fontWeight: 500 }}>{value}</span>
             </div>
           ))}
         </div>
-        <div className="p-4 border-t border-gray-100">
-          <button
-            onClick={() => { onEdit(ficha); onClose(); }}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors"
-          >
-            <Pencil className="w-4 h-4" /> Editar Ficha
+        <div style={{ padding: "14px 20px", borderTop: "1px solid var(--color-border-tertiary)", display: "flex", gap: 8 }}>
+          <button onClick={() => { onVerAprendices(ficha); onClose(); }}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            <Users size={14} /> Aprendices
+          </button>
+          <button onClick={() => { onEdit(ficha); onClose(); }}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            <Pencil size={14} /> Editar
           </button>
         </div>
       </div>
@@ -81,182 +138,181 @@ const DetalleModal = ({ ficha, onClose, onEdit }) => {
   );
 };
 
-/* ── Tarjeta Móvil ── */
-const FichaCard = ({ ficha, onEdit, onView }) => (
-  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-4 active:scale-[0.99] transition-transform">
-    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-      <FileText className="w-5 h-5 text-blue-600" />
+const FichaCard = ({ ficha, onEdit, onView, onVerAprendices, aprendicesCount }) => (
+  <div style={{
+    background: "var(--color-background-primary)", borderRadius: 16,
+    border: "1px solid var(--color-border-tertiary)", padding: "14px 16px",
+    display: "flex", alignItems: "center", gap: 12,
+  }}>
+    <div style={{ width: 44, height: 44, borderRadius: 14, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <FileText size={20} style={{ color: "#2563eb" }} />
     </div>
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="font-bold text-gray-900 text-sm">#{ficha.Num_Ficha}</span>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <span style={{ fontWeight: 600, color: "var(--color-text-primary)", fontSize: 14 }}>#{ficha.Num_Ficha}</span>
+        <button onClick={() => onVerAprendices(ficha)}
+          style={{ display: "flex", alignItems: "center", gap: 4, background: "#dbeafe", color: "#1d4ed8", border: "none", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+          <Users size={11} />{aprendicesCount}
+        </button>
       </div>
-      <p className="text-xs text-gray-500 truncate flex items-center gap-1">
-        <BookOpen className="w-3 h-3 flex-shrink-0" />
-        {ficha.programa?.Nom_Programa || "Sin programa"}
+      <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
+        <BookOpen size={11} />{ficha.programas?.Nom_Programa || "Sin programa"}
       </p>
-      <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-        <Calendar className="w-3 h-3 flex-shrink-0" />
-        {ficha.FecIniLec_Ficha} → {ficha.FecFinLec_Ficha}
+      <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
+        <Calendar size={11} />{ficha.FecIniLec_Ficha?.slice?.(0, 10)} → {ficha.FecFinLec_Ficha?.slice?.(0, 10)}
       </p>
     </div>
-    <div className="flex flex-col gap-2 flex-shrink-0">
-      <button
-        onClick={() => onView(ficha)}
-        className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-gray-100 flex items-center justify-center transition-colors"
-      >
-        <Eye className="w-4 h-4 text-gray-500" />
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <button onClick={() => onView(ficha)} style={{ width: 34, height: 34, borderRadius: 8, border: "1px solid var(--color-border-tertiary)", background: "var(--color-background-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Eye size={13} style={{ color: "var(--color-text-secondary)" }} />
       </button>
-      <button
-        onClick={() => onEdit(ficha)}
-        className="w-9 h-9 rounded-xl bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors"
-      >
-        <Pencil className="w-4 h-4 text-blue-600" />
+      <button onClick={() => onEdit(ficha)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "#dbeafe", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Pencil size={13} style={{ color: "#1d4ed8" }} />
       </button>
     </div>
   </div>
 );
 
-/* ─────────────── MAIN ─────────────── */
 const CrudFichas = () => {
   const [Fichas, setFichas] = useState([]);
+  const [todosUsuarios, setTodosUsuarios] = useState([]);
   const [filterText, setFilterText] = useState("");
   const [selectedFicha, setSelectedFicha] = useState(null);
   const [isEdit, setIsEdit] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [detalleOpen, setDetalleOpen] = useState(false);
   const [fichaDetalle, setFichaDetalle] = useState(null);
+  const [aprendicesModal, setAprendicesModal] = useState({ open: false, ficha: null });
+  const [aprendicesList, setAprendicesList] = useState([]);
+  const [aprendicesLoading, setAprendicesLoading] = useState(false);
   const isMobile = useIsMobile();
 
+  useEffect(() => {
+    getAllFichas();
+    getAllUsuarios();
+  }, []);
+
+  const getAllFichas = async () => {
+    try {
+      const res = await apiAxios.get("/api/Fichas/");
+      setFichas(Array.isArray(res.data) ? res.data : []);
+    } catch (err) { console.error(err); }
+  };
+
+  const getAllUsuarios = async () => {
+    try {
+      const res = await apiAxios.get("/api/Usuarios/");
+      setTodosUsuarios(Array.isArray(res.data) ? res.data : []);
+    } catch (err) { console.error(err); }
+  };
+
+  // Contar aprendices por ficha desde los usuarios cargados
+  const contarAprendices = (fichaId) =>
+    todosUsuarios.filter((u) => u.Id_Ficha === fichaId || u.ficha?.Id_Ficha === fichaId).length;
+
+  const verAprendices = (ficha) => {
+    setAprendicesModal({ open: true, ficha });
+    setAprendicesLoading(true);
+    const lista = todosUsuarios.filter((u) => u.Id_Ficha === ficha.Id_Ficha || u.ficha?.Id_Ficha === ficha.Id_Ficha);
+    setAprendicesList(lista);
+    setAprendicesLoading(false);
+  };
+
   const columnsTable = [
-    { name: "ID", selector: (r) => r.Id_Ficha, sortable: true, width: "70px" },
-    { name: "N° Ficha", selector: (r) => r.Num_Ficha, sortable: true },
-    { name: "Inicio Lectiva", selector: (r) => r.FecIniLec_Ficha, sortable: true },
-    { name: "Fin Lectiva", selector: (r) => r.FecFinLec_Ficha, sortable: true },
-    { name: "Inicio Práctica", selector: (r) => r.FecIniPra_Ficha, sortable: true },
-    { name: "Fin Práctica", selector: (r) => r.FecFinPra_Ficha, sortable: true },
-    { name: "Programa", selector: (r) => r.programa?.Nom_Programa, sortable: true },
-    { name: "Creado", selector: (r) => new Date(r.createdAt).toLocaleDateString(), sortable: true },
-    { name: "Actualizado", selector: (r) => new Date(r.updatedAt).toLocaleDateString(), sortable: true },
+    { name: "ID", selector: (r) => r.Id_Ficha, sortable: true, width: "65px" },
+    { name: "N° Ficha", selector: (r) => r.Num_Ficha, sortable: true,
+      cell: (r) => <span style={{ fontWeight: 600, color: "#2563eb", fontSize: 13 }}>{r.Num_Ficha}</span> },
+    { name: "Inicio Lectiva", selector: (r) => r.FecIniLec_Ficha, cell: (r) => <span style={{ fontSize: 12 }}>{r.FecIniLec_Ficha?.slice?.(0, 10) || "—"}</span> },
+    { name: "Fin Lectiva", selector: (r) => r.FecFinLec_Ficha, cell: (r) => <span style={{ fontSize: 12 }}>{r.FecFinLec_Ficha?.slice?.(0, 10) || "—"}</span> },
+    { name: "Programa", selector: (r) => r.programas?.Nom_Programa,
+      cell: (r) => <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{r.programas?.Nom_Programa || "Sin programa"}</span> },
+    {
+      name: "Aprendices",
+      center: true,
+      cell: (row) => {
+        const count = contarAprendices(row.Id_Ficha);
+        return (
+          <button onClick={() => verAprendices(row)} title="Ver aprendices de esta ficha"
+            style={{ display: "flex", alignItems: "center", gap: 5, background: count > 0 ? "#dbeafe" : "#f3f4f6", color: count > 0 ? "#1d4ed8" : "#9ca3af", border: "none", borderRadius: 20, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "background 0.15s" }}>
+            <Users size={12} />{count}
+          </button>
+        );
+      },
+    },
+    { name: "Creado", selector: (r) => r.createdAt, cell: (r) => <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString("es-CO") : "—"}</span> },
     {
       name: "Acciones",
       cell: (row) => (
-        <button
-          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
-          onClick={() => editFicha(row)}
-        >
-          <Pencil className="w-3 h-3" /> Editar
+        <button style={{ background: "#dbeafe", color: "#1d4ed8", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+          onClick={() => editFicha(row)}>
+          <Pencil size={12} /> Editar
         </button>
       ),
     },
   ];
 
-  useEffect(() => { getAllFichas(); }, []);
-
-  const getAllFichas = async () => {
-    try {
-      const response = await apiAxios.get("/api/Fichas/");
-      setFichas(response.data);
-    } catch (error) {
-      console.error("Error al obtener las fichas:", error);
-    }
-  };
-
-  const editFicha = (row) => {
-    setSelectedFicha(row);
-    setIsEdit(true);
-    setIsModalOpen(true);
-  };
+  const editFicha = (row) => { setSelectedFicha(row); setIsEdit(true); setIsModalOpen(true); };
+  const hideModal = () => { setIsModalOpen(false); setSelectedFicha(null); setIsEdit(false); };
 
   const newList = Fichas.filter((f) => {
     const t = filterText.toLowerCase();
-    return (
-      String(f.Num_Ficha || "").toLowerCase().includes(t) ||
-      String(f.programa?.Nom_Programa || "").toLowerCase().includes(t)
-    );
+    return String(f.Num_Ficha || "").toLowerCase().includes(t) || String(f.programas?.Nom_Programa || "").toLowerCase().includes(t);
   });
 
-  const hideModal = () => { setIsModalOpen(false); setSelectedFicha(null); setIsEdit(false); };
-
   const customStyles = {
-    headRow: { style: { backgroundColor: "#f8fafc", fontSize: "13px", fontWeight: "700", color: "#374151", borderBottom: "2px solid #e5e7eb" } },
-    rows: { style: { fontSize: "13px", "&:hover": { backgroundColor: "#f0f9ff" }, borderBottom: "1px solid #f3f4f6" } },
-    pagination: { style: { borderTop: "1px solid #e5e7eb", fontSize: "13px" } },
+    headRow: { style: { background: "#f8fafc", fontSize: 11, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #e5e7eb", textTransform: "uppercase", letterSpacing: "0.04em" } },
+    rows: { style: { fontSize: 13, borderBottom: "1px solid #f3f4f6", "&:hover": { background: "#f0f9ff" } } },
+    pagination: { style: { borderTop: "1px solid #e5e7eb", fontSize: 13 } },
   };
 
   return (
     <>
-      <div className="w-full h-full flex flex-col bg-gray-50 min-h-0">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3 lg:px-6 lg:py-4 flex-shrink-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
-                <FileText className="w-4 h-4 text-white" />
+      <div style={{ width: "100%", display: "flex", flexDirection: "column", background: "var(--color-background-tertiary)" }}>
+        <div style={{ background: "var(--color-background-primary)", borderBottom: "1px solid var(--color-border-tertiary)", padding: "16px 20px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <FileText size={18} style={{ color: "#fff" }} />
               </div>
-              <div className="min-w-0">
-                <h1 className="font-bold text-gray-900 text-base lg:text-lg leading-tight">Fichas</h1>
-                <p className="text-xs text-gray-400 hidden sm:block">{Fichas.length} registros</p>
+              <div>
+                <h1 style={{ fontWeight: 600, color: "var(--color-text-primary)", fontSize: 16, margin: 0 }}>Fichas</h1>
+                <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0 }}>{Fichas.length} registros</p>
               </div>
             </div>
-            <button
-              onClick={() => { setSelectedFicha(null); setIsEdit(false); setIsModalOpen(true); }}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 lg:px-5 lg:py-2.5 rounded-xl text-sm font-semibold transition-colors flex-shrink-0 shadow-sm shadow-blue-200"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Nueva Ficha</span>
+            <button onClick={() => { setSelectedFicha(null); setIsEdit(false); setIsModalOpen(true); }}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              <Plus size={14} /><span>Nueva Ficha</span>
             </button>
           </div>
-          {/* Buscador */}
-          <div className="mt-3 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por número o programa..."
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-            />
+          <div style={{ position: "relative" }}>
+            <Search size={14} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-secondary)" }} />
+            <input type="text" placeholder="Buscar por número o programa..."
+              style={{ width: "100%", paddingLeft: 34, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: "1px solid var(--color-border-tertiary)", borderRadius: 8, fontSize: 13, background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" }}
+              value={filterText} onChange={(e) => setFilterText(e.target.value)} />
           </div>
         </div>
 
-        {/* Contenido */}
-        <div className="flex-1 overflow-y-auto">
+        <div style={{ flex: 1 }}>
           {isMobile ? (
-            /* ── Vista Móvil: Tarjetas ── */
-            <div className="p-3 space-y-2">
-              {newList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                  <FileText className="w-10 h-10 mb-2 opacity-30" />
-                  <p className="text-sm">No hay fichas para mostrar</p>
-                </div>
-              ) : (
-                newList.map((f) => (
-                  <FichaCard
-                    key={f.Id_Ficha}
-                    ficha={f}
-                    onEdit={editFicha}
-                    onView={(ficha) => { setFichaDetalle(ficha); setDetalleOpen(true); }}
-                  />
-                ))
-              )}
+            <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+              {newList.map((f) => (
+                <FichaCard key={f.Id_Ficha} ficha={f}
+                  aprendicesCount={contarAprendices(f.Id_Ficha)}
+                  onEdit={editFicha}
+                  onView={(ficha) => { setFichaDetalle(ficha); setDetalleOpen(true); }}
+                  onVerAprendices={verAprendices}
+                />
+              ))}
             </div>
           ) : (
-            /* ── Vista Desktop: Tabla ── */
-            <div className="p-4 lg:p-6">
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <DataTable
-                  columns={columnsTable}
-                  data={newList}
-                  keyField="Id_Ficha"
-                  pagination
-                  highlightOnHover
-                  striped
-                  customStyles={customStyles}
+            <div style={{ padding: "16px 20px" }}>
+              <div style={{ background: "var(--color-background-primary)", borderRadius: 16, border: "1px solid var(--color-border-tertiary)", overflow: "hidden" }}>
+                <DataTable columns={columnsTable} data={newList} keyField="Id_Ficha"
+                  pagination highlightOnHover striped customStyles={customStyles}
                   noDataComponent={
-                    <div className="flex flex-col items-center py-12 text-gray-400">
-                      <FileText className="w-8 h-8 mb-2 opacity-30" />
-                      <p className="text-sm">No hay fichas para mostrar</p>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 0", color: "var(--color-text-secondary)" }}>
+                      <FileText size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
+                      <p style={{ fontSize: 13 }}>No hay fichas para mostrar</p>
                     </div>
                   }
                 />
@@ -266,32 +322,26 @@ const CrudFichas = () => {
         </div>
       </div>
 
-      {/* Modal Detalle Móvil */}
-      {detalleOpen && (
-        <DetalleModal
-          ficha={fichaDetalle}
-          onClose={() => setDetalleOpen(false)}
-          onEdit={editFicha}
-        />
-      )}
+      {detalleOpen && <DetalleModal ficha={fichaDetalle} onClose={() => setDetalleOpen(false)} onEdit={editFicha} onVerAprendices={verAprendices} />}
+      {aprendicesModal.open && <AprendicesModal ficha={aprendicesModal.ficha} aprendices={aprendicesList} loading={aprendicesLoading} onClose={() => setAprendicesModal({ open: false, ficha: null })} />}
 
-      {/* Modal Formulario */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={hideModal} />
-          <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 max-h-[95vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 flex-shrink-0">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
-                  {isEdit ? <Pencil className="w-3.5 h-3.5 text-blue-600" /> : <Plus className="w-3.5 h-3.5 text-blue-600" />}
-                </div>
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", backdropFilter: "blur(2px)" }} onClick={hideModal} />
+          <div style={{
+            background: "var(--color-background-primary)", width: "100%", maxWidth: 520,
+            borderRadius: "20px 20px 0 0", zIndex: 10, maxHeight: "95vh", overflow: "hidden", display: "flex", flexDirection: "column",
+            boxShadow: "0 -4px 32px rgba(0,0,0,0.12)",
+          }} className="sm:rounded-2xl">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--color-border-tertiary)", padding: "16px 20px" }}>
+              <h2 style={{ fontWeight: 600, fontSize: 15, color: "var(--color-text-primary)", margin: 0 }}>
                 {isEdit ? "Editar Ficha" : "Nueva Ficha"}
               </h2>
-              <button onClick={hideModal} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
-                <X className="w-4 h-4 text-gray-500" />
+              <button onClick={hideModal} style={{ background: "var(--color-background-secondary)", border: "none", borderRadius: 8, padding: 8, cursor: "pointer", display: "flex" }}>
+                <X size={15} style={{ color: "var(--color-text-secondary)" }} />
               </button>
             </div>
-            <div className="px-5 py-4 overflow-y-auto flex-1">
+            <div style={{ padding: "16px 20px", overflowY: "auto", flex: 1 }}>
               <FichasForm hideModal={hideModal} selectedFicha={selectedFicha} isEdit={isEdit} reload={getAllFichas} />
             </div>
           </div>

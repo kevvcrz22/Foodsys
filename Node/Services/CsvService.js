@@ -72,8 +72,8 @@ class CsvService {
         Id_Ficha:  Id_Ficha || null,
         password:  hashedPwd,
         uuid:      uuidv4(),
-        CreateData: new Date(),
-        UpdateData: new Date(),
+        createdat: new Date(),
+        updatedat: new Date(),
       });
       creados++;
     }

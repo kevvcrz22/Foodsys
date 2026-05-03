@@ -12,8 +12,6 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
     const [Id_Programa, setId_Programa]= useState('')
    
     const [Programa, setPrograma] = useState([])
-    const [createdAt, setcreatedAt] = useState('')
-    const [updatedAt, setupdatedAt] = useState('')
 
 
     const [textFormButton, setTextFormButton] = useState ('Enviar')
@@ -46,7 +44,7 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
     }, [selectedFicha, isEdit]);
 
     const getPrograma = async () => {
-        const Programa = await apiAxios.get("/api/Programa")
+        const Programa = await apiAxios.get("/api/Programas")
         setPrograma(Programa.data)
         console.log(Programa.data)
     }
@@ -55,17 +53,14 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
         e.preventDefault()
         if(textFormButton == 'Enviar'){
             try{
-                const response = await apiAxios.post('/api/Fichas/', {
+                await apiAxios.post('/api/fichas/', {
                     Num_Ficha: Num_Ficha,
                     FecIniLec_Ficha: FecIniLec_Ficha,
                     FecFinLec_Ficha: FecFinLec_Ficha,
                     FecIniPra_Ficha: FecIniPra_Ficha,
                     FecFinPra_Ficha: FecFinPra_Ficha,
-                    Id_Programa: Id_Programa,
-                    createdAt: createdAt,
-                    updatedAt: updatedAt
+                    Id_Programa: Id_Programa
                 })
-                const data = response.data;
                 alert('Ficha creada correctamente')
                 reload()
                 hideModal()
@@ -77,7 +72,7 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
         } else if (textFormButton === 'Actualizar') {
             // Actualizar ficha
             try {
-                await apiAxios.put(`/api/Fichas/${Id_Ficha}`, {
+                await apiAxios.put(`/api/fichas/${Id_Ficha}`, {
                     Num_Ficha,
                     FecIniLec_Ficha,
                     FecFinLec_Ficha,
@@ -177,9 +172,9 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
                         onChange={(e) => setId_Programa(e.target.value)}
                     >
                         <option value="">Seleccione un programa</option>
-                        {Programa.map((Programas) => (
-                            <option key={Programas.Id_Programa} value={Programas.Id_Programa}>
-                                {Programas.Nom_Programa} 
+                        {Programa.map((programas) => (
+                            <option key={programas.Id_Programa} value={programas.Id_Programa}>
+                                {programas.Nom_Programa} 
                             </option>
                         ))}
                     </select>

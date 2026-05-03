@@ -52,16 +52,13 @@ const preguntasEspecificas = {
 const Chatbot = () => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
-  const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [preguntasActuales, setPreguntasActuales] = useState(preguntasFrecuentes);
   const [showWelcome, setShowWelcome] = useState(true);
-  const [showReset, setShowReset] = useState(false);
   const [preguntasSeleccionadas, setPreguntasSeleccionadas] = useState(new Set());
   const [historialNavegacion, setHistorialNavegacion] = useState([]);
 
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
 
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -75,7 +72,7 @@ const Chatbot = () => {
         ]);
       }, 300);
     }
-  }, [open]);
+  }, [open, messages.length]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -166,47 +163,13 @@ const Chatbot = () => {
         if (preguntasDisponibles.length > 0) {
           setPreguntasActuales(preguntasDisponibles);
         } else {
-          setShowReset(true);
+          // No more questions
         }
       }
     }, 800);
   };
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
 
-    const text = inputText;
-    setMessages((prev) => [
-      ...prev,
-      { text, sender: "user", id: Date.now() }
-    ]);
-
-    setInputText("");
-    setIsTyping(true);
-    setShowWelcome(false);
-
-    setTimeout(() => {
-      let respuesta =
-        "Gracias por tu mensaje. Para ayudarte mejor, ¿podrías seleccionar una de las opciones disponibles?";
-
-      if (text.toLowerCase().includes("hola")) {
-        respuesta =
-          "¡Hola! 👋 ¿En qué puedo ayudarte hoy? Selecciona una opción o escribe tu pregunta.";
-      } else if (text.toLowerCase().includes("gracias")) {
-        respuesta =
-          "¡De nada! 😊 ¿Hay algo más en lo que pueda ayudarte?";
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        { text: respuesta, sender: "bot", id: Date.now() }
-      ]);
-
-      setIsTyping(false);
-      setShowReset(true);
-    }, 1000);
-  };
 
   const resetChat = () => {
     setMessages([
@@ -218,7 +181,6 @@ const Chatbot = () => {
     ]);
     setPreguntasActuales(preguntasFrecuentes);
     setShowWelcome(true);
-    setShowReset(false);
     setPreguntasSeleccionadas(new Set());
     setHistorialNavegacion([]);
   };

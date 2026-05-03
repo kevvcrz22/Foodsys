@@ -1,206 +1,86 @@
-///////////////// RESERVAS FORM //////////////////////////
-// Campos BD: Id_Reserva, Fec_Reserva, Vencimiento, Est_Reserva,
-//            Id_Usuario, Tipo, Tex_Qr, createdat, updatedat
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import apiAxios from "../../api/axiosConfig.js";
 
-/* ─────────────────────────────────────────────────────────
-   Devuelve la fecha de MAÑANA en formato "YYYY-MM-DD"
-───────────────────────────────────────────────────────── */
-const getFechaMañana = () => {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  const pad = (n) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
+const ReservaForm = () => {
+  const [qrData, setQrData] = useState(null);
+  const [historial, setHistorial] = useState([]);
+  const usuario = JSON.parse(localStorage.getItem("usuario"));
+  const headers = useMemo(() => ({ Authorization: `bearer ${usuario.token}` }), [usuario.token]);
 
-/* ─────────────────────────────────────────────────────────
-   Calcula el vencimiento (datetime-local) según tipo y fecha
-   Desayuno → 07:00 | Almuerzo → 14:00 | Cena → 19:00
-───────────────────────────────────────────────────────── */
-const calcularVencimiento = (fechaStr, tipo) => {
-  if (!fechaStr || !tipo) return "";
-
-  const horas = { Desayuno: 7, Almuerzo: 14, Cena: 19 };
-  const h = horas[tipo];
-  if (h === undefined) return "";
-
-  const fecha = new Date(`${fechaStr}T00:00:00`);
-  fecha.setHours(h, 0, 0, 0);
-
-  const pad = (n) => n.toString().padStart(2, "0");
-  return (
-    `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}` +
-    `T${pad(fecha.getHours())}:${pad(fecha.getMinutes())}`
-  );
-};
-
-/* ─────────────────────────────────────────────────────────
-   Genera el texto del QR:  "nombre apellido // tipo // fecha"
-   Intenta obtener el nombre desde la API; si falla, usa el
-   nombre que ya tiene en estado local.
-───────────────────────────────────────────────────────── */
-const generarTextoQR = async (idUsuario, nomUsuario, apeUsuario, tipo, fecha) => {
-  try {
-    const { data } = await apiAxios.get(`/api/Usuarios/${idUsuario}`);
-    const nombre = `${data.Nom_Usuario || nomUsuario} ${data.Ape_Usuario || apeUsuario}`.trim();
-    return `${nombre} // ${tipo} // ${fecha}`;
-  } catch {
-    return `${nomUsuario} ${apeUsuario} // ${tipo} // ${fecha}`.trim();
-  }
-};
-
-/* ═══════════════════════════════════════════════════════════
-   COMPONENTE
-═══════════════════════════════════════════════════════════ */
-const ReservasForm = ({
-  hideModal,
-  reload,
-  Edit = false,
-  mostrarQR = () => {},
-  usuario,
-  platoSeleccionado,
-  fechaInicial,
-  tipoInicial,
-}) => {
-  /* ── Estado del formulario ── */
-  const [Fec_Reserva, setFec_Reserva] = useState(fechaInicial || getFechaMañana());
-  const [Vencimiento, setVencimiento] = useState("");
-  const [Est_Reserva]                 = useState("Generada");
-  const [Id_Usuario,  setId_Usuario]  = useState("");
-  const [Nom_Usuario, setNom_Usuario] = useState("");
-  const [Ape_Usuario, setApe_Usuario] = useState("");
-  const [Tipo,        setTipo]        = useState(tipoInicial || "Almuerzo");
-  const [Id_Plato,    setId_Plato]    = useState(platoSeleccionado || "");
-  const [enviando,    setEnviando]    = useState(false);
-
-  /* ── Cargar datos del usuario logueado ── */
-  useEffect(() => {
-    if (!usuario) return;
-    setId_Usuario(usuario.Id_Usuario || usuario.id || usuario.Id || "");
-    setNom_Usuario(usuario.Nom_Usuario || usuario.nombre || "");
-    setApe_Usuario(usuario.Ape_Usuario || "");
-  }, [usuario]);
-
-  /* ── Sincronizar props externas ── */
-  useEffect(() => {
-    if (fechaInicial) setFec_Reserva(fechaInicial);
-  }, [fechaInicial]);
-
-  useEffect(() => {
-    if (tipoInicial) setTipo(tipoInicial);
-  }, [tipoInicial]);
-
-  useEffect(() => {
-    if (platoSeleccionado !== undefined) setId_Plato(platoSeleccionado || "");
-  }, [platoSeleccionado]);
-
-  /* ── Recalcular vencimiento cada vez que cambie fecha o tipo ── */
-  useEffect(() => {
-    setVencimiento(calcularVencimiento(Fec_Reserva, Tipo));
-  }, [Fec_Reserva, Tipo]);
-
-  /* ── Mostrar vencimiento en formato legible (dd/mm/aaaa HH:MM) ── */
-  const vencimientoLegible = (() => {
-    if (!Vencimiento) return "–";
-    const d = new Date(Vencimiento);
-    const pad = (n) => n.toString().padStart(2, "0");
-    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  })();
-
-  /* ── Submit ── */
-  const gestionarForm = async (e) => {
-    e.preventDefault();
-
-    if (!Id_Plato) {
-      alert("Debes seleccionar un plato antes de reservar.");
-      return;
-    }
-
-    if (!Tipo) {
-      alert("Selecciona el tipo de comida.");
-      return;
-    }
-
-    setEnviando(true);
+  const cargarHistorial = useCallback(async () => {
     try {
-      /* Generar texto QR antes de crear la reserva */
-      const texQR = await generarTextoQR(
-        Id_Usuario, Nom_Usuario, Ape_Usuario, Tipo, Fec_Reserva
+      const res = await apiAxios.get("/api/Reservas/reservar/historial", { headers });
+      setHistorial(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [headers]);
+
+  useEffect(() => { cargarHistorial(); }, [cargarHistorial]);
+
+  const generarQrEntrenamiento = async () => {
+    try {
+      const res = await apiAxios.post("/api/Reservas/reservar/generate-tomorrow",
+        { Tip_Reserva: "Almuerzo", platoElegido: 2 },
+        { headers }
       );
-
-      /* Payload — solo campos que existen en la BD */
-      const payload = {
-        Fec_Reserva,
-        Vencimiento,   // formato: "YYYY-MM-DDTHH:MM" — el backend lo convierte a date
-        Est_Reserva,   // "Generada"
-        Tipo,
-        Id_Plato,
-        Id_Usuario,
-        Tex_Qr: texQR,
-      };
-
-      await apiAxios.post("/api/Reservas/", payload);
-
-      alert("¡Reserva creada correctamente!");
-      reload?.();
-      mostrarQR(texQR);
-      setId_Plato("");
-    } catch (error) {
-      console.error("Error creando reserva:", error);
-      alert(error?.response?.data?.message || "Error al crear la reserva.");
-    } finally {
-      setEnviando(false);
+      setQrData(res.data);
+      cargarHistorial(); // refresca el historial tras generar
+    } catch (err) {
+      alert(err);
     }
   };
 
-  /* ─────────────────────────────────────────────────────────
-     RENDER
-  ───────────────────────────────────────────────────────── */
+  const estadoColor = {
+    Generado: "bg-yellow-100 text-yellow-700",
+    Usado:    "bg-green-100 text-green-700",
+    Expirado: "bg-red-100 text-red-700",
+  };
+
   return (
-    <form onSubmit={gestionarForm} className="space-y-4">
+    <div className="max-w-lg mx-auto p-4 space-y-6">
 
-      {/* Vencimiento (solo lectura, formato legible) */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Vencimiento de la reserva
-        </label>
-        <div className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 text-sm">
-          {vencimientoLegible}
-        </div>
-      </div>
-
-      {/* Usuario (solo lectura) */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Usuario
-        </label>
-        <div className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
-          {Nom_Usuario} {Ape_Usuario}
-        </div>
-      </div>
-
-      {/* Botones */}
-      <div className="flex gap-3 pt-4 border-t border-gray-200">
+      {/* Generador QR */}
+      <div className="bg-white rounded-2xl shadow p-4 text-center space-y-4">
         <button
-          type="button"
-          onClick={hideModal}
-          className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+          onClick={generarQrEntrenamiento}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-xl transition"
         >
-          Cancelar
+          Generar QR para mañana
         </button>
 
-        <button
-          type="submit"
-          disabled={enviando}
-          className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium rounded-lg transition-colors"
-        >
-          {enviando ? "Enviando…" : "Reservar"}
-        </button>
+        {qrData && (
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-sm text-gray-500">Válido: {qrData.validDate}</p>
+            <QRCodeSVG value={qrData.qrUrl} size={350} marginSize={4} level="H" />
+          </div>
+        )}
       </div>
-    </form>
+
+      {/* Historial */}
+      <div className="bg-white rounded-2xl shadow p-4 space-y-3">
+        <h2 className="font-semibold text-gray-700">Mis reservas recientes</h2>
+
+        {historial.length === 0 && (
+          <p className="text-sm text-gray-400">No tienes reservas aún.</p>
+        )}
+
+        {historial.map((r) => (
+          <div key={r.Id_Reserva} className="flex items-center justify-between border rounded-xl px-3 py-2 text-sm">
+            <div>
+              <p className="font-medium">{r.Tip_Reserva} — {r.plato?.Nom_Plato ?? "Plato"}</p>
+              <p className="text-gray-400">{r.Fec_Reserva}</p>
+            </div>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${estadoColor[r.Est_Reserva] ?? "bg-gray-100 text-gray-500"}`}>
+              {r.Est_Reserva}
+            </span>
+          </div>
+        ))}
+      </div>
+
+    </div>
   );
 };
 
-export default ReservasForm;
+export default ReservaForm;
