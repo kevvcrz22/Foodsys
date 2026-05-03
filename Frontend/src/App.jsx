@@ -42,6 +42,8 @@ const RUTAS_POR_ROL = {
   Coordinador: "/coordinador",
   "Aprendiz Interno": "/Interno",
   "Aprendiz Externo": "/Externo",
+  "Pasante Interno": "/Pasante",
+  "Pasante Externo": "/Pasante",
   Pasante: "/Pasante",
   Cocina: "/Cocina",
   Bienestar: "/Bienestar",
@@ -61,10 +63,10 @@ const ProtectedRoute = ({
 
 /* Layout con sidebar para paginas internas */
 const LayoutConSidebar = ({ children }) => (
-  <div className="flex h-full bg-gray-100">
+  <div className="flex h-full bg-gray-100 min-h-screen">
     <Sidebar />
-    <div className="flex-1">
-      <main className="p-6">{children}</main>
+    <div className="flex-1 min-w-0">
+      <main className="p-3 sm:p-6">{children}</main>
     </div>
   </div>
 );

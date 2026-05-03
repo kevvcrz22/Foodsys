@@ -18,15 +18,21 @@ const Reportes = () => {
   const [Cargando, Set_Cargando] = useState(true);
   const [Exportando, Set_Exportando] = useState(null);
 
+  const [FechaInicio, Set_FechaInicio] = useState(new Date().toISOString().split("T")[0]);
+  const [FechaFin, Set_FechaFin] = useState(new Date().toISOString().split("T")[0]);
+  const [TipoAlimento, Set_TipoAlimento] = useState("Todos");
+
   // Carga los datos del periodo seleccionado
   const Cargar_Datos = useCallback(async () => {
     Set_Cargando(true);
     try {
-      const Res = await apiAxios.get(`/api/reportes/${Periodo}`);
+      const endpoint = Periodo === "personalizado" ? `/api/reportes/personalizado` : `/api/reportes/${Periodo}`;
+      const params = Periodo === "personalizado" ? { fechaInicio: FechaInicio, fechaFin: FechaFin, tipoAlimento: TipoAlimento } : {};
+      const Res = await apiAxios.get(endpoint, { params });
       Set_Datos(Res.data);
     } catch (Err) { console.error("Error cargando reporte:", Err); }
     finally { Set_Cargando(false); }
-  }, [Periodo]);
+  }, [Periodo, FechaInicio, FechaFin, TipoAlimento]);
 
   useEffect(() => { Cargar_Datos(); }, [Cargar_Datos]);
 
@@ -56,8 +62,15 @@ const Reportes = () => {
   const Exportar = async (Formato) => {
     Set_Exportando(Formato);
     try {
+      const params = { periodo: Periodo };
+      if (Periodo === "personalizado") {
+        params.fechaInicio = FechaInicio;
+        params.fechaFin = FechaFin;
+        params.tipoAlimento = TipoAlimento;
+      }
+      
       const Res = await apiAxios.get(`/api/reportes/exportar/${Formato}`, {
-        params: { periodo: Periodo }, responseType: "blob",
+        params, responseType: "blob",
       });
       const Ext = Formato === "pdf" ? "pdf" : "xlsx";
       const Mime = Formato === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -93,7 +106,12 @@ const Reportes = () => {
         />
       </div>
 
-      <SelectorPeriodo Periodo={Periodo} Set_Periodo={Set_Periodo} />
+      <SelectorPeriodo 
+        Periodo={Periodo} Set_Periodo={Set_Periodo} 
+        FechaInicio={FechaInicio} Set_FechaInicio={Set_FechaInicio}
+        FechaFin={FechaFin} Set_FechaFin={Set_FechaFin}
+        TipoAlimento={TipoAlimento} Set_TipoAlimento={Set_TipoAlimento}
+      />
 
       {/* Tarjetas de estadisticas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

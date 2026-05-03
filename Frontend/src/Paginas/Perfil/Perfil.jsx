@@ -115,7 +115,7 @@ const AlertaMensaje = ({ Mensaje, Tipo }) => {
 const CabeceraTarjeta = ({ Color, Icono, Titulo }) => (
   <div className="flex items-center gap-2.5 mb-4">
     <div
-      className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${Color}`}
+      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${Color}`}
     >
       <Icono size={13} className="text-white" />
     </div>
@@ -346,7 +346,7 @@ const Perfil = () => {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
 
             {/* Avatar generado dinamicamente con las iniciales del nombre y apellido */}
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md flex-shrink-0">
+            <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md shrink-0">
               {Iniciales || "U"}
             </div>
 
@@ -386,7 +386,7 @@ const Perfil = () => {
             </div>
 
             {/* Documento: visible solo en pantallas medianas o mayores */}
-            <div className="text-right hidden sm:block flex-shrink-0">
+            <div className="text-right hidden sm:block shrink-0">
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                 {Usuario.TipDoc_Usuario}
               </p>
@@ -496,8 +496,14 @@ const Perfil = () => {
               <div className="space-y-3">
                 <CampoEntrada
                   Icono={Building2}
-                  Etiqueta="Centro de Convivencia"
-                  Valor={Usuario.CenCon_Usuario === "Si" ? "Si" : "No"}
+                  Etiqueta="Ficha"
+                  Valor={Usuario.ficha?.Num_Ficha || "No asignada"}
+                  Deshabilitado
+                />
+                <CampoEntrada
+                  Icono={BookOpen}
+                  Etiqueta="Programa"
+                  Valor={Usuario.ficha?.programas?.Nom_Programa || "No asignado"}
                   Deshabilitado
                 />
                 <CampoEntrada
@@ -624,7 +630,7 @@ const Perfil = () => {
                       onClick={GuardarContrasena}
                       disabled={GuardandoContrasena}
                       className={[
-                        "flex-[2] py-2.5 rounded-xl text-sm font-semibold text-white border-0 transition-all duration-150",
+                        "flex-2 py-2.5 rounded-xl text-sm font-semibold text-white border-0 transition-all duration-150",
                         GuardandoContrasena
                           ? "bg-slate-400 cursor-wait"
                           : "bg-slate-700 hover:bg-slate-800 cursor-pointer",

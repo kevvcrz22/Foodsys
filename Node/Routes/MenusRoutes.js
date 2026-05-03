@@ -9,6 +9,7 @@ import MenuMiddleware from "../Middleware/MenuMiddleware.js";
 import {
   getAllMenu,
   getMenu,
+  getMenuByFecha,
   createMenu,
   updateMenu,
   deleteMenu,
@@ -18,6 +19,7 @@ const router = express.Router();
 
 // Lectura publica de menus
 router.get("/", getAllMenu);
+router.get("/fecha/:fecha", getMenuByFecha);
 router.get("/:id", getMenu);
 
 // Escritura protegida con auth + permiso de vista Menu

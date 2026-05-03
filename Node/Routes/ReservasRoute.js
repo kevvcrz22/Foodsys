@@ -1,7 +1,7 @@
 import { Router } from "express";
 import authMiddleware from "../Middleware/authMiddleware.js";
 import ReservarMiddleware from "../Middleware/ReservarMiddleware.js";
-import { generarAlimentoTomorrow, obtenerHistorial } from "../Controllers/ReservasController.js";
+import { generarAlimentoTomorrow, obtenerHistorial, generarReservaExcepcional } from "../Controllers/ReservasController.js";
 
 const router = Router();
 
@@ -16,6 +16,12 @@ router.post('/reservar/generate-tomorrow',
 router.get('/reservar/historial',
   authMiddleware,
   obtenerHistorial
+);
+
+// Genera una reserva excepcional (novedad)
+router.post('/excepcional',
+  authMiddleware,
+  generarReservaExcepcional
 );
 
 export default router;
