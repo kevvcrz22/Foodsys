@@ -11,7 +11,8 @@ export const getAllPrograma = async (req, res) => {
 
 export const getPrograma = async (req, res) => {
   try {
-    const Programa = await ProgramaService.getById(req.params.id);
+    const id = parseInt(req.params.id); // ← entero
+    const Programa = await ProgramaService.getById(id);
     res.status(200).json(Programa);
   } catch (error) {
     res.status(404).json({ message: error.message });
@@ -29,7 +30,8 @@ export const createPrograma = async (req, res) => {
 
 export const updatePrograma = async (req, res) => {
   try {
-    await ProgramaService.update(req.params.id, req.body);
+    const id = parseInt(req.params.id); // ← entero
+    await ProgramaService.update(id, req.body);
     res.status(200).json({ message: "Programa actualizado correctamente" });
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -38,7 +40,8 @@ export const updatePrograma = async (req, res) => {
 
 export const deletePrograma = async (req, res) => {
   try {
-    await ProgramaService.delete(req.params.id);
+    const id = parseInt(req.params.id); // ← entero
+    await ProgramaService.delete(id);
     res.status(204).send();
   } catch (error) {
     res.status(400).json({ message: error.message });

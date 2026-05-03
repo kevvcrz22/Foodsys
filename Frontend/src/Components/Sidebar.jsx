@@ -1,96 +1,124 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import {
-  Home,
-  User,
-  Edit,
-  BarChart3,
-  LogOut,
-  Menu,
-  X,
-  CalendarCheck,
-  BookOpen,
-  Users,
-  FileText,
-  GraduationCap,
-  Database,
-  ShieldCheck,
-  Utensils,      // 🍽️ NUEVO
-  ClipboardList,  // 📋 NUEVO
-  icons
+  Home, User, Edit, BarChart3, LogOut, Menu, X,
+  CalendarCheck, Users, FileText, GraduationCap,
+  Database, ShieldCheck, Utensils, ClipboardList,
 } from "lucide-react";
-import Aprendices from "../Tablas/Usuarios/Aprendices";
+import { useNavBar } from "./CerrarSesion";
 
-// ─── Navegación principal por rol ──────────────────────────────────────────
+// Navegacion principal organizada por rol
 const NAV_POR_ROL = {
   Administrador: [
-    { to: "/Administrador",           label: "Inicio",    icon: Home          },
-    { to: "/Administrador/Perfil",    label: "Mi Perfil", icon: User          },
-    { to: "/Administrador/Registrar", label: "Registrar", icon: Edit          },
-    { to: "/Administrador/Reportes",  label: "Reportes",  icon: BarChart3     },
-    { to: "/Administrador/Reservas",  label: "Reservas",  icon: CalendarCheck },
-     
-
+    { to: "/Administrador", label: "Inicio", icon: Home },
+    { to: "/Administrador/Perfil", label: "Mi Perfil", icon: User },
+    { to: "/Administrador/Reportes", label: "Reportes", icon: BarChart3 },
+    { to: "/Administrador/Reservas", label: "Reservas", icon: CalendarCheck },
+    { to: "/Administrador/Novedades", label: "Novedades", icon: ClipboardList },
   ],
   Supervisor: [
-    { to: "/supervisor",           label: "Inicio",    icon: Home      },
-    { to: "/supervisor/Perfil",    label: "Mi Perfil", icon: User      },
-    { to: "/supervisor/Registrar", label: "Registrar", icon: Edit      },
-    { to: "/supervisor/Reportes",  label: "Reportes",  icon: BarChart3 },
+    { to: "/supervisor", label: "Inicio", icon: Home },
+    { to: "/supervisor/Perfil", label: "Mi Perfil", icon: User },
+    { to: "/supervisor/Registrar", label: "Registrar", icon: Edit },
+    { to: "/supervisor/Reportes", label: "Reportes", icon: BarChart3 },
   ],
   "Aprendiz Externo": [
-    { to: "/Externo",          label: "Inicio",    icon: Home          },
-    { to: "/Externo/Perfil",   label: "Mi Perfil", icon: User          },
-    { to: "/Externo/Reservas", label: "Reservas",  icon: CalendarCheck },
-    { to: "/Externo/Historial", label: "Historial",  icon: CalendarCheck },
+    { to: "/Externo", label: "Inicio", icon: Home },
+    { to: "/Externo/Perfil", label: "Mi Perfil", icon: User },
+    { to: "/Externo/Reservas", label: "Reservas", icon: CalendarCheck },
   ],
   "Aprendiz Interno": [
-    { to: "/interno",          label: "Inicio",    icon: Home          },
-    { to: "/interno/Perfil",   label: "Mi Perfil", icon: User          },
-    { to: "/interno/Reservas", label: "Reservas",  icon: CalendarCheck },
-     
-
+    { to: "/Interno", label: "Inicio", icon: Home },
+    { to: "/Interno/Perfil", label: "Mi Perfil", icon: User },
+    { to: "/Interno/Reservas", label: "Reservas", icon: CalendarCheck },
   ],
   Coordinador: [
-    { to: "/coordinador",           label: "Inicio",    icon: Home      },
-    { to: "/coordinador/Perfil",    label: "Mi Perfil", icon: User      },
-    { to: "/coordinador/Novedades",   label: "Novedades",  icon: ClipboardList },
-    { to: "/coordinador/Reportes",  label: "Reportes",  icon: BarChart3 },
-    
-   
+    { to: "/coordinador", label: "Inicio", icon: Home },
+    { to: "/coordinador/Perfil", label: "Mi Perfil", icon: User },
+    { to: "/coordinador/Novedades", label: "Novedades", icon: ClipboardList },
+    { to: "/coordinador/Reportes", label: "Reportes", icon: BarChart3 },
+  ],
+  Pasante: [
+    { to: "/Pasante", label: "Inicio", icon: Home },
+    { to: "/Pasante/Perfil", label: "Mi Perfil", icon: User },
+    { to: "/Pasante/Reservas", label: "Reservas", icon: CalendarCheck },
+  ],
+  Cocina: [
+    { to: "/Cocina", label: "Inicio", icon: Home },
+    { to: "/Cocina/Perfil", label: "Mi Perfil", icon: User },
+    { to: "/Cocina/Reportes", label: "Reportes", icon: BarChart3 },
+  ],
+  Bienestar: [
+    { to: "/Bienestar", label: "Inicio", icon: Home },
+    { to: "/Bienestar/Perfil", label: "Mi Perfil", icon: User },
+    { to: "/Bienestar/Reportes", label: "Reportes", icon: BarChart3 },
+    { to: "/Bienestar/Novedades", label: "Novedades", icon: ClipboardList },
   ],
 };
 
-// ─── TABLAS (ADMIN TOTAL) ───────────────────────────────────────────────────
+// Tablas de administracion por rol
 const TABLAS_POR_ROL = {
   Administrador: [
-    { to: "/usuarios",        label: "Usuarios",        icon: Users         },
-    { to: "/aprendices",      label: "Aprendices",  icon: User },
-    { to: "/UsuariosRoles",   label: "Usuarios Roles",  icon: User          },
-    { to: "/roles",           label: "Roles",           icon: ShieldCheck   },
-    { to: "/fichas",          label: "Fichas",          icon: FileText      },
-    { to: "/programas",       label: "Programas",       icon: GraduationCap },
-    { to: "/reservas",        label: "Reservas",        icon: Database      },
-   
-
-    // 🔥 NUEVO SISTEMA RESTAURANTE
-    { to: "/platos",          label: "Platos",          icon: Utensils      },
-    { to: "/menus",           label: "Menús",           icon: ClipboardList },
-    { to: "/reservasmenu",   label: "Reservas Menú",   icon: CalendarCheck },
+    { to: "/usuarios", label: "Usuarios", icon: Users },
+    { to: "/aprendices", label: "Aprendices", icon: User },
+    { to: "/UsuariosRoles", label: "Usuarios Roles", icon: ShieldCheck },
+    { to: "/roles", label: "Roles", icon: ShieldCheck },
+    { to: "/fichas", label: "Fichas", icon: FileText },
+    { to: "/programas", label: "Programas", icon: GraduationCap },
+    { to: "/reservas", label: "Reservas", icon: Database },
+    { to: "/platos", label: "Platos", icon: Utensils },
+    { to: "/menus", label: "Menus", icon: ClipboardList },
   ],
-
   Coordinador: [
-      { to: "/aprendices",  label: "Aprendices",  icon: User },
+    { to: "/aprendices", label: "Aprendices", icon: User },
+  ],
+  Bienestar: [
+    { to: "/aprendices", label: "Aprendices", icon: User },
   ],
 };
 
-// ─── COLORES POR ROL ────────────────────────────────────────────────────────
+// Colores de acento por rol para el sidebar
 const ACCENT_POR_ROL = {
-  Administrador:      { accent: "bg-indigo-500", badge: "bg-indigo-100 text-indigo-700", activeLink: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  Supervisor:         { accent: "bg-blue-500",   badge: "bg-blue-100 text-blue-700",     activeLink: "bg-blue-50 text-blue-700 border-blue-200"       },
-  "Aprendiz Externo": { accent: "bg-emerald-500",badge: "bg-emerald-100 text-emerald-700", activeLink: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  "Aprendiz Interno": { accent: "bg-teal-500",   badge: "bg-teal-100 text-teal-700",     activeLink: "bg-teal-50 text-teal-700 border-teal-200"       },
-  Coordinador:        { accent: "bg-violet-500", badge: "bg-violet-100 text-violet-700", activeLink: "bg-violet-50 text-violet-700 border-violet-200" },
+  Administrador: {
+    accent: "bg-indigo-500",
+    badge: "bg-indigo-100 text-indigo-700",
+    activeLink: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  },
+  Supervisor: {
+    accent: "bg-blue-500",
+    badge: "bg-blue-100 text-blue-700",
+    activeLink: "bg-blue-50 text-blue-700 border-blue-200",
+  },
+  "Aprendiz Externo": {
+    accent: "bg-emerald-500",
+    badge: "bg-emerald-100 text-emerald-700",
+    activeLink: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  },
+  "Aprendiz Interno": {
+    accent: "bg-teal-500",
+    badge: "bg-teal-100 text-teal-700",
+    activeLink: "bg-teal-50 text-teal-700 border-teal-200",
+  },
+  Coordinador: {
+    accent: "bg-violet-500",
+    badge: "bg-violet-100 text-violet-700",
+    activeLink: "bg-violet-50 text-violet-700 border-violet-200",
+  },
+  Pasante: {
+    accent: "bg-cyan-500",
+    badge: "bg-cyan-100 text-cyan-700",
+    activeLink: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  },
+  Cocina: {
+    accent: "bg-orange-500",
+    badge: "bg-orange-100 text-orange-700",
+    activeLink: "bg-orange-50 text-orange-700 border-orange-200",
+  },
+  Bienestar: {
+    accent: "bg-rose-500",
+    badge: "bg-rose-100 text-rose-700",
+    activeLink: "bg-rose-50 text-rose-700 border-rose-200",
+  },
 };
 
 const DEFAULT_ACCENT = {
@@ -99,18 +127,17 @@ const DEFAULT_ACCENT = {
   activeLink: "bg-gray-100 text-gray-700 border-gray-200",
 };
 
-// ─── COMPONENTE ────────────────────────────────────────────────────────────
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [usuario, setUsuario] = useState(null);
   const [rolActivo, setRolActivo] = useState("");
-  const navigate = useNavigate();
+  const { handleCerrarSesion } = useNavBar();
 
   useEffect(() => {
-    const usuarioStorage = JSON.parse(localStorage.getItem("usuario"));
-    const rolActivoStorage = localStorage.getItem("rolActivo") || "";
-    setUsuario(usuarioStorage);
-    setRolActivo(rolActivoStorage);
+    const Usr = JSON.parse(localStorage.getItem("usuario"));
+    const Rol = localStorage.getItem("rolActivo") || "";
+    setUsuario(Usr);
+    setRolActivo(Rol);
   }, []);
 
   useEffect(() => {
@@ -118,60 +145,54 @@ export default function Sidebar() {
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
-  const handleCerrarSesion = () => {
-    localStorage.clear();
-    navigate("/");
-  };
-
-  const nombreCompleto = usuario
+  const Nombre_Completo = usuario
     ? `${usuario.Nom_Usuario ?? ""} ${usuario.Ape_Usuario ?? ""}`.trim()
     : "Usuario";
 
-  const inicial  = nombreCompleto.charAt(0).toUpperCase() || "U";
-  const links    = NAV_POR_ROL[rolActivo]    || [];
-  const tablas   = TABLAS_POR_ROL[rolActivo] || [];
-  const acento   = ACCENT_POR_ROL[rolActivo] || DEFAULT_ACCENT;
+  const Inicial = Nombre_Completo.charAt(0).toUpperCase() || "U";
+  const Links = NAV_POR_ROL[rolActivo] || [];
+  const Tablas = TABLAS_POR_ROL[rolActivo] || [];
+  const Acento = ACCENT_POR_ROL[rolActivo] || DEFAULT_ACCENT;
 
-  const getLinkClass = ({ isActive }) =>
+  const Obtener_Clase_Link = ({ isActive }) =>
     [
       "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium",
       isActive
-        ? `${acento.activeLink} border shadow-sm`
+        ? `${Acento.activeLink} border shadow-sm`
         : "text-gray-500 hover:bg-gray-100 hover:text-gray-800",
     ].join(" ");
 
-  const renderLinks = (list) =>
-    list.map((item) => {
-      const IconComponent = item.icon;
+  const Renderizar_Links = (Lista) =>
+    Lista.map((Item) => {
+      const Icono_Comp = Item.icon;
       return (
         <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.to === list[0].to}
-          className={getLinkClass}
+          key={Item.to}
+          to={Item.to}
+          end={Item.to === Lista[0]?.to}
+          className={Obtener_Clase_Link}
           onClick={() => setIsOpen(false)}
         >
-          <IconComponent className="w-5 h-5 flex-shrink-0" />
-          <span>{item.label}</span>
+          <Icono_Comp className="w-5 h-5 flex-shrink-0" />
+          <span>{Item.label}</span>
         </NavLink>
       );
     });
 
-  const renderInterior = () => (
+  const Renderizar_Interior = () => (
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
-
-      {/* Usuario */}
+      {/* Encabezado del usuario */}
       <div className="p-5 border-b border-gray-100">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-11 h-11 flex items-center justify-center ${acento.accent} rounded-full text-white text-lg font-bold`}>
-              {inicial}
+            <div className={`w-11 h-11 flex items-center justify-center ${Acento.accent} rounded-full text-white text-lg font-bold`}>
+              {Inicial}
             </div>
             <div>
               <p className="text-gray-800 font-semibold text-sm truncate">
-                {nombreCompleto}
+                {Nombre_Completo}
               </p>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${acento.badge}`}>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${Acento.badge}`}>
                 {rolActivo || "Sin rol"}
               </span>
             </div>
@@ -182,27 +203,26 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Menú */}
+      {/* Menu de navegacion */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-
         <p className="text-gray-400 text-xs font-semibold px-4 mb-2">
-          Menú
+          Menu
         </p>
-        {links.length > 0 ? renderLinks(links) : (
-          <p className="text-gray-400 text-sm px-4">Sin módulos disponibles</p>
+        {Links.length > 0 ? Renderizar_Links(Links) : (
+          <p className="text-gray-400 text-sm px-4">Sin modulos disponibles</p>
         )}
 
-        {tablas.length > 0 && (
+        {Tablas.length > 0 && (
           <>
             <p className="text-gray-400 text-xs font-semibold px-4 mt-4">
-              Base de Datos
+              Administracion
             </p>
-            {renderLinks(tablas)}
+            {Renderizar_Links(Tablas)}
           </>
         )}
       </nav>
 
-      {/* Cerrar sesión */}
+      {/* Cerrar sesion */}
       <div className="p-4 border-t border-gray-100">
         <button
           onClick={handleCerrarSesion}
@@ -212,7 +232,7 @@ export default function Sidebar() {
                      transition-all duration-200"
         >
           <LogOut className="w-4 h-4" />
-          Cerrar sesión
+          Cerrar sesion
         </button>
       </div>
     </div>
@@ -220,14 +240,16 @@ export default function Sidebar() {
 
   return (
     <>
+      {/* Boton hamburguesa movil */}
       <button
         onClick={() => setIsOpen(true)}
         className="lg:hidden fixed top-4 left-4 z-[70] p-2.5 bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow"
-        aria-label="Abrir menú"
+        aria-label="Abrir menu"
       >
         <Menu className="w-5 h-5 text-gray-700" />
       </button>
 
+      {/* Overlay movil */}
       {isOpen && (
         <div
           onClick={() => setIsOpen(false)}
@@ -236,16 +258,18 @@ export default function Sidebar() {
         />
       )}
 
+      {/* Sidebar escritorio */}
       <aside className="hidden lg:flex flex-col w-64 min-h-screen flex-shrink-0">
-        {renderInterior()}
+        {Renderizar_Interior()}
       </aside>
 
+      {/* Sidebar movil */}
       <aside
         className={`lg:hidden fixed inset-y-0 left-0 z-[65] w-72 flex flex-col
                     transform transition-transform duration-300 ease-in-out
                     ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
-        {renderInterior()}
+        {Renderizar_Interior()}
       </aside>
     </>
   );

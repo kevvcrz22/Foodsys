@@ -1,167 +1,133 @@
-import ReservasModel from "../Models/ReservasModel.js";
-import { Op } from "sequelize";
+import crypto from "crypto";
+import db from '../Database/db.js';
+import ReservaModel from "../Models/ReservasModel.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
+import PlatosModels from "../Models/PlatosModels.js";
 
 class ReservasServices {
-    async getAll() {
-        return await ReservasModel.findAll({
-            order: [
-                ['Id_Reserva', 'DESC']
-            ],
-            include: [{
-            model: UsuariosModel,
-            as: 'usuario',
-            attributes: ['Nom_Usuario', 'Ape_Usuario']
-        }]
-        })
 
+  // Retorna la fecha de hoy en formato YYYY-MM-DD
+  ObtenerFechaHoy() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  // Calcula la fecha y hora de vencimiento: el dia siguiente a la hora del tipo de comida
+  CalcularVencimiento(tipo) {
+    const manana = new Date();
+    manana.setDate(manana.getDate() + 1);
+    const horas = { Desayuno: 7, Almuerzo: 14, Cena: 19 };
+    if (!horas[tipo]) throw new Error("Tipo de comida no valido");
+    manana.setHours(horas[tipo], 0, 0, 0);
+    return manana;
+  }
+
+  // Determina que tipos de comida puede reservar el usuario segun sus roles
+  ObtenerRolesPermitidos(roles) {
+    const esInterno = roles.some(r => r === 'Aprendiz Interno' || r === 'Pasante Interno');
+    if (esInterno) return ['Desayuno', 'Almuerzo', 'Cena'];
+    const esExterno = roles.some(r => r === 'Aprendiz Externo' || r === 'Pasante Externo');
+    if (esExterno) return ['Almuerzo'];
+    return [];
+  }
+
+  // Encripta el objeto de datos del QR usando AES-256-CBC
+  // Retorna una cadena con formato: iv_en_hex:datos_encriptados_en_hex
+  EncriptarDatos(datos) {
+    if (!process.env.QR_ENCRYPTION_KEY) {
+      throw new Error("QR_ENCRYPTION_KEY no esta definida en las variables de entorno");
     }
-        async checkDisponibilidad(usuario, fecha, tipo) {
-        const reserva = await ReservasModel.findOne({
-            where: {
-                Id_Usuario: usuario,
-                Fec_Reserva: fecha,
-                Tipo: tipo,
-                Est_Reserva: { [Op.ne]: "Cancelada" }
-            }
-        });
-        return reserva === null;
-    }
+    const clave = Buffer.from(process.env.QR_ENCRYPTION_KEY, 'hex');
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', clave, iv);
+    let encriptado = cipher.update(JSON.stringify(datos), 'utf8', 'hex');
+    encriptado += cipher.final('hex');
+    return iv.toString('hex') + ':' + encriptado;
+  }
 
-    async getById(id) {
-        const Reservas = await ReservasModel.findByPk(id)
-        if (!Reservas) throw new Error("Reserva no encontrada")
-        return Reservas
-    }
-    async create(data) {
+  // Crea una nueva reserva dentro de una transaccion para garantizar consistencia
+  // Si algo falla en cualquier paso, se hace rollback y no queda ningun dato a medias
+  async generarReservaPass(Id_Usuario, rolesUsuario, Tip_Reserva, platoElegido) {
+    return await db.transaction(async (transaction) => {
 
-        // const {Id_Reserva} = await ReservasModel.create(data)
+      // Paso 1: confirmar que el usuario existe en la base de datos
+      const usuario = await UsuariosModel.findByPk(Id_Usuario, { transaction });
+      if (!usuario) throw new Error("Usuario no encontrado");
 
-        // const {Tex_Qr} = data
+      // Paso 2: validar que el tipo de comida este permitido para los roles del usuario
+      const tiposPermitidos = this.ObtenerRolesPermitidos(rolesUsuario);
+      const TipoNormalizado = Tip_Reserva.charAt(0).toUpperCase() + Tip_Reserva.slice(1);
+      if (!tiposPermitidos.includes(TipoNormalizado)) {
+        throw new Error(`El tipo de comida "${Tip_Reserva}" no esta permitido para tu rol`);
+      }
 
-        // const newTex_Qr = `${Id_Reserva}_${Tex_Qr}`
+      // Paso 3: confirmar que el plato seleccionado existe
+      const plato = await PlatosModels.findByPk(platoElegido, { transaction });
+      if (!plato) throw new Error("El plato seleccionado no existe");
 
-        // const reserva = await ReservasModel.update(Id_Reserva, {Tex_Qr: newTex_Qr})
+      // Paso 4: calcular las fechas de generacion y vencimiento
+      const fechaGeneracion = this.ObtenerFechaHoy();
+      const fechaVencimiento = this.CalcularVencimiento(TipoNormalizado);
 
-        const reserva = await ReservasModel.create(data)
-
-        const { Id_Reserva } = reserva
-        
-        
-        const newTex_Qr = JSON.parse(Tex_Qr)
-        newTex_Qr.Id_Reserva = Id_Reserva
-
-        // console.log(newTex_Qr)
-
-        reserva.Tex_Qr = JSON.stringify(newTex_Qr)
-
-        
-
-        return await reserva.save()
-
-        // return reserva
-
-        //Al crear la reserva hay que obtener el id que se genera e incluirlo en el texto del QR
-        //Después actualizar la reserva con el texto del QR generado
-
-    }
-    async update(id, data) {
-        const result = await ReservasModel.update(data, { where: { Id_Reserva: id } });
-
-        if (result[0] === 0) {
-            const Reservas = await ReservasModel.findByPk(id);
-            if (!Reservas) throw new Error("Reserva no encontrada");
-            throw new Error("No hubo cambios en la reserva (los datos son iguales)");
-        }
-
-        return true;
-    }
-
-    async delete(id) {
-        const deleted = await ReservasModel.destroy({ where: { Id_Reserva: id } })
-        if (!deleted) throw new Error("Reservas no encontrada")
-        await ReservasModel.update(
-            { Est_Reserva: "Cancelada" },
-            { where: { Id_Reserva: id } }
-        );
-
-            return true
-    }
-    // 🔢 Cuenta total de reservas canceladas (para el contador en tiempo real)
-    async countCanceladas() {
-        return await ReservasModel.count({
-            where: { Est_Reserva: "Cancelada" }
-        });
-    }
-
-
-    async crearExcepcional(data) {
-    const ahora = new Date();
-    const hora = ahora.getHours();
-    const diaSemana = ahora.getDay();
-
-    // Si es antes de las 18:00 → hoy, si no → mañana
-    const fechaReserva = new Date();
-    if (hora >= 18) {
-        fechaReserva.setDate(fechaReserva.getDate() + 1);
-    }
-
-    const dia = fechaReserva.getDate();
-    const mes = fechaReserva.getMonth();
-    const anio = fechaReserva.getFullYear();
-    const fechaStr = `${anio}-${String(mes + 1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
-    const diaDeLaReserva = fechaReserva.getDay();
-    const esSabado = diaDeLaReserva === 6;
-    const esDomingo = diaDeLaReserva === 0;
-
-    // Validar duplicado
-    const reservaExistente = await ReservasModel.findOne({
+      // Paso 5: evitar duplicados, solo puede existir una reserva activa por tipo y dia
+      const existente = await ReservaModel.findOne({
         where: {
-            Id_Usuario: data.Id_Usuario,
-            Tipo: data.Tipo,
-            Fec_Reserva: fechaStr,
-            Est_Reserva: { [Op.ne]: 'Cancelada' }
-        }
+          Id_Usuario: usuario.Id_Usuario,
+          Tip_Reserva: TipoNormalizado,
+          Fec_Reserva: fechaGeneracion,
+          Est_Reserva: 'Generado'
+        },
+        transaction
+      });
+      if (existente) {
+        throw new Error(`Ya tienes una reserva activa para ${TipoNormalizado} generada hoy`);
+      }
+
+      // Paso 6: insertar la reserva con el QR vacio, se llenara en el paso 8
+      const nuevaReserva = await ReservaModel.create({
+        Id_Usuario: usuario.Id_Usuario,
+        Fec_Reserva: fechaGeneracion,
+        Vec_Reserva: fechaVencimiento,
+        Tip_Reserva: TipoNormalizado,
+        Est_Reserva: 'Generado',
+        Qr_Reserva: '',
+        Id_Plato: platoElegido
+      }, { transaction });
+
+      // Paso 7: armar el objeto que se va a encriptar y guardar en el QR
+      const datosQR = {
+        Id_Reserva: nuevaReserva.Id_Reserva,
+        Id_Usuario: usuario.Id_Usuario,
+        Tipo: TipoNormalizado,
+        Fec_Reserva: fechaGeneracion,
+        Vencimiento: fechaVencimiento.toISOString()
+      };
+
+      // Paso 8: encriptar los datos y actualizar el campo Qr_Reserva en la base de datos
+      const encriptado = this.EncriptarDatos(datosQR);
+      await nuevaReserva.update({ Qr_Reserva: encriptado }, { transaction });
+
+      // La URL que se codificara en el QR apunta al frontend con los datos encriptados
+      const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      const qrUrl = `${baseUrl}/desayuno-checkin?data=${encodeURIComponent(encriptado)}`;
+
+      return {
+        Qr_Reserva: encriptado,
+        validDate: fechaGeneracion,
+        expiresAt: fechaVencimiento,
+        qrUrl
+      };
     });
+  }
 
-    if (reservaExistente) {
-        throw new Error(`Este aprendiz ya tiene una reserva de ${data.Tipo} para ese día`);
-    }
-
-    // Vencimiento con hora Colombia directamente
-    let horaVenc, minVenc;
-    if (data.Tipo === 'Desayuno') {
-        horaVenc = esDomingo ? 9 : esSabado ? 8 : 7;
-        minVenc = 0;
-    } else if (data.Tipo === 'Almuerzo') {
-        horaVenc = 13;
-        minVenc = 30;
-    } else {
-        horaVenc = (esSabado || esDomingo) ? 18 : 19;
-        minVenc = (esSabado || esDomingo) ? 30 : 0;
-    }
-
-    // +5 para compensar UTC-5 de Colombia
-const vencimiento = new Date(Date.UTC(anio, mes, dia, horaVenc + 5, minVenc, 0));
-
-    const reserva = await ReservasModel.create({
-        ...data,
-        Est_Reserva: 'Generada',
-        Res_Excepcional: 'Si',
-        Fec_Reserva: fechaStr,
-        Vencimiento: vencimiento
+  // Retorna las ultimas 10 reservas del usuario ordenadas de la mas reciente a la mas antigua
+  async obtenerHistorial(Id_Usuario) {
+    return await ReservaModel.findAll({
+      where: { Id_Usuario },
+      include: [{ model: PlatosModels, attributes: ['Nom_Plato'] }],
+      order: [['createdAt', 'DESC']],
+      limit: 10
     });
-
-    const { Id_Reserva } = reserva;
-    reserva.Tex_Qr = JSON.stringify({
-        Id_Reserva,
-        Id_Usuario: data.Id_Usuario,
-        Tipo: data.Tipo,
-        Excepcional: true
-    });
-    return await reserva.save();
+  }
 }
 
-}
-
-export default new ReservasServices
+export default new ReservasServices();

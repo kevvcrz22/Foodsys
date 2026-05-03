@@ -10,15 +10,5 @@ const UsuariosRolModel = db.define('UsuariosRol', {
 }, {
   freezeTableName: true,
   timestamps: false
-});
-UsuariosRolModel.belongsTo(UsuariosModel, {
-  foreignKey: "Id_Usuario",
-  as: "usuario"
-});
-
-UsuariosRolModel.belongsTo(RolesModel, {
-  foreignKey: "Id_Rol",
-  as: "rol"
-});
-
+})
 export default UsuariosRolModel;

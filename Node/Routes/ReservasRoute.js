@@ -1,15 +1,21 @@
-import express from "express"
-import { getAllReservas, getReservas, createReservas, updateReservas, deleteReservas, checkDisponibilidad, countCanceladas, crearReservaExcepcional } from '../Controllers/ReservasController.js'
+import { Router } from "express";
+import authMiddleware from "../Middleware/authMiddleware.js";
+import ReservarMiddleware from "../Middleware/ReservarMiddleware.js";
+import { generarAlimentoTomorrow, obtenerHistorial } from "../Controllers/ReservasController.js";
 
-const router = express.Router()
+const router = Router();
 
-router.get('/', getAllReservas);
-router.get('/disponibilidad', checkDisponibilidad);
-router.get('/canceladas/count', countCanceladas);  
-router.get('/:id', getReservas);
-router.post('/', createReservas);
-router.put('/:id', updateReservas);
-router.delete('/:id', deleteReservas);
-router.post('/excepcional', crearReservaExcepcional);
+// Genera una nueva reserva para el dia siguiente
+router.post('/reservar/generate-tomorrow',
+  authMiddleware,
+  // ReservarMiddleware, // descomentar cuando se quiera restringir por rol
+  generarAlimentoTomorrow
+);
+
+// Retorna el historial de reservas del usuario autenticado
+router.get('/reservar/historial',
+  authMiddleware,
+  obtenerHistorial
+);
 
 export default router;

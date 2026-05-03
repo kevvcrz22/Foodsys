@@ -1,70 +1,49 @@
-import MenusModel from "../Models/MenusModels.js";
-import PlatosModel from "../Models/PlatosModels.js";
+import MenuModel from "../Models/MenusModels.js";
+import PlatoModel from "../Models/PlatosModels.js";
 
 class MenusService {
 
   async getAll() {
-    return await MenusModel.findAll({
-      include: [
-        {
-          model: PlatosModel,
-          as: "plato"
-        }
-      ],
+    return await MenuModel.findAll({
+      include: [{ model: PlatoModel, as: "plato" }],
       order: [['Id_Menu', 'DESC']]
     });
   }
 
   async getById(id) {
-    const Menu = await MenusModel.findByPk(id, {
-      include: [
-        {
-          model: PlatosModel,
-          as: "plato"
-        }
-      ]
+    const menu = await MenuModel.findByPk(id, {
+      include: [{ model: PlatoModel, as: "plato" }]
     });
-
-    if (!Menu) throw new Error("Menu no encontrado");
-    return Menu;
+    if (!menu) throw new Error("Menú no encontrado");
+    return menu;
   }
 
   async create(data) {
-    return await MenusModel.create(data);
+    return await MenuModel.create(data);
   }
 
   async update(id, data) {
-    const result = await MenusModel.update(data, { where: { Id_Menu: id } });
-    const updated = result[0];
-
+    const [updated] = await MenuModel.update(data, { where: { Id_Menu: id } });
     if (updated === 0) {
-      const Menu = await MenusModel.findByPk(id);
-      if (!Menu) throw new Error("Menu no encontrado");
-      throw new Error("No hubo cambios en el menu");
+      const existe = await MenuModel.findByPk(id);
+      if (!existe) throw new Error("Menú no encontrado");
+      throw new Error("No hubo cambios en el menú");
     }
-
     return true;
   }
 
   async delete(id) {
-    const deleted = await MenusModel.destroy({ where: { Id_Menu: id } });
-    if (!deleted) throw new Error("Menu no encontrado");
+    const deleted = await MenuModel.destroy({ where: { Id_Menu: id } });
+    if (!deleted) throw new Error("Menú no encontrado");
     return true;
   }
 
-  // 🔥 EXTRA PRO (te sirve mucho)
   async getByFecha(fecha) {
-    return await MenusModel.findAll({
+    return await MenuModel.findAll({
       where: { Fec_Menu: fecha },
-      include: [
-        {
-          model: PlatosModel,
-          as: "plato"
-        }
-      ]
+      include: [{ model: PlatoModel, as: "plato" }]
     });
   }
-
 }
 
 export default new MenusService();
