@@ -123,10 +123,37 @@ class ReservasServices {
   async obtenerHistorial(Id_Usuario) {
     return await ReservaModel.findAll({
       where: { Id_Usuario },
-      include: [{ model: PlatosModels, attributes: ['Nom_Plato'] }],
+      include: [{ model: PlatosModels, as: 'plato', attributes: ['Nom_Plato', 'Img_Plato'] }],
       order: [['createdAt', 'DESC']],
-      limit: 10
+      limit: 10,
     });
+  }
+
+  // Retorna TODAS las reservas del usuario sin limite de cantidad
+  async obtenerHistorialCompleto(Id_Usuario) {
+    return await ReservaModel.findAll({
+      where: { Id_Usuario },
+      include: [{ model: PlatosModels, as: 'plato', attributes: ['Nom_Plato', 'Img_Plato'] }],
+      order: [['createdAt', 'DESC']],
+    });
+  }
+
+  // Cambia el estado de una reserva a Cancelado.
+  // Solo se puede cancelar si el estado actual es Generado y pertenece al usuario.
+  async cancelarReserva(Id_Reserva, Id_Usuario) {
+    const Reserva = await ReservaModel.findOne({
+      where: { Id_Reserva, Id_Usuario },
+    });
+    if (!Reserva) {
+      throw new Error('Reserva no encontrada o no pertenece al usuario');
+    }
+    if (Reserva.Est_Reserva !== 'Generado') {
+      throw new Error(
+        `No se puede cancelar una reserva con estado: ${Reserva.Est_Reserva}`
+      );
+    }
+    await Reserva.update({ Est_Reserva: 'Cancelado' });
+    return true;
   }
 }
 

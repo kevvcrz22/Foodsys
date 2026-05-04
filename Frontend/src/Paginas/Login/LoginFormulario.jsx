@@ -67,9 +67,9 @@ const LoginFormulario = ({
     <div className="text-center mb-6">
       <h2 className="text-[#1a1a2e] text-2xl font-extrabold">
         Iniciar sesion en{' '}
-        <span className="text-[#42b72a]">SENA</span>
+        <span className="text-[#42b72a]">Foodsys</span>
       </h2>
-      <p className="text-[#888] text-sm mt-1">Acceso exclusivo para el SENA</p>
+      <p className="text-[#888] text-sm mt-1">Todo lo bueno comienza aqui</p>
     </div>
 
     {/* Mensaje de error global: visible solo cuando hay un error de autenticacion */}
@@ -163,31 +163,18 @@ const LoginFormulario = ({
         )}
       </button>
 
-      {/* Enlace de recuperacion de contrasena */}
-      <p className="text-center text-xs text-[#1861c1] hover:underline cursor-pointer mt-1">
-        ¿Olvidaste tu contrasena?
-      </p>
-
       {/* Separador visual entre las dos acciones principales */}
       <div className="flex items-center gap-3 my-2">
         <div className="flex-1 h-px bg-gray-200" />
-        <span className="text-xs text-gray-400">o</span>
+        <span className="text-xs text-gray-400">||</span>
         <div className="flex-1 h-px bg-gray-200" />
       </div>
-
-      {/* Boton secundario para solicitar acceso al sistema */}
-      <button
-        type="button"
-        className="w-full py-3 rounded-xl font-bold text-sm border-2 border-gray-200 text-[#1a1a2e] hover:border-[#1861c1] hover:text-[#1861c1] active:scale-[0.98] transition-all"
-      >
-        Solicitar acceso
-      </button>
 
     </form>
 
     {/* Pie del formulario con marca institucional */}
-    <p className="text-center text-[11px] text-gray-400 mt-6 tracking-widest font-semibold uppercase">
-      SENA &copy; {new Date().getFullYear()}
+    <p className="text-center text-[11px] text-gray-400 mt-6 tracking-widest font-semibold ">
+      Centro Agropecuario La Granja &copy; {new Date().getFullYear()}
     </p>
 
   </aside>
