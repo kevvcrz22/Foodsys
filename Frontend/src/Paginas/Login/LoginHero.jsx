@@ -34,9 +34,9 @@ const LoginHero = () => (
     <div className="relative z-10">
       <h1 className="text-[2.6rem] font-extrabold leading-tight mb-4">
         {/* Titulo bicolor: primera linea azul, segunda linea verde */}
-        <span className="text-[#1861c1]">Gestiona lo que</span>
+        <span className="text-[#1861c1]">Foodsys nos </span>
         <br />
-        <span className="text-[#42b72a]">mas importa.</span>
+        <span className="text-[#42b72a]">Importas tu.</span>
       </h1>
       <p className="text-[#4a5568] text-[15px] leading-relaxed max-w-sm">
         ¡Bienvenido a la plataforma! Anímate a reservar tus platos con anticipación y mantente siempre informado sobre el comedor. Únete para disfrutar de una mejor experiencia cada día.
@@ -58,31 +58,6 @@ const LoginHero = () => (
         </div>
       ))}
     </div>
-
-    {/* Widget de estadistica diaria: simula datos de raciones del dia */}
-    <div className="relative z-10 bg-white rounded-2xl shadow-md p-5 flex items-end justify-between">
-
-      {/* Tarjeta de notificacion a la izquierda */}
-      <div className="flex items-center gap-3 bg-[#f8f9ff] rounded-xl p-3 w-44 shadow-sm">
-        <div className="w-9 h-9 rounded-full bg-yellow-100 flex items-center justify-center shrink-0">
-          <i className="fas fa-bell text-yellow-500 text-sm"></i>
-        </div>
-        <div>
-          <p className="text-[11px] text-[#888]">Hoy 12:00 pm</p>
-          <div className="h-[6px] w-20 bg-gray-200 rounded-full mt-1" />
-          <div className="h-[6px] w-14 bg-gray-100 rounded-full mt-1" />
-        </div>
-      </div>
-
-      {/* Tarjeta principal con conteo de raciones */}
-      <div className="bg-[#1861c1] rounded-2xl p-5 text-white min-w-[140px] shadow-lg">
-        <p className="text-xs font-semibold opacity-80 mb-1">Raciones hoy</p>
-        <p className="text-5xl font-extrabold leading-none">142</p>
-        <p className="text-xs opacity-70 mt-2">de 160 disponibles</p>
-      </div>
-
-    </div>
-
   </section>
 );
 

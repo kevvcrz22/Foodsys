@@ -65,19 +65,11 @@ const LoginFormulario = ({
 
     {/* Titulo y subtitulo del formulario */}
     <div className="text-center mb-6">
-      <h2 className="text-[#1a1a2e] text-4xl font-extrabold mb-2">
-        Inicio de sesión
+      <h2 className="text-[#1a1a2e] text-2xl font-extrabold">
+        Iniciar sesion en{' '}
+        <span className="text-[#42b72a]">Foodsys</span>
       </h2>
-      <p className="text-[#888] text-sm mt-1">
-        Branding <span className="text-[#42b72a] font-bold text-lg">Fulsive</span>
-      </p>
-    </div>
-
-    {/* Seccion Adicional: Invitacion al usuario */}
-    <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-xl">
-      <p className="text-blue-800 text-sm leading-relaxed">
-        <strong>¡Bienvenido a tu comedor!</strong> Usa esta aplicación para gestionar tus raciones de forma rápida y sencilla. Mantente al día con el menú y aprovecha todos los beneficios del servicio.
-      </p>
+      <p className="text-[#888] text-sm mt-1">Todo lo bueno comienza aqui</p>
     </div>
 
     {/* Mensaje de error global: visible solo cuando hay un error de autenticacion */}
@@ -171,13 +163,18 @@ const LoginFormulario = ({
         )}
       </button>
 
-      {/* Elementos secundarios eliminados segun solicitud */}
+      {/* Separador visual entre las dos acciones principales */}
+      <div className="flex items-center gap-3 my-2">
+        <div className="flex-1 h-px bg-gray-200" />
+        <span className="text-xs text-gray-400">||</span>
+        <div className="flex-1 h-px bg-gray-200" />
+      </div>
 
     </form>
 
     {/* Pie del formulario con marca institucional */}
-    <p className="text-center text-[11px] text-gray-400 mt-6 tracking-widest font-semibold uppercase">
-      Escena 2026 &copy; {new Date().getFullYear()}
+    <p className="text-center text-[11px] text-gray-400 mt-6 tracking-widest font-semibold ">
+      Centro Agropecuario La Granja &copy; {new Date().getFullYear()}
     </p>
 
   </aside>

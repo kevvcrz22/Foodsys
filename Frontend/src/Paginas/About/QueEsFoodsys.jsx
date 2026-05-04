@@ -3,6 +3,7 @@
 // Explica el proposito, los modulos y los roles del sistema
 
 import { Utensils, ShieldCheck, CalendarCheck, BarChart3, Users, QrCode } from "lucide-react";
+import logo from "../../Components/Img/LogoFoodsys.png";
 
 // Dato de una caracteristica del sistema para mostrar en tarjeta
 const Tarjeta_Caracteristica = ({ Icono, Titulo, Descripcion }) => {
@@ -35,11 +36,11 @@ const QueEsFoodsys = () => (
     {/* Encabezado hero */}
     <div className="bg-[#0f3f80] text-white px-6 py-14 text-center">
       <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-4">
-        <Utensils className="w-7 h-7 text-white" />
+      <img src={logo} alt="Logo Foodsys" className="w-12 h-12" />
       </div>
-      <h1 className="text-3xl font-bold">Que es FoodSys</h1>
+      <h1 className="text-3xl font-bold">Que es Foodsys</h1>
       <p className="mt-3 text-blue-200 text-sm max-w-2xl mx-auto leading-relaxed">
-        FoodSys es el sistema digital de gestion de reservas de comida del
+        Foodsys es el sistema digital de gestion de reservas de comida del
         Centro Agropecuario del SENA. Permite a los aprendices, pasantes y
         personal del centro gestionar sus reservas de manera eficiente y segura
         mediante codigos QR.
