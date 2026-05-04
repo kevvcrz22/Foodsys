@@ -38,10 +38,23 @@ class MenusService {
     return true;
   }
 
-  async getByFecha(fecha) {
+  async getByFecha(Fecha) {
     return await MenuModel.findAll({
-      where: { Fec_Menu: fecha },
-      include: [{ model: PlatoModel, as: "plato" }]
+      where: { Fec_Menu: Fecha },
+      include: [{ model: PlatoModel, as: "plato" }],
+    });
+  }
+
+  // Retorna los platos del menu filtrados por fecha y tipo de comida.
+  // Lo usa el formulario de nueva reserva para mostrar solo lo disponible ese dia.
+  async getByFechaYTipo(Fecha, Tipo) {
+    const Tipos_Validos = ["Desayuno", "Almuerzo", "Cena"];
+    if (!Tipos_Validos.includes(Tipo)) {
+      throw new Error("Tipo de menu no valido");
+    }
+    return await MenuModel.findAll({
+      where: { Fec_Menu: Fecha, Tip_Menu: Tipo },
+      include: [{ model: PlatoModel, as: "plato" }],
     });
   }
 }

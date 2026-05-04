@@ -5,7 +5,6 @@
 
 import express from "express";
 import authMiddleware from "../Middleware/authMiddleware.js";
-import UsuariosMiddleware from "../Middleware/UsuariosMiddleware.js";
 import {
   getAllRoles,
   getRoles,
@@ -21,8 +20,8 @@ router.get("/", getAllRoles);
 router.get("/:id", getRoles);
 
 // Escritura protegida: solo Administrador
-router.post("/", authMiddleware, UsuariosMiddleware, createRoles);
-router.put("/:id", authMiddleware, UsuariosMiddleware, updateRoles);
-router.delete("/:id", authMiddleware, UsuariosMiddleware, deleteRoles);
+router.post("/", authMiddleware, createRoles);
+router.put("/:id", authMiddleware, updateRoles);
+router.delete("/:id", authMiddleware, deleteRoles);
 
 export default router;

@@ -45,35 +45,26 @@ export const obtenerHistorial = async (req, res) => {
   }
 };
 
-// Genera una reserva excepcional ignorando la regla de 24h
-export const generarReservaExcepcional = async (req, res) => {
+// Retorna todas las reservas del usuario autenticado sin limite
+export const obtenerHistorialCompleto = async (req, res) => {
   try {
-    const { Id_Usuario, Tip_Reserva, platoElegido, fechaReserva, justificacion } = req.body;
-
-    if (!Id_Usuario || !Tip_Reserva || !platoElegido || !fechaReserva || !justificacion) {
-      return res.status(400).json({ message: "Faltan datos obligatorios para la reserva excepcional" });
-    }
-
-    const Tip_Reserva_L = Tip_Reserva.trim();
-
-    // Reutilizamos generarReservaPass pero pasamos esNovedad = true para ignorar 24h
-    // Usamos roles genericos para permitir la creacion
-    const result = await ReservasServices.generarReservaPass(
-      Id_Usuario,
-      ['Aprendiz Interno', 'Aprendiz Externo'], // forzamos permisos para permitir crear
-      Tip_Reserva_L,
-      platoElegido,
-      fechaReserva,
-      true, // esNovedad
-      justificacion
-    );
-    
-    // Opcional: Actualizar el estado a 'Reserva por Novedad' o algo similar si es necesario
-    // Pero por defecto queda en 'Generado' para que pueda ser redimido.
-
-    return res.status(201).json({ message: "Reserva excepcional creada", ...result });
+    const Id_Usuario = req.user.id;
+    const historial = await ReservasServices.obtenerHistorialCompleto(Id_Usuario);
+    return res.status(200).json(historial);
   } catch (err) {
-    console.log("ERROR:", err.message);
+    return res.status(400).json({ message: err.message });
+  }
+};
+
+// Cambia el estado de una reserva a Cancelado.
+// Solo funciona si la reserva pertenece al usuario y su estado es Generado.
+export const cancelarReserva = async (req, res) => {
+  try {
+    const Id_Usuario = req.user.id;
+    const Id_Reserva = parseInt(req.params.id);
+    await ReservasServices.cancelarReserva(Id_Reserva, Id_Usuario);
+    return res.status(200).json({ message: 'Reserva cancelada correctamente' });
+  } catch (err) {
     return res.status(400).json({ message: err.message });
   }
 };

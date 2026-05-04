@@ -1,27 +1,36 @@
 import { Router } from "express";
 import authMiddleware from "../Middleware/authMiddleware.js";
-import ReservarMiddleware from "../Middleware/ReservarMiddleware.js";
-import { generarAlimentoTomorrow, obtenerHistorial, generarReservaExcepcional } from "../Controllers/ReservasController.js";
+import {
+  generarAlimentoTomorrow,
+  obtenerHistorial,
+  obtenerHistorialCompleto,
+  cancelarReserva,
+} from "../Controllers/ReservasController.js";
 
 const router = Router();
 
-// Genera una nueva reserva para el dia siguiente
+// Genera una nueva reserva
 router.post('/reservar/generate-tomorrow',
   authMiddleware,
-  // ReservarMiddleware, // descomentar cuando se quiera restringir por rol
   generarAlimentoTomorrow
 );
 
-// Retorna el historial de reservas del usuario autenticado
+// Retorna las ultimas 10 reservas del usuario autenticado
 router.get('/reservar/historial',
   authMiddleware,
   obtenerHistorial
 );
 
-// Genera una reserva excepcional (novedad)
-router.post('/excepcional',
+// Retorna todas las reservas del usuario autenticado sin limite
+router.get('/reservar/historial/completo',
   authMiddleware,
-  generarReservaExcepcional
+  obtenerHistorialCompleto
+);
+
+// Cancela una reserva con estado Generado que pertenece al usuario autenticado
+router.patch('/reservar/:id/cancelar',
+  authMiddleware,
+  cancelarReserva
 );
 
 export default router;

@@ -384,16 +384,6 @@ const Perfil = () => {
                 )}
               </div>
             </div>
-
-            {/* Documento: visible solo en pantallas medianas o mayores */}
-            <div className="text-right hidden sm:block shrink-0">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                {Usuario.TipDoc_Usuario}
-              </p>
-              <p className="text-base font-bold text-slate-700 font-mono">
-                {Usuario.NumDoc_Usuario}
-              </p>
-            </div>
           </div>
         </div>
 
