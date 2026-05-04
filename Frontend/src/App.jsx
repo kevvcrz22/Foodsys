@@ -9,6 +9,10 @@ import Login from "./Paginas/Login/Login.jsx";
 import Perfil from "./Paginas/Perfil/Perfil.jsx";
 import Inicio from "./Paginas/Inicio/Inicio.jsx";
 
+/* PAGINAS PUBLICAS */
+import Contacto from "./Paginas/Contacto/Contacto.jsx";
+import QueEsFoodsys from "./Paginas/About/QueEsFoodsys.jsx";
+
 /* COMPONENTES */
 import Chatbot from "./Components/Chatbot.jsx";
 import Footer from "./Components/Footer.jsx";
@@ -59,12 +63,17 @@ const ProtectedRoute = ({
   return children;
 };
 
-/* Layout con sidebar para paginas internas */
-const LayoutConSidebar = ({ children }) => (
+/* Layout con sidebar para paginas internas.
+   Recibe los datos del rol para pasarlos al Sidebar y al NavRolSelector dentro de el. */
+const LayoutConSidebar = ({ children, roles, rolActivo, onCambioRol }) => (
   <div className="flex h-full bg-gray-100">
-    <Sidebar />
-    <div className="flex-1">
-      <main className="p-6">{children}</main>
+    <Sidebar
+      roles={roles}
+      rolActivo={rolActivo}
+      onCambioRol={onCambioRol}
+    />
+    <div className="flex-1 min-w-0">
+      <main className="p-4 md:p-6">{children}</main>
     </div>
   </div>
 );
@@ -125,6 +134,16 @@ function App() {
   }, [setUser]);
 
   const Props_Auth = { isAuth: Es_Auth, rolActivo: Rol_Activo };
+
+  /* Props compartidos de layout para pasar al Sidebar desde cada ruta protegida */
+  const Props_Layout = {
+    roles: Roles,
+    rolActivo: Rol_Activo,
+    onCambioRol: (Nuevo_Rol) => {
+      localStorage.setItem("rolActivo", Nuevo_Rol);
+      Set_RolActivo(Nuevo_Rol);
+    },
+  };
 
   if (Cargando) {
     return (
@@ -205,6 +224,10 @@ function App() {
           }
         />
 
+        {/* RUTAS PUBLICAS */}
+        <Route path="/contacto" element={<Contacto />} />
+        <Route path="/about" element={<QueEsFoodsys />} />
+
         {/* ADMINISTRADOR */}
         <Route
           path="/Administrador/*"
@@ -213,7 +236,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Administrador"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <Routes>
                   <Route index element={<Inicio />} />
                   <Route path="Inicio" element={<Inicio />} />
@@ -235,7 +258,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Supervisor"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <Routes>
                   <Route index element={<Inicio />} />
                   <Route path="Inicio" element={<Inicio />} />
@@ -260,7 +283,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Coordinador"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <Routes>
                   <Route index element={<Inicio />} />
                   <Route path="Inicio" element={<Inicio />} />
@@ -286,7 +309,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Aprendiz Externo"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <Routes>
                   <Route index element={<Inicio />} />
                   <Route path="Inicio" element={<Inicio />} />
@@ -306,7 +329,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Aprendiz Interno"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <Routes>
                   <Route index element={<Inicio />} />
                   <Route path="Inicio" element={<Inicio />} />
@@ -326,7 +349,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Pasante"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <Routes>
                   <Route index element={<Inicio />} />
                   <Route path="Inicio" element={<Inicio />} />
@@ -346,7 +369,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Cocina"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <Routes>
                   <Route index element={<Inicio />} />
                   <Route path="Inicio" element={<Inicio />} />
@@ -366,7 +389,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Bienestar"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <Routes>
                   <Route index element={<Inicio />} />
                   <Route path="Inicio" element={<Inicio />} />
@@ -387,7 +410,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Administrador"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <CrudUsuarios />
               </LayoutConSidebar>
             </ProtectedRoute>
@@ -400,7 +423,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Administrador"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <CrudUsuariosRoles />
               </LayoutConSidebar>
             </ProtectedRoute>
@@ -413,7 +436,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Administrador"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <CrudFichas />
               </LayoutConSidebar>
             </ProtectedRoute>
@@ -426,7 +449,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Administrador"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <CrudPrograma />
               </LayoutConSidebar>
             </ProtectedRoute>
@@ -439,7 +462,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Administrador"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <CrudRoles />
               </LayoutConSidebar>
             </ProtectedRoute>
@@ -452,7 +475,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Administrador"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <CrudPlatos />
               </LayoutConSidebar>
             </ProtectedRoute>
@@ -465,7 +488,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Administrador"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <CrudMenus />
               </LayoutConSidebar>
             </ProtectedRoute>
@@ -480,7 +503,7 @@ function App() {
               {...Props_Auth}
               allowedRoles={["Administrador", "Supervisor"]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <CrudReservas />
               </LayoutConSidebar>
             </ProtectedRoute>
@@ -499,7 +522,7 @@ function App() {
                 "Bienestar",
               ]}
             >
-              <LayoutConSidebar>
+              <LayoutConSidebar {...Props_Layout}>
                 <Aprendices />
               </LayoutConSidebar>
             </ProtectedRoute>

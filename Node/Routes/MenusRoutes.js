@@ -12,12 +12,14 @@ import {
   createMenu,
   updateMenu,
   deleteMenu,
+  getMenuDisponibles,
 } from "../Controllers/MenusController.js";
 
 const router = express.Router();
 
 // Lectura publica de menus
 router.get("/", getAllMenu);
+router.get("/disponibles", getMenuDisponibles); // Platos disponibles por fecha y tipo
 router.get("/:id", getMenu);
 
 // Escritura protegida con auth + permiso de vista Menu

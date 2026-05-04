@@ -5,7 +5,6 @@
 
 import express from "express";
 import authMiddleware from "../Middleware/authMiddleware.js";
-import FichaMiddleware from "../Middleware/FichaMiddleware.js";
 import {
   getAllFichas,
   getFichas,
@@ -21,8 +20,8 @@ router.get("/", getAllFichas);
 router.get("/:id", getFichas);
 
 // Escritura protegida con auth + permiso de vista Ficha
-router.post("/", authMiddleware, FichaMiddleware, createFichas);
-router.put("/:id", authMiddleware, FichaMiddleware, updateFichas);
-router.delete("/:id", authMiddleware, FichaMiddleware, deleteFichas);
+router.post("/", authMiddleware, createFichas);
+router.put("/:id", authMiddleware, updateFichas);
+router.delete("/:id", authMiddleware, deleteFichas);
 
 export default router;

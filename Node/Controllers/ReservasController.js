@@ -39,3 +39,27 @@ export const obtenerHistorial = async (req, res) => {
     return res.status(400).json({ message: err.message });
   }
 };
+
+// Retorna todas las reservas del usuario autenticado sin limite
+export const obtenerHistorialCompleto = async (req, res) => {
+  try {
+    const Id_Usuario = req.user.id;
+    const historial = await ReservasServices.obtenerHistorialCompleto(Id_Usuario);
+    return res.status(200).json(historial);
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+};
+
+// Cambia el estado de una reserva a Cancelado.
+// Solo funciona si la reserva pertenece al usuario y su estado es Generado.
+export const cancelarReserva = async (req, res) => {
+  try {
+    const Id_Usuario = req.user.id;
+    const Id_Reserva = parseInt(req.params.id);
+    await ReservasServices.cancelarReserva(Id_Reserva, Id_Usuario);
+    return res.status(200).json({ message: 'Reserva cancelada correctamente' });
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+};

@@ -5,7 +5,6 @@
 
 import express from "express";
 import authMiddleware from "../Middleware/authMiddleware.js";
-import ProgramaMiddleware from "../Middleware/ProgramaMiddleware.js";
 import {
   getAllPrograma,
   getPrograma,
@@ -21,8 +20,8 @@ router.get("/", getAllPrograma);
 router.get("/:id", getPrograma);
 
 // Escritura protegida con auth + permiso de vista Programas
-router.post("/", authMiddleware, ProgramaMiddleware, createPrograma);
-router.put("/:id", authMiddleware, ProgramaMiddleware, updatePrograma);
-router.delete("/:id", authMiddleware, ProgramaMiddleware, deletePrograma);
+router.post("/", authMiddleware, createPrograma);
+router.put("/:id", authMiddleware, updatePrograma);
+router.delete("/:id", authMiddleware, deletePrograma);
 
 export default router;

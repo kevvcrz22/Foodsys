@@ -1,10 +1,9 @@
 // Routes/NovedadesRoute.js
 // Rutas del modulo de novedades del sistema
-// Protegidas con authMiddleware y NovedadMiddleware
+// Protegidas con authMiddleware
 
 import express from "express";
 import authMiddleware from "../Middleware/authMiddleware.js";
-import NovedadMiddleware from "../Middleware/NovedadMiddleware.js";
 import {
   Obtener_Excepcionales,
   Obtener_Tipos,
@@ -17,7 +16,6 @@ const Router_Novedades = express.Router();
 Router_Novedades.get(
   "/excepcionales",
   authMiddleware,
-  NovedadMiddleware,
   Obtener_Excepcionales
 );
 

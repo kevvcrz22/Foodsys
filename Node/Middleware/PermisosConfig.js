@@ -21,7 +21,7 @@ const Permisos_Vista = {
   Novedad: [
     "Administrador", "Coordinador", "Bienestar",
   ],
-  Menu: ["Coordinador"],
+  Menu: ["Administrador", "Coordinador"],
   Programas: [
     "Supervisor", "Coordinador", "Cocina",
   ],
