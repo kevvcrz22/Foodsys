@@ -9,6 +9,7 @@ import MenuMiddleware from "../Middleware/MenuMiddleware.js";
 import {
   getAllMenu,
   getMenu,
+  getMenuByFecha,
   createMenu,
   updateMenu,
   deleteMenu,

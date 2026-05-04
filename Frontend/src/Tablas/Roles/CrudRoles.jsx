@@ -30,10 +30,10 @@ const rolColor = (idx) => {
 const DetalleModal = ({ rol, onClose, onEdit }) => {
   if (!rol) return null;
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-9999 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-violet-600 to-purple-500">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-linear-to-r from-violet-600 to-purple-500">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
               <Shield className="w-4 h-4 text-white" />
@@ -73,7 +73,7 @@ const DetalleModal = ({ rol, onClose, onEdit }) => {
 /* ── Tarjeta Móvil ── */
 const RolCard = ({ rol, index, onEdit, onView }) => (
   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-4 active:scale-[0.99] transition-transform">
-    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${rolColor(index)} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+    <div className={`w-12 h-12 rounded-2xl bg-linear-to-br ${rolColor(index)} flex items-center justify-center shrink-0 shadow-sm`}>
       <Shield className="w-5 h-5 text-white" />
     </div>
     <div className="flex-1 min-w-0">
@@ -82,7 +82,7 @@ const RolCard = ({ rol, index, onEdit, onView }) => (
         <Hash className="w-3 h-3" /> ID: {rol.Id_Rol}
       </p>
     </div>
-    <div className="flex flex-col gap-2 flex-shrink-0">
+    <div className="flex flex-col gap-2 shrink-0">
       <button
         onClick={() => onView(rol)}
         className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-gray-100 flex items-center justify-center transition-colors"
@@ -118,7 +118,7 @@ const CrudRoles = () => {
       grow: 2,
       cell: (r) => (
         <div className="flex items-center gap-2 py-1">
-          <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${rolColor(r.Id_Rol)} flex items-center justify-center flex-shrink-0`}>
+          <div className={`w-7 h-7 rounded-lg bg-linear-to-br ${rolColor(r.Id_Rol)} flex items-center justify-center shrink-0`}>
             <Shield className="w-3.5 h-3.5 text-white" />
           </div>
           <span className="font-medium text-gray-800">{r.Nom_Rol}</span>
@@ -165,10 +165,10 @@ const CrudRoles = () => {
   return (
     <>
       <div className="w-full h-full flex flex-col bg-gray-50 min-h-0">
-        <div className="bg-white border-b border-gray-200 px-4 py-3 lg:px-6 lg:py-4 flex-shrink-0">
+        <div className="bg-white border-b border-gray-200 px-4 py-3 lg:px-6 lg:py-4 shrink-0">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
                 <Shield className="w-4 h-4 text-white" />
               </div>
               <div>
@@ -178,7 +178,7 @@ const CrudRoles = () => {
             </div>
             <button
               onClick={() => { setRolSeleccionado(null); setIsModalOpen(true); }}
-              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-3 py-2 lg:px-5 lg:py-2.5 rounded-xl text-sm font-semibold transition-colors flex-shrink-0 shadow-sm shadow-violet-200"
+              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-3 py-2 lg:px-5 lg:py-2.5 rounded-xl text-sm font-semibold transition-colors shrink-0 shadow-sm shadow-violet-200"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Nuevo Rol</span>
@@ -249,10 +249,10 @@ const CrudRoles = () => {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-9999 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={hideModal} />
           <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 max-h-[95vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 flex-shrink-0">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 shrink-0">
               <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
                   {RolSeleccionado ? <Pencil className="w-3.5 h-3.5 text-violet-600" /> : <Plus className="w-3.5 h-3.5 text-violet-600" />}
@@ -264,7 +264,7 @@ const CrudRoles = () => {
               </button>
             </div>
             <div className="px-5 py-4 overflow-y-auto flex-1">
-              <RolesForm hideModal={hideModal} programa={RolSeleccionado} actualizarLista={getAllRoles} />
+              <RolesForm hideModal={hideModal} selectedRole={RolSeleccionado} actualizarLista={getAllRoles} />
             </div>
           </div>
         </div>

@@ -27,7 +27,7 @@ const Est_InicialErrores    = { TipDoc_Usuario: '', NumDoc_Usuario: '', password
 const Est_InicialTocado     = { TipDoc_Usuario: false, NumDoc_Usuario: false, password: false };
 
 // ─── URL base de la API ───────────────────────────────────────────────────────
-const Url_Api = 'http://localhost:8000/api/Usuarios';
+const Url_Api = '/api/Usuarios';
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 // Props:

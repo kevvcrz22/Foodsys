@@ -7,6 +7,7 @@ import {
   getReporteSemanal,
   getReporteMensual,
   getReporteAnual,
+  getReportePersonalizado,
   exportarPDF,
   exportarExcel,
 } from "../Controllers/ReportesController.js";
@@ -21,6 +22,7 @@ router.get("/diario",            getReporteDiario);
 router.get("/semanal",           getReporteSemanal);
 router.get("/mensual",           getReporteMensual);
 router.get("/anual",             getReporteAnual);
+router.get("/personalizado",     getReportePersonalizado);
 router.get("/exportar/pdf",      exportarPDF);
 router.get("/exportar/excel",    exportarExcel);
 

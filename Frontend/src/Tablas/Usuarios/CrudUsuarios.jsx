@@ -62,7 +62,7 @@ const DetalleModal = ({ usuario, onClose, onEdit }) => {
     { label: "Creado",       value: usuario.createdat ? new Date(usuario.createdat).toLocaleDateString("es-CO") : "—" },
   ];
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4">
+    <div className="fixed inset-0 z-9999 flex items-end sm:items-center justify-center sm:p-4">
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden z-10">
         <div className="bg-blue-600 px-5 py-4 flex items-center justify-between">
@@ -85,7 +85,7 @@ const DetalleModal = ({ usuario, onClose, onEdit }) => {
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide min-w-[90px]">{label}</span>
               {isEstado
                 ? <EstadoBadge estado={value} />
-                : <span className="text-[13px] text-slate-700 font-medium text-right break-words">{value || "—"}</span>}
+                : <span className="text-[13px] text-slate-700 font-medium text-right wrap-break-word">{value || "—"}</span>}
             </div>
           ))}
         </div>
@@ -150,6 +150,18 @@ const CrudUsuarios = () => {
   const [exportando,     setExportando] = useState(false);
   const [importModal,    setImportModal] = useState(false);
   const isMobile = useIsMobile();
+  const rolActivo = localStorage.getItem("rolActivo") || "";
+  const canToggleSan = rolActivo === "Administrador" || rolActivo === "Coordinador";
+
+  const toggleSancion = async (usuario) => {
+    try {
+      const nuevaSancion = usuario.Estado_Sancion === 1 ? 0 : 1;
+      await apiAxios.put(`/api/Usuarios/${usuario.Id_Usuario}`, { Estado_Sancion: nuevaSancion });
+      getAllUsuarios();
+    } catch {
+      alert("Error al actualizar el estado de sancion");
+    }
+  };
 
   const columnsTable = [
     { name: "ID", selector: (r) => r.Id_Usuario, sortable: true, width: "60px" },
@@ -184,14 +196,30 @@ const CrudUsuarios = () => {
         ? <span className="bg-violet-100 text-violet-700 rounded-lg px-2 py-0.5 text-xs font-semibold">{r.ficha.Num_Ficha}</span>
         : <span className="text-slate-400 text-xs">Sin ficha</span>,
     },
+    {
+      name: "Programa",
+      selector: (r) => r.ficha?.programas?.Nom_Programa,
+      sortable: true,
+      cell: (r) => r.ficha?.programas?.Nom_Programa 
+        ? <span className="text-[12px] text-slate-600">{r.ficha.programas.Nom_Programa}</span> 
+        : <span className="text-[12px] text-slate-400">Sin programa</span>,
+    },
     { name: "Estado", selector: (r) => r.Est_Usuario, sortable: true, cell: (r) => <EstadoBadge estado={r.Est_Usuario} /> },
     {
       name: "Acciones",
       cell: (row) => (
-        <button className="bg-blue-600 text-white border-0 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1 hover:bg-blue-700 transition-colors"
-          onClick={() => editUsuario(row)}>
-          <Pencil size={12} /> Editar
-        </button>
+        <div className="flex gap-2">
+          <button className="bg-blue-600 text-white border-0 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1 hover:bg-blue-700 transition-colors"
+            onClick={() => editUsuario(row)}>
+            <Pencil size={12} /> Editar
+          </button>
+          {canToggleSan && (
+            <button className={`${row.Estado_Sancion === 1 ? "bg-green-600 hover:bg-green-700" : "bg-orange-600 hover:bg-orange-700"} text-white border-0 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors`}
+              onClick={() => toggleSancion(row)}>
+              {row.Estado_Sancion === 1 ? "Reactivar" : "Inactivar"}
+            </button>
+          )}
+        </div>
       ),
     },
   ];
@@ -322,7 +350,7 @@ const CrudUsuarios = () => {
 
       {/* ── Modal crear / editar ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center p-4">
           {/* Overlay */}
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={hideModal} />
 

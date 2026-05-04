@@ -9,6 +9,16 @@ export const getAllMenu = async (req, res) => {
   }
 };
 
+export const getMenuByFecha = async (req, res) => {
+  try {
+    const fecha = req.params.fecha;
+    const Menus = await MenusService.getByFecha(fecha);
+    res.status(200).json(Menus);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const getMenu = async (req, res) => {
   try {
     const id = parseInt(req.params.id); // ← entero
