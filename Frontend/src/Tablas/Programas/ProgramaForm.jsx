@@ -33,25 +33,19 @@ const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
         try {
           
             if (textFormButton === "Enviar") {
-
-                await apiAxios.post('/api/Programas/', {
+                await apiAxios.post('/api/Programa/', {
                     Nom_Programa,
-                    Niv_For_Programa,
-                    Area
+                    NivFor_Programa: Niv_For_Programa,
+                    Are_Programa: Area
                 });
-
                 alert("Programa creado correctamente");
-
             }
-
             else if (textFormButton === "Actualizar") {
-
-                await apiAxios.put(`/api/Programas/${Id_Programa}`, {
+                await apiAxios.put(`/api/Programa/${Id_Programa}`, {
                     Nom_Programa,
-                    Niv_For_Programa,
-                    Area
+                    NivFor_Programa: Niv_For_Programa,
+                    Are_Programa: Area
                 });
-
                 alert("Programa actualizado correctamente");
             }
 

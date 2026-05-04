@@ -9,17 +9,22 @@ export const generarAlimentoTomorrow = async (req, res) => {
 
     // Se eliminan espacios en blanco por si el cliente envia datos con padding
     const Tip_Reserva = req.body.Tip_Reserva?.trim();
-    const { platoElegido } = req.body;
+    const { platoElegido, fechaReserva } = req.body;
 
     if (!Tip_Reserva) {
       return res.status(400).json({ message: "El Tipo de comida es obligatorio" });
+    }
+    
+    if (!fechaReserva) {
+      return res.status(400).json({ message: "La fecha de reserva es obligatoria" });
     }
 
     const result = await ReservasServices.generarReservaPass(
       Id_Usuario,
       rolesUsuario,
       Tip_Reserva,
-      platoElegido
+      platoElegido,
+      fechaReserva
     );
 
     return res.status(201).json(result);

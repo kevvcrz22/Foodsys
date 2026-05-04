@@ -46,6 +46,8 @@ const RUTAS_POR_ROL = {
   Coordinador: "/coordinador",
   "Aprendiz Interno": "/Interno",
   "Aprendiz Externo": "/Externo",
+  "Pasante Interno": "/Pasante",
+  "Pasante Externo": "/Pasante",
   Pasante: "/Pasante",
   Cocina: "/Cocina",
   Bienestar: "/Bienestar",

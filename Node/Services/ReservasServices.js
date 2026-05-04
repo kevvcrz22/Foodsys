@@ -11,14 +11,34 @@ class ReservasServices {
     return new Date().toISOString().split('T')[0];
   }
 
-  // Calcula la fecha y hora de vencimiento: el dia siguiente a la hora del tipo de comida
-  CalcularVencimiento(tipo) {
-    const manana = new Date();
-    manana.setDate(manana.getDate() + 1);
+  // Calcula la fecha y hora de vencimiento segun la fecha de reserva
+  CalcularVencimiento(tipo, fechaReserva) {
+    const vencimiento = new Date(`${fechaReserva}T00:00:00`);
     const horas = { Desayuno: 7, Almuerzo: 14, Cena: 19 };
     if (!horas[tipo]) throw new Error("Tipo de comida no valido");
-    manana.setHours(horas[tipo], 0, 0, 0);
-    return manana;
+    vencimiento.setHours(horas[tipo], 0, 0, 0);
+    return vencimiento;
+  }
+
+  // Valida que la reserva se haga con al menos 24 horas de antelacion respecto al limite de servicio
+  ValidarAntelacion24Horas(tipo, fechaReserva) {
+    const ahora = new Date();
+    const fechaObjetivo = new Date(`${fechaReserva}T00:00:00`);
+    
+    // Hora limite de servicio segun el tipo de comida
+    const horasLimite = { Desayuno: {h: 7, m: 0}, Almuerzo: {h: 14, m: 5}, Cena: {h: 19, m: 0} };
+    if (!horasLimite[tipo]) throw new Error("Tipo de comida no valido");
+    
+    fechaObjetivo.setHours(horasLimite[tipo].h, horasLimite[tipo].m, 0, 0);
+    
+    // Calcula la diferencia en horas
+    const diferenciaMs = fechaObjetivo.getTime() - ahora.getTime();
+    const diferenciaHoras = diferenciaMs / (1000 * 60 * 60);
+    
+    if (diferenciaHoras < 24) {
+      throw new Error(`La reserva para ${tipo} debe hacerse con al menos 24 horas de antelación (Cierre: ${horasLimite[tipo].h.toString().padStart(2, '0')}:${horasLimite[tipo].m.toString().padStart(2, '0')} del día anterior).`);
+    }
+    return true;
   }
 
   // Determina que tipos de comida puede reservar el usuario segun sus roles
@@ -46,12 +66,17 @@ class ReservasServices {
 
   // Crea una nueva reserva dentro de una transaccion para garantizar consistencia
   // Si algo falla en cualquier paso, se hace rollback y no queda ningun dato a medias
-  async generarReservaPass(Id_Usuario, rolesUsuario, Tip_Reserva, platoElegido) {
+  async generarReservaPass(Id_Usuario, rolesUsuario, Tip_Reserva, platoElegido, fechaReserva, esNovedad = false, justificacion = null) {
     return await db.transaction(async (transaction) => {
 
       // Paso 1: confirmar que el usuario existe en la base de datos
       const usuario = await UsuariosModel.findByPk(Id_Usuario, { transaction });
       if (!usuario) throw new Error("Usuario no encontrado");
+
+      // Validar si el usuario esta sancionado
+      if (usuario.Estado_Sancion === 1) {
+        throw new Error("No puedes realizar reservas porque te encuentras sancionado.");
+      }
 
       // Paso 2: validar que el tipo de comida este permitido para los roles del usuario
       const tiposPermitidos = this.ObtenerRolesPermitidos(rolesUsuario);
@@ -64,33 +89,39 @@ class ReservasServices {
       const plato = await PlatosModels.findByPk(platoElegido, { transaction });
       if (!plato) throw new Error("El plato seleccionado no existe");
 
+      // Validar regla de 24 horas si no es reserva por novedad
+      if (!esNovedad) {
+        this.ValidarAntelacion24Horas(TipoNormalizado, fechaReserva);
+      }
+
       // Paso 4: calcular las fechas de generacion y vencimiento
-      const fechaGeneracion = this.ObtenerFechaHoy();
-      const fechaVencimiento = this.CalcularVencimiento(TipoNormalizado);
+      const fechaVencimiento = this.CalcularVencimiento(TipoNormalizado, fechaReserva);
 
       // Paso 5: evitar duplicados, solo puede existir una reserva activa por tipo y dia
       const existente = await ReservaModel.findOne({
         where: {
           Id_Usuario: usuario.Id_Usuario,
           Tip_Reserva: TipoNormalizado,
-          Fec_Reserva: fechaGeneracion,
+          Fec_Reserva: fechaReserva,
           Est_Reserva: 'Generado'
         },
         transaction
       });
       if (existente) {
-        throw new Error(`Ya tienes una reserva activa para ${TipoNormalizado} generada hoy`);
+        throw new Error(`Ya tienes una reserva activa para ${TipoNormalizado} en la fecha ${fechaReserva}`);
       }
 
       // Paso 6: insertar la reserva con el QR vacio, se llenara en el paso 8
       const nuevaReserva = await ReservaModel.create({
         Id_Usuario: usuario.Id_Usuario,
-        Fec_Reserva: fechaGeneracion,
+        Fec_Reserva: fechaReserva,
         Vec_Reserva: fechaVencimiento,
         Tip_Reserva: TipoNormalizado,
         Est_Reserva: 'Generado',
         Qr_Reserva: '',
-        Id_Plato: platoElegido
+        Id_Plato: platoElegido,
+        Res_Excepcional: esNovedad ? "Si" : "No",
+        Justificacion: justificacion
       }, { transaction });
 
       // Paso 7: armar el objeto que se va a encriptar y guardar en el QR
@@ -98,7 +129,7 @@ class ReservasServices {
         Id_Reserva: nuevaReserva.Id_Reserva,
         Id_Usuario: usuario.Id_Usuario,
         Tipo: TipoNormalizado,
-        Fec_Reserva: fechaGeneracion,
+        Fec_Reserva: fechaReserva,
         Vencimiento: fechaVencimiento.toISOString()
       };
 
@@ -112,7 +143,7 @@ class ReservasServices {
 
       return {
         Qr_Reserva: encriptado,
-        validDate: fechaGeneracion,
+        validDate: fechaReserva,
         expiresAt: fechaVencimiento,
         qrUrl
       };

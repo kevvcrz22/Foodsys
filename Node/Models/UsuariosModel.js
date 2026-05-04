@@ -16,6 +16,7 @@ const UsuariosModel = db.define('usuarios', {
   San_Usuario: {type: DataTypes.STRING, allowNull: true},
   Id_Ficha: {type: DataTypes.INTEGER,references: { model: "fichas", key: "Id_Ficha" }},
   password: { type: DataTypes.STRING, allowNull: true },
+  Estado_Sancion: { type: DataTypes.INTEGER, defaultValue: 0 },
   uuid: { type: DataTypes.STRING, allowNull: true },
   token: { type: DataTypes.STRING, allowNull: true }
 },
