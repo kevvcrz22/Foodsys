@@ -4,15 +4,16 @@ import apiAxios from "../../api/axiosConfig";
 import { Calendar, Hash, BookOpen, AlertCircle } from "lucide-react";
 
 const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
-  const [Id_Ficha, setId_Ficha] = useState("");
-  const [Num_Ficha, setNum_Ficha] = useState("");
-  const [FecIniLec_Ficha, setFecIniLec_Ficha] = useState("");
-  const [FecFinLec_Ficha, setFecFinLec_Ficha] = useState("");
-  const [FecIniPra_Ficha, setFecIniPra_Ficha] = useState("");
-  const [FecFinPra_Ficha, setFecFinPra_Ficha] = useState("");
-  const [Id_Programa, setId_Programa] = useState("");
-  const [Programas, setProgramas] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [Id_Ficha,        setId_Ficha]        = useState("");
+  const [Num_Ficha,        setNum_Ficha]        = useState("");
+  const [FecIniLec_Ficha,  setFecIniLec_Ficha]  = useState("");
+  const [FecFinLec_Ficha,  setFecFinLec_Ficha]  = useState("");
+  const [FecIniPra_Ficha,  setFecIniPra_Ficha]  = useState("");
+  const [FecFinPra_Ficha,  setFecFinPra_Ficha]  = useState("");
+  const [Id_Programa,      setId_Programa]      = useState("");
+  const [Programas,        setProgramas]        = useState([]);
+  const [loading,          setLoading]          = useState(false);
+  const [error,            setError]            = useState("");
 
   useEffect(() => {
     fetchProgramas();
@@ -41,15 +42,18 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
 
+    // Num_Ficha e Id_Programa deben enviarse como enteros, no como strings,
+    // porque la BD los define como INT(11) y Sequelize valida el tipo.
     const payload = {
-      Num_Ficha,
+      Num_Ficha:       parseInt(Num_Ficha, 10),
       FecIniLec_Ficha,
       FecFinLec_Ficha,
       FecIniPra_Ficha,
       FecFinPra_Ficha,
-      Id_Programa,
+      Id_Programa:     parseInt(Id_Programa, 10),
     };
 
     try {
@@ -63,17 +67,17 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
       reload();
       hideModal();
     } catch (error) {
-      const msg = error.response?.data?.message || error.message;
-      alert(`Error: ${msg}`);
+      const msg = error.response?.data?.message || error.message || "Error desconocido";
+      console.error("Error al guardar ficha:", error.response?.data || error);
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const InputField = ({ label, icon: Icon, type, value, onChange, placeholder, required = true }) => (
+  const InputField = ({ label, type, value, onChange, placeholder, required = true }) => (
     <div className="space-y-1.5">
       <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-        <Icon size={12} className="text-blue-500" />
         {label}
       </label>
       <input
@@ -89,6 +93,14 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+
+      {/* Muestra el mensaje de error del servidor si el guardado falla */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div className="sm:col-span-2">
           <InputField

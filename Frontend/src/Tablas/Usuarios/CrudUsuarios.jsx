@@ -155,8 +155,8 @@ const CrudUsuarios = () => {
 
   const toggleSancion = async (usuario) => {
     try {
-      const nuevaSancion = usuario.Estado_Sancion === 1 ? 0 : 1;
-      await apiAxios.put(`/api/Usuarios/${usuario.Id_Usuario}`, { Estado_Sancion: nuevaSancion });
+      const nuevaSancion = usuario.San_Usuario === 1 ? 0 : 1;
+      await apiAxios.put(`/api/Usuarios/${usuario.Id_Usuario}`, { San_Usuario: nuevaSancion });
       getAllUsuarios();
     } catch {
       alert("Error al actualizar el estado de sancion");
@@ -214,9 +214,9 @@ const CrudUsuarios = () => {
             <Pencil size={12} /> Editar
           </button>
           {canToggleSan && (
-            <button className={`${row.Estado_Sancion === 1 ? "bg-green-600 hover:bg-green-700" : "bg-orange-600 hover:bg-orange-700"} text-white border-0 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors`}
+            <button className={`${row.San_Usuario=== 1 ? "bg-green-600 hover:bg-green-700" : "bg-orange-600 hover:bg-orange-700"} text-white border-0 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors`}
               onClick={() => toggleSancion(row)}>
-              {row.Estado_Sancion === 1 ? "Reactivar" : "Inactivar"}
+              {row.San_Usuario=== 1 ? "Reactivar" : "Inactivar"}
             </button>
           )}
         </div>

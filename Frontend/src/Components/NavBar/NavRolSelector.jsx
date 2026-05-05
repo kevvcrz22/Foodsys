@@ -51,9 +51,11 @@ const NavRolSelector = ({ usuario, roles = [], rolActivo, onCambioRol }) => {
       <button
         type="button"
         onClick={() => Set_MenuAbierto(!Menu_Abierto)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/15
-                   hover:bg-white/25 text-white text-sm font-semibold
-                   transition-colors duration-200 focus:outline-none"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg
+           bg-green-500 hover:bg-green-700
+           lg:bg-white/15 lg:hover:bg-white/25
+           text-white text-sm font-semibold
+           transition-colors duration-200 focus:outline-none"
         aria-haspopup="listbox"
         aria-expanded={Menu_Abierto}
       >

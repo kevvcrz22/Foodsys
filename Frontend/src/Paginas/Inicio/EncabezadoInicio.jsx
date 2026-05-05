@@ -18,7 +18,6 @@ const Obtener_Fecha = () => {
     weekday: "long",
     day: "numeric",
     month: "long",
-    year: "numeric",
   });
 };
 
@@ -40,17 +39,23 @@ const EncabezadoInicio = ({ Usuario, Rol_Activo }) => {
     <div className="bg-white rounded-2xl p-5 border border-slate-100">
       <div className="flex items-center justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-3">
-            <Clock size={16} className="text-slate-500" />
-            <span className="text-sm font-medium text-slate-500 capitalize truncate">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Clock size={12} className="text-slate-400" />
+            <span className="text-xs text-slate-400 capitalize truncate">
               {Obtener_Fecha()}
             </span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-2 flex-wrap">
-            {Obtener_Saludo()}, <span className="text-blue-600">{Nombre_Pila} {Rol_Activo || ""}</span>
+          <h1 className="text-xl font-bold text-slate-800">
+            {Obtener_Saludo()},
           </h1>
+          <h2 className="text-xl font-bold text-blue-600 truncate">
+            {Nombre_Pila}
+          </h2>
+          <span className="inline-block mt-2 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+            {Rol_Activo || "Sin rol"}
+          </span>
         </div>
-        <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-200 shrink-0 ml-4">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm flex-shrink-0 ml-4">
           {Iniciales || "U"}
         </div>
       </div>

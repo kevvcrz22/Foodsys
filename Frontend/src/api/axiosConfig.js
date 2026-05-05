@@ -2,9 +2,9 @@ import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-
+console.log("API_URL:", API_URL);
 const apiNode = axios.create({
-  baseURL: '',
+  baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -12,7 +12,7 @@ const apiNode = axios.create({
 
 
 apiNode.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token"); // ✅ directo, sin JSON.parse
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

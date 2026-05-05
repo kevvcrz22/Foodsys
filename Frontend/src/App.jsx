@@ -21,7 +21,6 @@ import Sidebar from "./Components/Sidebar.jsx";
 
 /* Contexto de autenticacion */
 import { AuthContext } from "./context/authContext.jsx";
-import GenerateQR from "./Tablas/Usuarios/GenerateQR.jsx";
 
 /* VISTAS COMPARTIDAS */
 import Reportes from "./Paginas/Reportes/Reportes.jsx";
@@ -36,8 +35,9 @@ import CrudPrograma from "./Tablas/Programas/CrudPrograma.jsx";
 import CrudRoles from "./Tablas/Roles/CrudRoles.jsx";
 import CrudPlatos from "./Tablas/Platos/CrudPlatos.jsx";
 import CrudMenus from "./Tablas/Menus/CrudMenus.jsx";
-import CrudReservas from "./Tablas/Reservas/ReservaForm.jsx";
+import CrudReservas from "./Tablas/Reservas/CrudReservas.jsx";
 import Aprendices from "./Tablas/Usuarios/Aprendices.jsx";
+import ReservaForm from "./Tablas/Reservas/ReservaForm.jsx";
 
 /* Mapa de rutas por rol para redirigir despues del login */
 const RUTAS_POR_ROL = {
@@ -46,8 +46,6 @@ const RUTAS_POR_ROL = {
   Coordinador: "/coordinador",
   "Aprendiz Interno": "/Interno",
   "Aprendiz Externo": "/Externo",
-  "Pasante Interno": "/Pasante",
-  "Pasante Externo": "/Pasante",
   Pasante: "/Pasante",
   Cocina: "/Cocina",
   Bienestar: "/Bienestar",
@@ -67,12 +65,13 @@ const ProtectedRoute = ({
 
 /* Layout con sidebar para paginas internas.
    Recibe los datos del rol para pasarlos al Sidebar y al NavRolSelector dentro de el. */
-const LayoutConSidebar = ({ children, roles, rolActivo, onCambioRol }) => (
+const LayoutConSidebar = ({ children, roles, rolActivo, onCambioRol, onCerrarSesion }) => (
   <div className="flex h-full bg-gray-100">
     <Sidebar
       roles={roles}
       rolActivo={rolActivo}
       onCambioRol={onCambioRol}
+      onCerrarSesion={onCerrarSesion}
     />
     <div className="flex-1 min-w-0">
       <main className="p-4 md:p-6">{children}</main>
@@ -137,6 +136,17 @@ function App() {
 
   const Props_Auth = { isAuth: Es_Auth, rolActivo: Rol_Activo };
 
+  /* Manejador de cerrar sesion */
+  const Manejar_CerrarSesion = () => {
+    localStorage.clear();
+    Set_UsuarioLogeado(null);
+    Set_EsAuth(false);
+    Set_Roles([]);
+    Set_RolActivo(null);
+    setUser(null);
+    Navegar("/");
+  };
+
   /* Props compartidos de layout para pasar al Sidebar desde cada ruta protegida */
   const Props_Layout = {
     roles: Roles,
@@ -145,6 +155,9 @@ function App() {
       localStorage.setItem("rolActivo", Nuevo_Rol);
       Set_RolActivo(Nuevo_Rol);
     },
+    // Se pasa el mismo manejador que usa el NavBar para que el Sidebar
+    // también resetee los estados de React al cerrar sesión
+    onCerrarSesion: Manejar_CerrarSesion,
   };
 
   if (Cargando) {
@@ -169,16 +182,7 @@ function App() {
     Navegar(RUTAS_POR_ROL[Rol_Recibido] || "/");
   };
 
-  /* Manejador de cerrar sesion */
-  const Manejar_CerrarSesion = () => {
-    localStorage.clear();
-    Set_UsuarioLogeado(null);
-    Set_EsAuth(false);
-    Set_Roles([]);
-    Set_RolActivo(null);
-    setUser(null);
-    Navegar("/");
-  };
+
 
   const Ocultar_Chatbot =
     Ubicacion.pathname.startsWith("/coordinador");
@@ -211,7 +215,6 @@ function App() {
                 "Pasante",
               ]}
             >
-              <GenerateQR />
             </ProtectedRoute>
           }
         />
@@ -244,7 +247,7 @@ function App() {
                   <Route path="Inicio" element={<Inicio />} />
                   <Route path="Perfil" element={<Perfil />} />
                   <Route path="Reportes" element={<Reportes />} />
-                  <Route path="Reservas" element={<CrudReservas />} />
+                  <Route path="Reservar" element={<ReservaForm />} />
                   <Route path="Novedades" element={<Novedades />} />
                 </Routes>
               </LayoutConSidebar>

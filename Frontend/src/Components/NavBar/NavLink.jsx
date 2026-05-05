@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 // Solo links publicos: Contacto y Que es FoodSys
 const LINKS_NAVBAR = [
   { to: "/contacto", label: "Contacto" },
-  { to: "/about", label: "Que es FoodSys" },
+  { to: "/about", label: "Que es Foodsys" },
 ];
 
 const NavLinks = () => (

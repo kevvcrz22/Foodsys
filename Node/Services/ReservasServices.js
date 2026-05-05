@@ -74,7 +74,7 @@ class ReservasServices {
       if (!usuario) throw new Error("Usuario no encontrado");
 
       // Validar si el usuario esta sancionado
-      if (usuario.Estado_Sancion === 1) {
+      if (usuario.San_Usuario === 1) {
         throw new Error("No puedes realizar reservas porque te encuentras sancionado.");
       }
 
@@ -139,7 +139,7 @@ class ReservasServices {
 
       // La URL que se codificara en el QR apunta al frontend con los datos encriptados
       const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-      const qrUrl = `${baseUrl}/desayuno-checkin?data=${encodeURIComponent(encriptado)}`;
+      const qrUrl = `${baseUrl}/ReservaCreada-checkin?data=${encodeURIComponent(encriptado)}`;
 
       return {
         Qr_Reserva: encriptado,

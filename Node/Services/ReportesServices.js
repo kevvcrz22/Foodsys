@@ -10,9 +10,9 @@ class ReportesService {
       `SELECT
          DATE(Fec_Reserva)     AS periodo,
          COUNT(*)              AS total,
-         SUM(Tip_Reserva = 'Desayuno') AS desayunos,
-         SUM(Tip_Reserva = 'Almuerzo') AS almuerzos,
-         SUM(Tip_Reserva = 'Cena')     AS cenas
+         SUM(Tip_Reserva = 'Desayuno'),
+         SUM(Tip_Reserva = 'Almuerzo'),
+         SUM(Tip_Reserva = 'Cena')
        FROM reservas
        WHERE Fec_Reserva >= CURDATE() - INTERVAL 7 DAY
        GROUP BY DATE(Fec_Reserva)
@@ -30,9 +30,9 @@ class ReportesService {
          WEEK(Fec_Reserva, 1)        AS semana,
          CONCAT('Sem ', WEEK(Fec_Reserva, 1), '-', YEAR(Fec_Reserva)) AS periodo,
          COUNT(*)                    AS total,
-         SUM(Tip_Reserva = 'Desayuno')      AS desayunos,
-         SUM(Tip_Reserva = 'Almuerzo')      AS almuerzos,
-         SUM(Tip_Reserva = 'Cena')          AS cenas
+         SUM(Tip_Reserva = 'Desayuno')     ,
+         SUM(Tip_Reserva = 'Almuerzo')    ),
+         SUM(Tip_Reserva = 'Cena')     
        FROM reservas
        WHERE Fec_Reserva >= CURDATE() - INTERVAL 8 WEEK
        GROUP BY anio, semana
@@ -49,9 +49,9 @@ class ReportesService {
          DATE_FORMAT(Fec_Reserva, '%Y-%m')  AS periodo,
          DATE_FORMAT(Fec_Reserva, '%b %Y')  AS label,
          COUNT(*)                           AS total,
-         SUM(Tip_Reserva = 'Desayuno')             AS desayunos,
-         SUM(Tip_Reserva = 'Almuerzo')             AS almuerzos,
-         SUM(Tip_Reserva = 'Cena')                 AS cenas
+         SUM(Tip_Reserva = 'Desayuno')            ,
+         SUM(Tip_Reserva = 'Almuerzo')           ),
+         SUM(Tip_Reserva = 'Cena')            
        FROM reservas
        WHERE Fec_Reserva >= CURDATE() - INTERVAL 12 MONTH
        GROUP BY periodo
@@ -67,9 +67,9 @@ class ReportesService {
       `SELECT
          YEAR(Fec_Reserva)       AS periodo,
          COUNT(*)                AS total,
-         SUM(Tip_Reserva = 'Desayuno')  AS desayunos,
-         SUM(Tip_Reserva = 'Almuerzo')  AS almuerzos,
-         SUM(Tip_Reserva = 'Cena')      AS cenas
+         SUM(Tip_Reserva = 'Desayuno') ,
+         SUM(Tip_Reserva = 'Almuerzo')),
+         SUM(Tip_Reserva = 'Cena') 
        FROM reservas
        WHERE YEAR(Fec_Reserva) >= YEAR(CURDATE()) - 4
        GROUP BY YEAR(Fec_Reserva)
@@ -93,9 +93,9 @@ class ReportesService {
       `SELECT
          DATE(Fec_Reserva)     AS periodo,
          COUNT(*)              AS total,
-         SUM(Tip_Reserva = 'Desayuno') AS desayunos,
-         SUM(Tip_Reserva = 'Almuerzo') AS almuerzos,
-         SUM(Tip_Reserva = 'Cena')     AS cenas
+         SUM(Tip_Reserva = 'Desayuno'),
+         SUM(Tip_Reserva = 'Almuerzo'),
+         SUM(Tip_Reserva = 'Cena')
        FROM reservas
        ${whereClause}
        GROUP BY DATE(Fec_Reserva)

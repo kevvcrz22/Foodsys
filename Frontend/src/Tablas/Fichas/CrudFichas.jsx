@@ -115,6 +115,18 @@ const CrudFichas = () => {
       cell: (r) => <span className="font-bold text-blue-600 text-sm tracking-tight">{r.Num_Ficha}</span> 
     },
     { 
+      name: "Inicio Lectiva",
+      selector: (r) => r.FecIniLec_Ficha,
+      sortable: true,
+      cell: (r) => <span className="text-[12px] text-slate-500">{r.FecIniLec_Ficha?.slice(0, 10) || "—"}</span>
+    },
+    { 
+      name: "Fin Lectiva",
+      selector: (r) => r.FecFinLec_Ficha,
+      sortable: true,
+      cell: (r) => <span className="text-[12px] text-slate-500">{r.FecFinLec_Ficha?.slice(0, 10) || "—"}</span>
+    },
+    { 
       name: "Programa", 
       selector: (r) => r.programas?.Nom_Programa,
       sortable: true,
@@ -134,14 +146,15 @@ const CrudFichas = () => {
         );
       },
     },
-    { 
-      name: "Fechas Lectiva", 
+    {
+      name: "Creado",
+      selector: (r) => r.createdat,
+      sortable: true,
       cell: (r) => (
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[11px] text-slate-400 font-bold uppercase">Inicio: {r.FecIniLec_Ficha?.slice(0, 10) || "—"}</span>
-          <span className="text-[11px] text-slate-400 font-bold uppercase">Fin: {r.FecFinLec_Ficha?.slice(0, 10) || "—"}</span>
-        </div>
-      )
+        <span className="text-[11px] text-slate-400">
+          {r.createdat ? new Date(r.createdat).toLocaleDateString("es-CO") : "—"}
+        </span>
+      ),
     },
     {
       name: "Acciones",

@@ -1,5 +1,7 @@
 import { Router } from "express";
 import authMiddleware from "../Middleware/authMiddleware.js";
+// HorariosMiddleware valida que el horario actual permita crear una reserva
+// para el tipo de comida enviado. Actua como guardia antes del controlador.
 import {
   generarAlimentoTomorrow,
   obtenerHistorial,
@@ -9,7 +11,8 @@ import {
 
 const router = Router();
 
-// Genera una nueva reserva
+// Genera una nueva reserva para el dia siguiente.
+// La cadena de middlewares es: auth -> controlador.
 router.post('/reservar/generate-tomorrow',
   authMiddleware,
   generarAlimentoTomorrow

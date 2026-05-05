@@ -27,10 +27,10 @@ const nivelColor = (nivel) => {
 const DetalleModal = ({ programa, onClose, onEdit }) => {
   if (!programa) return null;
   const rows = [
-    { label: "ID", value: programa.Id_Programa },
-    { label: "Nombre", value: programa.Nom_Programa },
-    { label: "Área", value: programa.Area },
-    { label: "Nivel de Formación", value: programa.Niv_For_Programa },
+    { label: "ID",               value: programa.Id_Programa },
+    { label: "Nombre",           value: programa.Nom_Programa },
+    { label: "Área",             value: programa.Are_Programa },
+    { label: "Nivel de Formación", value: programa.NivFor_Programa },
   ];
   return (
     <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -81,10 +81,10 @@ const ProgramaCard = ({ programa, onEdit, onView }) => (
       <p className="font-bold text-gray-900 text-sm truncate">{programa.Nom_Programa}</p>
       <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 truncate">
         <Layers className="w-3 h-3 flex-shrink-0" />
-        {programa.Area || "Sin área"}
+        {programa.Are_Programa || "Sin área"}
       </p>
-      <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${nivelColor(programa.Niv_For_Programa)}`}>
-        {programa.Niv_For_Programa || "Sin nivel"}
+      <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${nivelColor(programa.NivFor_Programa)}`}>
+        {programa.NivFor_Programa || "Sin nivel"}
       </span>
     </div>
     <div className="flex flex-col gap-2 flex-shrink-0">
@@ -115,16 +115,16 @@ const CrudPrograma = () => {
   const isMobile = useIsMobile();
 
   const columnsTable = [
-    { name: "N°", selector: (r) => r.Id_Programa, sortable: true, width: "70px" },
-    { name: "Nombre Programa", selector: (r) => r.Nom_Programa, sortable: true, grow: 2 },
-    { name: "Área", selector: (r) => r.Area, sortable: true },
+    { name: "N°",              selector: (r) => r.Id_Programa,     sortable: true, width: "70px" },
+    { name: "Nombre Programa", selector: (r) => r.Nom_Programa,    sortable: true, grow: 2 },
+    { name: "Área",            selector: (r) => r.Are_Programa,    sortable: true },
     {
       name: "Nivel",
-      selector: (r) => r.Niv_For_Programa,
+      selector: (r) => r.NivFor_Programa,
       sortable: true,
       cell: (r) => (
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${nivelColor(r.Niv_For_Programa)}`}>
-          {r.Niv_For_Programa}
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${nivelColor(r.NivFor_Programa)}`}>
+          {r.NivFor_Programa}
         </span>
       ),
     },
@@ -145,8 +145,9 @@ const CrudPrograma = () => {
 
   const getAllPrograma = async () => {
     try {
-      const response = await apiNode.get("/api/Programas/");
-      setPrograma(response.data);
+      // Ruta correcta: /api/Programa (sin 's' al final, igual que en App.js del Node)
+      const response = await apiNode.get("/api/Programa/");
+      setPrograma(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error al obtener programas:", error);
     }

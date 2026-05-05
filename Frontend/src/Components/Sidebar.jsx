@@ -15,73 +15,52 @@ import {
 import { useNavBar } from "./CerrarSesion";
 import NavRolSelector from "./NavBar/NavRolSelector";
 
-// Navegacion principal organizada por rol segun matriz
+// Navegacion principal organizada por rol
 const NAV_POR_ROL = {
   Administrador: [
     { to: "/Administrador", label: "Inicio", icon: Home },
     { to: "/Administrador/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Administrador/Reservar", label: "Reservar", icon: CalendarCheck },
-    { to: "/Administrador/Menu", label: "Menú", icon: Utensils },
     { to: "/Administrador/Reportes", label: "Reportes", icon: BarChart3 },
+    { to: "/Administrador/Reservar", label: "Reservar", icon: CalendarCheck },
     { to: "/Administrador/Novedades", label: "Novedades", icon: ClipboardList },
-    { to: "/Administrador/HistorialReservas", label: "Historial", icon: Database },
-    { to: "/Administrador/Estadisticas", label: "Estadísticas", icon: BarChart3 },
   ],
   Supervisor: [
     { to: "/supervisor", label: "Inicio", icon: Home },
     { to: "/supervisor/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/supervisor/Reservar", label: "Reservar", icon: CalendarCheck },
-    { to: "/supervisor/Menu", label: "Menú", icon: Utensils },
+    { to: "/supervisor/Registrar", label: "Registrar", icon: Edit },
     { to: "/supervisor/Reportes", label: "Reportes", icon: BarChart3 },
-    { to: "/supervisor/Novedades", label: "Novedades", icon: ClipboardList },
   ],
   "Aprendiz Externo": [
     { to: "/Externo", label: "Inicio", icon: Home },
     { to: "/Externo/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Externo/Reservar", label: "Reservar", icon: CalendarCheck },
-    { to: "/Externo/Menu", label: "Menú", icon: Utensils },
-    { to: "/Externo/HistorialReservas", label: "Historial", icon: Database },
-    { to: "/Externo/Estadisticas", label: "Estadísticas", icon: BarChart3 },
+    { to: "/Externo/Reservas", label: "Reservas", icon: CalendarCheck },
   ],
   "Aprendiz Interno": [
     { to: "/Interno", label: "Inicio", icon: Home },
     { to: "/Interno/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Interno/Reservar", label: "Reservar", icon: CalendarCheck },
-    { to: "/Interno/Menu", label: "Menú", icon: Utensils },
-    { to: "/Interno/HistorialReservas", label: "Historial", icon: Database },
-    { to: "/Interno/Estadisticas", label: "Estadísticas", icon: BarChart3 },
+    { to: "/Interno/Reservas", label: "Reservas", icon: CalendarCheck },
   ],
   Coordinador: [
     { to: "/coordinador", label: "Inicio", icon: Home },
     { to: "/coordinador/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/coordinador/Reservar", label: "Reservar", icon: CalendarCheck },
-    { to: "/coordinador/Menu", label: "Menú", icon: Utensils },
-    { to: "/coordinador/Reportes", label: "Reportes", icon: BarChart3 },
     { to: "/coordinador/Novedades", label: "Novedades", icon: ClipboardList },
-    { to: "/coordinador/HistorialReservas", label: "Historial", icon: Database },
-    { to: "/coordinador/Estadisticas", label: "Estadísticas", icon: BarChart3 },
+    { to: "/coordinador/Reportes", label: "Reportes", icon: BarChart3 },
   ],
   Pasante: [
     { to: "/Pasante", label: "Inicio", icon: Home },
     { to: "/Pasante/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Pasante/Reservar", label: "Reservar", icon: CalendarCheck },
-    { to: "/Pasante/Menu", label: "Menú", icon: Utensils },
-    { to: "/Pasante/HistorialReservas", label: "Historial", icon: Database },
+    { to: "/Pasante/Reservas", label: "Reservas", icon: CalendarCheck },
   ],
   Cocina: [
     { to: "/Cocina", label: "Inicio", icon: Home },
     { to: "/Cocina/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Cocina/Menu", label: "Menú", icon: Utensils },
     { to: "/Cocina/Reportes", label: "Reportes", icon: BarChart3 },
   ],
   Bienestar: [
     { to: "/Bienestar", label: "Inicio", icon: Home },
     { to: "/Bienestar/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Bienestar/Reservar", label: "Reservar", icon: CalendarCheck },
-    { to: "/Bienestar/Menu", label: "Menú", icon: Utensils },
     { to: "/Bienestar/Reportes", label: "Reportes", icon: BarChart3 },
     { to: "/Bienestar/Novedades", label: "Novedades", icon: ClipboardList },
-    { to: "/Bienestar/Estadisticas", label: "Estadísticas", icon: BarChart3 },
   ],
 };
 
@@ -89,43 +68,19 @@ const NAV_POR_ROL = {
 const TABLAS_POR_ROL = {
   Administrador: [
     { to: "/usuarios", label: "Usuarios", icon: Users },
-    { to: "/roles", label: "Roles", icon: ShieldCheck },
     { to: "/aprendices", label: "Aprendices", icon: User },
-    { to: "/programas", label: "Programas", icon: GraduationCap },
-    { to: "/platos", label: "Platos", icon: Utensils },
-    { to: "/fichas", label: "Fichas", icon: FileText },
-  ],
-  Supervisor: [
-    { to: "/usuarios", label: "Usuarios", icon: Users },
+    { to: "/UsuariosRoles", label: "Usuarios Roles", icon: ShieldCheck },
     { to: "/roles", label: "Roles", icon: ShieldCheck },
-    { to: "/aprendices", label: "Aprendices", icon: User },
-    { to: "/programas", label: "Programas", icon: GraduationCap },
-    { to: "/platos", label: "Platos", icon: Utensils },
     { to: "/fichas", label: "Fichas", icon: FileText },
+    { to: "/programas", label: "Programas", icon: GraduationCap },
+    { to: "/reservas", label: "Reservas", icon: Database },
+    { to: "/platos", label: "Platos", icon: Utensils },
+    { to: "/menus", label: "Menus", icon: ClipboardList },
   ],
   Coordinador: [
-    { to: "/usuarios", label: "Usuarios", icon: Users },
-    { to: "/roles", label: "Roles", icon: ShieldCheck },
     { to: "/aprendices", label: "Aprendices", icon: User },
-    { to: "/programas", label: "Programas", icon: GraduationCap },
-    { to: "/platos", label: "Platos", icon: Utensils },
-    { to: "/fichas", label: "Fichas", icon: FileText },
   ],
   Bienestar: [
-    { to: "/usuarios", label: "Usuarios", icon: Users },
-    { to: "/roles", label: "Roles", icon: ShieldCheck },
-    { to: "/aprendices", label: "Aprendices", icon: User },
-    { to: "/programas", label: "Programas", icon: GraduationCap },
-    { to: "/platos", label: "Platos", icon: Utensils },
-    { to: "/fichas", label: "Fichas", icon: FileText },
-  ],
-  "Aprendiz Externo": [
-    { to: "/aprendices", label: "Aprendices", icon: User },
-  ],
-  "Aprendiz Interno": [
-    { to: "/aprendices", label: "Aprendices", icon: User },
-  ],
-  Pasante: [
     { to: "/aprendices", label: "Aprendices", icon: User },
   ],
 };
@@ -152,11 +107,12 @@ const DEFAULT_ACCENT = {
 // - roles: lista de roles del usuario logueado
 // - rolActivo: rol actualmente activo
 // - onCambioRol: funcion para cambiar el rol activo
-export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambioRol }) {
+// - onCerrarSesion: funcion para resetear estados en App.jsx
+export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambioRol, onCerrarSesion }) {
   const [Sidebar_Abierto, Set_SidebarAbierto] = useState(false);
   const [Usuario, Set_Usuario] = useState(null);
   const [Rol_Activo, Set_RolActivo] = useState("");
-  const { handleCerrarSesion } = useNavBar();
+  const { handleCerrarSesion } = useNavBar({ onCerrarSesion });
 
   // Leer datos del usuario y sincronizar el rol activo desde props o localStorage
   useEffect(() => {
@@ -208,7 +164,7 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
           className={Obtener_Clase_Link}
           onClick={() => Set_SidebarAbierto(false)}
         >
-          <Icono_Comp className="w-5 h-5 shrink-0" />
+          <Icono_Comp className="w-5 h-5 flex-shrink-0" />
           <span>{Item.label}</span>
         </NavLink>
       );
@@ -264,7 +220,7 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
         )}
         {Tablas.length > 0 && (
           <>
-            <p className="text-gray-400 text-xs font-semibold px-4 mt-6 mb-2 uppercase tracking-wider">
+            <p className="text-gray-400 text-xs font-semibold px-4 mt-4">
               Administracion
             </p>
             {Renderizar_Links(Tablas)}
@@ -339,7 +295,7 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
 
       {/* Sidebar version movil: drawer deslizable */}
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 z-65 w-72 flex flex-col
+        className={`lg:hidden fixed inset-y-0 left-0 z-[65] w-72 flex flex-col
                     transform transition-transform duration-300 ease-in-out
                     ${Sidebar_Abierto ? "translate-x-0" : "-translate-x-full"}`}
       >
