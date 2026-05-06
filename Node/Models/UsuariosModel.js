@@ -22,7 +22,12 @@ const UsuariosModel = db.define('usuarios', {
 },
 {
   freezeTableName: true,
+  Id_Rol: {
+  type: DataTypes.INTEGER,
+  references: { model: "roles", key: "Id_Rol" }
+}
   
 })
+
 
 export default UsuariosModel;
