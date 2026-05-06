@@ -1,58 +1,78 @@
 import FichasModel from "../Models/FichasModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
+import UsuariosModel from "../Models/UsuariosModel.js";
+import UsuariosRolModel from "../Models/UsuariosRolModel.js";
+import { Op } from "sequelize";
+
+const ROLES_APRENDIZ = [4, 5];
+
+// Función reutilizable (también la usa el cron)
+export async function sincronizarEstadoAprendices(Id_Ficha) {
+  const ficha = await FichasModel.findByPk(Id_Ficha);
+  if (!ficha) throw new Error("Ficha no encontrada");
+
+  const fechaFin = new Date(ficha.FecFinLec_Ficha);
+  const hoy = new Date();
+  fechaFin.setHours(0, 0, 0, 0);
+  hoy.setHours(0, 0, 0, 0);
+
+  const lectivaCulminada = fechaFin <= hoy;
+
+  const usuarios = await UsuariosModel.findAll({
+    where: { Id_Ficha },
+    include: [{
+      model: UsuariosRolModel,
+      as: "rolesUsuario",
+      required: true,
+      where: { Id_Rol: { [Op.in]: ROLES_APRENDIZ } }
+    }]
+  });
+
+  const ids = usuarios.map(u => u.Id_Usuario);
+  if (ids.length === 0) return { afectados: 0, estado: null };
+
+  const nuevoEstado = lectivaCulminada ? "inactivo" : "En Formacion"; // ✅ corregido
+
+  await UsuariosModel.update(
+    { Est_Usuario: nuevoEstado },
+    { where: { Id_Usuario: { [Op.in]: ids } } }
+  );
+
+  console.log(`✅ Ficha ${Id_Ficha}: ${ids.length} aprendices → "${nuevoEstado}"`);
+  return { afectados: ids.length, estado: nuevoEstado };
+}
 
 class FichasServices {
-  // Obtiene todas las fichas incluyendo el nombre del programa relacionado
   async getAll() {
     return await FichasModel.findAll({
-      include: [
-        {
-          model: ProgramaModel,
-          as: 'programas',                    // El alias debe coincidir con la asociacion definida
-          attributes: ['Id_Programa', 'Nom_Programa'] // Solo traemos estos campos del programa
-        }
-      ]
+      include: [{ model: ProgramaModel, as: "programas", attributes: ["Id_Programa", "Nom_Programa"] }]
     });
   }
 
-  // Busca una ficha por su ID principal
   async getById(Id) {
-    const Fichas = await FichasModel.findByPk(Id, {
-      include: [
-        {
-          model: ProgramaModel,
-          as: 'programas',
-          attributes: ['Id_Programa', 'Nom_Programa']
-        }
-      ]
+    const ficha = await FichasModel.findByPk(Id, {
+      include: [{ model: ProgramaModel, as: "programas", attributes: ["Id_Programa", "Nom_Programa"] }]
     });
-
-    if (!Fichas) throw new Error("Ficha no encontrada");
-    return Fichas;
+    if (!ficha) throw new Error("Ficha no encontrada");
+    return ficha;
   }
 
-  // Inserta una nueva ficha con los datos proporcionados
   async create(data) {
     return await FichasModel.create(data);
   }
 
-  // Actualiza una ficha existente; si no hay cambios lanza un error controlado
   async update(Id, data) {
-    // El metodo update devuelve un arreglo donde el primer elemento es el numero de filas afectadas
-    const result = await FichasModel.update(data, { where: { Id_Ficha: Id } });
-    if (result[0] === 0) {
-      // Verifica si la ficha realmente existe para dar un mensaje claro
-      const Fichas = await FichasModel.findByPk(Id);
-      if (!Fichas) throw new Error("Ficha no encontrada");
-      throw new Error("No hubo cambios en la ficha (los datos son iguales)");
-    }
-    return true;
-  }
+    const [filas] = await FichasModel.update(data, { where: { Id_Ficha: Id } });
 
-  // Elimina una ficha por su ID
-  async delete(Id) {
-    const deleted = await FichasModel.destroy({ where: { Id_Ficha: Id } });
-    if (!deleted) throw new Error("Ficha no encontrada");
+    if (filas === 0) {
+      const ficha = await FichasModel.findByPk(Id);
+      if (!ficha) throw new Error("Ficha no encontrada");
+      throw new Error("No hubo cambios en la ficha");
+    }
+
+    // Sincroniza estado de aprendices después de actualizar
+    await sincronizarEstadoAprendices(Id);
+
     return true;
   }
 }

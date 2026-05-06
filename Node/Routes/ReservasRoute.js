@@ -1,39 +1,36 @@
-import { Router } from "express";
+ import { Router } from "express";
 import authMiddleware from "../Middleware/authMiddleware.js";
-// HorariosMiddleware valida que el horario actual permita crear una reserva
-// para el tipo de comida enviado. Actua como guardia antes del controlador.
 import {
-  generarAlimentoTomorrow,
-  obtenerHistorial,
-  obtenerHistorialCompleto,
-  cancelarReserva,
+  obtenerTiposPermitidos,
+  obtenerPlatosDelMenu,
+  generarAlimentoTomorrow
 } from "../Controllers/ReservasController.js";
 
 const router = Router();
 
-// Genera una nueva reserva para el dia siguiente.
-// La cadena de middlewares es: auth -> controlador.
+// Retorna los tipos de comida que puede reservar el usuario logueado segun su rol
+// El frontend llama este endpoint al cargar el formulario para construir el select
+// Internos ven: Desayuno, Almuerzo, Cena
+// Externos ven: solo Almuerzo
+// Ejemplo de uso: GET /api/Reservas/reservar/tipos-permitidos
+router.get('/reservar/tipos-permitidos',
+  authMiddleware,
+  obtenerTiposPermitidos
+);
+
+// Retorna los platos del menu para una fecha y tipo de comida especificos
+// El usuario primero elige el tipo de comida y luego se consulta este endpoint
+// para mostrar los platos disponibles antes de confirmar la reserva
+// Ejemplo de uso: GET /api/Reservas/reservar/menu/2025-05-06/Almuerzo
+router.get('/reservar/menu/:fechaReserva/:tipComida',
+  authMiddleware,
+  obtenerPlatosDelMenu
+);
+
+// Genera una nueva reserva con el tipo de comida y plato elegido por el usuario
 router.post('/reservar/generate-tomorrow',
   authMiddleware,
   generarAlimentoTomorrow
-);
-
-// Retorna las ultimas 10 reservas del usuario autenticado
-router.get('/reservar/historial',
-  authMiddleware,
-  obtenerHistorial
-);
-
-// Retorna todas las reservas del usuario autenticado sin limite
-router.get('/reservar/historial/completo',
-  authMiddleware,
-  obtenerHistorialCompleto
-);
-
-// Cancela una reserva con estado Generado que pertenece al usuario autenticado
-router.patch('/reservar/:id/cancelar',
-  authMiddleware,
-  cancelarReserva
 );
 
 export default router;

@@ -1,8 +1,9 @@
-import crypto from "crypto";
+ import crypto from "crypto";
 import db from '../Database/db.js';
 import ReservaModel from "../Models/ReservasModel.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
 import PlatosModels from "../Models/PlatosModels.js";
+import MenusModel from "../Models/MenusModels.js";
 
 class ReservasServices {
 
@@ -24,19 +25,20 @@ class ReservasServices {
   ValidarAntelacion24Horas(tipo, fechaReserva) {
     const ahora = new Date();
     const fechaObjetivo = new Date(`${fechaReserva}T00:00:00`);
-    
-    // Hora limite de servicio segun el tipo de comida
+
     const horasLimite = { Desayuno: {h: 7, m: 0}, Almuerzo: {h: 14, m: 5}, Cena: {h: 19, m: 0} };
     if (!horasLimite[tipo]) throw new Error("Tipo de comida no valido");
-    
+
     fechaObjetivo.setHours(horasLimite[tipo].h, horasLimite[tipo].m, 0, 0);
-    
-    // Calcula la diferencia en horas
+
     const diferenciaMs = fechaObjetivo.getTime() - ahora.getTime();
     const diferenciaHoras = diferenciaMs / (1000 * 60 * 60);
-    
+
     if (diferenciaHoras < 24) {
-      throw new Error(`La reserva para ${tipo} debe hacerse con al menos 24 horas de antelación (Cierre: ${horasLimite[tipo].h.toString().padStart(2, '0')}:${horasLimite[tipo].m.toString().padStart(2, '0')} del día anterior).`);
+      throw new Error(
+        `La reserva para ${tipo} debe hacerse con al menos 24 horas de antelacion` +
+        ` (Cierre: ${horasLimite[tipo].h.toString().padStart(2, '0')}:${horasLimite[tipo].m.toString().padStart(2, '0')} del dia anterior).`
+      );
     }
     return true;
   }
@@ -51,7 +53,6 @@ class ReservasServices {
   }
 
   // Encripta el objeto de datos del QR usando AES-256-CBC
-  // Retorna una cadena con formato: iv_en_hex:datos_encriptados_en_hex
   EncriptarDatos(datos) {
     if (!process.env.QR_ENCRYPTION_KEY) {
       throw new Error("QR_ENCRYPTION_KEY no esta definida en las variables de entorno");
@@ -64,17 +65,54 @@ class ReservasServices {
     return iv.toString('hex') + ':' + encriptado;
   }
 
+  // Retorna los platos disponibles en el menu para una fecha y tipo de comida especificos
+  // Se usa para que el usuario pueda elegir su plato antes de confirmar la reserva
+  // CORRECCION: la tabla menus guarda un plato por fila, la asociacion en app.js
+  // se llama as:'plato' (singular), por eso se usa findAll y se mapea cada fila
+  async obtenerPlatosDelMenu(fechaReserva, tipComida) {
+
+    // Se buscan TODAS las filas del menu que coincidan con la fecha y el tipo de comida
+    // Antes se usaba findOne + as:'platos' (plural) lo cual era incorrecto
+    const filas = await MenusModel.findAll({
+      where: {
+        Fec_Menu: fechaReserva,
+        Tip_Menu: tipComida
+      },
+      // El alias 'plato' (singular) corresponde a la asociacion definida en app.js:
+      // MenuModel.belongsTo(PlatosModel, { foreignKey: "Id_Plato", as: "plato" })
+      include: [
+        {
+          model: PlatosModels,
+          as: 'plato',
+          attributes: ['Id_Plato', 'Nom_Plato', 'Des_Plato', 'Img_Plato', 'Tip_Plato']
+        }
+      ]
+    });
+
+    // Si no hay filas de menu para esa fecha y tipo, se informa al usuario
+    if (!filas || filas.length === 0) {
+      throw new Error(`No hay menu disponible para ${tipComida} del ${fechaReserva}`);
+    }
+
+    // Se extrae el objeto plato de cada fila del menu
+    // filter(Boolean) elimina posibles nulos en caso de fila sin plato relacionado
+    const platos = filas.map(fila => fila.plato).filter(Boolean);
+
+    return platos;
+  }
+
   // Crea una nueva reserva dentro de una transaccion para garantizar consistencia
-  // Si algo falla en cualquier paso, se hace rollback y no queda ningun dato a medias
-  async generarReservaPass(Id_Usuario, rolesUsuario, Tip_Reserva, platoElegido, fechaReserva, esNovedad = false, justificacion = null) {
+  async generarReservaPass(Id_Usuario, rolesUsuario, Tip_Reserva, platoElegido, fechaReserva) {
     return await db.transaction(async (transaction) => {
 
       // Paso 1: confirmar que el usuario existe en la base de datos
       const usuario = await UsuariosModel.findByPk(Id_Usuario, { transaction });
       if (!usuario) throw new Error("Usuario no encontrado");
 
-      // Validar si el usuario esta sancionado
-      if (usuario.San_Usuario === 1) {
+      // Verificar si el usuario esta sancionado
+      // CORRECCION: San_Usuario es STRING con valor 'Si' o 'No', no numero 1
+      // Antes se comparaba con === 1 (numero) lo cual nunca detectaba la sancion
+      if (usuario.San_Usuario === 'Si') {
         throw new Error("No puedes realizar reservas porque te encuentras sancionado.");
       }
 
@@ -89,15 +127,13 @@ class ReservasServices {
       const plato = await PlatosModels.findByPk(platoElegido, { transaction });
       if (!plato) throw new Error("El plato seleccionado no existe");
 
-      // Validar regla de 24 horas si no es reserva por novedad
-      if (!esNovedad) {
-        this.ValidarAntelacion24Horas(TipoNormalizado, fechaReserva);
-      }
+      // Paso 4: validar que se haga la reserva con al menos 24 horas de antelacion
+      this.ValidarAntelacion24Horas(TipoNormalizado, fechaReserva);
 
-      // Paso 4: calcular las fechas de generacion y vencimiento
+      // Paso 5: calcular la fecha y hora en que vence la reserva
       const fechaVencimiento = this.CalcularVencimiento(TipoNormalizado, fechaReserva);
 
-      // Paso 5: evitar duplicados, solo puede existir una reserva activa por tipo y dia
+      // Paso 6: evitar duplicados, solo puede haber una reserva activa por tipo y dia
       const existente = await ReservaModel.findOne({
         where: {
           Id_Usuario: usuario.Id_Usuario,
@@ -107,11 +143,27 @@ class ReservasServices {
         },
         transaction
       });
+
       if (existente) {
-        throw new Error(`Ya tienes una reserva activa para ${TipoNormalizado} en la fecha ${fechaReserva}`);
+        // Se define la hora en que vence cada tipo de comida
+        // Pasada esa hora el usuario podra volver a reservar para otro dia
+        const horasVencimiento = {
+          Desayuno: '07:00',
+          Almuerzo: '14:05',
+          Cena: '19:00'
+        };
+
+        // Se obtiene la hora de vencimiento segun el tipo de comida seleccionado
+        const horaVencimiento = horasVencimiento[TipoNormalizado];
+
+        throw new Error(
+          `Ya tienes una reserva activa para ${TipoNormalizado} del ${fechaReserva}. ` +
+          `Tu reserva vence a las ${horaVencimiento} de ese dia, ` +
+          `despues de esa hora podras realizar una nueva reserva.`
+        );
       }
 
-      // Paso 6: insertar la reserva con el QR vacio, se llenara en el paso 8
+      // Paso 7: insertar la reserva con el QR vacio, se llenara en el siguiente paso
       const nuevaReserva = await ReservaModel.create({
         Id_Usuario: usuario.Id_Usuario,
         Fec_Reserva: fechaReserva,
@@ -120,11 +172,11 @@ class ReservasServices {
         Est_Reserva: 'Generado',
         Qr_Reserva: '',
         Id_Plato: platoElegido,
-        Res_Excepcional: esNovedad ? "Si" : "No",
-        Justificacion: justificacion
+        Res_Excepcional: "No",
+        Justificacion: null
       }, { transaction });
 
-      // Paso 7: armar el objeto que se va a encriptar y guardar en el QR
+      // Paso 8: armar el objeto que se va a encriptar y guardar en el campo QR
       const datosQR = {
         Id_Reserva: nuevaReserva.Id_Reserva,
         Id_Usuario: usuario.Id_Usuario,
@@ -133,7 +185,7 @@ class ReservasServices {
         Vencimiento: fechaVencimiento.toISOString()
       };
 
-      // Paso 8: encriptar los datos y actualizar el campo Qr_Reserva en la base de datos
+      // Paso 9: encriptar los datos y actualizar el campo Qr_Reserva en la base de datos
       const encriptado = this.EncriptarDatos(datosQR);
       await nuevaReserva.update({ Qr_Reserva: encriptado }, { transaction });
 
@@ -148,43 +200,6 @@ class ReservasServices {
         qrUrl
       };
     });
-  }
-
-  // Retorna las ultimas 10 reservas del usuario ordenadas de la mas reciente a la mas antigua
-  async obtenerHistorial(Id_Usuario) {
-    return await ReservaModel.findAll({
-      where: { Id_Usuario },
-      include: [{ model: PlatosModels, as: 'plato', attributes: ['Nom_Plato', 'Img_Plato'] }],
-      order: [['createdAt', 'DESC']],
-      limit: 10,
-    });
-  }
-
-  // Retorna TODAS las reservas del usuario sin limite de cantidad
-  async obtenerHistorialCompleto(Id_Usuario) {
-    return await ReservaModel.findAll({
-      where: { Id_Usuario },
-      include: [{ model: PlatosModels, as: 'plato', attributes: ['Nom_Plato', 'Img_Plato'] }],
-      order: [['createdAt', 'DESC']],
-    });
-  }
-
-  // Cambia el estado de una reserva a Cancelado.
-  // Solo se puede cancelar si el estado actual es Generado y pertenece al usuario.
-  async cancelarReserva(Id_Reserva, Id_Usuario) {
-    const Reserva = await ReservaModel.findOne({
-      where: { Id_Reserva, Id_Usuario },
-    });
-    if (!Reserva) {
-      throw new Error('Reserva no encontrada o no pertenece al usuario');
-    }
-    if (Reserva.Est_Reserva !== 'Generado') {
-      throw new Error(
-        `No se puede cancelar una reserva con estado: ${Reserva.Est_Reserva}`
-      );
-    }
-    await Reserva.update({ Est_Reserva: 'Cancelado' });
-    return true;
   }
 }
 
