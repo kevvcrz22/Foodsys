@@ -26,7 +26,7 @@ const Reportes = () => {
   const Cargar_Datos = useCallback(async () => {
     Set_Cargando(true);
     try {
-      const endpoint = Periodo === "personalizado" ? `/api/reportes/personalizado` : `/api/reportes/${Periodo}`;
+      const endpoint = Periodo === "personalizado" ? `/api/Reportes/personalizado` : `/api/Reportes/${Periodo}`;
       const params = Periodo === "personalizado" ? { fechaInicio: FechaInicio, fechaFin: FechaFin, tipoAlimento: TipoAlimento } : {};
       const Res = await apiAxios.get(endpoint, { params });
       Set_Datos(Res.data);
@@ -69,7 +69,7 @@ const Reportes = () => {
         params.tipoAlimento = TipoAlimento;
       }
       
-      const Res = await apiAxios.get(`/api/reportes/exportar/${Formato}`, {
+      const Res = await apiAxios.get(`/api/Reportes/exportar/${Formato}`, {
         params, responseType: "blob",
       });
       const Ext = Formato === "pdf" ? "pdf" : "xlsx";

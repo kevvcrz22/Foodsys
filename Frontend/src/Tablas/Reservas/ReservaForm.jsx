@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import apiAxios from "../../api/axiosConfig.js";
-
 const ReservaForm = () => {
 
   // Estado para los tipos de comida permitidos segun el rol del usuario logueado
@@ -44,7 +43,7 @@ const ReservaForm = () => {
   useEffect(() => {
     const obtenerTipos = async () => {
       try {
-        const res = await apiAxios.get("/api/Reservas/reservar/tipos-permitidos");
+        const res = await apiAxios.get("/api/Reservas/reservar/Tipos-Permitidos");
         setTiposPermitidos(res.data.tiposPermitidos);
       } catch (err) {
         setError(err.response?.data?.message || "No se pudieron cargar los tipos de comida");
@@ -66,7 +65,7 @@ const ReservaForm = () => {
     if (!tipo) return;
 
     try {
-      const res = await apiAxios.get(`/api/Reservas/reservar/menu/${fechaReserva}/${tipo}`);
+      const res = await apiAxios.get(`/api/Reservas/reservar/Menu/${fechaReserva}/${tipo}`);
       setPlatos(res.data);
     } catch (err) {
       setError(err.response?.data?.message || "No hay menu disponible para ese tipo de comida");

@@ -1,7 +1,13 @@
 // Routes/MenusRoutes.js
-// Rutas del modulo de menus del sistema FoodSys
-// Las rutas de escritura estan protegidas con
-// authMiddleware y MenuMiddleware
+// Rutas del modulo de menus del sistema FoodSys.
+// Las rutas estaticas SIEMPRE antes de /:id para que Express no las interprete
+// como valores de parametro.
+//
+// Ruta agregada (no existia):
+//   GET /fecha/:fecha -> getMenuByFecha
+//   Necesaria para que el modulo de Novedades cargue los platos disponibles del dia
+//   actual al momento de registrar una reserva excepcional. La funcion getMenuByFecha
+//   ya estaba importada en MenusController pero no tenia ruta asignada.
 
 import express from "express";
 import authMiddleware from "../Middleware/authMiddleware.js";
@@ -20,7 +26,15 @@ const router = express.Router();
 
 // Lectura publica de menus
 router.get("/", getAllMenu);
-router.get("/disponibles", getMenuDisponibles); // Platos disponibles por fecha y tipo
+router.get("/disponibles", getMenuDisponibles);
+
+// Retorna todos los menus de una fecha especifica con el plato incluido.
+// Parametro: fecha en formato YYYY-MM-DD.
+// Novedades.jsx la usa para cargar los platos disponibles del dia actual
+// al seleccionar un aprendiz en el formulario de reserva excepcional.
+router.get("/fecha/:fecha", getMenuByFecha);
+
+// Lectura por ID — debe ir despues de las rutas estaticas para evitar colisiones
 router.get("/:id", getMenu);
 
 // Escritura protegida con auth + permiso de vista Menu

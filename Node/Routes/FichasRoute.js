@@ -11,12 +11,14 @@ import {
   createFichas,
   updateFichas,
   deleteFichas,
+  descargarPlantillaFicha
 } from "../Controllers/FichasController.js";
 
 const router = express.Router();
 
 // Lectura publica de fichas
 router.get("/", getAllFichas);
+router.get('/plantilla-excel', descargarPlantillaFicha);
 router.get("/:id", getFichas);
 
 // Escritura protegida con auth + permiso de vista Ficha

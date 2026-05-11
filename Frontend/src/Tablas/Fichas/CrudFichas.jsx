@@ -3,9 +3,10 @@ import apiAxios from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
 import DataTable from "react-data-table-component";
 import FichasForm from "./FichasForm";
-import { FileText, Pencil, Plus, Search, X, Users } from "lucide-react";
+import ImportarFichas from "./ImportarFichas.jsx";
+import { FileText, Pencil, Plus, Search, X, Users, Upload } from "lucide-react";
 
-// Modal que muestra la lista de aprendices vinculados a una ficha especifica
+/* ── Modal lista de aprendices por ficha ── */
 const AprendicesModal = ({ ficha, aprendices, loading, onClose }) => {
   if (!ficha) return null;
   return (
@@ -26,13 +27,11 @@ const AprendicesModal = ({ ficha, aprendices, loading, onClose }) => {
             <X size={16} />
           </button>
         </div>
-        
         <div className="bg-blue-50 px-5 py-2 border-b border-blue-100">
           <span className="text-[11px] font-bold text-blue-700 uppercase">
             {loading ? "Cargando..." : `${aprendices.length} aprendices registrados`}
           </span>
         </div>
-
         <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-3">
           {loading ? (
             <div className="flex justify-center py-8">
@@ -65,17 +64,19 @@ const AprendicesModal = ({ ficha, aprendices, loading, onClose }) => {
   );
 };
 
+/* ─────────────── MAIN ─────────────── */
 const CrudFichas = () => {
-  const [Fichas, setFichas] = useState([]);
-  const [todosUsuarios, setTodosUsuarios] = useState([]);
-  const [filterText, setFilterText] = useState("");
-  const [selectedFicha, setSelectedFicha] = useState(null);
-  const [isEdit, setIsEdit] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [aprendicesModal, setAprendicesModal] = useState({ open: false, ficha: null });
-  const [aprendicesList, setAprendicesList] = useState([]);
-  const [aprendicesLoading, setAprendicesLoading] = useState(false);
-  
+  const [Fichas,           setFichas]           = useState([]);
+  const [todosUsuarios,    setTodosUsuarios]     = useState([]);
+  const [filterText,       setFilterText]        = useState("");
+  const [selectedFicha,    setSelectedFicha]     = useState(null);
+  const [isEdit,           setIsEdit]            = useState(false);
+  const [isModalOpen,      setIsModalOpen]       = useState(false);
+  const [aprendicesModal,  setAprendicesModal]   = useState({ open: false, ficha: null });
+  const [aprendicesList,   setAprendicesList]    = useState([]);
+  const [aprendicesLoading,setAprendicesLoading] = useState(false);
+  const [importModal,      setImportModal]       = useState(false);
+
   useEffect(() => {
     getAllFichas();
     getAllUsuarios();
@@ -108,38 +109,38 @@ const CrudFichas = () => {
 
   const columnsTable = [
     { name: "ID", selector: (r) => r.Id_Ficha, sortable: true, width: "70px" },
-    { 
-      name: "N° Ficha", 
-      selector: (r) => r.Num_Ficha, 
+    {
+      name: "N Ficha",
+      selector: (r) => r.Num_Ficha,
       sortable: true,
-      cell: (r) => <span className="font-bold text-blue-600 text-sm tracking-tight">{r.Num_Ficha}</span> 
+      cell: (r) => <span className="font-bold text-blue-600 text-sm tracking-tight">{r.Num_Ficha}</span>,
     },
-    { 
+    {
       name: "Inicio Lectiva",
       selector: (r) => r.FecIniLec_Ficha,
       sortable: true,
-      cell: (r) => <span className="text-[12px] text-slate-500">{r.FecIniLec_Ficha?.slice(0, 10) || "—"}</span>
+      cell: (r) => <span className="text-[12px] text-slate-500">{r.FecIniLec_Ficha?.slice(0, 10) || "—"}</span>,
     },
-    { 
+    {
       name: "Fin Lectiva",
       selector: (r) => r.FecFinLec_Ficha,
       sortable: true,
-      cell: (r) => <span className="text-[12px] text-slate-500">{r.FecFinLec_Ficha?.slice(0, 10) || "—"}</span>
+      cell: (r) => <span className="text-[12px] text-slate-500">{r.FecFinLec_Ficha?.slice(0, 10) || "—"}</span>,
     },
-    { 
-      name: "Programa", 
+    {
+      name: "Programa",
       selector: (r) => r.programas?.Nom_Programa,
       sortable: true,
       grow: 2,
-      cell: (r) => <span className="text-[12px] text-slate-600 font-medium leading-tight">{r.programas?.Nom_Programa || "Sin programa"}</span> 
+      cell: (r) => <span className="text-[12px] text-slate-600 font-medium leading-tight">{r.programas?.Nom_Programa || "Sin programa"}</span>,
     },
-    { 
-      name: "Aprendices", 
+    {
+      name: "Aprendices",
       center: true,
       cell: (row) => {
         const count = contarAprendices(row.Id_Ficha);
         return (
-          <button onClick={() => verAprendices(row)} 
+          <button onClick={() => verAprendices(row)}
             className={`flex items-center gap-1.5 border-0 rounded-full px-3 py-1 text-xs font-bold cursor-pointer transition-all ${count > 0 ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : "bg-slate-100 text-slate-400"}`}>
             <Users size={12} />{count}
           </button>
@@ -150,11 +151,7 @@ const CrudFichas = () => {
       name: "Creado",
       selector: (r) => r.createdat,
       sortable: true,
-      cell: (r) => (
-        <span className="text-[11px] text-slate-400">
-          {r.createdat ? new Date(r.createdat).toLocaleDateString("es-CO") : "—"}
-        </span>
-      ),
+      cell: (r) => <span className="text-[11px] text-slate-400">{r.createdat ? new Date(r.createdat).toLocaleDateString("es-CO") : "—"}</span>,
     },
     {
       name: "Acciones",
@@ -181,6 +178,8 @@ const CrudFichas = () => {
   return (
     <>
       <div className="w-full h-full flex flex-col bg-slate-50 min-h-0">
+
+        {/* ── Header ── */}
         <div className="bg-white border-b border-slate-100 px-5 py-4 shrink-0">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
             <div className="flex items-center gap-3">
@@ -188,23 +187,36 @@ const CrudFichas = () => {
                 <FileText size={18} className="text-white" />
               </div>
               <div>
-                <h1 className="font-semibold text-slate-800 text-base m-0">Gestión de Fichas</h1>
+                <h1 className="font-semibold text-slate-800 text-base m-0">Gestion de Fichas</h1>
                 <p className="text-xs text-slate-400 m-0">{Fichas.length} fichas registradas</p>
               </div>
             </div>
-            <button onClick={() => { setSelectedFicha(null); setIsEdit(false); setIsModalOpen(true); }}
-              className="flex items-center gap-2 bg-blue-600 text-white border-0 rounded-xl px-5 py-2.5 text-sm font-semibold cursor-pointer hover:bg-blue-700 transition-all shadow-md active:scale-95">
-              <Plus size={16} /><span>Nueva Ficha</span>
-            </button>
+
+            {/* Botones de accion */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Boton importar — nuevo */}
+              <button onClick={() => setImportModal(true)}
+                className="flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border-0 rounded-xl px-3.5 py-2 text-[13px] font-semibold cursor-pointer hover:bg-emerald-200 transition-colors">
+                <Upload size={14} />
+                <span className="hidden sm:inline">Importar Excel</span>
+              </button>
+
+              <button onClick={() => { setSelectedFicha(null); setIsEdit(false); setIsModalOpen(true); }}
+                className="flex items-center gap-2 bg-blue-600 text-white border-0 rounded-xl px-5 py-2.5 text-sm font-semibold cursor-pointer hover:bg-blue-700 transition-all shadow-md active:scale-95">
+                <Plus size={16} /><span>Nueva Ficha</span>
+              </button>
+            </div>
           </div>
+
           <div className="relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" placeholder="Buscar por número de ficha o programa..."
+            <input type="text" placeholder="Buscar por numero de ficha o programa..."
               className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-[13px] bg-slate-50 text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/10 transition-all"
               value={filterText} onChange={(e) => setFilterText(e.target.value)} />
           </div>
         </div>
 
+        {/* ── Tabla ── */}
         <div className="flex-1 overflow-y-auto p-5">
           <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
             <DataTable columns={columnsTable} data={newList} keyField="Id_Ficha"
@@ -220,14 +232,26 @@ const CrudFichas = () => {
         </div>
       </div>
 
-      {aprendicesModal.open && <AprendicesModal ficha={aprendicesModal.ficha} aprendices={aprendicesList} loading={aprendicesLoading} onClose={() => setAprendicesModal({ open: false, ficha: null })} />}
+      {/* ── Modal aprendices ── */}
+      {aprendicesModal.open && (
+        <AprendicesModal ficha={aprendicesModal.ficha} aprendices={aprendicesList}
+          loading={aprendicesLoading} onClose={() => setAprendicesModal({ open: false, ficha: null })} />
+      )}
 
+      {/* ── Modal importar Excel ── */}
+      {importModal && (
+        <ImportarFichas onClose={() => setImportModal(false)} reload={getAllFichas} />
+      )}
+
+      {/* ── Modal crear / editar ── */}
       {isModalOpen && (
         <div className="fixed inset-0 z-9999 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
           <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden z-10">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 shrink-0">
-              <h2 className="font-semibold text-slate-800 text-[15px] m-0">{isEdit ? "Actualizar Ficha" : "Registrar Nueva Ficha"}</h2>
+              <h2 className="font-semibold text-slate-800 text-[15px] m-0">
+                {isEdit ? "Actualizar Ficha" : "Registrar Nueva Ficha"}
+              </h2>
               <button onClick={() => setIsModalOpen(false)} className="bg-slate-100 border-0 rounded-lg p-2 cursor-pointer text-slate-500 hover:bg-slate-200">
                 <X size={15} />
               </button>

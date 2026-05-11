@@ -92,7 +92,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
       if (!isEdit) {
         // Crear un registro por cada plato seleccionado
         const promises = platosSeleccionados.map((Id_Plato) =>
-          apiAxios.post("/api/menu", { Fec_Menu, Tip_Menu, Id_Plato })
+          apiAxios.post("/api/Menus", { Fec_Menu, Tip_Menu, Id_Plato })
         );
         await Promise.all(promises);
         alert(
@@ -101,7 +101,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
             : "Menú creado correctamente"
         );
       } else {
-        await apiAxios.put(`/api/menu/${selectedMenu.Id_Menu}`, {
+        await apiAxios.put(`/api/Menus/${selectedMenu.Id_Menu}`, {
           Fec_Menu,
           Tip_Menu,
           Id_Plato: platosSeleccionados[0],
@@ -115,8 +115,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
     } finally {
       setEnviando(false);
     }
-  };
-
+  }
   const cfg = tipoConfig[Tip_Menu];
 
   return (
@@ -328,7 +327,7 @@ const CrudMenus = () => {
 
   const getAllMenus = async () => {
     try {
-      const res = await apiAxios.get("/api/menu");
+      const res = await apiAxios.get("/api/Menus");
       setMenus(res.data);
     } catch (err) {
       console.error(err);
@@ -493,7 +492,7 @@ const CrudMenus = () => {
 
       {/* Modal crear/editar */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-9999 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={hideModal} />
           <div className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 max-h-[95vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 shrink-0">
