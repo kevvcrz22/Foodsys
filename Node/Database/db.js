@@ -3,8 +3,5 @@ const db = new Sequelize('foodsys','root', '', {
     host: 'localhost',
     dialect: 'mysql',
     timezone: '-05:00',
-    dialectOptions: {
-        useUTC: false
-    }
-})
+    logging: false})
 export default db

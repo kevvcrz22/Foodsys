@@ -1,9 +1,8 @@
 // Node/Routes/UsuariosRoutes.js
-// Rutas del modulo de usuarios del sistema FoodSys
-// Incluye rutas publicas (login, registro) y protegidas con authMiddleware
 
-import express from "express";
-import { check } from "express-validator";
+import express        from "express";
+import multer         from "multer";
+import { check }      from "express-validator";
 import authMiddleware from "../Middleware/authMiddleware.js";
 
 import {
@@ -16,15 +15,30 @@ import {
   aceptarPolitica,
   getAprendices,
   importarCSV,
-  // Controladores para el flujo seguro de cambio de contrasena
   validarPasswordActual,
   cambiarPassword,
+  descargarPlantilla,
+  previewImport,
+  importarSeleccionados,
 } from "../Controllers/UsuariosControllers.js";
 
-const router = express.Router();
+const Router = express.Router();
 
-// Registro de nuevo usuario con validaciones basicas de los campos requeridos
-router.post(
+/*
+  MemoryStorage: el archivo llega en req.file.buffer (RAM).
+  Nunca se escribe en disco; mas rapido y seguro para archivos temporales.
+*/
+const Upload = multer({ storage: multer.memoryStorage() });
+
+// ─────────────────────────────────────────────────────────────
+// RUTAS ESTATICAS Y ESPECIFICAS
+// DEBEN ir ANTES de cualquier ruta con parametro dinamico (/:Id)
+// porque Express las evalua en orden y /:Id capturaria todo lo
+// que venga despues si estuviera primero.
+// ─────────────────────────────────────────────────────────────
+
+// Registro con validaciones minimas
+Router.post(
   "/",
   [
     check("TipDoc_Usuario", "Tipo de documento obligatorio").notEmpty(),
@@ -34,31 +48,57 @@ router.post(
   RegisterUsuarios
 );
 
-// Inicio de sesion: devuelve usuario, roles y token JWT
-router.post("/login", Login);
+// Inicio de sesion
+Router.post("/login", Login);
 
-// Listado de aprendices filtrado por rol (requiere autenticacion)
-router.get("/aprendices", authMiddleware, getAprendices);
+// Listado de aprendices — va antes de /:Id para que "aprendices"
+// no sea interpretado como un Id
+Router.get("/aprendices", authMiddleware, getAprendices);
 
-// Consulta publica de todos los usuarios o uno por ID
-router.get("/", getAllUsuarios);
-router.get("/:Id", getUsuarios);
+// Importacion legacy CSV
+Router.post("/importar-csv", authMiddleware, importarCSV);
 
-// Actualizacion y eliminacion de usuario (requieren autenticacion)
-router.put("/:Id", authMiddleware, updateUsuarios);
-router.delete("/:Id", authMiddleware, deleteUsuarios);
+// ─────────────────────────────────────────────────────────────
+// IMPORTACION EXCEL — flujo de tres pasos
+// Estas rutas estaticas tambien deben ir antes de /:Id
+// ─────────────────────────────────────────────────────────────
+
+/*
+  Paso A: descarga la plantilla .xlsx vacia con los encabezados.
+  Sin auth porque el admin puede necesitarla antes de autenticarse.
+*/
+Router.get("/plantilla-excel", descargarPlantilla);
+
+/*
+  Paso B: recibe el archivo Excel en RAM (memoryStorage) y devuelve
+  un preview con las filas parseadas. No persiste nada en la BD.
+*/
+Router.post("/preview-import", Upload.single("file"), previewImport);
+
+/*
+  Paso C: recibe el array de usuarios aprobados y los persiste.
+  La logica de validacion y deduplicacion vive en el controlador.
+*/
+Router.post("/importar-seleccionados", importarSeleccionados);
+
+// ─────────────────────────────────────────────────────────────
+// RUTAS CON PARAMETRO DINAMICO /:Id
+// Van SIEMPRE al final para no interceptar las rutas estaticas
+// ─────────────────────────────────────────────────────────────
+
+// Consulta publica de todos los usuarios o uno por Id
+Router.get("/",    getAllUsuarios);
+Router.get("/:Id", getUsuarios);
 
 // Aceptacion de politica de privacidad
-router.patch("/:Id/politica", aceptarPolitica);
+Router.patch("/:Id/politica", aceptarPolitica);
 
-// Importacion masiva de usuarios desde un archivo CSV
-router.post("/importar-csv", authMiddleware, importarCSV);
+// Actualizacion y eliminacion (requieren token)
+Router.put(   "/:Id", authMiddleware, updateUsuarios);
+Router.delete("/:Id", authMiddleware, deleteUsuarios);
 
-// Flujo de cambio de contrasena en dos pasos:
-// Paso 1: valida que la contrasena actual sea correcta antes de permitir el cambio
-router.post("/:Id/validar-password", authMiddleware, validarPasswordActual);
+// Cambio de contrasena en dos pasos (requieren token)
+Router.post("/:Id/validar-password", authMiddleware, validarPasswordActual);
+Router.put( "/:Id/password",         authMiddleware, cambiarPassword);
 
-// Paso 2: actualiza la contrasena con la nueva clave encriptada con bcrypt
-router.put("/:Id/password", authMiddleware, cambiarPassword);
-
-export default router;
+export default Router;

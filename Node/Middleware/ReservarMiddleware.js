@@ -5,7 +5,7 @@ export default async function ReservarMiddleware(req, res, next) {
       return res.status(401).json({ message: 'No autenticado' });
     }
 
-    const rolesPermitidos = ['Aprendiz Interno', 'Aprendiz Externo', 'Pasante Interno', 'Pasante Externo'];
+    const rolesPermitidos = ['Aprendiz Interno', 'Aprendiz Externo', 'Pasante Interno', 'Pasante Externo','Supervisor', 'Cocina'];
     const rolesUsuario = req.user.roles || [];
 
     // Con some() basta con que un solo rol del usuario este en la lista para dar acceso

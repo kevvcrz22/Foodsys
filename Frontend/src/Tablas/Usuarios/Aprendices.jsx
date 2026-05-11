@@ -133,7 +133,7 @@ const Aprendices = () => {
       // Intentar obtener reservas (opcional, no bloquea si falla)
       let reservas = [];
       try {
-        const reservasRes = await apiAxios.get("/api/Reservas/");
+        const reservasRes = await apiAxios.get("/api/reservas/");
         reservas = Array.isArray(reservasRes.data) ? reservasRes.data : [];
       } catch { /* ignorar */ }
 

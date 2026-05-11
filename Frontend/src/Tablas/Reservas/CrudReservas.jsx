@@ -136,7 +136,7 @@ const QRModal = ({ reserva, onClose }) => {
                 fgColor={estado === "Generada" ? "#000000" : "#6b7280"}
               />
             ) : (
-              <div className="w-[200px] h-[200px] flex items-center justify-center text-gray-400">
+              <div className="w-50 h-50 flex items-center justify-center text-gray-400">
                 Sin código QR
               </div>
             )}
@@ -251,7 +251,7 @@ const CrudReservas = () => {
 
   const getAllReservas = async () => {
     try {
-      const response = await apiAxios.get("/api/Reservas");
+      const response = await apiAxios.get("/api/Reservas/Todas");
       setReservas(response.data);
     } catch (err) {
       console.error("Error al cargar reservas:", err);
@@ -393,7 +393,7 @@ const CrudReservas = () => {
 
       {/* Modal formulario */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-9999 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={hideModal} />
           <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 max-h-[95vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 shrink-0">

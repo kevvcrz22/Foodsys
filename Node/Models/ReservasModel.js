@@ -8,6 +8,8 @@ const ReservaModel = db.define('reservas', {
   Est_Reserva: { type: DataTypes.STRING, allowNull: true }, // Generado, Verificado, Vencido, Cancelado
   Tip_Reserva: { type: DataTypes.STRING },                  // Desayuno, Almuerzo, Cena
   Qr_Reserva: { type: DataTypes.STRING },                   // Texto encriptado para el QR
+  Exc_Reserva: { type: DataTypes.STRING, allowNull: true }, // Texto encriptado para excepciones
+  Jus_Reserva: { type: DataTypes.STRING, allowNull: true }, // Justificación para excepciones
   Id_Plato: { type: DataTypes.INTEGER },
   Id_Usuario: { type: DataTypes.INTEGER }
 }, {

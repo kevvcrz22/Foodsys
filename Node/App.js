@@ -21,16 +21,17 @@ import Path from 'path';         // Modulo nativo de Node.js para manejar rutas 
 // ---------- 2. IMPORTACION DE RUTAS ----------
 // Cada archivo en la carpeta "Routes" define un enrutador de Express para un recurso.
 // El nombre de la variable debe coincidir con lo exportado por cada modulo (por defecto).
-import UsuariosRoute   from './Routes/UsuariosRoute.js';   // Rutas para gestion de usuarios
-import FichasRoute     from './Routes/FichasRoute.js';     // Rutas para fichas
-import ReservasRoute   from './Routes/ReservasRoute.js';   // Rutas para reservas de comida
-import ProgramaRoute   from './Routes/ProgramaRoutes.js';  // Rutas para programas academicos
-import RolesRoute      from './Routes/RolesRoute.js';      // Rutas para roles de usuario
+import UsuariosRoute    from './Routes/UsuariosRoute.js';      // Rutas para gestion de usuarios
+import FichasRoute      from './Routes/FichasRoute.js';        // Rutas para fichas
+import ReservasRoute    from './Routes/ReservasRoute.js';      // Rutas para reservas de comida
+import ProgramaRoute    from './Routes/ProgramaRoutes.js';     // Rutas para programas academicos
+import RolesRoute       from './Routes/RolesRoute.js';         // Rutas para roles de usuario
 import UsuariosRolRoutes from './Routes/UsuariosRolRoutes.js'; // Rutas para asignacion de roles a usuarios
-import PlatosRoutes    from './Routes/PlatosRoutes.js';    // Rutas para platos de comida
-import MenusRoutes     from './Routes/MenusRoutes.js';     // Rutas para menus diarios
-import ReportesRoute   from './Routes/ReportesRoute.js';   // Rutas para reportes y estadisticas
-import InicioRoute     from './Routes/InicioRoute.js';     // Rutas para la pagina de Inicio
+import PlatosRoutes     from './Routes/PlatosRoutes.js';       // Rutas para platos de comida
+import MenusRoutes      from './Routes/MenusRoutes.js';        // Rutas para menus diarios
+import ReportesRoute    from './Routes/ReportesRoute.js';      // Rutas para reportes y estadisticas
+import InicioRoute      from './Routes/InicioRoute.js';        // Rutas para la pagina de Inicio
+import NovedadesRoute   from './Routes/NovedadesRoute.js';     // Rutas para novedades y estado Especial
 
 // ---------- 3. IMPORTACION DE MODELOS ----------
 // Los modelos representan las tablas de la base de datos.
@@ -43,6 +44,10 @@ import RolesModel       from './Models/RolesModel.js';
 import UsuariosRolModel from './Models/UsuariosRolModel.js';
 import PlatosModel      from './Models/PlatosModels.js';
 import MenuModel        from './Models/MenusModels.js';
+
+// Servicio de novedades: se importa aqui para ejecutar la tarea de mantenimiento
+// de estados Especiales expirados al arrancar el servidor (ver seccion 10).
+import NovedadesService from './Services/NovedadesService.js';
 
 // ---------- 4. CONFIGURACION INICIAL ----------
 dotenv.config();                // Carga las variables definidas en el archivo .env
@@ -57,24 +62,22 @@ app.use(cors());         // Permite que el frontend (incluso en otro dominio) pu
 // Cada grupo de rutas se monta en una ruta base.
 // Ejemplo: todas las rutas definidas en UsuariosRoute seran accesibles desde /api/Usuarios
 app.use('/api/Usuarios', UsuariosRoute);
-app.use('/api/Fichas', FichasRoute);   // Alias: a veces el frontend usa /api/Fichas (con mayuscula)
+app.use('/api/Fichas', FichasRoute);
 app.use('/api/Reservas', ReservasRoute);
-app.use('/api/Programa', ProgramaRoute); // Alias para que tambien funcione con /api/Programa
+app.use('/api/Programa', ProgramaRoute);
 app.use('/api/Roles', RolesRoute);
-app.use('/api/UsuariosRoles', UsuariosRolRoutes); // Las asignaciones usuario-rol quedan bajo /api/UsuariosRoles
-app.use('/api/platos', PlatosRoutes);
-app.use('/api/menu', MenusRoutes);
-app.use('/api/reportes', ReportesRoute);
+app.use('/api/UsuariosRoles', UsuariosRolRoutes);
+app.use('/api/Platos', PlatosRoutes);
+app.use('/api/Menus',  MenusRoutes);
+app.use('/api/Reportes', ReportesRoute);
 app.use('/api/Inicio', InicioRoute);
-
-import NovedadesRoute from './Routes/NovedadesRoute.js';
 app.use('/api/Novedades', NovedadesRoute);
 
 // ---------- 7. ARCHIVOS ESTATICOS ----------
 // Permite acceder a archivos guardados en la carpeta "uploads" (por ejemplo, imagenes de platos).
 // Ejemplo: http://localhost:8000/uploads/foto.jpg mostrara la imagen si existe en esa carpeta.
 const __filename = fileURLToPath(import.meta.url); // Obtiene la ruta absoluta al archivo actual
-const __dirname = Path.dirname(__filename);       // Obtiene el directorio donde se encuentra este archivo
+const __dirname = Path.dirname(__filename);        // Obtiene el directorio donde se encuentra este archivo
 app.use('/uploads', Express.static(Path.join(__dirname, 'uploads')));
 
 // Ruta de prueba: al visitar http://localhost:8000 se muestra un mensaje simple
@@ -126,7 +129,52 @@ RolesModel.hasMany(UsuariosRolModel, { foreignKey: "Id_Rol", as: "usuariosRol" }
 PlatosModel.hasMany(MenuModel, { foreignKey: "Id_Plato", as: "menus" });
 MenuModel.belongsTo(PlatosModel, { foreignKey: "Id_Plato", as: "plato" });
 
-// ---------- 10. INICIAR EL SERVIDOR ----------
+// ---- Reservas y Platos ----
+// Una reserva tiene un plato asignado. Se necesita esta asociacion para que el historial
+// de reservas pueda traer el nombre e imagen del plato con un "include" de Sequelize.
+ReservasModel.belongsTo(PlatosModel, { foreignKey: "Id_Plato", as: "plato" });
+PlatosModel.hasMany(ReservasModel, { foreignKey: "Id_Plato", as: "reservas" });
+
+// ========== 10. TAREA DE MANTENIMIENTO: ESTADOS ESPECIALES EXPIRADOS ==========
+// Al iniciar el servidor se revierten automaticamente los usuarios cuyo estado Especial
+// haya superado los 30 dias. Esto cubre el caso en que el servidor estuvo apagado durante
+// dias y no proceso las expiraciones que ocurrieron mientras estaba inactivo.
+//
+// Durante el uso normal del sistema, ReservasServices.VerificarExpiracionEspecial se encarga
+// de la verificacion perezosa por usuario individual en cada peticion relevante.
+// Esta tarea cubre la reversion masiva al arranque y cada 24 horas en ejecucion continua.
+try {
+  const resultadoReversion = await NovedadesService.RevertirEspecialesExpirados();
+  if (resultadoReversion.revertidos > 0) {
+    console.log(
+      `[Mantenimiento] Se revirtieron ${resultadoReversion.revertidos} usuarios ` +
+      `de estado Especial a En Formacion por vencimiento de 30 dias.`
+    );
+  } else {
+    console.log('[Mantenimiento] No hay estados Especiales expirados al arrancar.');
+  }
+} catch (error) {
+  // No se detiene el servidor si esta tarea falla: es mantenimiento, no es critico para el arranque.
+  console.error('[Mantenimiento] Error al revertir estados Especiales:', error.message);
+}
+
+// Programar la tarea de reversion cada 24 horas mientras el servidor este corriendo.
+// Garantiza que usuarios que cumplan los 30 dias durante el dia sean revertidos sin
+// necesidad de reiniciar el servidor ni de una accion manual del Coordinador.
+setInterval(async () => {
+  try {
+    const resultado = await NovedadesService.RevertirEspecialesExpirados();
+    if (resultado.revertidos > 0) {
+      console.log(
+        `[Mantenimiento] Reversion programada: ${resultado.revertidos} usuarios revertidos de Especial a En Formacion.`
+      );
+    }
+  } catch (error) {
+    console.error('[Mantenimiento] Error en reversion programada de estados Especiales:', error.message);
+  }
+}, 24 * 60 * 60 * 1000); // intervalo de 24 horas expresado en milisegundos
+
+// ---------- 11. INICIAR EL SERVIDOR ----------
 // El servidor escucha en el puerto definido en la variable de entorno PORT, o 8000 si no existe.
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));

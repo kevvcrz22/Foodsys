@@ -138,38 +138,37 @@ class UsuariosService {
     return true;
   }
 
-  async getAprendices() {
-    // Traer todos con sus roles
-    const todos = await UsuariosModel.findAll({
-      include: [
-        {
-          model: UsuariosRolModel,
-          as: 'rolesUsuario',
-          include: [{ model: RolesModel, as: 'rol' }]
-        },
-        {
-          model: FichasModel,
-          as: 'ficha',
-          attributes: ['Id_Ficha', 'Num_Ficha'],
-          include: [
-            { model: ProgramaModel, as: 'programas', attributes: ['Nom_Programa'] },
-            { model: ProgramaModel, as: 'Programa', attributes: ['Nom_Programa'] },
-          ]
-        }
-      ]
-    });
+async getAprendices() {
+  const todos = await UsuariosModel.findAll({
+    include: [
+      {
+        model: UsuariosRolModel,
+        as: 'rolesUsuario',
+        include: [{ model: RolesModel, as: 'rol' }]
+      },
+      {
+        model: FichasModel,
+        as: 'ficha',
+        attributes: ['Id_Ficha', 'Num_Ficha'],
+        include: [
+          // ✅ Solo un alias — el que esté definido en las asociaciones de FichasModel
+          { model: ProgramaModel, as: 'programas', attributes: ['Nom_Programa'] }
+        ]
+      }
+    ]
+  });
 
-    return todos
-      .filter((u) => {
-        const roles = u.rolesUsuario?.map(r => r.rol?.Nom_Rol).filter(Boolean) || [];
-        return roles.some(r => ['Aprendiz Interno', 'Aprendiz Externo'].includes(r));
-      })
-      .map((u) => {
-        const roles = u.rolesUsuario?.map(r => r.rol?.Nom_Rol).filter(Boolean) || [];
-        const { password, token, ...rest } = u.toJSON();
-        return { ...rest, roles };
-      });
-  }
+  return todos
+    .filter((u) => {
+      const roles = u.rolesUsuario?.map(r => r.rol?.Nom_Rol).filter(Boolean) || [];
+      return roles.some(r => ['Aprendiz Interno', 'Aprendiz Externo'].includes(r));
+    })
+    .map((u) => {
+      const roles = u.rolesUsuario?.map(r => r.rol?.Nom_Rol).filter(Boolean) || [];
+      const { password, token, ...rest } = u.toJSON();
+      return { ...rest, roles };
+    });
+}
 }
 
 export default new UsuariosService();

@@ -319,7 +319,7 @@ function App() {
                   <Route index element={<Inicio />} />
                   <Route path="Inicio" element={<Inicio />} />
                   <Route path="Perfil" element={<Perfil />} />
-                  <Route path="Reservas" element={<CrudReservas />} />
+                  <Route path="Reservar" element={<ReservaForm />} />
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>
@@ -339,7 +339,7 @@ function App() {
                   <Route index element={<Inicio />} />
                   <Route path="Inicio" element={<Inicio />} />
                   <Route path="Perfil" element={<Perfil />} />
-                  <Route path="Reservas" element={<CrudReservas />} />
+                  <Route path="Reservar" element={<ReservaForm />} />
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>
@@ -359,7 +359,7 @@ function App() {
                   <Route index element={<Inicio />} />
                   <Route path="Inicio" element={<Inicio />} />
                   <Route path="Perfil" element={<Perfil />} />
-                  <Route path="Reservas" element={<CrudReservas />} />
+                  <Route path="Reservar" element={<ReservaForm />} />
                 </Routes>
               </LayoutConSidebar>
             </ProtectedRoute>
