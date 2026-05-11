@@ -28,6 +28,7 @@ import UsuariosModel from "../Models/UsuariosModel.js";
 import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import RolesModel from "../Models/RolesModel.js";
 import PlatosModels from "../Models/PlatosModels.js";
+import MenusModel from "../Models/MenusModels.js";
 
 // Roles que requieren pasar por cocina si no tienen estado Especial.
 // Los internos (Aprendiz Interno, Pasante Interno) nunca pasan por este paso.
@@ -214,8 +215,24 @@ class ReservasServices {
         },
         transaction
       });
+
       if (existente) {
-        throw new Error(`Ya tienes una reserva activa para ${TipoNormalizado} en la fecha ${fechaReserva}`);
+        // Se define la hora en que vence cada tipo de comida
+        // Pasada esa hora el usuario podra volver a reservar para otro dia
+        const horasVencimiento = {
+          Desayuno: '07:00',
+          Almuerzo: '14:05',
+          Cena: '19:00'
+        };
+
+        // Se obtiene la hora de vencimiento segun el tipo de comida seleccionado
+        const horaVencimiento = horasVencimiento[TipoNormalizado];
+
+        throw new Error(
+          `Ya tienes una reserva activa para ${TipoNormalizado} del ${fechaReserva}. ` +
+          `Tu reserva vence a las ${horaVencimiento} de ese dia, ` +
+          `despues de esa hora podras realizar una nueva reserva.`
+        );
       }
 
       // Paso 6: insertar la reserva con el QR vacio, se actualizara en el paso 8
@@ -240,7 +257,7 @@ class ReservasServices {
         Vencimiento: fechaVencimiento.toISOString()
       };
 
-      // Paso 8: encriptar los datos y actualizar el campo Qr_Reserva en la base de datos
+      // Paso 9: encriptar los datos y actualizar el campo Qr_Reserva en la base de datos
       const encriptado = this.EncriptarDatos(datosQR);
       await nuevaReserva.update({ Qr_Reserva: encriptado }, { transaction });
 

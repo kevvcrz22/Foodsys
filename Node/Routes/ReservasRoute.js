@@ -61,14 +61,14 @@ router.post(
 router.get(
   '/reservar/historial',
   authMiddleware,
-  obtenerHistorial
+  obtenerTiposPermitidos
 );
 
 // Retorna todas las reservas del usuario autenticado sin limite de cantidad
 router.get(
   '/reservar/historial/completo',
   authMiddleware,
-  obtenerHistorialCompleto
+  obtenerPlatosDelMenu
 );
 
 // Cancela una reserva con estado Generado que pertenece al usuario autenticado.
@@ -76,7 +76,7 @@ router.get(
 router.patch(
   '/reservar/:id/cancelar',
   authMiddleware,
-  cancelarReserva
+  generarAlimentoTomorrow
 );
 
 // Verifica presencialmente una reserva. El personal de cocina confirma que el
