@@ -1,5 +1,5 @@
 // Routes/RolesRoute.js
-// Rutas del modulo de roles del sistema FoodSys
+// Rutas del modulo de roles del sistema Foodsys
 // Protegidas con authMiddleware y UsuariosMiddleware
 // ya que solo Administrador gestiona los roles
 

@@ -12,8 +12,11 @@
 //   PATCH  /api/Reservas/reservar/:id/cancelar          -> cancelarReserva
 //   PATCH  /api/Reservas/verificar/:id/cocina           -> verificarCocina
 //   POST   /api/Reservas/consumir/supervisor            -> consumirQRSupervisor
-// Agregar al bloque de imports existente en ReservasController.js
-import MenuModel   from "../Models/MenusModels.js";
+// Importaciones de modelos y servicios necesarios para este controlador.
+// ReservaModel se usa en ContarCanceladas y ContarVencidas para contar registros directamente.
+// ReservasServices centraliza toda la logica de negocio (no se repite logica aqui).
+import ReservaModel from "../Models/ReservasModel.js";
+import MenuModel from "../Models/MenusModels.js";
 import PlatosModel from "../Models/PlatosModels.js";
 import ReservasServices from "../Services/ReservasServices.js";
 
@@ -178,6 +181,22 @@ export const ObtenerMenuPorFechaYTipo = async (req, res) => {
   }
 };
 
+export const ContarCanceladas = async (req, res) => {
+  try {
+    const { fecha } = req.query;
+    if (!fecha) return res.status(400).json({ message: "La fecha es obligatoria" });
+
+    const total = await ReservaModel.count({
+      where: { Est_Reserva: 'Cancelado', Fec_Reserva: fecha }
+    });
+
+    return res.status(200).json({ total });
+  } catch (err) {
+    console.error("[ReservasController] ContarCanceladas:", err.message);
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 // Retorna todas las reservas del sistema con datos del aprendiz y el plato.
 // La usa CrudReservas.jsx (vista administrativa) para mostrar el listado completo.
 export const ObtenerTodasLasReservas = async (req, res) => {
@@ -187,5 +206,85 @@ export const ObtenerTodasLasReservas = async (req, res) => {
   } catch (Err) {
     console.error("[ReservasController] ObtenerTodasLasReservas:", Err.message);
     return res.status(400).json({ message: Err.message });
+  }
+};
+
+// Cuenta las reservas con estado Vencido para una fecha dada.
+// Se llama desde el frontend para mostrar estadisticas del dia en los reportes.
+// Query param: ?fecha=YYYY-MM-DD
+export const ContarVencidas = async (req, res) => {
+  try {
+    const { fecha } = req.query;
+    if (!fecha) return res.status(400).json({ message: "La fecha es obligatoria" });
+
+    // Contamos directamente en la base de datos sin traer todos los registros
+    const total = await ReservaModel.count({
+      where: { Est_Reserva: 'Vencido', Fec_Reserva: fecha }
+    });
+
+    return res.status(200).json({ total });
+  } catch (err) {
+    console.error("[ReservasController] ContarVencidas:", err.message);
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+// Busca la reserva activa del dia por numero de documento del aprendiz
+// y la procesa como consumida usando el mismo flujo del QR.
+// Usado por el supervisor cuando el aprendiz no puede mostrar el codigo QR.
+// Body esperado: { NumDoc: "1001234567" }
+export const consumirPorDocumento = async (req, res) => {
+  try {
+    const { NumDoc } = req.body;
+    if (!NumDoc) {
+      return res.status(400).json({ message: "El numero de documento es obligatorio" });
+    }
+
+    // El servicio busca al usuario por NumDoc_Usuario, obtiene su reserva de hoy
+    // y aplica el mismo flujo de validacion de roles que procesarConsumoSupervisor
+    const resultado = await ReservasServices.BuscarReservaPorDocumento(NumDoc);
+    return res.status(200).json(resultado);
+  } catch (err) {
+    console.error("[ReservasController] consumirPorDocumento:", err.message);
+    return res.status(400).json({ message: err.message });
+  }
+};
+
+export const consumirPorSupervisor = async (req, res) => {
+  try {
+    const resultado = await ReservasServices.procesarConsumoSupervisor(req.body.encriptadoQR);
+    return res.status(200).json(resultado);
+  } catch (err) {
+    // ← Este catch es el que convierte el throw del service en { message: "..." }
+    return res.status(400).json({ message: err.message });
+  }
+};
+
+// Busca y procesa el consumo de una reserva directamente por su Id_Reserva.
+// Alternativa al escaneo QR cuando el supervisor conoce el ID exacto de la reserva.
+// Body esperado: { Id_Reserva: 42 }
+export const consumirPorId = async (req, res) => {
+  try {
+    const { Id_Reserva } = req.body;
+    if (!Id_Reserva) {
+      return res.status(400).json({ message: "El ID de reserva es obligatorio" });
+    }
+
+    // Buscamos la reserva por ID para obtener su QR encriptado
+    // y luego reutilizamos procesarConsumoSupervisor con ese QR
+    const reserva = await ReservaModel.findByPk(Number(Id_Reserva));
+    if (!reserva) {
+      return res.status(404).json({ message: "No se encontro la reserva con ese ID" });
+    }
+    if (!reserva.Qr_Reserva) {
+      return res.status(400).json({ message: "La reserva no tiene codigo QR asociado" });
+    }
+
+    // Reutilizamos el flujo completo del supervisor para mantener consistencia
+    const resultado = await ReservasServices.procesarConsumoSupervisor(reserva.Qr_Reserva);
+    return res.status(200).json(resultado);
+  } catch (err) {
+    console.error("[ReservasController] consumirPorId:", err.message);
+    return res.status(400).json({ message: err.message });
   }
 };

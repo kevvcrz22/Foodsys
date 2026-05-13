@@ -15,7 +15,7 @@ export default function InicioExterno() {
         "Ver y cancelar reservas activas",
         "Obtener tu código QR para el comedor",
       ],
-      ruta: "/Externo/Reservas",
+      ruta: "/Externo/Reservar",
       boton: "Ir a Reservas",
       color: "emerald"
     },

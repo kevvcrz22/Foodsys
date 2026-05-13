@@ -18,9 +18,9 @@ const useIsMobile = () => {
 
 const nivelColor = (nivel) => {
   const map = {
-    Tecnólogo:        "bg-purple-100 text-purple-700",
-    Técnico:          "bg-blue-100 text-blue-700",
-    Especialización:  "bg-amber-100 text-amber-700",
+    Tecnólogo: "bg-purple-100 text-purple-700",
+    Técnico: "bg-blue-100 text-blue-700",
+    Especialización: "bg-amber-100 text-amber-700",
   };
   return map[nivel] || "bg-gray-100 text-gray-600";
 };
@@ -29,13 +29,13 @@ const nivelColor = (nivel) => {
 const DetalleModal = ({ programa, onClose, onEdit }) => {
   if (!programa) return null;
   const rows = [
-    { label: "ID",                value: programa.Id_Programa },
-    { label: "Nombre",            value: programa.Nom_Programa },
-    { label: "Area",              value: programa.Are_Programa },
-    { label: "Nivel de Formacion",value: programa.NivFor_Programa },
+    { label: "ID", value: programa.Id_Programa },
+    { label: "Nombre", value: programa.Nom_Programa },
+    { label: "Area", value: programa.Are_Programa },
+    { label: "Nivel de Formacion", value: programa.NivFor_Programa },
   ];
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-9999 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-600 to-indigo-500">
@@ -102,19 +102,19 @@ const ProgramaCard = ({ programa, onEdit, onView }) => (
 
 /* ─────────────── MAIN ─────────────── */
 const CrudPrograma = () => {
-  const [Programa,              setPrograma]              = useState([]);
-  const [filterText,            setFilterText]            = useState("");
-  const [ProgramaSeleccionado,  setProgramaSeleccionado]  = useState(null);
-  const [isModalOpen,           setIsModalOpen]           = useState(false);
-  const [detalleOpen,           setDetalleOpen]           = useState(false);
-  const [progDetalle,           setProgDetalle]           = useState(null);
-  const [importModal,           setImportModal]           = useState(false);
+  const [Programa, setPrograma] = useState([]);
+  const [filterText, setFilterText] = useState("");
+  const [ProgramaSeleccionado, setProgramaSeleccionado] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [detalleOpen, setDetalleOpen] = useState(false);
+  const [progDetalle, setProgDetalle] = useState(null);
+  const [importModal, setImportModal] = useState(false);
   const isMobile = useIsMobile();
 
   const columnsTable = [
-    { name: "N",               selector: (r) => r.Id_Programa,  sortable: true, width: "70px" },
+    { name: "N", selector: (r) => r.Id_Programa, sortable: true, width: "70px" },
     { name: "Nombre Programa", selector: (r) => r.Nom_Programa, sortable: true, grow: 2 },
-    { name: "Area",            selector: (r) => r.Are_Programa, sortable: true },
+    { name: "Area", selector: (r) => r.Are_Programa, sortable: true },
     {
       name: "Nivel",
       selector: (r) => r.NivFor_Programa,
@@ -148,15 +148,15 @@ const CrudPrograma = () => {
   };
 
   const editPrograma = (row) => { setProgramaSeleccionado(row); setIsModalOpen(true); };
-  const hideModal    = ()    => { setIsModalOpen(false); setProgramaSeleccionado(null); };
+  const hideModal = () => { setIsModalOpen(false); setProgramaSeleccionado(null); };
 
   const newList = Programa.filter((p) =>
     (p.Nom_Programa || "").toLowerCase().includes(filterText.toLowerCase())
   );
 
   const customStyles = {
-    headRow:    { style: { backgroundColor: "#f8fafc", fontSize: "13px", fontWeight: "700", color: "#374151", borderBottom: "2px solid #e5e7eb" } },
-    rows:       { style: { fontSize: "13px", "&:hover": { backgroundColor: "#eef2ff" }, borderBottom: "1px solid #f3f4f6" } },
+    headRow: { style: { backgroundColor: "#f8fafc", fontSize: "13px", fontWeight: "700", color: "#374151", borderBottom: "2px solid #e5e7eb" } },
+    rows: { style: { fontSize: "13px", "&:hover": { backgroundColor: "#eef2ff" }, borderBottom: "1px solid #f3f4f6" } },
     pagination: { style: { borderTop: "1px solid #e5e7eb", fontSize: "13px" } },
   };
 

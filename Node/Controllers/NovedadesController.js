@@ -1,6 +1,6 @@
 // Controllers/NovedadesController.js
 //
-// Controlador para el modulo de novedades y estado Especial en FoodSys.
+// Controlador para el modulo de novedades y estado Especial en Foodsys.
 // Todos los endpoints de este controlador deben estar protegidos por authMiddleware
 // y la mayoria requieren adicionalmente el rol Coordinador (verificado en la ruta).
 //

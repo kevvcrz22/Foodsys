@@ -1,5 +1,5 @@
 // Paginas/Contacto/Contacto.jsx
-// Pagina de informacion de contacto de FoodSys
+// Pagina de informacion de contacto de Foodsys
 // Muestra los canales de comunicacion del centro
 
 import { Mail, Phone, MapPin, Clock } from "lucide-react";
@@ -29,7 +29,7 @@ const Contacto = () => (
     <div className="bg-[#0f3f80] text-white px-6 py-12 text-center">
       <h1 className="text-3xl font-bold">Contactanos</h1>
       <p className="mt-2 text-blue-200 text-sm max-w-xl mx-auto">
-        Si tienes dudas, sugerencias o necesitas ayuda con el sistema FoodSys,
+        Si tienes dudas, sugerencias o necesitas ayuda con el sistema Foodsys,
         ponte en contacto con el equipo de Bienestar del centro.
       </p>
     </div>

@@ -1,14 +1,14 @@
 // Node/Controllers/UsuariosControllers.js
-// Controladores del modulo de usuarios para el sistema FoodSys
+// Controladores del modulo de usuarios para el sistema Foodsys
 // Cada funcion recibe la peticion HTTP, delega al servicio y responde con JSON
 // Nomenclatura: PascalCase en espanol sin tildes
 
 import UsuariosService from "../Services/UsuariosService.js";
-import CsvService      from "../Services/CsvService.js";
-import UsuariosModel   from "../Models/UsuariosModel.js";
-import bcrypt          from "bcrypt";
+import CsvService from "../Services/CsvService.js";
+import UsuariosModel from "../Models/UsuariosModel.js";
+import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
-import XLSX            from "xlsx"; // npm install xlsx
+import XLSX from "xlsx"; // npm install xlsx
 
 /* ============================================================
    COLUMNAS_PLANTILLA
@@ -300,8 +300,8 @@ export const importarCSV = async (req, res) => {
 */
 export const descargarPlantilla = (_req, res) => {
   try {
-    const Libro  = XLSX.utils.book_new();
-    const Hoja   = XLSX.utils.aoa_to_sheet([COLUMNAS_PLANTILLA]);
+    const Libro = XLSX.utils.book_new();
+    const Hoja = XLSX.utils.aoa_to_sheet([COLUMNAS_PLANTILLA]);
     // Ancho uniforme de 22 caracteres por columna para mejor lectura
     Hoja["!cols"] = COLUMNAS_PLANTILLA.map(() => ({ wch: 22 }));
     XLSX.utils.book_append_sheet(Libro, Hoja, "Aprendices");
@@ -336,8 +336,8 @@ export const previewImport = async (req, res) => {
     }
 
     const Workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-    const Hoja     = Workbook.Sheets[Workbook.SheetNames[0]];
-    const Filas    = XLSX.utils.sheet_to_json(Hoja, { defval: "" });
+    const Hoja = Workbook.Sheets[Workbook.SheetNames[0]];
+    const Filas = XLSX.utils.sheet_to_json(Hoja, { defval: "" });
 
     if (!Filas.length) {
       return res.status(400).json({ message: "El archivo esta vacio o no tiene datos." });
@@ -375,7 +375,7 @@ export const importarSeleccionados = async (req, res) => {
       return res.status(400).json({ message: "No hay datos seleccionados" });
     }
 
-    let Creados  = 0;
+    let Creados = 0;
     let Omitidos = 0;
     const Errores = [];
 
@@ -412,18 +412,18 @@ export const importarSeleccionados = async (req, res) => {
       await UsuariosModel.create({
         TipDoc_Usuario: Fila.TipDoc_Usuario || null,
         NumDoc_Usuario: String(Fila.NumDoc_Usuario),
-        Nom_Usuario:    Fila.Nom_Usuario    || null,
-        Ape_Usuario:    Fila.Ape_Usuario    || null,
-        Gen_Usuario:    Fila.Gen_Usuario    || null,
-        Cor_Usuario:    Fila.Cor_Usuario    || null,
-        Tel_Usuario:    Fila.Tel_Usuario    || null,
-        Id_Ficha:       Fila.Id_Ficha       || null,
-        Est_Usuario:    "En Formacion",
-        San_Usuario:    "No",
-        password:       HashPwd,
-        uuid:           uuidv4(),
-        createdat:      new Date(),
-        updatedat:      new Date(),
+        Nom_Usuario: Fila.Nom_Usuario || null,
+        Ape_Usuario: Fila.Ape_Usuario || null,
+        Gen_Usuario: Fila.Gen_Usuario || null,
+        Cor_Usuario: Fila.Cor_Usuario || null,
+        Tel_Usuario: Fila.Tel_Usuario || null,
+        Id_Ficha: Fila.Id_Ficha || null,
+        Est_Usuario: "En Formacion",
+        San_Usuario: "No",
+        password: HashPwd,
+        uuid: uuidv4(),
+        createdat: new Date(),
+        updatedat: new Date(),
       });
 
       Creados++;

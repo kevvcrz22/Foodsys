@@ -1,5 +1,5 @@
 // Perfil.jsx
-// Modulo de perfil de usuario del sistema FoodSys
+// Modulo de perfil de usuario del sistema Foodsys
 // Permite al usuario ver sus datos, editar contacto y cambiar contrasena con flujo seguro
 
 import { useState, useEffect } from "react";

@@ -103,16 +103,16 @@ const Aprendices = () => {
       ),
     },
     {
-  name: "Detalle",
-  cell: (row) => (
-    <button
-      className="bg-purple-500 text-white px-2 py-1 rounded"
-      onClick={() => verDetalle(row)}
-    >
-      Ver
-    </button>
-  ),
-}
+      name: "Detalle",
+      cell: (row) => (
+        <button
+          className="bg-purple-500 text-white px-2 py-1 rounded"
+          onClick={() => verDetalle(row)}
+        >
+          Ver
+        </button>
+      ),
+    }
   ];
 
   useEffect(() => { getAllUsuarios(); }, []);
@@ -133,7 +133,7 @@ const Aprendices = () => {
       // Intentar obtener reservas (opcional, no bloquea si falla)
       let reservas = [];
       try {
-        const reservasRes = await apiAxios.get("/api/reservas/");
+        const reservasRes = await apiAxios.get("/api/Reservas/Todas");
         reservas = Array.isArray(reservasRes.data) ? reservasRes.data : [];
       } catch { /* ignorar */ }
 
@@ -254,8 +254,8 @@ const Aprendices = () => {
           )}
         </div>
       </div>
-      
-      
+
+
 
       {isModalOpen && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>

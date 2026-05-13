@@ -15,52 +15,66 @@ import {
 import { useNavBar } from "./CerrarSesion";
 import NavRolSelector from "./NavBar/NavRolSelector";
 
-// Navegacion principal organizada por rol
+// Navegacion principal organizada por rol.
+// Cada entrada tiene la ruta exacta (to), el texto del boton (label) y el icono.
+// Las rutas de Pasante Interno y Pasante Externo son rutas base distintas para
+// que el sistema sepa exactamente que permisos aplicar sin mezclarlos.
 const NAV_POR_ROL = {
   Administrador: [
-    { to: "/Administrador", label: "Inicio", icon: Home },
-    { to: "/Administrador/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Administrador/Reportes", label: "Reportes", icon: BarChart3 },
-    { to: "/Administrador/Reservar", label: "Reservar", icon: CalendarCheck },
-    { to: "/Administrador/Novedades", label: "Novedades", icon: ClipboardList },
+    { to: "/Administrador",         label: "Inicio",    icon: Home         },
+    { to: "/Administrador/Perfil",  label: "Mi Perfil", icon: User         },
+    { to: "/Administrador/Reportes",label: "Reportes",  icon: BarChart3    },
+    { to: "/Administrador/Novedades",label: "Novedades",icon: ClipboardList },
   ],
   Supervisor: [
-    { to: "/supervisor", label: "Inicio", icon: Home },
-    { to: "/supervisor/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/supervisor/Registrar", label: "Registrar", icon: Edit },
-    { to: "/supervisor/Reportes", label: "Reportes", icon: BarChart3 },
+    { to: "/supervisor",            label: "Inicio",     icon: Home         },
+    { to: "/supervisor/Perfil",     label: "Mi Perfil",  icon: User         },
+    { to: "/supervisor/Registrar",  label: "Registrar",  icon: Edit         },
+    { to: "/supervisor/Reportes",   label: "Reportes",   icon: BarChart3    },
   ],
   "Aprendiz Externo": [
-    { to: "/Externo", label: "Inicio", icon: Home },
-    { to: "/Externo/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Externo/Reservas", label: "Reservas", icon: CalendarCheck },
+    { to: "/Externo",               label: "Inicio",    icon: Home         },
+    { to: "/Externo/Perfil",        label: "Mi Perfil", icon: User         },
+    { to: "/Externo/Reservar",      label: "Reservar",  icon: CalendarCheck },
   ],
   "Aprendiz Interno": [
-    { to: "/Interno", label: "Inicio", icon: Home },
-    { to: "/Interno/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Interno/Reservas", label: "Reservas", icon: CalendarCheck },
+    { to: "/Interno",               label: "Inicio",    icon: Home         },
+    { to: "/Interno/Perfil",        label: "Mi Perfil", icon: User         },
+    { to: "/Interno/Reservar",      label: "Reservar",  icon: CalendarCheck },
+  ],
+  // Pasante Interno: mismas opciones que Aprendiz Interno pero con ruta separada.
+  // Ruta separada porque el middleware del backend evalua el rol, no el tipo de usuario.
+  "Pasante Interno": [
+    { to: "/PasanteInterno",         label: "Inicio",    icon: Home         },
+    { to: "/PasanteInterno/Perfil",  label: "Mi Perfil", icon: User         },
+    { to: "/PasanteInterno/Reservar",label: "Reservar",  icon: CalendarCheck },
+  ],
+  // Pasante Externo: mismas opciones que Aprendiz Externo pero con ruta separada.
+  // Solo puede reservar almuerzo y debe pasar por cocina antes del supervisor.
+  "Pasante Externo": [
+    { to: "/PasanteExterno",         label: "Inicio",    icon: Home         },
+    { to: "/PasanteExterno/Perfil",  label: "Mi Perfil", icon: User         },
+    { to: "/PasanteExterno/Reservar",label: "Reservar",  icon: CalendarCheck },
   ],
   Coordinador: [
-    { to: "/coordinador", label: "Inicio", icon: Home },
-    { to: "/coordinador/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/coordinador/Novedades", label: "Novedades", icon: ClipboardList },
-    { to: "/coordinador/Reportes", label: "Reportes", icon: BarChart3 },
-  ],
-  Pasante: [
-    { to: "/Pasante", label: "Inicio", icon: Home },
-    { to: "/Pasante/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Pasante/Reservas", label: "Reservas", icon: CalendarCheck },
+    { to: "/coordinador",            label: "Inicio",     icon: Home         },
+    { to: "/coordinador/Perfil",     label: "Mi Perfil",  icon: User         },
+    { to: "/coordinador/Novedades",  label: "Novedades",  icon: ClipboardList },
+    { to: "/coordinador/Reportes",   label: "Reportes",   icon: BarChart3    },
   ],
   Cocina: [
-    { to: "/Cocina", label: "Inicio", icon: Home },
-    { to: "/Cocina/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Cocina/Reportes", label: "Reportes", icon: BarChart3 },
+    { to: "/Cocina",                 label: "Inicio",     icon: Home         },
+    { to: "/Cocina/Perfil",          label: "Mi Perfil",  icon: User         },
+    // Verificar: modulo principal de Cocina para habilitar el QR de aprendices externos.
+    // Cambia el estado de la reserva de Generado a Verificado.
+    { to: "/Cocina/Verificar",       label: "Verificar",  icon: ShieldCheck  },
+    { to: "/Cocina/Reportes",        label: "Reportes",   icon: BarChart3    },
   ],
   Bienestar: [
-    { to: "/Bienestar", label: "Inicio", icon: Home },
-    { to: "/Bienestar/Perfil", label: "Mi Perfil", icon: User },
-    { to: "/Bienestar/Reportes", label: "Reportes", icon: BarChart3 },
-    { to: "/Bienestar/Novedades", label: "Novedades", icon: ClipboardList },
+    { to: "/Bienestar",              label: "Inicio",     icon: Home         },
+    { to: "/Bienestar/Perfil",       label: "Mi Perfil",  icon: User         },
+    { to: "/Bienestar/Reportes",     label: "Reportes",   icon: BarChart3    },
+    { to: "/Bienestar/Novedades",    label: "Novedades",  icon: ClipboardList },
   ],
 };
 
@@ -85,16 +99,19 @@ const TABLAS_POR_ROL = {
   ],
 };
 
-// Color de acento segun el rol para personalizar la apariencia del sidebar
+// Color de acento por rol para personalizar la apariencia visual del sidebar.
+// Cada rol tiene su propio color para que el usuario identifique rapidamente
+// con que rol esta trabajando en ese momento.
 const ACCENT_POR_ROL = {
-  Administrador: { accent: "bg-indigo-500", badge: "bg-indigo-100 text-indigo-700", activeLink: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  Supervisor: { accent: "bg-blue-500", badge: "bg-blue-100 text-blue-700", activeLink: "bg-blue-50 text-blue-700 border-blue-200" },
-  "Aprendiz Externo": { accent: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-700", activeLink: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  "Aprendiz Interno": { accent: "bg-teal-500", badge: "bg-teal-100 text-teal-700", activeLink: "bg-teal-50 text-teal-700 border-teal-200" },
-  Coordinador: { accent: "bg-violet-500", badge: "bg-violet-100 text-violet-700", activeLink: "bg-violet-50 text-violet-700 border-violet-200" },
-  Pasante: { accent: "bg-cyan-500", badge: "bg-cyan-100 text-cyan-700", activeLink: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-  Cocina: { accent: "bg-orange-500", badge: "bg-orange-100 text-orange-700", activeLink: "bg-orange-50 text-orange-700 border-orange-200" },
-  Bienestar: { accent: "bg-rose-500", badge: "bg-rose-100 text-rose-700", activeLink: "bg-rose-50 text-rose-700 border-rose-200" },
+  Administrador:     { accent: "bg-indigo-500",  badge: "bg-indigo-100 text-indigo-700",   activeLink: "bg-indigo-50 text-indigo-700 border-indigo-200"   },
+  Supervisor:        { accent: "bg-blue-500",    badge: "bg-blue-100 text-blue-700",       activeLink: "bg-blue-50 text-blue-700 border-blue-200"         },
+  "Aprendiz Externo":{ accent: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-700", activeLink: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  "Aprendiz Interno":{ accent: "bg-teal-500",    badge: "bg-teal-100 text-teal-700",       activeLink: "bg-teal-50 text-teal-700 border-teal-200"         },
+  "Pasante Interno": { accent: "bg-cyan-500",    badge: "bg-cyan-100 text-cyan-700",       activeLink: "bg-cyan-50 text-cyan-700 border-cyan-200"         },
+  "Pasante Externo": { accent: "bg-sky-500",     badge: "bg-sky-100 text-sky-700",         activeLink: "bg-sky-50 text-sky-700 border-sky-200"           },
+  Coordinador:       { accent: "bg-violet-500",  badge: "bg-violet-100 text-violet-700",   activeLink: "bg-violet-50 text-violet-700 border-violet-200"   },
+  Cocina:            { accent: "bg-orange-500",  badge: "bg-orange-100 text-orange-700",   activeLink: "bg-orange-50 text-orange-700 border-orange-200"   },
+  Bienestar:         { accent: "bg-rose-500",    badge: "bg-rose-100 text-rose-700",       activeLink: "bg-rose-50 text-rose-700 border-rose-200"         },
 };
 
 const DEFAULT_ACCENT = {

@@ -1,6 +1,6 @@
 // Paginas/Novedades/Novedades.jsx
 //
-// Pagina principal del modulo de Novedades para el Coordinador en FoodSys.
+// Pagina principal del modulo de Novedades para el Coordinador en Foodsys.
 // CORRECCIONES APLICADAS EN ESTA VERSION (sin modificar logica de negocio existente):
 //
 //   1. Cargar_Platos ahora usa el endpoint /api/Reservas/reservar/Menu/:Fecha/:Tipo
@@ -32,25 +32,25 @@ const Novedades = () => {
   // ESTADO EXISTENTE - NO MODIFICADO
   // =========================================================================
 
-  const [Usuarios, Set_Usuarios]           = useState([]);
-  const [Busqueda, Set_Busqueda]           = useState("");
-  const [UsuarioSel, Set_UsuarioSel]       = useState(null);
-  const [Tipo, Set_Tipo]                   = useState("Almuerzo");
-  const [Plato, Set_Plato]                 = useState("");
-  const [Jus_Reserva, Set_Jus_Reserva]    = useState("");
-  const [TiposDisp, Set_TiposDisp]         = useState([]);
-  const [PlatosDisp, Set_PlatosDisp]       = useState([]);
-  const [Cargando, Set_Cargando]           = useState(false);
-  const [Mensaje, Set_Mensaje]             = useState(null);
-  const [Exc_Reservas, Set_Exc_Reservas]   = useState([]);
+  const [Usuarios, Set_Usuarios] = useState([]);
+  const [Busqueda, Set_Busqueda] = useState("");
+  const [UsuarioSel, Set_UsuarioSel] = useState(null);
+  const [Tipo, Set_Tipo] = useState("Almuerzo");
+  const [Plato, Set_Plato] = useState("");
+  const [Jus_Reserva, Set_Jus_Reserva] = useState("");
+  const [TiposDisp, Set_TiposDisp] = useState([]);
+  const [PlatosDisp, Set_PlatosDisp] = useState([]);
+  const [Cargando, Set_Cargando] = useState(false);
+  const [Mensaje, Set_Mensaje] = useState(null);
+  const [Exc_Reservas, Set_Exc_Reservas] = useState([]);
 
   // =========================================================================
   // ESTADO NUEVO - NO MODIFICADO RESPECTO A LA VERSION ANTERIOR
   // =========================================================================
 
-  const [TabActiva, Set_TabActiva]             = useState("novedades");
+  const [TabActiva, Set_TabActiva] = useState("novedades");
   const [Mostrar_Reporte, Set_Mostrar_Reporte] = useState(false);
-  const [Datos_Reporte, Set_Datos_Reporte]     = useState(null);
+  const [Datos_Reporte, Set_Datos_Reporte] = useState(null);
   const [Cargando_Reporte, Set_Cargando_Reporte] = useState(false);
 
   // =========================================================================
@@ -249,11 +249,10 @@ const Novedades = () => {
 
       {Mensaje && (
         <div
-          className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium ${
-            Mensaje.tipo === "exito"
+          className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium ${Mensaje.tipo === "exito"
               ? "bg-green-100 text-green-700 border border-green-200"
               : "bg-red-100 text-red-700 border border-red-200"
-          }`}
+            }`}
         >
           {Mensaje.texto}
         </div>
@@ -262,22 +261,20 @@ const Novedades = () => {
       <div className="flex gap-1 mb-6 border-b border-gray-200">
         <button
           onClick={() => Set_TabActiva("novedades")}
-          className={`pb-3 px-4 text-sm font-medium transition border-b-2 -mb-px ${
-            TabActiva === "novedades"
+          className={`pb-3 px-4 text-sm font-medium transition border-b-2 -mb-px ${TabActiva === "novedades"
               ? "border-[#1861c1] text-[#1861c1]"
               : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
+            }`}
         >
           Registrar Novedad
         </button>
 
         <button
           onClick={() => Set_TabActiva("especial")}
-          className={`pb-3 px-4 text-sm font-medium transition border-b-2 -mb-px flex items-center gap-2 ${
-            TabActiva === "especial"
+          className={`pb-3 px-4 text-sm font-medium transition border-b-2 -mb-px flex items-center gap-2 ${TabActiva === "especial"
               ? "border-purple-500 text-purple-600"
               : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
+            }`}
         >
           Estado Especial
           {Usuarios.filter((U) => U.Est_Usuario === "Especial").length > 0 && (
@@ -482,15 +479,14 @@ const Novedades = () => {
                           <td className="px-3 py-2 text-gray-600">{Fila.Tipo}</td>
                           <td className="px-3 py-2 text-gray-600">{Fila.Plato}</td>
                           <td className="px-3 py-2">
-                            <span className={`px-2 py-0.5 rounded-full font-semibold ${
-                              Fila.Estado === "Consumido"
+                            <span className={`px-2 py-0.5 rounded-full font-semibold ${Fila.Estado === "Consumido"
                                 ? "bg-green-100 text-green-600"
                                 : Fila.Estado === "Cancelado" || Fila.Estado === "Vencido"
-                                ? "bg-red-100 text-red-500"
-                                : Fila.Estado === "Verificado"
-                                ? "bg-blue-100 text-blue-600"
-                                : "bg-orange-100 text-orange-600"
-                            }`}>
+                                  ? "bg-red-100 text-red-500"
+                                  : Fila.Estado === "Verificado"
+                                    ? "bg-blue-100 text-blue-600"
+                                    : "bg-orange-100 text-orange-600"
+                              }`}>
                               {Fila.Estado}
                             </span>
                           </td>

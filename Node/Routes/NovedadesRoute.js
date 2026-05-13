@@ -1,6 +1,6 @@
 // Routes/NovedadesRoute.js
 //
-// Define las rutas HTTP para el modulo de novedades y estado Especial en FoodSys.
+// Define las rutas HTTP para el modulo de novedades y estado Especial en Foodsys.
 // Todas las rutas requieren autenticacion (authMiddleware).
 // Las rutas administrativas (crear novedad, estado Especial, reporte) ademas
 // requieren el rol Coordinador verificado por verificarRol.
@@ -75,7 +75,7 @@ router.get(
 // Body: { roles: ["Aprendiz Externo"] }
 router.post(
   '/tipos-comida',
-  authMiddleware ,
+  authMiddleware,
   obtenerTiposPorRol
 );
 

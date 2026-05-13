@@ -1,6 +1,6 @@
 // Services/NovedadesService.js
 //
-// Servicio de novedades y gestion de estado Especial para el sistema FoodSys.
+// Servicio de novedades y gestion de estado Especial para el sistema Foodsys.
 // Este archivo es complementario a ReservasServices.js. No duplica logica:
 // cuando necesita crear una reserva, delega a ReservasServices.generarReservaPass.
 //
@@ -70,21 +70,21 @@ class NovedadesService {
   // Esta logica es la misma que en ReservasServices.ObtenerRolesPermitidos
   // pero expresada para el contexto de novedades (el Coordinador la consulta
   // al abrir el formulario de novedad para saber que opciones mostrar).
-Obtener_Tipos_Por_Rol(Roles_Usuario) {
-  const EsInterno = Roles_Usuario.some(
-    (R) => R === "Aprendiz Interno" || R === "Pasante Interno"
-  );
-  if (EsInterno) return ["Desayuno", "Almuerzo", "Cena"];
+  Obtener_Tipos_Por_Rol(Roles_Usuario) {
+    const EsInterno = Roles_Usuario.some(
+      (R) => R === "Aprendiz Interno" || R === "Pasante Interno"
+    );
+    if (EsInterno) return ["Desayuno", "Almuerzo", "Cena"];
 
-  const EsExterno = Roles_Usuario.some(
-    (R) => R === "Aprendiz Externo" || R === "Pasante Externo"
-  );
-  // Los externos solo tienen derecho a almuerzo segun las reglas de negocio del comedor.
-  // El desayuno y la cena no aplican para su tipo de vinculacion.
-  if (EsExterno) return ["Almuerzo"];
+    const EsExterno = Roles_Usuario.some(
+      (R) => R === "Aprendiz Externo" || R === "Pasante Externo"
+    );
+    // Los externos solo tienen derecho a almuerzo segun las reglas de negocio del comedor.
+    // El desayuno y la cena no aplican para su tipo de vinculacion.
+    if (EsExterno) return ["Almuerzo"];
 
-  return [];
-}
+    return [];
+  }
   // Retorna las reservas excepcionales del dia actual con los datos del aprendiz.
   // Se usa en la vista de novedades del Coordinador y en la generacion del reporte.
   async Obtener_Excepcionales_Hoy() {
@@ -433,49 +433,49 @@ Obtener_Tipos_Por_Rol(Roles_Usuario) {
       throw new Error("El archivo Excel esta vacio o no tiene datos en la primera hoja");
     }
 
-// ✅ POR ESTO:
-const primeraFila = filas[0];
-const columnas = Object.keys(primeraFila);
+    // ✅ POR ESTO:
+    const primeraFila = filas[0];
+    const columnas = Object.keys(primeraFila);
 
-const ALIAS_ID  = ['Id_Usuario', 'ID Usuario', 'id_usuario'];
-const ALIAS_DOC = ['NumDoc_Usuario', 'N° Documento', 'Num Documento',
-                   'NumDocumento', 'num_doc', 'Documento'];
+    const ALIAS_ID = ['Id_Usuario', 'ID Usuario', 'id_usuario'];
+    const ALIAS_DOC = ['NumDoc_Usuario', 'N° Documento', 'Num Documento',
+      'NumDocumento', 'num_doc', 'Documento'];
 
-const colId  = columnas.find(c => ALIAS_ID.includes(c));
-const colDoc = columnas.find(c => ALIAS_DOC.includes(c));
+    const colId = columnas.find(c => ALIAS_ID.includes(c));
+    const colDoc = columnas.find(c => ALIAS_DOC.includes(c));
 
-const usaId  = Boolean(colId);
-const usaDoc = Boolean(colDoc);
+    const usaId = Boolean(colId);
+    const usaDoc = Boolean(colDoc);
 
-if (!usaId && !usaDoc) {
-  throw new Error(
-    "El Excel debe tener una columna 'Id_Usuario' o 'N° Documento' (u otro nombre reconocido). " +
-    `Columnas encontradas: ${columnas.join(', ')}`
-  );
-}
+    if (!usaId && !usaDoc) {
+      throw new Error(
+        "El Excel debe tener una columna 'Id_Usuario' o 'N° Documento' (u otro nombre reconocido). " +
+        `Columnas encontradas: ${columnas.join(', ')}`
+      );
+    }
 
     let idsUsuarios = [];
 
-if (usaId) {
-  // ✅ Usa colId en vez del nombre hardcodeado
-  idsUsuarios = filas
-    .map(f => parseInt(f[colId]))
-    .filter(id => !isNaN(id) && id > 0);
+    if (usaId) {
+      // ✅ Usa colId en vez del nombre hardcodeado
+      idsUsuarios = filas
+        .map(f => parseInt(f[colId]))
+        .filter(id => !isNaN(id) && id > 0);
 
-} else {
-  // ✅ Usa colDoc en vez del nombre hardcodeado
-  const documentos = filas
-    .map(f => f[colDoc] ? String(f[colDoc]).trim() : null)
-    .filter(Boolean);
+    } else {
+      // ✅ Usa colDoc en vez del nombre hardcodeado
+      const documentos = filas
+        .map(f => f[colDoc] ? String(f[colDoc]).trim() : null)
+        .filter(Boolean);
 
-  if (documentos.length === 0) {
-    throw new Error(`La columna "${colDoc}" existe pero no tiene valores válidos`);
-  }
+      if (documentos.length === 0) {
+        throw new Error(`La columna "${colDoc}" existe pero no tiene valores válidos`);
+      }
 
-  const usuariosEncontrados = await UsuariosModel.findAll({
-    where: { NumDoc_Usuario: { [Op.in]: documentos } },
-    attributes: ['Id_Usuario', 'NumDoc_Usuario']
-  });
+      const usuariosEncontrados = await UsuariosModel.findAll({
+        where: { NumDoc_Usuario: { [Op.in]: documentos } },
+        attributes: ['Id_Usuario', 'NumDoc_Usuario']
+      });
 
       idsUsuarios = usuariosEncontrados.map(u => u.Id_Usuario);
 
