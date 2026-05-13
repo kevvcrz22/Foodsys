@@ -1,5 +1,5 @@
 // Routes/MenusRoutes.js
-// Rutas del modulo de menus del sistema FoodSys.
+// Rutas del modulo de menus del sistema Foodsys.
 // Las rutas estaticas SIEMPRE antes de /:id para que Express no las interprete
 // como valores de parametro.
 //

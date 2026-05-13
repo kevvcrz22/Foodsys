@@ -1,5 +1,5 @@
 // Paginas/About/QueEsFoodsys.jsx
-// Pagina informativa sobre el sistema FoodSys
+// Pagina informativa sobre el sistema Foodsys
 // Explica el proposito, los modulos y los roles del sistema
 
 import { Utensils, ShieldCheck, CalendarCheck, BarChart3, Users, QrCode } from "lucide-react";
@@ -36,7 +36,7 @@ const QueEsFoodsys = () => (
     {/* Encabezado hero */}
     <div className="bg-[#0f3f80] text-white px-6 py-14 text-center">
       <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-4">
-      <img src={logo} alt="Logo Foodsys" className="w-12 h-12" />
+        <img src={logo} alt="Logo Foodsys" className="w-12 h-12" />
       </div>
       <h1 className="text-3xl font-bold">Que es Foodsys</h1>
       <p className="mt-3 text-blue-200 text-sm max-w-2xl mx-auto leading-relaxed">

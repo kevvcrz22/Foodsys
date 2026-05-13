@@ -15,7 +15,7 @@ export default function InicioInterno() {
         "Ver y cancelar reservas activas",
         "Obtener tu código QR para el comedor",
       ],
-      ruta: "/Interno/Reservas",
+      ruta: "/Interno/Reservar",
       boton: "Ir a Reservas",
       color: "emerald"
     },
@@ -29,7 +29,7 @@ export default function InicioInterno() {
         "Consultar estado de cada reserva",
         "Revisar fechas y tipos de comida",
       ],
-      ruta: "/Externo/Historial",
+      ruta: "/Interno/Historial",
       boton: "Ver Historial",
       color: "blue"
     },
@@ -51,7 +51,7 @@ export default function InicioInterno() {
             <CalendarCheck className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Panel del Aprendiz Externo</h1>
+            <h1 className="text-2xl font-bold">Panel del Aprendiz Interno</h1>
             <p className="text-emerald-200 text-sm">Centro Agropecuario La Granja — SENA Regional Tolima</p>
           </div>
         </div>

@@ -1,11 +1,11 @@
 // Node/Routes/ProgramaRoutes.js
-// Rutas del modulo de programas del sistema FoodSys
+// Rutas del modulo de programas del sistema Foodsys
 // Rutas estaticas SIEMPRE antes de rutas con parametro dinamico (/:id)
 // para que Express no interprete "plantilla-excel" o "preview-import"
 // como un valor de :id.
 
-import express        from "express";
-import multer         from "multer";
+import express from "express";
+import multer from "multer";
 import authMiddleware from "../Middleware/authMiddleware.js";
 import {
   // CRUD basico — no se modifico
@@ -61,8 +61,8 @@ Router.post("/", authMiddleware, createPrograma);
 // RUTAS CON PARAMETRO DINAMICO — siempre al final
 // ─────────────────────────────────────────────────────────────
 
-Router.get("/:id",    getPrograma);
-Router.put("/:id",    authMiddleware, updatePrograma);
+Router.get("/:id", getPrograma);
+Router.put("/:id", authMiddleware, updatePrograma);
 Router.delete("/:id", authMiddleware, deletePrograma);
 
 export default Router;

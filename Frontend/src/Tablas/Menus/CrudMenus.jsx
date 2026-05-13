@@ -13,7 +13,7 @@ const tipoConfig = {
   Desayuno: {
     icon: Coffee,
     color: "text-amber-700",
-    bg:   "bg-amber-50",
+    bg: "bg-amber-50",
     border: "border-amber-200",
     headerBg: "bg-amber-500",
     badge: "bg-amber-100 text-amber-800 border border-amber-300",
@@ -21,7 +21,7 @@ const tipoConfig = {
   Almuerzo: {
     icon: Sun,
     color: "text-green-700",
-    bg:   "bg-green-50",
+    bg: "bg-green-50",
     border: "border-green-200",
     headerBg: "bg-green-600",
     badge: "bg-green-100 text-green-800 border border-green-300",
@@ -29,7 +29,7 @@ const tipoConfig = {
   Cena: {
     icon: Moon,
     color: "text-indigo-700",
-    bg:   "bg-indigo-50",
+    bg: "bg-indigo-50",
     border: "border-indigo-200",
     headerBg: "bg-indigo-600",
     badge: "bg-indigo-100 text-indigo-800 border border-indigo-300",
@@ -40,8 +40,8 @@ const tipoConfig = {
    Formulario de nuevo/editar menú
 ───────────────────────────────────────── */
 const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles }) => {
-  const [Fec_Menu,  setFec_Menu]  = useState("");
-  const [Tip_Menu,  setTip_Menu]  = useState("Almuerzo");
+  const [Fec_Menu, setFec_Menu] = useState("");
+  const [Tip_Menu, setTip_Menu] = useState("Almuerzo");
   const [platosSeleccionados, setPlatosSeleccionados] = useState([]); // max 2
   const [enviando, setEnviando] = useState(false);
 
@@ -148,11 +148,10 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
                 key={t}
                 type="button"
                 onClick={() => setTip_Menu(t)}
-                className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                  Tip_Menu === t
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${Tip_Menu === t
                     ? `${c.headerBg} text-white border-transparent`
                     : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
-                }`}
+                  }`}
               >
                 {t}
               </button>
@@ -183,7 +182,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
             {platosFiltrados.map((p) => {
               const sel = platosSeleccionados.includes(p.Id_Plato);
               const imgSrc = p.Img_Plato ? `${API_URL}/uploads/${p.Img_Plato}` : null;
-              const lleno  = !sel && platosSeleccionados.length >= 2;
+              const lleno = !sel && platosSeleccionados.length >= 2;
 
               return (
                 <button
@@ -191,13 +190,12 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
                   type="button"
                   disabled={lleno}
                   onClick={() => togglePlato(p.Id_Plato)}
-                  className={`flex items-center gap-3 p-2.5 rounded-xl border-2 text-left transition-all ${
-                    lleno
+                  className={`flex items-center gap-3 p-2.5 rounded-xl border-2 text-left transition-all ${lleno
                       ? "opacity-40 cursor-not-allowed border-gray-200 bg-gray-50"
                       : sel
-                      ? `border-green-500 ${cfg.bg} shadow-sm`
-                      : "border-gray-200 bg-white hover:border-gray-300"
-                  }`}
+                        ? `border-green-500 ${cfg.bg} shadow-sm`
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
                 >
                   {imgSrc ? (
                     <img
@@ -262,8 +260,8 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
    Card de menú (agrupado por tipo)
 ───────────────────────────────────────── */
 const MenuCard = ({ menu, onEdit }) => {
-  const cfg    = tipoConfig[menu.Tip_Menu] || tipoConfig.Almuerzo;
-  const Icon   = cfg.icon;
+  const cfg = tipoConfig[menu.Tip_Menu] || tipoConfig.Almuerzo;
+  const Icon = cfg.icon;
   const imgSrc = menu.plato?.Img_Plato
     ? `${API_URL}/uploads/${menu.plato.Img_Plato}`
     : null;
@@ -308,17 +306,19 @@ const MenuCard = ({ menu, onEdit }) => {
   );
 };
 
-/* ─────────────────────────────────────────
+/* ───────────────────────────────────────────
    Componente principal
-───────────────────────────────────────── */
-const CrudMenus = () => {
-  const [menus,        setMenus]        = useState([]);
-  const [platos,       setPlatos]       = useState([]);
-  const [filterText,   setFilterText]   = useState("");
+─────────────────────────────────────────── */
+// soloLectura: Coordinador y Bienestar solo pueden ver (sin crear ni editar)
+// soloCrear:   Cocina puede crear nuevos menus pero no editar los existentes
+const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
+  const [menus, setMenus] = useState([]);
+  const [platos, setPlatos] = useState([]);
+  const [filterText, setFilterText] = useState("");
   const [selectedMenu, setSelectedMenu] = useState(null);
-  const [isEdit,       setIsEdit]       = useState(false);
-  const [isModalOpen,  setIsModalOpen]  = useState(false);
-  const [filtroTipo,   setFiltroTipo]   = useState("Todos");
+  const [isEdit, setIsEdit] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [filtroTipo, setFiltroTipo] = useState("Todos");
 
   useEffect(() => {
     getAllMenus();
@@ -390,13 +390,16 @@ const CrudMenus = () => {
                 <p className="text-xs text-gray-400 hidden sm:block">{menus.length} registros</p>
               </div>
             </div>
-            <button
-              onClick={() => { setSelectedMenu(null); setIsEdit(false); setIsModalOpen(true); }}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 sm:px-5 rounded-xl text-sm font-semibold transition-colors shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Nuevo Menú</span>
-            </button>
+            {/* Solo muestra el boton Nuevo Menu si no es modo solo lectura */}
+            {!soloLectura && (
+              <button
+                onClick={() => { setSelectedMenu(null); setIsEdit(false); setIsModalOpen(true); }}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 sm:px-5 rounded-xl text-sm font-semibold transition-colors shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Nuevo Menú</span>
+              </button>
+            )}
           </div>
 
           {/* Búsqueda */}
@@ -417,11 +420,10 @@ const CrudMenus = () => {
                 <button
                   key={t}
                   onClick={() => setFiltroTipo(t)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                    filtroTipo === t
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${filtroTipo === t
                       ? "bg-green-600 text-white border-transparent"
                       : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
-                  }`}
+                    }`}
                 >
                   {t === "Todos" ? "Todos" : t}
                 </button>
@@ -464,7 +466,7 @@ const CrudMenus = () => {
                   const menosTipo = menusPorFecha[fecha].filter((m) => m.Tip_Menu === tipo);
                   if (menosTipo.length === 0) return null;
 
-                  const cfg  = tipoConfig[tipo];
+                  const cfg = tipoConfig[tipo];
                   const Icon = cfg.icon;
 
                   return (
@@ -478,7 +480,15 @@ const CrudMenus = () => {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                         {menosTipo.map((menu) => (
-                          <MenuCard key={menu.Id_Menu} menu={menu} onEdit={editMenu} />
+                          // Se pasa ocultarEditar al MenuCard:
+                          // soloLectura: ni crear ni editar
+                          // soloCrear: puede crear pero no editar cards existentes
+                          <MenuCard
+                            key={menu.Id_Menu}
+                            menu={menu}
+                            onEdit={editMenu}
+                            ocultarEditar={soloLectura || soloCrear}
+                          />
                         ))}
                       </div>
                     </div>
@@ -490,8 +500,8 @@ const CrudMenus = () => {
         </div>
       </div>
 
-      {/* Modal crear/editar */}
-      {isModalOpen && (
+      {/* Modal crear/editar: se bloquea en modo solo lectura */}
+      {isModalOpen && !soloLectura && (
         <div className="fixed inset-0 z-9999 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={hideModal} />
           <div className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 max-h-[95vh] overflow-hidden flex flex-col">

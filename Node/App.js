@@ -21,29 +21,29 @@ import Path from 'path';         // Modulo nativo de Node.js para manejar rutas 
 // ---------- 2. IMPORTACION DE RUTAS ----------
 // Cada archivo en la carpeta "Routes" define un enrutador de Express para un recurso.
 // El nombre de la variable debe coincidir con lo exportado por cada modulo (por defecto).
-import UsuariosRoute    from './Routes/UsuariosRoute.js';      // Rutas para gestion de usuarios
-import FichasRoute      from './Routes/FichasRoute.js';        // Rutas para fichas
-import ReservasRoute    from './Routes/ReservasRoute.js';      // Rutas para reservas de comida
-import ProgramaRoute    from './Routes/ProgramaRoutes.js';     // Rutas para programas academicos
-import RolesRoute       from './Routes/RolesRoute.js';         // Rutas para roles de usuario
+import UsuariosRoute from './Routes/UsuariosRoute.js';      // Rutas para gestion de usuarios
+import FichasRoute from './Routes/FichasRoute.js';        // Rutas para fichas
+import ReservasRoute from './Routes/ReservasRoute.js';      // Rutas para reservas de comida
+import ProgramaRoute from './Routes/ProgramaRoutes.js';     // Rutas para programas academicos
+import RolesRoute from './Routes/RolesRoute.js';         // Rutas para roles de usuario
 import UsuariosRolRoutes from './Routes/UsuariosRolRoutes.js'; // Rutas para asignacion de roles a usuarios
-import PlatosRoutes     from './Routes/PlatosRoutes.js';       // Rutas para platos de comida
-import MenusRoutes      from './Routes/MenusRoutes.js';        // Rutas para menus diarios
-import ReportesRoute    from './Routes/ReportesRoute.js';      // Rutas para reportes y estadisticas
-import InicioRoute      from './Routes/InicioRoute.js';        // Rutas para la pagina de Inicio
-import NovedadesRoute   from './Routes/NovedadesRoute.js';     // Rutas para novedades y estado Especial
+import PlatosRoutes from './Routes/PlatosRoutes.js';       // Rutas para platos de comida
+import MenusRoutes from './Routes/MenusRoutes.js';        // Rutas para menus diarios
+import ReportesRoute from './Routes/ReportesRoute.js';      // Rutas para reportes y estadisticas
+import InicioRoute from './Routes/InicioRoute.js';        // Rutas para la pagina de Inicio
+import NovedadesRoute from './Routes/NovedadesRoute.js';     // Rutas para novedades y estado Especial
 
 // ---------- 3. IMPORTACION DE MODELOS ----------
 // Los modelos representan las tablas de la base de datos.
 // Se importan aqui para poder establecer las relaciones (asociaciones) entre ellos.
-import FichasModel      from './Models/FichasModel.js';
-import UsuariosModel    from './Models/UsuariosModel.js';
-import ProgramaModel    from './Models/ProgramaModel.js';
-import ReservasModel    from './Models/ReservasModel.js';
-import RolesModel       from './Models/RolesModel.js';
+import FichasModel from './Models/FichasModel.js';
+import UsuariosModel from './Models/UsuariosModel.js';
+import ProgramaModel from './Models/ProgramaModel.js';
+import ReservasModel from './Models/ReservasModel.js';
+import RolesModel from './Models/RolesModel.js';
 import UsuariosRolModel from './Models/UsuariosRolModel.js';
-import PlatosModel      from './Models/PlatosModels.js';
-import MenuModel        from './Models/MenusModels.js';
+import PlatosModel from './Models/PlatosModels.js';
+import MenuModel from './Models/MenusModels.js';
 
 // Servicio de novedades: se importa aqui para ejecutar la tarea de mantenimiento
 // de estados Especiales expirados al arrancar el servidor (ver seccion 10).
@@ -68,7 +68,7 @@ app.use('/api/Programa', ProgramaRoute);
 app.use('/api/Roles', RolesRoute);
 app.use('/api/UsuariosRoles', UsuariosRolRoutes);
 app.use('/api/Platos', PlatosRoutes);
-app.use('/api/Menus',  MenusRoutes);
+app.use('/api/Menus', MenusRoutes);
 app.use('/api/Reportes', ReportesRoute);
 app.use('/api/Inicio', InicioRoute);
 app.use('/api/Novedades', NovedadesRoute);

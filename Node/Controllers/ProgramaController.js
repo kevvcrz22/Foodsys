@@ -1,10 +1,10 @@
 // Node/Controllers/ProgramaController.js
-// Controladores del modulo de programas para el sistema FoodSys
+// Controladores del modulo de programas para el sistema Foodsys
 // Nomenclatura: PascalCase en espanol sin tildes
 
 import ProgramaService from "../Services/ProgramaService.js";
-import ProgramaModel   from "../Models/ProgramaModel.js";
-import XLSX            from "xlsx";
+import ProgramaModel from "../Models/ProgramaModel.js";
+import XLSX from "xlsx";
 
 /* ============================================================
    COLUMNAS_PLANTILLA_PROGRAMA
@@ -117,7 +117,7 @@ export const deletePrograma = async (req, res) => {
 export const descargarPlantillaPrograma = (_req, res) => {
   try {
     const Libro = XLSX.utils.book_new();
-    const Hoja  = XLSX.utils.aoa_to_sheet([COLUMNAS_PLANTILLA_PROGRAMA]);
+    const Hoja = XLSX.utils.aoa_to_sheet([COLUMNAS_PLANTILLA_PROGRAMA]);
     Hoja["!cols"] = COLUMNAS_PLANTILLA_PROGRAMA.map(() => ({ wch: 26 }));
     XLSX.utils.book_append_sheet(Libro, Hoja, "Programas");
 
@@ -151,8 +151,8 @@ export const previewImportPrograma = async (req, res) => {
     }
 
     const Workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-    const Hoja     = Workbook.Sheets[Workbook.SheetNames[0]];
-    const Filas    = XLSX.utils.sheet_to_json(Hoja, { defval: "" });
+    const Hoja = Workbook.Sheets[Workbook.SheetNames[0]];
+    const Filas = XLSX.utils.sheet_to_json(Hoja, { defval: "" });
 
     if (!Filas.length) {
       return res.status(400).json({ message: "El archivo esta vacio o no tiene datos." });
@@ -166,7 +166,7 @@ export const previewImportPrograma = async (req, res) => {
       }
       return {
         Nom_Programa: Limpio["Nombre del Programa"] ?? "",
-        Are_Programa: Limpio["Nombre del Área"]     ?? "",
+        Are_Programa: Limpio["Nombre del Área"] ?? "",
       };
     });
 
@@ -193,7 +193,7 @@ export const importarProgramasSeleccionados = async (req, res) => {
       return res.status(400).json({ message: "No hay datos seleccionados" });
     }
 
-    let Creados  = 0;
+    let Creados = 0;
     let Omitidos = 0;
     const Errores = [];
 
