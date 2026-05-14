@@ -53,7 +53,8 @@ import {
   ContarCanceladas,
   consumirPorDocumento,
   consumirPorId,
-  ContarVencidas
+  ContarVencidas,
+  ResumenSupervisor
 } from "../Controllers/ReservasController.js";
 const router = Router();
 
@@ -146,4 +147,12 @@ router.post('/consumir/id', authMiddleware, SupervisorMiddleware, consumirPorId)
 
 // Contadores de reservas vencidas para el cierre de turno del supervisor.
 router.get('/vencidas/count', authMiddleware, ContarVencidas);
+// Resumen del día para el panel del supervisor.
+// Devuelve conteos por estado y lista de aprendices pendientes.
+router.get(
+  '/supervisor/resumen-hoy',
+  authMiddleware,
+  SupervisorMiddleware,
+  ResumenSupervisor
+);
 export default router;

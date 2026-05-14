@@ -288,3 +288,48 @@ export const consumirPorId = async (req, res) => {
     return res.status(400).json({ message: err.message });
   }
 };
+// Resumen del turno actual para el supervisor.
+// Devuelve conteos de reservas del día agrupados por estado
+// y lista las reservas pendientes (Generado / Verificado) con nombre del aprendiz.
+// GET /api/Reservas/supervisor/resumen-hoy
+export const ResumenSupervisor = async (req, res) => {
+  try {
+    const { Op } = await import('sequelize');
+    const hoy = new Date().toISOString().split('T')[0];
+
+    // Contar por cada estado para el día de hoy
+    const estados = ['Generado', 'Verificado', 'Consumido', 'Vencido', 'Cancelado'];
+    const conteos = {};
+    for (const est of estados) {
+      conteos[est] = await ReservaModel.count({
+        where: { Fec_Reserva: hoy, Est_Reserva: est }
+      });
+    }
+
+    // Listar las que aún están pendientes (con datos del aprendiz)
+    // para que el supervisor sepa quiénes faltan
+    const UsuariosModel = (await import('../Models/UsuariosModel.js')).default;
+    const pendientes = await ReservaModel.findAll({
+      where: {
+        Fec_Reserva: hoy,
+        Est_Reserva: { [Op.in]: ['Generado', 'Verificado'] }
+      },
+      include: [{
+        model: UsuariosModel,
+        as: 'usuario',
+        attributes: ['Nom_Usuario', 'Ape_Usuario', 'NumDoc_Usuario']
+      }],
+      attributes: ['Id_Reserva', 'Tip_Reserva', 'Est_Reserva'],
+      order: [['Tip_Reserva', 'ASC']]
+    });
+
+    return res.status(200).json({
+      fecha: hoy,
+      conteos,      // { Generado: 3, Verificado: 1, Consumido: 12, Vencido: 0, Cancelado: 2 }
+      pendientes    // array con nombre + tipo de cada reserva abierta
+    });
+  } catch (err) {
+    console.error('[ReservasController] ResumenSupervisor:', err.message);
+    return res.status(500).json({ message: err.message });
+  }
+};

@@ -20,7 +20,9 @@ import {
   descargarPlantilla,
   previewImport,
   importarSeleccionados,
-} from "../Controllers/UsuariosControllers.js";
+  ActualizarSancion,
+  GetSancionados,
+} from '../Controllers/UsuariosControllers.js';
 
 const Router = express.Router();
 
@@ -51,12 +53,15 @@ Router.post(
 // Inicio de sesion
 Router.post("/login", Login);
 
-// Listado de aprendices — va antes de /:Id para que "aprendices"
-// no sea interpretado como un Id
-Router.get("/aprendices", authMiddleware, getAprendices);
+// Listado de aprendices
+Router.get('/aprendices', authMiddleware, getAprendices);
+
+// Listado de usuarios sancionados (San_Usuario = 'Si')
+// Acceso: Coordinador, Bienestar, Administrador
+Router.get('/sancionados', authMiddleware, GetSancionados);
 
 // Importacion legacy CSV
-Router.post("/importar-csv", authMiddleware, importarCSV);
+Router.post('/importar-csv', authMiddleware, importarCSV);
 
 // ─────────────────────────────────────────────────────────────
 // IMPORTACION EXCEL — flujo de tres pasos
@@ -98,7 +103,11 @@ Router.put(   "/:Id", authMiddleware, updateUsuarios);
 Router.delete("/:Id", authMiddleware, deleteUsuarios);
 
 // Cambio de contrasena en dos pasos (requieren token)
-Router.post("/:Id/validar-password", authMiddleware, validarPasswordActual);
-Router.put( "/:Id/password",         authMiddleware, cambiarPassword);
+Router.post('/:Id/validar-password', authMiddleware, validarPasswordActual);
+Router.put( '/:Id/password',         authMiddleware, cambiarPassword);
+
+// Gestion de sanciones: Coordinador, Bienestar y Admin pueden cambiar San_Usuario
+// PATCH /:Id/sancion -> { San_Usuario: "Si" | "No" }
+Router.patch('/:Id/sancion', authMiddleware, ActualizarSancion);
 
 export default Router;

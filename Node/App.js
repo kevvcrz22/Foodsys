@@ -18,6 +18,9 @@ import db from './Database/db.js'; // Objeto de conexion a la base de datos (Seq
 import { fileURLToPath } from 'url'; // Utilidad para convertir URLs de archivos a rutas absolutas
 import Path from 'path';         // Modulo nativo de Node.js para manejar rutas de archivos
 
+// al inicio del archivo, junto con los demás imports
+import './Jobs/VencimientoJob.js'; // Importa el cron de vencimiento para activar los jobs programados
+
 // ---------- 2. IMPORTACION DE RUTAS ----------
 // Cada archivo en la carpeta "Routes" define un enrutador de Express para un recurso.
 // El nombre de la variable debe coincidir con lo exportado por cada modulo (por defecto).
@@ -32,6 +35,7 @@ import MenusRoutes from './Routes/MenusRoutes.js';        // Rutas para menus di
 import ReportesRoute from './Routes/ReportesRoute.js';      // Rutas para reportes y estadisticas
 import InicioRoute from './Routes/InicioRoute.js';        // Rutas para la pagina de Inicio
 import NovedadesRoute from './Routes/NovedadesRoute.js';     // Rutas para novedades y estado Especial
+import CocinaRoute    from './Routes/CocinaRoute.js';        // Rutas para el modulo de planificacion de Cocina
 
 // ---------- 3. IMPORTACION DE MODELOS ----------
 // Los modelos representan las tablas de la base de datos.
@@ -72,6 +76,7 @@ app.use('/api/Menus', MenusRoutes);
 app.use('/api/Reportes', ReportesRoute);
 app.use('/api/Inicio', InicioRoute);
 app.use('/api/Novedades', NovedadesRoute);
+app.use('/api/Cocina',   CocinaRoute);   // Modulo de planificacion del personal de cocina
 
 // ---------- 7. ARCHIVOS ESTATICOS ----------
 // Permite acceder a archivos guardados en la carpeta "uploads" (por ejemplo, imagenes de platos).

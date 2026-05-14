@@ -877,14 +877,27 @@ const Registro = () => {
     SetCargandoManual(true);
     SetUltimoResultado(null);
 
-    if (TabActiva === "doc") {
-      await LlamarAPIConsumo("documento", { NumDoc: Termino });
-    } else if (TabActiva === "id") {
-      await LlamarAPIConsumo("id", { Id_Reserva: Number(Termino) });
+    // Detectar automaticamente si es documento (>= 6 digitos) o ID reserva
+    const EsDocumento = !isNaN(Number(Termino)) && Termino.length >= 6;
+    const EsID       = !isNaN(Number(Termino)) && Termino.length < 6;
+
+    if (TabActiva === 'manual') {
+      if (EsID) {
+        await LlamarAPIConsumo('id', { Id_Reserva: Number(Termino) });
+      } else if (EsDocumento) {
+        await LlamarAPIConsumo('documento', { NumDoc: Termino });
+      } else {
+        // Texto no numerico: buscar por documento de todas formas
+        await LlamarAPIConsumo('documento', { NumDoc: Termino });
+      }
+    } else if (TabActiva === 'doc') {
+      await LlamarAPIConsumo('documento', { NumDoc: Termino });
+    } else if (TabActiva === 'id') {
+      await LlamarAPIConsumo('id', { Id_Reserva: Number(Termino) });
     }
 
     SetCargandoManual(false);
-    SetTerminoBusqueda("");
+    SetTerminoBusqueda('');
   };
 
   // ── Handlers de turno ─────────────────────────────────────────────────────
@@ -950,10 +963,26 @@ const Registro = () => {
     Vencidas: ContVencidas,
   };
 
+  // Las tabs ya no incluyen busqueda separada por doc/id.
+  // Se mantiene solo la tab de camara. La busqueda manual usa una barra unificada.
   const Tabs = [
     { Id: "qr", Label: "Camara QR", Icono: Camera },
-    { Id: "doc", Label: "Documento", Icono: Hash },
-    { Id: "id", Label: "ID Reserva", Icono: FileText },
+    { Id: "manual", Label: "Busqueda Manual", Icono: Search },
+  ];
+
+  // Determina si la busqueda es por documento o por ID segun la longitud.
+  // >= 6 digitos numericos = documento de cedula | < 6 = ID de reserva
+  const DetectarTipoBusqueda = (valor) => {
+    const v = valor.trim();
+    if (!v || isNaN(Number(v))) return 'doc'; // texto = documento
+    return v.length >= 6 ? 'doc' : 'id';
+  };
+
+  // Horarios de consumo y cierre de turnos (informacion para el Supervisor)
+  const HORARIOS_INFO = [
+    { turno: 'Desayuno', consumo: '06:00 – 07:00', cierre: '07:00', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+    { turno: 'Almuerzo', consumo: '11:30 – 13:30', cierre: '13:30', color: 'text-teal-600',   bg: 'bg-teal-50',   border: 'border-teal-200'   },
+    { turno: 'Cena',     consumo: '18:00 – 19:00', cierre: '19:00', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
   ];
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1087,7 +1116,7 @@ const Registro = () => {
 
                 <div className="p-4 sm:p-6">
 
-                  {/* Tab: Camara QR */}
+                                  {/* Tab: Camara QR */}
                   {TabActiva === "qr" && (
                     <div className="space-y-4">
                       {TurnoActivo ? (
@@ -1112,18 +1141,18 @@ const Registro = () => {
                     </div>
                   )}
 
-                  {/* Tab: Numero de documento */}
-                  {TabActiva === "doc" && (
+                  {/* Tab: Busqueda Manual Unificada (Documento o ID en una sola barra) */}
+                  {TabActiva === "manual" && (
                     <div className="space-y-4">
                       <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-blue-700 leading-relaxed">
-                        Ingresa el numero de documento del aprendiz para buscar su reserva activa de hoy.
-                        El sistema aplica automaticamente el flujo correcto segun su perfil.
+                        <strong>Busqueda inteligente:</strong> escribe el documento del aprendiz (6+ digitos)
+                        o el ID de reserva (numero corto) — el sistema detecta el tipo automaticamente.
                       </div>
                       <div className="flex gap-2 sm:gap-3">
                         <input
                           type="text"
                           inputMode="numeric"
-                          placeholder="Ej: 1023456789"
+                          placeholder="Documento (ej: 1023456789) o ID reserva (ej: 342)"
                           value={TerminoBusqueda}
                           onChange={(E) => SetTerminoBusqueda(E.target.value)}
                           onKeyDown={(E) => E.key === "Enter" && ManejarBusquedaManual()}
@@ -1142,39 +1171,17 @@ const Registro = () => {
                           <span className="hidden sm:inline text-sm">Buscar</span>
                         </button>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Tab: ID de reserva */}
-                  {TabActiva === "id" && (
-                    <div className="space-y-4">
-                      <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-amber-700 leading-relaxed">
-                        Ingresa el ID numerico de la reserva. Util cuando el aprendiz conoce su ID
-                        pero no puede presentar el QR.
-                      </div>
-                      <div className="flex gap-2 sm:gap-3">
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          placeholder="Ej: 342"
-                          value={TerminoBusqueda}
-                          onChange={(E) => SetTerminoBusqueda(E.target.value)}
-                          onKeyDown={(E) => E.key === "Enter" && ManejarBusquedaManual()}
-                          disabled={!TurnoActivo}
-                          className="flex-1 px-4 py-3 sm:py-3.5 rounded-xl border border-gray-200 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400 transition-all"
-                        />
-                        <button
-                          onClick={ManejarBusquedaManual}
-                          disabled={!TurnoActivo || CargandoManual || !TerminoBusqueda.trim()}
-                          className="px-4 sm:px-5 py-3 sm:py-3.5 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-200 disabled:cursor-not-allowed text-white rounded-xl transition-colors flex items-center gap-2 font-semibold"
-                        >
-                          {CargandoManual
-                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : <Search className="w-4 h-4" />
-                          }
-                          <span className="hidden sm:inline text-sm">Buscar</span>
-                        </button>
-                      </div>
+                      {/* Indicador del tipo detectado */}
+                      {TerminoBusqueda.trim() && (
+                        <p className="text-xs text-center text-gray-400">
+                          Se buscara por:{' '}
+                          <span className="font-semibold text-teal-600">
+                            {DetectarTipoBusqueda(TerminoBusqueda) === 'doc'
+                              ? 'Numero de documento'
+                              : 'ID de reserva'}
+                          </span>
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

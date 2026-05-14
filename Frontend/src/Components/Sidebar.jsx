@@ -10,8 +10,8 @@ import {
   Home, User, Edit, BarChart3, LogOut, Menu, X,
   CalendarCheck, Users, FileText, GraduationCap,
   Database, ShieldCheck, Utensils, ClipboardList,
-  Phone, Info,
-} from "lucide-react";
+  Phone, Info, ChefHat,
+} from 'lucide-react';
 import { useNavBar } from "./CerrarSesion";
 import NavRolSelector from "./NavBar/NavRolSelector";
 
@@ -63,12 +63,13 @@ const NAV_POR_ROL = {
     { to: "/coordinador/Reportes",   label: "Reportes",   icon: BarChart3    },
   ],
   Cocina: [
-    { to: "/Cocina",                 label: "Inicio",     icon: Home         },
-    { to: "/Cocina/Perfil",          label: "Mi Perfil",  icon: User         },
-    // Verificar: modulo principal de Cocina para habilitar el QR de aprendices externos.
-    // Cambia el estado de la reserva de Generado a Verificado.
-    { to: "/Cocina/Verificar",       label: "Verificar",  icon: ShieldCheck  },
-    { to: "/Cocina/Reportes",        label: "Reportes",   icon: BarChart3    },
+    { to: '/Cocina',                 label: 'Inicio',          icon: Home         },
+    { to: '/Cocina/Perfil',          label: 'Mi Perfil',       icon: User         },
+    // Verificar: habilita el QR de aprendices externos (Generado -> Verificado)
+    { to: '/Cocina/Verificar',       label: 'Verificar QR',    icon: ShieldCheck  },
+    // PlanCocina: cuantos platos preparar, excepcionales, balance del turno
+    { to: '/Cocina/Plan',            label: 'Plan del Dia',    icon: ChefHat      },
+    { to: '/Cocina/Reportes',        label: 'Reportes',        icon: BarChart3    },
   ],
   Bienestar: [
     { to: "/Bienestar",              label: "Inicio",     icon: Home         },
@@ -92,10 +93,15 @@ const TABLAS_POR_ROL = {
     { to: "/menus", label: "Menus", icon: ClipboardList },
   ],
   Coordinador: [
-    { to: "/aprendices", label: "Aprendices", icon: User },
+    { to: '/aprendices', label: 'Aprendices', icon: User },
   ],
   Bienestar: [
-    { to: "/aprendices", label: "Aprendices", icon: User },
+    { to: '/aprendices', label: 'Aprendices', icon: User },
+  ],
+  // Tablas de lectura de menu y platos para que Cocina planifique la produccion
+  Cocina: [
+    { to: '/menus',  label: 'Menus',  icon: ClipboardList },
+    { to: '/platos', label: 'Platos', icon: Utensils      },
   ],
 };
 

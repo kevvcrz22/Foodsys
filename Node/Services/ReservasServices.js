@@ -50,10 +50,44 @@ class ReservasServices {
   // El vencimiento es la hora de finalizacion del servicio de ese tipo de comida.
   CalcularVencimiento(tipo, fechaReserva) {
     const vencimiento = new Date(`${fechaReserva}T00:00:00`);
-    const horas = { Desayuno: 7, Almuerzo: 14, Cena: 19 };
-    if (!horas[tipo]) throw new Error("Tipo de comida no valido");
-    vencimiento.setHours(horas[tipo], 0, 0, 0);
+    // Hora exacta de cierre de cada turno segun las reglas de negocio
+    const fin = {
+      Desayuno: { h: 7,  m: 0  },   // turno 06:00 – 07:00
+      Almuerzo: { h: 13, m: 30 },   // turno 11:30 – 13:30
+      Cena:     { h: 19, m: 0  }    // turno 18:00 – 19:00
+    };
+    if (!fin[tipo]) throw new Error("Tipo de comida no valido");
+    vencimiento.setHours(fin[tipo].h, fin[tipo].m, 0, 0);
     return vencimiento;
+  }
+
+  // Valida que la cancelacion se haga con al menos 9 horas de anticipacion
+  // al inicio del turno. Esto permite que el area de Cocina tenga tiempo
+  // para planificar las cantidades de produccion antes de preparar los platos.
+  // Lanza error si el aprendiz intenta cancelar muy tarde.
+  ValidarCancelacionPermitida(tipo, fechaReserva) {
+    const ahora = new Date();
+    // Hora de inicio de cada turno
+    const inicioTurno = {
+      Desayuno: { h: 6,  m: 0  },
+      Almuerzo: { h: 11, m: 30 },
+      Cena:     { h: 18, m: 0  }
+    };
+    if (!inicioTurno[tipo]) throw new Error('Tipo de comida no valido');
+    const fechaInicio = new Date(`${fechaReserva}T00:00:00`);
+    fechaInicio.setHours(inicioTurno[tipo].h, inicioTurno[tipo].m, 0, 0);
+    const limiteMs = fechaInicio.getTime() - 9 * 60 * 60 * 1000;
+    if (ahora.getTime() > limiteMs) {
+      const limiteHora = new Date(limiteMs).toLocaleTimeString('es-CO', {
+        hour: '2-digit', minute: '2-digit', hour12: false
+      });
+      throw new Error(
+        `Ya no es posible cancelar. El limite para cancelar ${tipo} era ` +
+        `a las ${limiteHora} (9 horas antes del inicio del turno), ` +
+        `para que el area de cocina pueda planificar la produccion.`
+      );
+    }
+    return true;
   }
 
   // Retorna la ventana horaria en la que se puede consumir cada tipo de comida.
@@ -62,24 +96,49 @@ class ReservasServices {
   // Si el tipo no tiene ventana definida, retorna null y se omite la validacion horaria.
   // Ejemplo: Desayuno solo se puede consumir entre las 5:00 y las 7:00.
   ObtenerVentanaHoraria(tipo) {
+    // desde/hasta en hora entera (getHours); se ajusta a los turnos reales
     const ventanas = {
-      Desayuno: { desde: 5,  hasta: 7  },
-      Almuerzo: { desde: 11, hasta: 14 },
-      Cena:     { desde: 17, hasta: 19 }
+      Desayuno: { desde: 6,  hasta: 7  },   // 06:00 – 07:00
+      Almuerzo: { desde: 11, hasta: 14 },   // 11:30 – 13:30 (redondeado a hora entera)
+      Cena:     { desde: 18, hasta: 19 }    // 18:00 – 19:00
     };
     return ventanas[tipo] ?? null;
   }
-
   // Valida que la reserva se haga con al menos 24 horas de antelacion.
   // Se usa para reservas normales (no novedades). Las novedades omiten esta validacion.
   // La validacion compara la hora actual con el limite de cierre del tipo de comida.
-  ValidarAntelacion24Horas(tipo, fechaReserva) {
-    // Reutilizamos ValidarAntelacion8Horas con el mismo criterio de 8 horas
-    // porque la regla de negocio actual dice "8 horas de antelacion".
-    // Si el proyecto decide cambiar a 24 horas, solo se cambia este metodo.
-    return this.ValidarAntelacion8Horas(tipo, fechaReserva);
-  }
+  ValidarAntelacion8Horas(tipo, fechaReserva) {
+    const ahora = new Date();
 
+    // Hora de INICIO de cada turno (no de cierre)
+    const inicioTurno = {
+      Desayuno: { h: 6,  m: 0  },   // turno inicia 06:00
+      Almuerzo: { h: 11, m: 30 },   // turno inicia 11:30
+      Cena:     { h: 18, m: 0  }    // turno inicia 18:00
+    };
+    if (!inicioTurno[tipo]) throw new Error("Tipo de comida no valido");
+
+    // Construir la fecha/hora exacta de inicio del turno
+    const fechaInicioTurno = new Date(`${fechaReserva}T00:00:00`);
+    fechaInicioTurno.setHours(inicioTurno[tipo].h, inicioTurno[tipo].m, 0, 0);
+
+    // El límite para reservar es exactamente 8 horas antes del inicio
+    const limiteReserva = new Date(fechaInicioTurno.getTime() - 8 * 60 * 60 * 1000);
+
+    if (ahora > limiteReserva) {
+      const horaLimite = limiteReserva.toLocaleTimeString('es-CO', {
+        hour: '2-digit', minute: '2-digit', hour12: false
+      });
+      const fechaLimite = limiteReserva.toLocaleDateString('es-CO', {
+        weekday: 'long', day: 'numeric', month: 'long'
+      });
+      throw new Error(
+        `Las reservas para ${tipo} cerraron a las ${horaLimite} del ${fechaLimite}. ` +
+        `Debes reservar con al menos 8 horas de anticipación al inicio del turno.`
+      );
+    }
+    return true;
+  }
   // Valida que la reserva se haga con al menos 8 horas de antelacion respecto al limite de servicio.
   // Esta validacion se omite cuando esNovedad = true, ya que las novedades son del mismo dia.
   ValidarAntelacion8Horas(tipo, fechaReserva) {
@@ -117,28 +176,30 @@ class ReservasServices {
     return [];
   }
 
-  // Encripta el objeto de datos del QR usando AES-256-CBC.
-  // Retorna una cadena con formato: iv_en_hex:datos_encriptados_en_hex
-  // La clave debe estar en .env como QR_ENCRYPTION_KEY en formato hexadecimal de 64 caracteres (256 bits).
-  EncriptarDatos(datos) {
+  // Encripta SOLO el Id_Reserva (numero entero) en el QR.
+  // Al encriptar solo un campo numerico el QR es mucho mas liviano
+  // y el scanner lo detecta y lee en menos tiempo.
+  // La clave debe estar en .env como QR_ENCRYPTION_KEY (64 hex chars = 256 bits).
+  EncriptarDatos(idReserva) {
     if (!process.env.QR_ENCRYPTION_KEY) {
       throw new Error("QR_ENCRYPTION_KEY no esta definida en las variables de entorno");
     }
     const clave = Buffer.from(process.env.QR_ENCRYPTION_KEY, 'hex');
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv('aes-256-cbc', clave, iv);
+    // Solo se encripta el ID como string JSON minimo: ej. "42"
     const encriptado = Buffer.concat([
-      cipher.update(JSON.stringify(datos), 'utf8'),
+      cipher.update(String(idReserva), 'utf8'),
       cipher.final()
     ]);
-    // base64url es ~33% mas corto que hex → QR menos denso → lectura mas rapida
+    // base64url: ~33% mas corto que hex → QR menos denso → lectura mas rapida
     return iv.toString('base64url') + '.' + encriptado.toString('base64url');
-  };
+  }
 
-  // Desencripta una cadena generada por EncriptarDatos.
-  // Retorna el objeto original con los datos de la reserva.
-  // Lanza un error si el formato es invalido o la clave no coincide.
-  DesencriptarDatos(encriptado) {
+  // Desencripta el QR y retorna el Id_Reserva como numero entero.
+  // El QR solo contiene el ID: todos los demas campos se buscan en la BD.
+  // Lanza error si el formato es invalido o la clave no coincide.
+  DesencriptarQR(encriptado) {
     if (!process.env.QR_ENCRYPTION_KEY) {
       throw new Error("QR_ENCRYPTION_KEY no esta definida en las variables de entorno");
     }
@@ -153,7 +214,10 @@ class ReservasServices {
     const decipher = crypto.createDecipheriv('aes-256-cbc', clave, iv);
     const resultado = Buffer.concat([decipher.update(datos), decipher.final()]);
 
-    return JSON.parse(resultado.toString('utf8'));
+    const idRaw = resultado.toString('utf8').trim();
+    const id = parseInt(idRaw, 10);
+    if (isNaN(id)) throw new Error('Contenido del QR invalido');
+    return id;
   }
 
   // Verifica de forma perezosa si el estado Especial del usuario ha expirado (30 dias).
@@ -260,7 +324,7 @@ class ReservasServices {
         );
       }
 
-      // Paso 6: insertar la reserva con el QR vacio, se actualizara en el paso 8
+      // Paso 6: insertar la reserva con el QR vacio, se actualizara en el paso 7
       const nuevaReserva = await ReservaModel.create({
         Id_Usuario: usuario.Id_Usuario,
         Fec_Reserva: fechaReserva,
@@ -273,20 +337,13 @@ class ReservasServices {
         Jus_Reserva: Jus_Reserva
       }, { transaction });
 
-      // Paso 7: armar el objeto que se encriptara y almacenara en el QR
-      const datosQR = {
-        Id_Reserva: nuevaReserva.Id_Reserva,
-        Id_Usuario: usuario.Id_Usuario,
-        Tipo: TipoNormalizado,
-        Fec_Reserva: fechaReserva,
-        Vencimiento: fechaVencimiento.toISOString()
-      };
-
-      // Paso 9: encriptar los datos y actualizar el campo Qr_Reserva en la base de datos
-      const encriptado = this.EncriptarDatos(datosQR);
+      // Paso 7: encriptar SOLO el Id_Reserva.
+      // El QR solo lleva el ID porque el backend busca todo lo demas en la BD
+      // al momento del escaneo. Un QR mas corto = lectura mas rapida.
+      const encriptado = this.EncriptarDatos(nuevaReserva.Id_Reserva);
       await nuevaReserva.update({ Qr_Reserva: encriptado }, { transaction });
 
-      // La URL que se codificara en el QR apunta al frontend con los datos encriptados como parametro
+      // La URL del QR lleva el ID encriptado como parametro
       const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
       const qrUrl = `${baseUrl}/ReservaCreada-checkin?data=${encodeURIComponent(encriptado)}`;
 
@@ -344,64 +401,57 @@ class ReservasServices {
   async procesarConsumoSupervisor(encriptadoQR) {
     return await db.transaction(async (transaction) => {
 
-      // Paso 1: desencriptar el QR para extraer los datos de la reserva
-      const datosQR = this.DesencriptarDatos(encriptadoQR);
+      // Paso 1: desencriptar el QR para obtener SOLO el Id_Reserva.
+      // El QR ya no lleva fecha, usuario ni tipo: todo se obtiene de la BD.
+      // Esto hace el QR mas liviano y el scanner lo lee mas rapido.
+      const Id_Reserva = this.DesencriptarQR(encriptadoQR);
 
-      const fechaHoy = this.ObtenerFechaHoy(); // YYYY-MM-DD
-      // if (datosQR.Fec_Reserva !== fechaHoy) {
-      //   const fechaLegible = new Date(datosQR.Fec_Reserva + 'T12:00:00')
-      //     .toLocaleDateString('es-CO', {
-      //       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-      //     });
-      //   throw new Error(
-      //     `Este código QR es para el ${fechaLegible}. ` +
-      //     `Solo se pueden consumir reservas del día de hoy.`
-      //   );
-      // }
-
-      // Paso 2: validar que el QR no haya superado su hora de vencimiento
-      const ahora = new Date();
-      const vencimiento = new Date(datosQR.Vencimiento);
-      if (ahora > vencimiento) {
-        throw new Error("El codigo QR ha vencido y no puede ser utilizado para recibir alimentacion");
-      }
-      const horaActual = new Date().getHours(); // 0-23
-
-      const ventana = this.ObtenerVentanaHoraria(datosQR.Tipo);
-      if (ventana && (horaActual < ventana.desde || horaActual >= ventana.hasta)) {
-        throw new Error(
-          `Este QR es para ${datosQR.Tipo}, pero el servicio de ${datosQR.Tipo.toLowerCase()} ` +
-          `está habilitado de ${ventana.desde}:00 a ${ventana.hasta}:00. ` +
-          `Fuera de ese horario no es posible registrar el consumo.`
-        );
-      }
+      // Paso 2: obtener la reserva con su plato y su usuario con roles en paralelo
+      // para reducir el tiempo de espera de la transaccion.
       // Paso 3: obtener la reserva con su plato incluido y el usuario propietario con sus roles
       // en paralelo para reducir el tiempo de espera total de la transaccion.
       // Se incluye el plato en la consulta de reserva para evitar una segunda consulta separada.
       // Se consultan los roles directamente desde la DB para no depender del token JWT,
       // que podria estar desactualizado si el coordinador cambio los roles recientemente.
-      const [reserva, usuario] = await Promise.all([
-        ReservaModel.findByPk(datosQR.Id_Reserva, {
-          // Incluir el plato con todos sus campos para la ventana flotante del supervisor.
-          // Des_Plato se muestra en el modal para que cocina sepa exactamente que preparar.
-          include: [{ model: PlatosModels, as: 'plato', attributes: ['Nom_Plato', 'Des_Plato', 'Img_Plato'] }],
-          transaction
-        }),
-        UsuariosModel.findByPk(datosQR.Id_Usuario, {
-          // Solo se traen los roles del usuario para evaluar el flujo de consumo.
-          // Los datos del plato vienen desde reserva.plato (consulta paralela de arriba).
-          include: [
-            {
-              model: UsuariosRolModel,
-              as: 'rolesUsuario',
-              include: [{ model: RolesModel, as: 'rolUsuario' }]
-            }
-          ],
-          transaction
-        })
-      ]);
+      // Obtener la reserva primero para luego buscar su usuario
+      const reserva = await ReservaModel.findByPk(Id_Reserva, {
+        include: [{ model: PlatosModels, as: 'plato', attributes: ['Nom_Plato', 'Des_Plato', 'Img_Plato'] }],
+        transaction
+      });
 
       if (!reserva) throw new Error("La reserva asociada al QR no existe en la base de datos");
+
+      // Validar vencimiento usando el campo Vec_Reserva de la BD (no del QR)
+      const ahora = new Date();
+      const vencimiento = new Date(reserva.Vec_Reserva);
+      if (ahora > vencimiento) {
+        throw new Error("El codigo QR ha vencido y no puede ser utilizado para recibir alimentacion");
+      }
+
+      // Validar ventana horaria usando el Tip_Reserva de la BD
+      const horaActual = ahora.getHours();
+      const ventana = this.ObtenerVentanaHoraria(reserva.Tip_Reserva);
+      if (ventana && (horaActual < ventana.desde || horaActual >= ventana.hasta)) {
+        throw new Error(
+          `Este QR es para ${reserva.Tip_Reserva}, pero el servicio de ` +
+          `${reserva.Tip_Reserva.toLowerCase()} esta habilitado de ` +
+          `${ventana.desde}:00 a ${ventana.hasta}:00. ` +
+          `Fuera de ese horario no es posible registrar el consumo.`
+        );
+      }
+
+      // Buscar el usuario propietario de la reserva con sus roles
+      const usuario = await UsuariosModel.findByPk(reserva.Id_Usuario, {
+        include: [
+          {
+            model: UsuariosRolModel,
+            as: 'rolesUsuario',
+            include: [{ model: RolesModel, as: 'rolUsuario' }]
+          }
+        ],
+        transaction
+      });
+
       if (!usuario) throw new Error("El usuario propietario del QR no existe");
 
       // Paso 4: verificar si el estado Especial expiro antes de evaluar el flujo
@@ -434,10 +484,10 @@ class ReservasServices {
         }
       }
 
-      // Paso 7: marcar la reserva como consumida
+      // Marcar la reserva como consumida
       await reserva.update({ Est_Reserva: 'Consumido' }, { transaction });
 
-      // Paso 8: retornar la informacion completa del consumo.
+      // Retornar la informacion completa del consumo.
       // El frontend la usa para la ventana flotante que el supervisor lee en voz alta:
       //   - Aprendiz y NumDoc: para identificar a la persona.
       //   - Nom_Plato, Des_Plato, Img_Plato: para que cocina sepa que preparar.
@@ -448,11 +498,8 @@ class ReservasServices {
         Aprendiz: `${usuario.Nom_Usuario} ${usuario.Ape_Usuario}`,
         NumDoc: usuario.NumDoc_Usuario,
         Tipo: reserva.Tip_Reserva,
-        // Nombre del plato: campo principal que el supervisor comunica al aprendiz.
         Plato: reserva.plato?.Nom_Plato ?? 'Sin informacion de plato',
-        // Descripcion del plato: texto adicional para que cocina tenga mas contexto.
         DescPlato: reserva.plato?.Des_Plato ?? '',
-        // Imagen del plato: URL relativa al servidor de uploads para mostrar en el modal.
         ImgPlato: reserva.plato?.Img_Plato ?? null,
         flujoEspecial: esEspecial,
         flujoInterno: esInterno
@@ -550,7 +597,11 @@ class ReservasServices {
   }
 
   // Cambia el estado de una reserva a Cancelado.
-  // Solo se puede cancelar si el estado actual es Generado y la reserva pertenece al usuario.
+  // Reglas:
+  //   1. La reserva debe pertenecer al usuario que cancela.
+  //   2. El estado debe ser Generado (no Verificado, Consumido, etc.)
+  //   3. Solo se puede cancelar con al menos 9 horas de anticipacion al inicio
+  //      del turno, para que el area de Cocina pueda planificar la produccion.
   async cancelarReserva(Id_Reserva, Id_Usuario) {
     const Reserva = await ReservaModel.findOne({
       where: { Id_Reserva, Id_Usuario },
@@ -563,6 +614,8 @@ class ReservasServices {
         `No se puede cancelar una reserva con estado: ${Reserva.Est_Reserva}`
       );
     }
+    // Validar la regla de las 9 horas antes del turno
+    this.ValidarCancelacionPermitida(Reserva.Tip_Reserva, Reserva.Fec_Reserva);
     await Reserva.update({ Est_Reserva: 'Cancelado' });
     return true;
   }
