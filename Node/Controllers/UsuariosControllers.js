@@ -434,3 +434,69 @@ export const importarSeleccionados = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ─────────────────────────────────────────────────────────────
+// GESTION DE SANCIONES
+// El Coordinador y Bienestar pueden activar o desactivar
+// la sancion de un aprendiz cambiando San_Usuario ('Si'/'No').
+// Un usuario sancionado no puede realizar reservas.
+// ─────────────────────────────────────────────────────────────
+
+/*
+  ActualizarSancion
+  Cambia el campo San_Usuario del usuario indicado.
+  Body esperado: { San_Usuario: "Si" | "No" }
+  Solo los roles Coordinador, Bienestar y Administrador pueden acceder
+  (validado por el middleware en la ruta).
+*/
+export const ActualizarSancion = async (req, res) => {
+  try {
+    const { Id } = req.params;
+    const { San_Usuario } = req.body;
+
+    if (!['Si', 'No'].includes(San_Usuario)) {
+      return res.status(400).json({
+        message: 'Valor invalido para San_Usuario. Use "Si" o "No".'
+      });
+    }
+
+    const usuario = await UsuariosModel.findByPk(Id);
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    await usuario.update({ San_Usuario });
+
+    return res.status(200).json({
+      message: `Sancion ${San_Usuario === 'Si' ? 'activada' : 'eliminada'} correctamente`,
+      Id_Usuario: usuario.Id_Usuario,
+      Nom_Usuario: usuario.Nom_Usuario,
+      Ape_Usuario: usuario.Ape_Usuario,
+      San_Usuario: usuario.San_Usuario
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  GetSancionados
+  Retorna la lista de todos los usuarios con San_Usuario = 'Si'.
+  Util para que el Coordinador y Bienestar vean rapidamente
+  quienes estan sancionados sin tener que buscar en la tabla completa.
+*/
+export const GetSancionados = async (req, res) => {
+  try {
+    const sancionados = await UsuariosModel.findAll({
+      where: { San_Usuario: 'Si' },
+      attributes: [
+        'Id_Usuario', 'Nom_Usuario', 'Ape_Usuario',
+        'NumDoc_Usuario', 'Tel_Usuario', 'Est_Usuario', 'San_Usuario'
+      ],
+      order: [['Ape_Usuario', 'ASC']]
+    });
+    return res.status(200).json(sancionados);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
