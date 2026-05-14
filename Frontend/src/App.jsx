@@ -23,7 +23,7 @@
 //   Aprendiz Externo   -> /Externo         (Reservar, Historial)
 //   Pasante Interno    -> /PasanteInterno  (Reservar, Historial)
 //   Pasante Externo    -> /PasanteExterno  (Reservar, Historial)
-//   Cocina             -> /Cocina          (Verificar reservas de externos, Reportes)
+//   Cocina             -> /Cocina          (Verificar reservas de externos, Plan del dia, Reportes)
 //   Bienestar          -> /Bienestar       (Novedades, Reportes)
 
 import { useState, useEffect, useContext } from "react";
@@ -54,10 +54,10 @@ import Novedades       from "./Paginas/Novedades/Novedades.jsx";
 import RegistrarVista  from "./Paginas/Registrar/Registro.jsx";
 import ReservasPag     from "./Tablas/Reservas/Reservas.jsx";
 
-// ── Modulo exclusivo del rol Cocina ──────────────────────────────────────────
-// ValidarReservasCocina permite al personal de cocina buscar la reserva de un
-// aprendiz externo y cambiar su estado de Generado a Verificado.
+// Modulo exclusivo del rol Cocina: verificar reservas de externos
 import ValidarReservasCocina from "./Paginas/Validar/ValidarReservas.jsx";
+// Plan del dia de Cocina: cuantos platos preparar, excepcionales, balance del turno
+import PlanCocina from "./Paginas/Cocina/PlanCocina.jsx";
 
 // ── Tablas CRUD (uso administrativo) ─────────────────────────────────────────
 import CrudUsuarios       from "./Tablas/Usuarios/CrudUsuarios.jsx";
@@ -406,8 +406,10 @@ function App() {
                   <Route index                element={<Inicio />} />
                   <Route path="Inicio"        element={<Inicio />} />
                   <Route path="Perfil"        element={<Perfil />} />
-                  {/* Modulo principal del rol Cocina: verificar presencia de aprendices externos */}
+                  {/* Verificar: cambia estado de la reserva de Generado a Verificado */}
                   <Route path="Verificar"     element={<ValidarReservasCocina />} />
+                  {/* Plan del dia: cuantos platos preparar, excepcionales, balance */}
+                  <Route path="Plan"          element={<PlanCocina />} />
                   <Route path="Reportes"      element={<Reportes />} />
                   <Route path="*" element={<Navigate to="/Cocina" replace />} />
                 </Routes>
@@ -442,8 +444,22 @@ function App() {
         <Route path="/fichas"       element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudFichas /></LayoutConSidebar></ProtectedRoute>} />
         <Route path="/programas"    element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudPrograma /></LayoutConSidebar></ProtectedRoute>} />
         <Route path="/roles"        element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudRoles /></LayoutConSidebar></ProtectedRoute>} />
-        <Route path="/platos"       element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudPlatos /></LayoutConSidebar></ProtectedRoute>} />
-        <Route path="/menus"        element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudMenus /></LayoutConSidebar></ProtectedRoute>} />
+        <Route path="/platos" element={
+          <ProtectedRoute {...Props_Auth} allowedRoles={['Administrador', 'Cocina']}>
+            <LayoutConSidebar {...Props_Layout}>
+              {/* soloLectura para Cocina: puede ver platos pero no crear/editar/eliminar */}
+              <CrudPlatos soloLectura={Rol_Activo === 'Cocina'} />
+            </LayoutConSidebar>
+          </ProtectedRoute>
+        } />
+        <Route path="/menus" element={
+          <ProtectedRoute {...Props_Auth} allowedRoles={['Administrador', 'Cocina']}>
+            <LayoutConSidebar {...Props_Layout}>
+              {/* soloLectura para Cocina: puede ver menus pero no crear/editar/eliminar */}
+              <CrudMenus soloLectura={Rol_Activo === 'Cocina'} />
+            </LayoutConSidebar>
+          </ProtectedRoute>
+        } />
 
         {/* Reservas: visible para Administrador (vista de tabla, no el formulario personal) */}
         <Route
