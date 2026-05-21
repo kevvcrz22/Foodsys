@@ -25,6 +25,7 @@
 // DEPENDENCIAS NPM:
 //   npm install html5-qrcode react-google-charts jspdf html2canvas
 
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Chart } from "react-google-charts";
