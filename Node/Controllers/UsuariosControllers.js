@@ -1,14 +1,14 @@
 // Node/Controllers/UsuariosControllers.js
-// Controladores del modulo de usuarios para el sistema FoodSys
+// Controladores del modulo de usuarios para el sistema Foodsys
 // Cada funcion recibe la peticion HTTP, delega al servicio y responde con JSON
 // Nomenclatura: PascalCase en espanol sin tildes
 
 import UsuariosService from "../Services/UsuariosService.js";
-import CsvService      from "../Services/CsvService.js";
-import UsuariosModel   from "../Models/UsuariosModel.js";
-import bcrypt          from "bcrypt";
+import CsvService from "../Services/CsvService.js";
+import UsuariosModel from "../Models/UsuariosModel.js";
+import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
-import XLSX            from "xlsx"; // npm install xlsx
+import XLSX from "xlsx"; // npm install xlsx
 
 /* ============================================================
    COLUMNAS_PLANTILLA
@@ -300,8 +300,8 @@ export const importarCSV = async (req, res) => {
 */
 export const descargarPlantilla = (_req, res) => {
   try {
-    const Libro  = XLSX.utils.book_new();
-    const Hoja   = XLSX.utils.aoa_to_sheet([COLUMNAS_PLANTILLA]);
+    const Libro = XLSX.utils.book_new();
+    const Hoja = XLSX.utils.aoa_to_sheet([COLUMNAS_PLANTILLA]);
     // Ancho uniforme de 22 caracteres por columna para mejor lectura
     Hoja["!cols"] = COLUMNAS_PLANTILLA.map(() => ({ wch: 22 }));
     XLSX.utils.book_append_sheet(Libro, Hoja, "Aprendices");
@@ -336,8 +336,8 @@ export const previewImport = async (req, res) => {
     }
 
     const Workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-    const Hoja     = Workbook.Sheets[Workbook.SheetNames[0]];
-    const Filas    = XLSX.utils.sheet_to_json(Hoja, { defval: "" });
+    const Hoja = Workbook.Sheets[Workbook.SheetNames[0]];
+    const Filas = XLSX.utils.sheet_to_json(Hoja, { defval: "" });
 
     if (!Filas.length) {
       return res.status(400).json({ message: "El archivo esta vacio o no tiene datos." });
@@ -375,7 +375,7 @@ export const importarSeleccionados = async (req, res) => {
       return res.status(400).json({ message: "No hay datos seleccionados" });
     }
 
-    let Creados  = 0;
+    let Creados = 0;
     let Omitidos = 0;
     const Errores = [];
 
@@ -412,24 +412,90 @@ export const importarSeleccionados = async (req, res) => {
       await UsuariosModel.create({
         TipDoc_Usuario: Fila.TipDoc_Usuario || null,
         NumDoc_Usuario: String(Fila.NumDoc_Usuario),
-        Nom_Usuario:    Fila.Nom_Usuario    || null,
-        Ape_Usuario:    Fila.Ape_Usuario    || null,
-        Gen_Usuario:    Fila.Gen_Usuario    || null,
-        Cor_Usuario:    Fila.Cor_Usuario    || null,
-        Tel_Usuario:    Fila.Tel_Usuario    || null,
-        Id_Ficha:       Fila.Id_Ficha       || null,
-        Est_Usuario:    "En Formacion",
-        San_Usuario:    "No",
-        password:       HashPwd,
-        uuid:           uuidv4(),
-        createdat:      new Date(),
-        updatedat:      new Date(),
+        Nom_Usuario: Fila.Nom_Usuario || null,
+        Ape_Usuario: Fila.Ape_Usuario || null,
+        Gen_Usuario: Fila.Gen_Usuario || null,
+        Cor_Usuario: Fila.Cor_Usuario || null,
+        Tel_Usuario: Fila.Tel_Usuario || null,
+        Id_Ficha: Fila.Id_Ficha || null,
+        Est_Usuario: "En Formacion",
+        San_Usuario: "No",
+        password: HashPwd,
+        uuid: uuidv4(),
+        createdat: new Date(),
+        updatedat: new Date(),
       });
 
       Creados++;
     }
 
     res.json({ creados: Creados, omitidos: Omitidos, errores: Errores });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// GESTION DE SANCIONES
+// El Coordinador y Bienestar pueden activar o desactivar
+// la sancion de un aprendiz cambiando San_Usuario ('Si'/'No').
+// Un usuario sancionado no puede realizar reservas.
+// ─────────────────────────────────────────────────────────────
+
+/*
+  ActualizarSancion
+  Cambia el campo San_Usuario del usuario indicado.
+  Body esperado: { San_Usuario: "Si" | "No" }
+  Solo los roles Coordinador, Bienestar y Administrador pueden acceder
+  (validado por el middleware en la ruta).
+*/
+export const ActualizarSancion = async (req, res) => {
+  try {
+    const { Id } = req.params;
+    const { San_Usuario } = req.body;
+
+    if (!['Si', 'No'].includes(San_Usuario)) {
+      return res.status(400).json({
+        message: 'Valor invalido para San_Usuario. Use "Si" o "No".'
+      });
+    }
+
+    const usuario = await UsuariosModel.findByPk(Id);
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    await usuario.update({ San_Usuario });
+
+    return res.status(200).json({
+      message: `Sancion ${San_Usuario === 'Si' ? 'activada' : 'eliminada'} correctamente`,
+      Id_Usuario: usuario.Id_Usuario,
+      Nom_Usuario: usuario.Nom_Usuario,
+      Ape_Usuario: usuario.Ape_Usuario,
+      San_Usuario: usuario.San_Usuario
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  GetSancionados
+  Retorna la lista de todos los usuarios con San_Usuario = 'Si'.
+  Util para que el Coordinador y Bienestar vean rapidamente
+  quienes estan sancionados sin tener que buscar en la tabla completa.
+*/
+export const GetSancionados = async (req, res) => {
+  try {
+    const sancionados = await UsuariosModel.findAll({
+      where: { San_Usuario: 'Si' },
+      attributes: [
+        'Id_Usuario', 'Nom_Usuario', 'Ape_Usuario',
+        'NumDoc_Usuario', 'Tel_Usuario', 'Est_Usuario', 'San_Usuario'
+      ],
+      order: [['Ape_Usuario', 'ASC']]
+    });
+    return res.status(200).json(sancionados);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

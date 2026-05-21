@@ -1,5 +1,5 @@
 // Paginas/Inicio/Inicio.jsx
-// Dashboard principal del sistema FoodSys.
+// Dashboard principal del sistema Foodsys.
 // Muestra un manual de instrucciones especifico segun el rol activo del usuario.
 // El layout es completamente responsive y no tiene centrado excesivo.
 
@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-// Prefijo de ruta segun el rol activo
+// Prefijo de ruta segun el rol activo.
+// ⚠️ MODIFICABLE: si cambias el nombre de un rol en la BD, actualiza aqui.
 const PREFIJO_POR_ROL = {
   Administrador: "/Administrador",
   Supervisor: "/supervisor",
@@ -28,7 +29,7 @@ const PREFIJO_POR_ROL = {
 // Cada entrada tiene: icono, titulo, descripcion y un link de accion rapida.
 const MANUAL_POR_ROL = {
   Administrador: {
-    Bienvenida: "Gestion completa del sistema FoodSys.",
+    Bienvenida: "Gestion completa del sistema Foodsys.",
     Pasos: [
       {
         Icono: Users,
@@ -182,20 +183,27 @@ const MANUAL_POR_ROL = {
       },
     ],
   },
+  // ⚠️ MODIFICABLE: agrega o quita pasos del manual de Cocina aqui
   Cocina: {
-    Bienvenida: "Consulta los menus del dia y el consumo por turno.",
+    Bienvenida: "Gestiona platos, menus y verifica la presencia de los aprendices externos.",
     Pasos: [
       {
-        Icono: Utensils,
-        Titulo: "Ver Menus del Dia",
-        Descripcion: "Consulta que platos estan programados para cada turno: Desayuno, Almuerzo y Cena.",
-        Link: "/menus",
+        Icono: QrCode,
+        Titulo: "Verificar Reservas",
+        Descripcion: "Busca al aprendiz por cedula o ID de reserva y confirma su presencia para habilitar su codigo QR.",
+        Link: "/Cocina/ValidarReservas",
       },
       {
-        Icono: BarChart3,
-        Titulo: "Reportes de Consumo",
-        Descripcion: "Revisa cuantas reservas se generaron y verificaron en cada turno del dia.",
-        Link: "/Cocina/Reportes",
+        Icono: Utensils,
+        Titulo: "Gestionar Platos",
+        Descripcion: "Agrega nuevos platos con imagen y descripcion. Puedes inactivar platos existentes desde el formulario de edicion.",
+        Link: "/Cocina/Platos",
+      },
+      {
+        Icono: ClipboardList,
+        Titulo: "Gestionar Menus",
+        Descripcion: "Crea menus diarios asignando platos por tipo de comida. No puedes editar ni eliminar menus ya creados.",
+        Link: "/Cocina/Menus",
       },
     ],
   },
@@ -235,7 +243,7 @@ const Tarjeta_Paso = ({ Paso, Indice }) => {
                  flex items-start gap-4"
     >
       {/* Numero de paso */}
-      <div className="w-8 h-8 rounded-lg bg-[#0f3f80]/10 flex items-center justify-center flex-shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-[#0f3f80]/10 flex items-center justify-center shrink-0">
         <Icono_Comp className="w-4 h-4 text-[#0f3f80]" />
       </div>
       <div className="flex-1 min-w-0">
@@ -244,7 +252,7 @@ const Tarjeta_Paso = ({ Paso, Indice }) => {
             <span className="text-[#0f3f80] font-bold mr-1.5">{Indice + 1}.</span>
             {Paso.Titulo}
           </p>
-          <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#0f3f80] transition-colors flex-shrink-0" />
+          <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#0f3f80] transition-colors shrink-0" />
         </div>
         <p className="text-xs text-gray-500 mt-1 leading-relaxed">
           {Paso.Descripcion}

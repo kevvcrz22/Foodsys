@@ -1,5 +1,5 @@
 // Routes/FichasRoute.js
-// Rutas del modulo de fichas del sistema FoodSys
+// Rutas del modulo de fichas del sistema Foodsys
 // Las rutas de escritura estan protegidas con
 // authMiddleware y FichaMiddleware
 

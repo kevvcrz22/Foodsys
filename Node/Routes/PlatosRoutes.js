@@ -1,5 +1,5 @@
 // Routes/PlatosRoutes.js
-// Rutas del modulo de platos del sistema FoodSys
+// Rutas del modulo de platos del sistema Foodsys
 // Las rutas de escritura estan protegidas con
 // authMiddleware
 

@@ -1,11 +1,11 @@
 // Node/Controllers/FichasController.js
-// Controladores del modulo de fichas para el sistema FoodSys
+// Controladores del modulo de fichas para el sistema Foodsys
 // Nomenclatura: PascalCase en espanol sin tildes
 
 import FichasServices from "../Services/FichasServices.js";
-import FichasModel    from "../Models/FichasModel.js";
-import ProgramaModel  from "../Models/ProgramaModel.js";
-import XLSX           from "xlsx";
+import FichasModel from "../Models/FichasModel.js";
+import ProgramaModel from "../Models/ProgramaModel.js";
+import XLSX from "xlsx";
 
 /* ============================================================
    COLUMNAS_PLANTILLA_FICHA
@@ -115,7 +115,7 @@ export const deleteFichas = async (req, res) => {
 export const descargarPlantillaFicha = (_req, res) => {
   try {
     const Libro = XLSX.utils.book_new();
-    const Hoja  = XLSX.utils.aoa_to_sheet([COLUMNAS_PLANTILLA_FICHA]);
+    const Hoja = XLSX.utils.aoa_to_sheet([COLUMNAS_PLANTILLA_FICHA]);
     Hoja["!cols"] = COLUMNAS_PLANTILLA_FICHA.map(() => ({ wch: 22 }));
     XLSX.utils.book_append_sheet(Libro, Hoja, "Fichas");
 
@@ -147,8 +147,8 @@ export const previewImportFicha = async (req, res) => {
     }
 
     const Workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-    const Hoja     = Workbook.Sheets[Workbook.SheetNames[0]];
-    const Filas    = XLSX.utils.sheet_to_json(Hoja, { defval: "" });
+    const Hoja = Workbook.Sheets[Workbook.SheetNames[0]];
+    const Filas = XLSX.utils.sheet_to_json(Hoja, { defval: "" });
 
     if (!Filas.length) {
       return res.status(400).json({ message: "El archivo esta vacio o no tiene datos." });
@@ -186,7 +186,7 @@ export const importarFichasSeleccionadas = async (req, res) => {
       return res.status(400).json({ message: "No hay datos seleccionados" });
     }
 
-    let Creados  = 0;
+    let Creados = 0;
     let Omitidos = 0;
     const Errores = [];
 
@@ -218,12 +218,12 @@ export const importarFichasSeleccionadas = async (req, res) => {
 
       // Paso 4: persistir la nueva ficha con todos los campos del modelo
       await FichasModel.create({
-        Num_Ficha:       parseInt(Fila.Num_Ficha),
+        Num_Ficha: parseInt(Fila.Num_Ficha),
         FecIniLec_Ficha: Fila.FecIniLec_Ficha || null,
         FecFinLec_Ficha: Fila.FecFinLec_Ficha || null,
         FecIniPra_Ficha: Fila.FecIniPra_Ficha || null,
         FecFinPra_Ficha: Fila.FecFinPra_Ficha || null,
-        Id_Programa:     parseInt(Fila.Id_Programa),
+        Id_Programa: parseInt(Fila.Id_Programa),
       });
 
       Creados++;
