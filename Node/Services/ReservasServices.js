@@ -104,43 +104,11 @@ class ReservasServices {
     };
     return ventanas[tipo] ?? null;
   }
-  // Valida que la reserva se haga con al menos 24 horas de antelacion.
-  // Se usa para reservas normales (no novedades). Las novedades omiten esta validacion.
-  // La validacion compara la hora actual con el limite de cierre del tipo de comida.
-  ValidarAntelacion8Horas(tipo, fechaReserva) {
-    const ahora = new Date();
-
-    // Hora de INICIO de cada turno (no de cierre)
-    const inicioTurno = {
-      Desayuno: { h: 6,  m: 0  },   // turno inicia 06:00
-      Almuerzo: { h: 11, m: 30 },   // turno inicia 11:30
-      Cena:     { h: 18, m: 0  }    // turno inicia 18:00
-    };
-    if (!inicioTurno[tipo]) throw new Error("Tipo de comida no valido");
-
-    // Construir la fecha/hora exacta de inicio del turno
-    const fechaInicioTurno = new Date(`${fechaReserva}T00:00:00`);
-    fechaInicioTurno.setHours(inicioTurno[tipo].h, inicioTurno[tipo].m, 0, 0);
-
-    // El límite para reservar es exactamente 8 horas antes del inicio
-    const limiteReserva = new Date(fechaInicioTurno.getTime() - 8 * 60 * 60 * 1000);
-
-    if (ahora > limiteReserva) {
-      const horaLimite = limiteReserva.toLocaleTimeString('es-CO', {
-        hour: '2-digit', minute: '2-digit', hour12: false
-      });
-      const fechaLimite = limiteReserva.toLocaleDateString('es-CO', {
-        weekday: 'long', day: 'numeric', month: 'long'
-      });
-      throw new Error(
-        `Las reservas para ${tipo} cerraron a las ${horaLimite} del ${fechaLimite}. ` +
-        `Debes reservar con al menos 8 horas de anticipación al inicio del turno.`
-      );
-    }
-    return true;
-  }
-  // Valida que la reserva se haga con al menos 8 horas de antelacion respecto al limite de servicio.
-  // Esta validacion se omite cuando esNovedad = true, ya que las novedades son del mismo dia.
+  // Valida que la reserva se haga con al menos 8 horas de antelacion respecto
+  // al cierre del periodo de reservas para ese tipo de comida.
+  // Esta validacion se omite cuando esNovedad = true.
+  // Horas limite de cierre de reservas por tipo:
+  //   Desayuno: 22:00 del dia anterior | Almuerzo: 05:00 del mismo dia | Cena: 11:00 del mismo dia
   ValidarAntelacion8Horas(tipo, fechaReserva) {
     const ahora = new Date();
     const fechaObjetivo = new Date(`${fechaReserva}T00:00:00`);
@@ -271,7 +239,7 @@ class ReservasServices {
 
       // Validar si el usuario esta sancionado. Un usuario sancionado no puede reservar
       // bajo ninguna circunstancia, ni siquiera a traves de novedades del coordinador.
-      if (usuario.San_Usuario === 1) {
+      if (usuario.San_Usuario === 'Si') {
         throw new Error("No puedes realizar reservas porque te encuentras sancionado.");
       }
 
@@ -290,10 +258,10 @@ class ReservasServices {
       const plato = await PlatosModels.findByPk(platoElegido, { transaction });
       if (!plato) throw new Error("El plato seleccionado no existe");
 
-      // Validar regla de 24 horas solo para reservas normales.
+      // Validar regla de 8 horas solo para reservas normales.
       // Las novedades omiten esta validacion porque son del mismo dia por definicion.
       if (!esNovedad) {
-        this.ValidarAntelacion24Horas(TipoNormalizado, fechaReserva);
+        this.ValidarAntelacion8Horas(TipoNormalizado, fechaReserva);
       }
 
       // Paso 4: calcular la fecha y hora de vencimiento del QR
