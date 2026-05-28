@@ -70,10 +70,28 @@ const FormatearHora = (isoStr) => {
     });
 };
 
-const ConstruirQrUrl = (qrEncriptado) => {
-    if (!qrEncriptado) return "";
-    const base = window.location.origin;
-    return `${base}/ReservaCreada-checkin?data=${encodeURIComponent(qrEncriptado)}`;
+const ConstruirQrUrl = (datosQR) => {
+    if (!datosQR) return "";
+
+    try {
+        const datos = JSON.parse(datosQR);
+        const Linea = (Etiqueta, Valor) =>
+            Valor === undefined || Valor === null || Valor === "" ? null : `${Etiqueta}: ${Valor}`;
+
+        return [
+            Linea("Id_Reserva", datos.Id_Reserva),
+            Linea("Aprendiz", datos.Aprendiz),
+            Linea("documento", datos.Documento),
+            Linea("Fecha", datos.Fecha),
+            Linea("Vence", datos.Vence),
+            Linea("Tipo", datos.Tipo),
+            Linea("Estado", datos.Estado),
+            Linea("Plato", datos.Plato),
+            Linea("Novedad", datos.Novedad),
+        ].filter(Boolean).join("\n");
+    } catch {
+        return datosQR;
+    }
 };
 
 const UrlImagen = (nombreArchivo) => {

@@ -1,6 +1,31 @@
 import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import apiAxios from "../../api/axiosConfig.js";
+
+const FormatearDatosQR = (datosQR) => {
+  if (!datosQR) return "";
+
+  try {
+    const datos = JSON.parse(datosQR);
+    const Linea = (Etiqueta, Valor) =>
+      Valor === undefined || Valor === null || Valor === "" ? null : `${Etiqueta}: ${Valor}`;
+
+    return [
+      Linea("Id_Reserva", datos.Id_Reserva),
+      Linea("Aprendiz", datos.Aprendiz),
+      Linea("documento", datos.Documento),
+      Linea("Fecha", datos.Fecha),
+      Linea("Vence", datos.Vence),
+      Linea("Tipo", datos.Tipo),
+      Linea("Estado", datos.Estado),
+      Linea("Plato", datos.Plato),
+      Linea("Novedad", datos.Novedad),
+    ].filter(Boolean).join("\n");
+  } catch {
+    return datosQR;
+  }
+};
+
 const ReservaForm = () => {
 
   // Estado para los tipos de comida permitidos segun el rol del usuario logueado
@@ -144,11 +169,10 @@ const ReservaForm = () => {
                 <div
                   key={plato.Id_Plato}
                   onClick={() => manejarSeleccionPlato(plato)}
-                  className={`cursor-pointer rounded-xl border-2 p-2 transition ${
-                    platoElegido === plato.Id_Plato
+                  className={`cursor-pointer rounded-xl border-2 p-2 transition ${platoElegido === plato.Id_Plato
                       ? "border-blue-400 bg-blue-50"
                       : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   {/* Imagen del plato traida desde la carpeta uploads del backend */}
                   {plato.Img_Plato ? (
@@ -219,7 +243,7 @@ const ReservaForm = () => {
         {qrData && (
           <div className="flex flex-col items-center gap-2 pt-2">
             <p className="text-sm text-gray-500">Valido: {qrData.validDate}</p>
-            <QRCodeSVG value={qrData.qrUrl} size={350} marginSize={4} level="H" />
+            <QRCodeSVG value={FormatearDatosQR(qrData.qrUrl)} size={350} marginSize={4} level="H" />
           </div>
         )}
 
