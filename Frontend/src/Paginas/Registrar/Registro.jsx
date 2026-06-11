@@ -817,7 +817,10 @@ const Registro = () => {
       try {
         const Scanner = new Html5Qrcode(IdDiv);
         InstanciaQR.current = Scanner;
+        console.log("isSecureContext:", window.isSecureContext);
 
+        const dispositivos = await navigator.mediaDevices.enumerateDevices();
+        console.log("Dispositivos:", dispositivos);
         await Scanner.start(
           { facingMode: "environment" },
           CONFIG_QR,
@@ -833,12 +836,14 @@ const Registro = () => {
           }
         );
       } catch (Err) {
-        console.error("[Registro] Error al acceder a la camara:", Err.message);
-        SetUltimoResultado({
-          Error: "No se pudo activar la camara. Verifica que el navegador tenga permiso de acceso.",
-        });
-        SetScannerListo(false);
-      }
+  console.error("ERROR COMPLETO:", Err);
+  console.error("NAME:", Err?.name);
+  console.error("MESSAGE:", Err?.message);
+
+  SetUltimoResultado({
+    Error: `Camara: ${Err?.name} - ${Err?.message}`,
+  });
+}
     };
 
     // Delay para asegurar que el div ya esta en el DOM antes de llamar start()
