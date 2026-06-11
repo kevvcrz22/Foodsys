@@ -20,6 +20,7 @@ const useIsMobile = () => {
     return () => window.removeEventListener("resize", h);
   }, []);
   return isMobile;
+
 };
 
 const estadoConfig = {
