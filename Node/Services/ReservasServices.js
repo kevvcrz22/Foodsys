@@ -3,7 +3,7 @@
 // Servicio central del ciclo de vida de una reserva en Foodsys.
 // Responsabilidades de este archivo:
 //   - Crear reservas normales y por novedad (generarReservaPass)
-//   - Encriptar y desencriptar los datos del codigo QR
+//   - Generar y leer los datos del codigo QR
 //   - Validar roles, sanciones, antelacion de 24 horas y duplicados
 //   - Procesar la verificacion de cocina (Generado -> Verificado)
 //   - Procesar el escaneo del supervisor (Verificado -> Consumido)
@@ -52,9 +52,9 @@ class ReservasServices {
     const vencimiento = new Date(`${fechaReserva}T00:00:00`);
     // Hora exacta de cierre de cada turno segun las reglas de negocio
     const fin = {
-      Desayuno: { h: 7,  m: 0  },   // turno 06:00 – 07:00
+      Desayuno: { h: 7, m: 0 },   // turno 06:00 – 07:00
       Almuerzo: { h: 13, m: 30 },   // turno 11:30 – 13:30
-      Cena:     { h: 19, m: 0  }    // turno 18:00 – 19:00
+      Cena: { h: 19, m: 0 }    // turno 18:00 – 19:00
     };
     if (!fin[tipo]) throw new Error("Tipo de comida no valido");
     vencimiento.setHours(fin[tipo].h, fin[tipo].m, 0, 0);
@@ -69,9 +69,9 @@ class ReservasServices {
     const ahora = new Date();
     // Hora de inicio de cada turno
     const inicioTurno = {
-      Desayuno: { h: 6,  m: 0  },
+      Desayuno: { h: 6, m: 0 },
       Almuerzo: { h: 11, m: 30 },
-      Cena:     { h: 18, m: 0  }
+      Cena: { h: 18, m: 0 }
     };
     if (!inicioTurno[tipo]) throw new Error('Tipo de comida no valido');
     const fechaInicio = new Date(`${fechaReserva}T00:00:00`);
@@ -98,9 +98,9 @@ class ReservasServices {
   ObtenerVentanaHoraria(tipo) {
     // desde/hasta en hora entera (getHours); se ajusta a los turnos reales
     const ventanas = {
-      Desayuno: { desde: 6,  hasta: 7  },   // 06:00 – 07:00
+      Desayuno: { desde: 6, hasta: 7 },   // 06:00 – 07:00
       Almuerzo: { desde: 11, hasta: 14 },   // 11:30 – 13:30 (redondeado a hora entera)
-      Cena:     { desde: 18, hasta: 19 }    // 18:00 – 19:00
+      Cena: { desde: 18, hasta: 19 }    // 18:00 – 19:00
     };
     return ventanas[tipo] ?? null;
   }
@@ -144,10 +144,57 @@ class ReservasServices {
     return [];
   }
 
-  // Encripta SOLO el Id_Reserva (numero entero) en el QR.
-  // Al encriptar solo un campo numerico el QR es mucho mas liviano
-  // y el scanner lo detecta y lee en menos tiempo.
-  // La clave debe estar en .env como QR_ENCRYPTION_KEY (64 hex chars = 256 bits).
+  // Genera el contenido visible del QR sin encriptar.
+  GenerarDatosQR({ reserva, usuario, plato, fechaReserva, fechaVencimiento, esNovedad }) {
+    const venceQR = fechaVencimiento.toLocaleString("es-CO", {
+      timeZone: "America/Bogota",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+
+    const datosQR = {
+      Id_Reserva: reserva.Id_Reserva,
+      Aprendiz: `${usuario.Nom_Usuario} ${usuario.Ape_Usuario}`.trim(),
+      Documento: usuario.NumDoc_Usuario,
+      Fecha: fechaReserva,
+      Vence: venceQR,
+      Tipo: reserva.Tip_Reserva,
+      Estado: reserva["Est_Reserva"],
+      Plato: plato.Nom_Plato,
+      Novedad: esNovedad ? "Si" : "No"
+    };
+
+    return JSON.stringify(datosQR);
+  }
+
+  // Lee el Id_Reserva desde el contenido visible del QR.
+  ObtenerIdReservaDesdeQR(contenidoQR) {
+    const contenido = String(contenidoQR ?? "").trim();
+    if (!contenido) throw Error("Contenido del QR invalido");
+
+    try {
+      const datos = JSON.parse(contenido);
+      const id = parseInt(datos.Id_Reserva, 10);
+      if (!isNaN(id)) return id;
+    } catch {
+      // Si no es JSON, se intenta leer como numero directo o como QR antiguo.
+    }
+
+    const idEnTexto = contenido.match(/^Id_Reserva\s*:\s*(\d+)/mi);
+    if (idEnTexto) return parseInt(idEnTexto[1], 10);
+
+    const idDirecto = parseInt(contenido, 10);
+    if (!isNaN(idDirecto)) return idDirecto;
+
+    return this.DesencriptarQR(contenido);
+  }
+
+  // Metodo antiguo. Ya no se usa para generar QRs nuevos.
+  // Se conserva para no romper compatibilidad si hay reservas viejas.
   EncriptarDatos(idReserva) {
     if (!process.env.QR_ENCRYPTION_KEY) {
       throw new Error("QR_ENCRYPTION_KEY no esta definida en las variables de entorno");
@@ -164,9 +211,7 @@ class ReservasServices {
     return iv.toString('base64url') + '.' + encriptado.toString('base64url');
   }
 
-  // Desencripta el QR y retorna el Id_Reserva como numero entero.
-  // El QR solo contiene el ID: todos los demas campos se buscan en la BD.
-  // Lanza error si el formato es invalido o la clave no coincide.
+  // Lee QRs antiguos que todavia hayan quedado cifrados en la base de datos.
   DesencriptarQR(encriptado) {
     if (!process.env.QR_ENCRYPTION_KEY) {
       throw new Error("QR_ENCRYPTION_KEY no esta definida en las variables de entorno");
@@ -305,21 +350,22 @@ class ReservasServices {
         Jus_Reserva: Jus_Reserva
       }, { transaction });
 
-      // Paso 7: encriptar SOLO el Id_Reserva.
-      // El QR solo lleva el ID porque el backend busca todo lo demas en la BD
-      // al momento del escaneo. Un QR mas corto = lectura mas rapida.
-      const encriptado = this.EncriptarDatos(nuevaReserva.Id_Reserva);
-      await nuevaReserva.update({ Qr_Reserva: encriptado }, { transaction });
-
-      // La URL del QR lleva el ID encriptado como parametro
-      const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-      const qrUrl = `${baseUrl}/ReservaCreada-checkin?data=${encodeURIComponent(encriptado)}`;
+      // Paso 7: guardar los datos del QR en texto claro.
+      const datosQR = this.GenerarDatosQR({
+        reserva: nuevaReserva,
+        usuario,
+        plato,
+        fechaReserva,
+        fechaVencimiento,
+        esNovedad
+      });
+      await nuevaReserva.update({ Qr_Reserva: datosQR }, { transaction });
 
       return {
-        Qr_Reserva: encriptado,
+        Qr_Reserva: datosQR,
         validDate: fechaReserva,
         expiresAt: fechaVencimiento,
-        qrUrl
+        qrUrl: datosQR
       };
     });
   }
@@ -369,10 +415,8 @@ class ReservasServices {
   async procesarConsumoSupervisor(encriptadoQR) {
     return await db.transaction(async (transaction) => {
 
-      // Paso 1: desencriptar el QR para obtener SOLO el Id_Reserva.
-      // El QR ya no lleva fecha, usuario ni tipo: todo se obtiene de la BD.
-      // Esto hace el QR mas liviano y el scanner lo lee mas rapido.
-      const Id_Reserva = this.DesencriptarQR(encriptadoQR);
+      // Paso 1: leer el Id_Reserva desde el QR en texto claro.
+      const Id_Reserva = this.ObtenerIdReservaDesdeQR(encriptadoQR);
 
       // Paso 2: obtener la reserva con su plato y su usuario con roles en paralelo
       // para reducir el tiempo de espera de la transaccion.

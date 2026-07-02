@@ -54,13 +54,13 @@ const CONFIG_LECTOR = {
 const ClasificarError = (mensaje) => {
   if (!mensaje) return { tipo: "generico" };
   const m = mensaje.toLowerCase();
-  if (m.includes("vencido"))                          return { tipo: "vencido"     };
+  if (m.includes("vencido")) return { tipo: "vencido" };
   if (m.includes("cancelado") || m.includes("cancelada")) return { tipo: "cancelado" };
-  if (m.includes("consumido") || m.includes("ya fue"))  return { tipo: "consumido"  };
-  if (m.includes("cocina")   || m.includes("verificad")) return { tipo: "cocina"     };
-  if (m.includes("horario")  || m.includes("habilitado")) return { tipo: "horario"   };
-  if (m.includes("sancionado"))                       return { tipo: "sancionado"  };
-  if (m.includes("fecha"))                            return { tipo: "fecha"       };
+  if (m.includes("consumido") || m.includes("ya fue")) return { tipo: "consumido" };
+  if (m.includes("cocina") || m.includes("verificad")) return { tipo: "cocina" };
+  if (m.includes("horario") || m.includes("habilitado")) return { tipo: "horario" };
+  if (m.includes("sancionado")) return { tipo: "sancionado" };
+  if (m.includes("fecha")) return { tipo: "fecha" };
   return { tipo: "generico" };
 };
 
@@ -68,21 +68,21 @@ const ClasificarError = (mensaje) => {
 // Centralizar aqui hace que agregar un nuevo tipo de error solo requiera
 // agregar una entrada en este objeto, sin tocar el JSX.
 const CONFIG_ERRORES = {
-  vencido:    { Icono: Clock,         Titulo: "QR vencido",                 Bg: "bg-slate-50  border-slate-200",  IconoBg: "bg-slate-100",  IconoColor: "text-slate-500",  TituloColor: "text-slate-700",  MsgColor: "text-slate-600"  },
-  cancelado:  { Icono: Ban,           Titulo: "Reserva cancelada",           Bg: "bg-orange-50 border-orange-200", IconoBg: "bg-orange-100", IconoColor: "text-orange-500", TituloColor: "text-orange-700", MsgColor: "text-orange-600" },
-  consumido:  { Icono: CheckCircle2,  Titulo: "Ya fue consumida",            Bg: "bg-blue-50   border-blue-200",   IconoBg: "bg-blue-100",   IconoColor: "text-blue-500",   TituloColor: "text-blue-700",   MsgColor: "text-blue-600"   },
-  cocina:     { Icono: AlertTriangle, Titulo: "Verificacion pendiente",      Bg: "bg-amber-50  border-amber-200",  IconoBg: "bg-amber-100",  IconoColor: "text-amber-600",  TituloColor: "text-amber-800",  MsgColor: "text-amber-700"  },
-  horario:    { Icono: Clock,         Titulo: "Fuera del horario de servicio",Bg: "bg-amber-50  border-amber-200",  IconoBg: "bg-amber-100",  IconoColor: "text-amber-600",  TituloColor: "text-amber-800",  MsgColor: "text-amber-700"  },
-  sancionado: { Icono: Shield,        Titulo: "Aprendiz sancionado",         Bg: "bg-red-50    border-red-200",    IconoBg: "bg-red-100",    IconoColor: "text-red-500",    TituloColor: "text-red-700",    MsgColor: "text-red-600"    },
-  fecha:      { Icono: CalendarX,     Titulo: "Reserva de otra fecha",       Bg: "bg-amber-50  border-amber-200",  IconoBg: "bg-amber-100",  IconoColor: "text-amber-600",  TituloColor: "text-amber-800",  MsgColor: "text-amber-700"  },
-  generico:   { Icono: XCircle,       Titulo: "No se pudo procesar",         Bg: "bg-red-50    border-red-200",    IconoBg: "bg-red-100",    IconoColor: "text-red-500",    TituloColor: "text-red-700",    MsgColor: "text-red-600"    }
+  vencido: { Icono: Clock, Titulo: "QR vencido", Bg: "bg-slate-50  border-slate-200", IconoBg: "bg-slate-100", IconoColor: "text-slate-500", TituloColor: "text-slate-700", MsgColor: "text-slate-600" },
+  cancelado: { Icono: Ban, Titulo: "Reserva cancelada", Bg: "bg-orange-50 border-orange-200", IconoBg: "bg-orange-100", IconoColor: "text-orange-500", TituloColor: "text-orange-700", MsgColor: "text-orange-600" },
+  consumido: { Icono: CheckCircle2, Titulo: "Ya fue consumida", Bg: "bg-blue-50   border-blue-200", IconoBg: "bg-blue-100", IconoColor: "text-blue-500", TituloColor: "text-blue-700", MsgColor: "text-blue-600" },
+  cocina: { Icono: AlertTriangle, Titulo: "Verificacion pendiente", Bg: "bg-amber-50  border-amber-200", IconoBg: "bg-amber-100", IconoColor: "text-amber-600", TituloColor: "text-amber-800", MsgColor: "text-amber-700" },
+  horario: { Icono: Clock, Titulo: "Fuera del horario de servicio", Bg: "bg-amber-50  border-amber-200", IconoBg: "bg-amber-100", IconoColor: "text-amber-600", TituloColor: "text-amber-800", MsgColor: "text-amber-700" },
+  sancionado: { Icono: Shield, Titulo: "Aprendiz sancionado", Bg: "bg-red-50    border-red-200", IconoBg: "bg-red-100", IconoColor: "text-red-500", TituloColor: "text-red-700", MsgColor: "text-red-600" },
+  fecha: { Icono: CalendarX, Titulo: "Reserva de otra fecha", Bg: "bg-amber-50  border-amber-200", IconoBg: "bg-amber-100", IconoColor: "text-amber-600", TituloColor: "text-amber-800", MsgColor: "text-amber-700" },
+  generico: { Icono: XCircle, Titulo: "No se pudo procesar", Bg: "bg-red-50    border-red-200", IconoBg: "bg-red-100", IconoColor: "text-red-500", TituloColor: "text-red-700", MsgColor: "text-red-600" }
 };
 
 // Colores de badge por tipo de comida.
 const COLORES_TIPO = {
   Desayuno: "bg-orange-100 text-orange-700 border border-orange-200",
   Almuerzo: "bg-teal-100   text-teal-700   border border-teal-200",
-  Cena:     "bg-indigo-100 text-indigo-700 border border-indigo-200"
+  Cena: "bg-indigo-100 text-indigo-700 border border-indigo-200"
 };
 
 // ---------------------------------------------------------------------------
@@ -127,13 +127,12 @@ const ModalExito = ({ datos, onCerrar }) => {
             </div>
           </div>
           {/* Badge de flujo (Interno / Especial / Externo) */}
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
-            datos.flujoEspecial
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${datos.flujoEspecial
               ? "bg-purple-100 text-purple-700 border-purple-200"
               : datos.flujoInterno
                 ? "bg-teal-100 text-teal-700 border-teal-200"
                 : "bg-white/20 text-white border-white/30"
-          }`}>
+            }`}>
             {datos.flujoEspecial ? "ESPECIAL" : datos.flujoInterno ? "INTERNO" : "EXTERNO"}
           </span>
         </div>
@@ -205,9 +204,8 @@ const ModalExito = ({ datos, onCerrar }) => {
                 )}
               </div>
               {/* Badge del tipo de comida */}
-              <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${
-                COLORES_TIPO[datos.Tipo] || "bg-gray-100 text-gray-600"
-              }`}>
+              <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${COLORES_TIPO[datos.Tipo] || "bg-gray-100 text-gray-600"
+                }`}>
                 {datos.Tipo}
               </span>
             </div>
@@ -437,11 +435,10 @@ const QrScanner = ({ onConsumo }) => {
         {/* Contenedor donde html5-qrcode monta el visor de la camara */}
         <div
           id={ID_CONTENEDOR}
-          className={`w-full rounded-2xl overflow-hidden border-2 transition-colors ${
-            Escaneando
+          className={`w-full rounded-2xl overflow-hidden border-2 transition-colors ${Escaneando
               ? "border-teal-400 shadow-lg shadow-teal-100"
               : "border-gray-200 bg-gray-50"
-          }`}
+            }`}
           style={{ minHeight: Escaneando ? "300px" : "0px" }}
         />
 

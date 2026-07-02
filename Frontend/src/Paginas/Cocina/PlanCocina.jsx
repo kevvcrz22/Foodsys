@@ -210,20 +210,26 @@ const PlanCocina = () => {
 
   useEffect(() => {
     CargarDatos();
+  }, [CargarDatos]);
+
+  useEffect(() => {
     // Verificar excepcionales cada 60 segundos para detectar nuevas novedades
     const intervalo = setInterval(async () => {
       try {
         const excRes = await apiAxios.get(`${API_BASE}/excepcionales-hoy`);
         const nuevaData = excRes.data;
-        if (excepcionales && nuevaData.total > excepcionales.total) {
-          setNuevaExcepcional(true);
-          setTimeout(() => setNuevaExcepcional(false), 8000);
-        }
-        setExcepcionales(nuevaData);
+        
+        setExcepcionales(prev => {
+          if (prev && nuevaData.total > prev.total) {
+            setNuevaExcepcional(true);
+            setTimeout(() => setNuevaExcepcional(false), 8000);
+          }
+          return nuevaData;
+        });
       } catch { /* ignorar errores de polling */ }
     }, 60_000);
     return () => clearInterval(intervalo);
-  }, [CargarDatos, excepcionales]);
+  }, []);
 
   if (cargando) {
     return (

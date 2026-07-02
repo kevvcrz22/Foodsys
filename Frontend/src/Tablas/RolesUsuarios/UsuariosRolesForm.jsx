@@ -3,17 +3,17 @@ import apiAxios from "../../api/axiosConfig.js";
 
 const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
 
-    const [Id_UsuarioRol, setId_UsuarioRol]   = useState("");
-    const [Id_Usuario, setId_Usuario]         = useState("");
-    const [Id_Rol, setId_Rol]                 = useState("");
+    const [Id_UsuarioRol, setId_UsuarioRol] = useState("");
+    const [Id_Usuario, setId_Usuario] = useState("");
+    const [Id_Rol, setId_Rol] = useState("");
 
-    const [usuarios, setUsuarios]             = useState([]);
-    const [roles, setRoles]                   = useState([]);
+    const [usuarios, setUsuarios] = useState([]);
+    const [roles, setRoles] = useState([]);
 
     // ── Autocomplete ──
-    const [busqueda, setBusqueda]             = useState("");
+    const [busqueda, setBusqueda] = useState("");
     const [usuariosFiltrados, setUsuariosFiltrados] = useState([]);
-    const [mostrarDropdown, setMostrarDropdown]     = useState(false);
+    const [mostrarDropdown, setMostrarDropdown] = useState(false);
     const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
 
     const inputRef = useRef(null);
@@ -78,7 +78,7 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
             return (
                 (u.NumDoc_Usuario || "").toString().includes(texto) ||
                 (u.Nom_Usuario || "").toLowerCase().includes(textoLower) ||
-                (u.Ape_Usuario  || "").toLowerCase().includes(textoLower) ||
+                (u.Ape_Usuario || "").toLowerCase().includes(textoLower) ||
                 (`${u.Nom_Usuario} ${u.Ape_Usuario}`).toLowerCase().includes(textoLower)
             );
         }).slice(0, 8); // máximo 8 resultados
@@ -99,7 +99,7 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
         const handleClickFuera = (e) => {
             if (
                 dropdownRef.current && !dropdownRef.current.contains(e.target) &&
-                inputRef.current   && !inputRef.current.contains(e.target)
+                inputRef.current && !inputRef.current.contains(e.target)
             ) {
                 setMostrarDropdown(false);
             }
@@ -118,7 +118,7 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
 
         const payload = {
             Id_Usuario: Number(Id_Usuario),
-            Id_Rol:     Number(Id_Rol),
+            Id_Rol: Number(Id_Rol),
         };
 
         try {
@@ -208,7 +208,7 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
                     onChange={(e) => setId_Rol(e.target.value)}
                     required
                 >
-                    <option value="">-- Selecciona un rol --</option>
+                    <option value="">Selecciona un rol</option>
                     {roles.map((r) => (
                         <option key={r.Id_Rol} value={r.Id_Rol}>
                             {r.Nom_Rol}

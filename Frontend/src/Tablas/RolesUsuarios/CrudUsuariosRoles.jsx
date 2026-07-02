@@ -166,25 +166,21 @@ const CrudUsuariosRoles = () => {
       </div>
 
       {isModalOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", backdropFilter: "blur(2px)" }} onClick={hideModal} />
-          <div style={{
-            background: "var(--color-background-primary)", width: "100%", maxWidth: 480,
-            borderRadius: "20px 20px 0 0", zIndex: 10, maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column",
-            boxShadow: "0 -4px 32px rgba(0,0,0,0.12)",
-          }} className="sm:rounded-2xl">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--color-border-tertiary)" }}>
-              <h2 style={{ fontWeight: 600, fontSize: 15, color: "var(--color-text-primary)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {editar ? <Pencil size={13} style={{ color: "#7c3aed" }} /> : <Plus size={13} style={{ color: "#7c3aed" }} />}
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={hideModal} />
+          <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden z-10">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 shrink-0">
+              <h2 className="font-semibold text-slate-800 text-[15px] m-0 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
+                  {editar ? <Pencil size={13} className="text-violet-700" /> : <Plus size={13} className="text-violet-700" />}
                 </div>
                 {editar ? "Editar Asignación" : "Asignar Rol a Usuario"}
               </h2>
-              <button onClick={hideModal} style={{ background: "var(--color-background-secondary)", border: "none", borderRadius: 8, padding: 8, cursor: "pointer", display: "flex" }}>
-                <X size={15} style={{ color: "var(--color-text-secondary)" }} />
+              <button onClick={hideModal} className="bg-slate-100 border-0 rounded-lg p-2 cursor-pointer text-slate-500 flex items-center hover:bg-slate-200 transition-colors">
+                <X size={15} />
               </button>
             </div>
-            <div style={{ padding: "16px 20px", overflowY: "auto", flex: 1 }}>
+            <div className="px-5 py-4 overflow-y-auto flex-1">
               <UsuariosRolesForm hideModal={hideModal} data={selectedItem} Edit={editar} reload={getAllUsuariosRol} />
             </div>
           </div>
