@@ -455,8 +455,8 @@ function App() {
         <Route path="/menus" element={
           <ProtectedRoute {...Props_Auth} allowedRoles={['Administrador', 'Cocina']}>
             <LayoutConSidebar {...Props_Layout}>
-              {/* soloLectura para Cocina: puede ver menus pero no crear/editar/eliminar */}
-              <CrudMenus soloLectura={Rol_Activo === 'Cocina'} />
+              {/* soloCrear para Cocina: puede ver menus y crear nuevos, pero no editar/eliminar */}
+              <CrudMenus soloCrear={Rol_Activo === 'Cocina'} />
             </LayoutConSidebar>
           </ProtectedRoute>
         } />
