@@ -1,45 +1,34 @@
-// app.js
-// Archivo principal del servidor de la aplicacion Foodsys.
-// Su funcion es:
-//   1. Importar y configurar las dependencias necesarias (Express, CORS, etc.).
-//   2. Importar todas las rutas de la API que se encuentran en la carpeta "Routes".
-//   3. Importar los modelos de base de datos para luego definir sus relaciones.
-//   4. Configurar middlewares globales (JSON y CORS).
-//   5. Registrar las rutas en el servidor.
-//   6. Servir archivos estaticos (imagenes, documentos, etc.) desde la carpeta "uploads".
-//   7. Establecer la conexion a la base de datos y definir las asociaciones entre tablas.
-//   8. Iniciar el servidor en el puerto indicado.
+// App.js
+// Archivo principal del servidor de la aplicación Foodsys.
+// Arquitectura Clean Code y Seguridad Senior implementada.
 
-// ---------- 1. IMPORTACION DE DEPENDENCIAS ----------
-import Express from 'express';   // Framework web para Node.js
-import cors from 'cors';         // Middleware para permitir peticiones de diferentes origenes
-import dotenv from 'dotenv';     // Carga variables de entorno desde un archivo .env
-import db from './Database/db.js'; // Objeto de conexion a la base de datos (Sequelize)
-import { fileURLToPath } from 'url'; // Utilidad para convertir URLs de archivos a rutas absolutas
-import Path from 'path';         // Modulo nativo de Node.js para manejar rutas de archivos
+// ---------- 1. IMPORTACIÓN DE DEPENDENCIAS ----------
+import Express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import helmet from 'helmet'; // Seguridad: Protección de cabeceras HTTP
+import rateLimit from 'express-rate-limit'; // Seguridad: Prevención de fuerza bruta
+import db from './Database/db.js';
+import { fileURLToPath } from 'url';
+import Path from 'path';
+import './Jobs/VencimientoJob.js';
 
-// al inicio del archivo, junto con los demás imports
-import './Jobs/VencimientoJob.js'; // Importa el cron de vencimiento para activar los jobs programados
+// ---------- 2. IMPORTACIÓN DE RUTAS ----------
+import UsuariosRoute from './Routes/UsuariosRoute.js';
+import FichasRoute from './Routes/FichasRoute.js';
+import ReservasRoute from './Routes/ReservasRoute.js';
+import ProgramaRoute from './Routes/ProgramaRoutes.js';
+import RolesRoute from './Routes/RolesRoute.js';
+import UsuariosRolRoutes from './Routes/UsuariosRolRoutes.js';
+import PlatosRoutes from './Routes/PlatosRoutes.js';
+import MenusRoutes from './Routes/MenusRoutes.js';
+import ReportesRoute from './Routes/ReportesRoute.js';
+import InicioRoute from './Routes/InicioRoute.js';
+import NovedadesRoute from './Routes/NovedadesRoute.js';
+import CocinaRoute from './Routes/CocinaRoute.js';
+import RutasAutenticacion from './Routes/Rutas_Autenticacion.js';
 
-// ---------- 2. IMPORTACION DE RUTAS ----------
-// Cada archivo en la carpeta "Routes" define un enrutador de Express para un recurso.
-// El nombre de la variable debe coincidir con lo exportado por cada modulo (por defecto).
-import UsuariosRoute from './Routes/UsuariosRoute.js';      // Rutas para gestion de usuarios
-import FichasRoute from './Routes/FichasRoute.js';        // Rutas para fichas
-import ReservasRoute from './Routes/ReservasRoute.js';      // Rutas para reservas de comida
-import ProgramaRoute from './Routes/ProgramaRoutes.js';     // Rutas para programas academicos
-import RolesRoute from './Routes/RolesRoute.js';         // Rutas para roles de usuario
-import UsuariosRolRoutes from './Routes/UsuariosRolRoutes.js'; // Rutas para asignacion de roles a usuarios
-import PlatosRoutes from './Routes/PlatosRoutes.js';       // Rutas para platos de comida
-import MenusRoutes from './Routes/MenusRoutes.js';        // Rutas para menus diarios
-import ReportesRoute from './Routes/ReportesRoute.js';      // Rutas para reportes y estadisticas
-import InicioRoute from './Routes/InicioRoute.js';        // Rutas para la pagina de Inicio
-import NovedadesRoute from './Routes/NovedadesRoute.js';     // Rutas para novedades y estado Especial
-import CocinaRoute    from './Routes/CocinaRoute.js';        // Rutas para el modulo de planificacion de Cocina
-
-// ---------- 3. IMPORTACION DE MODELOS ----------
-// Los modelos representan las tablas de la base de datos.
-// Se importan aqui para poder establecer las relaciones (asociaciones) entre ellos.
+// ---------- 3. IMPORTACIÓN DE MODELOS ----------
 import FichasModel from './Models/FichasModel.js';
 import UsuariosModel from './Models/UsuariosModel.js';
 import ProgramaModel from './Models/ProgramaModel.js';
@@ -48,140 +37,114 @@ import RolesModel from './Models/RolesModel.js';
 import UsuariosRolModel from './Models/UsuariosRolModel.js';
 import PlatosModel from './Models/PlatosModels.js';
 import MenuModel from './Models/MenusModels.js';
-
-// Servicio de novedades: se importa aqui para ejecutar la tarea de mantenimiento
-// de estados Especiales expirados al arrancar el servidor (ver seccion 10).
 import NovedadesService from './Services/NovedadesService.js';
 
-// ---------- 4. CONFIGURACION INICIAL ----------
-dotenv.config();                // Carga las variables definidas en el archivo .env
-const app = Express();          // Crea la aplicacion de Express
+// ---------- 4. CONFIGURACIÓN INICIAL ----------
+dotenv.config();
+const aplicacion = Express();
 
-// ---------- 5. MIDDLEWARES GLOBALES ----------
-// Los middlewares se ejecutan en cada solicitud antes de llegar a las rutas.
-app.use(Express.json()); // Convierte automaticamente el cuerpo de las peticiones JSON a objeto JavaScript
-app.use(cors());         // Permite que el frontend (incluso en otro dominio) pueda hacer peticiones al servidor
+// ---------- 5. SEGURIDAD Y MIDDLEWARES GLOBALES ----------
+// Seguridad: Cabeceras HTTP seguras
+aplicacion.use(helmet());
+
+// Seguridad: Rate Limiting para evitar ataques de fuerza bruta o DDoS
+const limitadorGlobal = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // Límite de 100 peticiones por IP cada 15 minutos
+  message: 'Demasiadas peticiones desde esta IP, por favor intenta de nuevo en 15 minutos.',
+});
+aplicacion.use('/api', limitadorGlobal);
+
+// Middlewares estándar
+aplicacion.use(Express.json());
+const opcionesCors = {
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  optionsSuccessStatus: 200
+};
+aplicacion.use(cors(opcionesCors));
 
 // ---------- 6. REGISTRO DE RUTAS DE LA API ----------
-// Cada grupo de rutas se monta en una ruta base.
-// Ejemplo: todas las rutas definidas en UsuariosRoute seran accesibles desde /api/Usuarios
-app.use('/api/Usuarios', UsuariosRoute);
-app.use('/api/Fichas', FichasRoute);
-app.use('/api/Reservas', ReservasRoute);
-app.use('/api/Programa', ProgramaRoute);
-app.use('/api/Roles', RolesRoute);
-app.use('/api/UsuariosRoles', UsuariosRolRoutes);
-app.use('/api/Platos', PlatosRoutes);
-app.use('/api/Menus', MenusRoutes);
-app.use('/api/Reportes', ReportesRoute);
-app.use('/api/Inicio', InicioRoute);
-app.use('/api/Novedades', NovedadesRoute);
-app.use('/api/Cocina',   CocinaRoute);   // Modulo de planificacion del personal de cocina
+aplicacion.use('/api/Usuarios', UsuariosRoute);
+aplicacion.use('/api/Fichas', FichasRoute);
+aplicacion.use('/api/Reservas', ReservasRoute);
+aplicacion.use('/api/Programa', ProgramaRoute);
+aplicacion.use('/api/Roles', RolesRoute);
+aplicacion.use('/api/UsuariosRoles', UsuariosRolRoutes);
+aplicacion.use('/api/Platos', PlatosRoutes);
+aplicacion.use('/api/Menus', MenusRoutes);
+aplicacion.use('/api/Reportes', ReportesRoute);
+aplicacion.use('/api/Inicio', InicioRoute);
+aplicacion.use('/api/Novedades', NovedadesRoute);
+aplicacion.use('/api/Cocina', CocinaRoute);
+aplicacion.use('/api/Auth', RutasAutenticacion);
 
-// ---------- 7. ARCHIVOS ESTATICOS ----------
-// Permite acceder a archivos guardados en la carpeta "uploads" (por ejemplo, imagenes de platos).
-// Ejemplo: http://localhost:8000/uploads/foto.jpg mostrara la imagen si existe en esa carpeta.
-const __filename = fileURLToPath(import.meta.url); // Obtiene la ruta absoluta al archivo actual
-const __dirname = Path.dirname(__filename);        // Obtiene el directorio donde se encuentra este archivo
-app.use('/uploads', Express.static(Path.join(__dirname, 'uploads')));
+// ---------- 7. ARCHIVOS ESTÁTICOS ----------
+const rutaArchivo = fileURLToPath(import.meta.url);
+const directorioActual = Path.dirname(rutaArchivo);
+aplicacion.use('/uploads', Express.static(Path.join(directorioActual, 'uploads')));
 
-// Ruta de prueba: al visitar http://localhost:8000 se muestra un mensaje simple
-app.get('/', (req, res) => res.send('Hola Mundo Foodsys'));
+// Ruta de prueba
+aplicacion.get('/', (peticion, respuesta) => respuesta.send('Hola Mundo Foodsys - Versión Senior'));
 
-// ---------- 8. CONEXION A LA BASE DE DATOS ----------
-// Intenta conectarse a la base de datos usando Sequelize.
-// db.authenticate() verifica que las credenciales y la conexion sean validas.
+// ---------- 8. CONEXIÓN A LA BASE DE DATOS ----------
 try {
   await db.authenticate();
-  console.log('Conexion a la base de datos exitosa');
-} catch (error) {
-  console.error('Error al conectar a la Base de Datos: ', error);
-  process.exit(1); // Si no se puede conectar, detiene la aplicacion, porque sin BD no funciona.
+  console.log('✅ Conexión a la base de datos exitosa');
+} catch (errorDb) {
+  console.error('❌ Error al conectar a la Base de Datos: ', errorDb);
+  process.exit(1);
 }
 
 // ========== 9. ASOCIACIONES ENTRE MODELOS (RELACIONES) ==========
-// Aqui se le dice a Sequelize como estan relacionadas las tablas.
-// Esto permite en las consultas usar "include" para traer datos de otras tablas.
-
-// ---- Fichas y Usuarios ----
-// Una ficha tiene muchos usuarios (aprendices). Cada usuario pertenece a una ficha.
 FichasModel.hasMany(UsuariosModel, { foreignKey: 'Id_Ficha', as: 'usuarios' });
 UsuariosModel.belongsTo(FichasModel, { foreignKey: 'Id_Ficha', as: 'ficha' });
 
-// ---- Programas y Fichas ----
-// Un programa (ej. "Analisis y Desarrollo de Software") agrupa muchas fichas.
 ProgramaModel.hasMany(FichasModel, { foreignKey: 'Id_Programa', as: 'fichas' });
 FichasModel.belongsTo(ProgramaModel, { foreignKey: 'Id_Programa', as: 'programas' });
 
-// ---- Usuarios y Reservas ----
-// Un usuario puede hacer muchas reservas de comida. Cada reserva pertenece a un usuario.
 UsuariosModel.hasMany(ReservasModel, { foreignKey: 'Id_Usuario', as: 'reservas' });
 ReservasModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' });
 
-// ---- Usuarios, Roles y tabla intermedia UsuariosRol ----
-// Un usuario puede tener varios roles, y un rol puede ser asignado a varios usuarios.
-// La tabla 'usuariosrol' guarda esa relacion. Sequelize la maneja asi:
-//   UsuariosModel -> tiene muchos UsuariosRol (registros en la tabla intermedia)
-//   UsuariosRolModel -> pertenece a un Usuario y a un Rol
 UsuariosModel.hasMany(UsuariosRolModel, { foreignKey: "Id_Usuario", as: "rolesUsuario" });
 UsuariosRolModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario", as: "usuario" });
 UsuariosRolModel.belongsTo(RolesModel, { foreignKey: "Id_Rol", as: "rolUsuario" });
-UsuariosRolModel.belongsTo(RolesModel, { foreignKey: "Id_Rol", as: "rol" });
+
 RolesModel.hasMany(UsuariosRolModel, { foreignKey: "Id_Rol", as: "usuariosRol" });
 
-// ---- Platos y Menus ----
-// Un plato puede aparecer en muchos menus, y un menu (dia y tipo) tiene un plato.
 PlatosModel.hasMany(MenuModel, { foreignKey: "Id_Plato", as: "menus" });
 MenuModel.belongsTo(PlatosModel, { foreignKey: "Id_Plato", as: "plato" });
 
-// ---- Reservas y Platos ----
-// Una reserva tiene un plato asignado. Se necesita esta asociacion para que el historial
-// de reservas pueda traer el nombre e imagen del plato con un "include" de Sequelize.
 ReservasModel.belongsTo(PlatosModel, { foreignKey: "Id_Plato", as: "plato" });
 PlatosModel.hasMany(ReservasModel, { foreignKey: "Id_Plato", as: "reservas" });
 
 // ========== 10. TAREA DE MANTENIMIENTO: ESTADOS ESPECIALES EXPIRADOS ==========
-// Al iniciar el servidor se revierten automaticamente los usuarios cuyo estado Especial
-// haya superado los 30 dias. Esto cubre el caso en que el servidor estuvo apagado durante
-// dias y no proceso las expiraciones que ocurrieron mientras estaba inactivo.
-//
-// Durante el uso normal del sistema, ReservasServices.VerificarExpiracionEspecial se encarga
-// de la verificacion perezosa por usuario individual en cada peticion relevante.
-// Esta tarea cubre la reversion masiva al arranque y cada 24 horas en ejecucion continua.
 try {
   const resultadoReversion = await NovedadesService.RevertirEspecialesExpirados();
   if (resultadoReversion.revertidos > 0) {
     console.log(
       `[Mantenimiento] Se revirtieron ${resultadoReversion.revertidos} usuarios ` +
-      `de estado Especial a En Formacion por vencimiento de 30 dias.`
+      `de estado Especial a En Formacion por vencimiento de 30 días.`
     );
   } else {
     console.log('[Mantenimiento] No hay estados Especiales expirados al arrancar.');
   }
-} catch (error) {
-  // No se detiene el servidor si esta tarea falla: es mantenimiento, no es critico para el arranque.
-  console.error('[Mantenimiento] Error al revertir estados Especiales:', error.message);
+} catch (errorMantenimiento) {
+  console.error('[Mantenimiento] Error al revertir estados Especiales:', errorMantenimiento.message);
 }
 
-// Programar la tarea de reversion cada 24 horas mientras el servidor este corriendo.
-// Garantiza que usuarios que cumplan los 30 dias durante el dia sean revertidos sin
-// necesidad de reiniciar el servidor ni de una accion manual del Coordinador.
 setInterval(async () => {
   try {
     const resultado = await NovedadesService.RevertirEspecialesExpirados();
     if (resultado.revertidos > 0) {
-      console.log(
-        `[Mantenimiento] Reversion programada: ${resultado.revertidos} usuarios revertidos de Especial a En Formacion.`
-      );
+      console.log(`[Mantenimiento] Reversión programada: ${resultado.revertidos} usuarios revertidos.`);
     }
-  } catch (error) {
-    console.error('[Mantenimiento] Error en reversion programada de estados Especiales:', error.message);
+  } catch (errorIntervalo) {
+    console.error('[Mantenimiento] Error en reversión programada:', errorIntervalo.message);
   }
-}, 24 * 60 * 60 * 1000); // intervalo de 24 horas expresado en milisegundos
+}, 24 * 60 * 60 * 1000);
 
 // ---------- 11. INICIAR EL SERVIDOR ----------
-// El servidor escucha en el puerto definido en la variable de entorno PORT, o 8000 si no existe.
-const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+const PUERTO = process.env.PORT || 8000;
+aplicacion.listen(PUERTO, () => console.log(`🚀 Servidor ejecutándose en http://localhost:${PUERTO}`));
 
-export default app;
+export default aplicacion;

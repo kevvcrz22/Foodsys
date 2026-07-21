@@ -76,8 +76,8 @@ const Reportes = () => {
       // Determinar el endpoint segun el periodo seleccionado
       const Endpoint =
         Periodo === "personalizado"
-          ? "/api/Reportes/personalizado"
-          : `/api/Reportes/${Periodo}`;
+          ? "/Reportes/personalizado"
+          : `/Reportes/${Periodo}`;
 
       // Los parametros extra solo aplican para el periodo personalizado
       const Params =
@@ -148,8 +148,7 @@ const Reportes = () => {
         Params.tipoAlimento = TipoAlimento;
       }
 
-      // La opcion responseType: "blob" indica a axios que la respuesta es binaria
-      const Res = await apiAxios.get(`/api/Reportes/exportar/${Formato}`, {
+      const Res = await apiAxios.get(`/Reportes/exportar/${Formato}`, {
         params: Params,
         responseType: "blob",
       });

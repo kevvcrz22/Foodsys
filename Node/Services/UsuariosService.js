@@ -18,7 +18,7 @@ class UsuariosService {
       include: [{
         model: UsuariosRolModel,
         as: "rolesUsuario",
-        include: [{ model: RolesModel, as: "rol" }]  // usa alias "rol"
+        include: [{ model: RolesModel, as: "rolUsuario" }]  // usa alias correcto "rolUsuario"
       }]
     });
 
@@ -28,7 +28,7 @@ class UsuariosService {
     if (!isValid) throw new Error("Documento o contraseña incorrectos");
 
     const usuarioJson = usuarios.toJSON();
-    const roles = usuarioJson.rolesUsuario?.map(r => r.rol?.Nom_Rol).filter(Boolean) || [];
+    const roles = usuarioJson.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
 
     const token = jwt.sign(
       { id: usuarios.Id_Usuario, uuid: usuarios.uuid, roles },
@@ -144,7 +144,7 @@ async getAprendices() {
       {
         model: UsuariosRolModel,
         as: 'rolesUsuario',
-        include: [{ model: RolesModel, as: 'rol' }]
+        include: [{ model: RolesModel, as: 'rolUsuario' }]
       },
       {
         model: FichasModel,
@@ -160,11 +160,11 @@ async getAprendices() {
 
   return todos
     .filter((u) => {
-      const roles = u.rolesUsuario?.map(r => r.rol?.Nom_Rol).filter(Boolean) || [];
+      const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
       return roles.some(r => ['Aprendiz Interno', 'Aprendiz Externo'].includes(r));
     })
     .map((u) => {
-      const roles = u.rolesUsuario?.map(r => r.rol?.Nom_Rol).filter(Boolean) || [];
+      const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
       const { password, token, ...rest } = u.toJSON();
       return { ...rest, roles };
     });

@@ -96,7 +96,7 @@ const ConstruirQrUrl = (datosQR) => {
 
 const UrlImagen = (nombreArchivo) => {
     if (!nombreArchivo) return null;
-    const base = apiAxios.defaults.baseURL || "http://localhost:8000";
+    const base = apiAxios.defaults.baseURL || "";
     return `${base}/uploads/${nombreArchivo}`;
 };
 

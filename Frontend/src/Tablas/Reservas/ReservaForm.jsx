@@ -108,7 +108,7 @@ const ReservaForm = () => {
   // Construye la URL completa de la imagen del plato usando la base del servidor
   // Las imagenes se sirven desde la carpeta uploads del backend
   const urlImagen = (nombreArchivo) => {
-    const base = apiAxios.defaults.baseURL || "http://localhost:8000";
+    const base = apiAxios.defaults.baseURL || "";
     return `${base}/uploads/${nombreArchivo}`;
   };
 

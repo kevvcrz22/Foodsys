@@ -81,10 +81,10 @@ const Chatbot = () => {
   const getRespuesta = (pregunta) => {
     const respuestas = {
       "¿Qué es Foodsys?":
-        "Foodsys es el sistema de gestión alimentaria del SENA que permite reservar comidas con anticipación para optimizar recursos y reducir desperdicios. 🏫",
+        "Foodsys es el sistema de gestión alimentaria que permite reservar comidas con anticipación para optimizar recursos y reducir desperdicios. 🏫",
 
       "¿Cómo inicio sesión?":
-        "Ingresa con tu documento y contraseña en la página de Foodsys. Si es tu primer acceso, ingresa tu numero de documento como contraseña. 🔐",
+        "Ingresa con tu documento y contraseña en la página de Foodsys. Si es tu primer acceso, ingresa tu número de documento como contraseña. 🔐",
 
       "Horarios de reserva":
         "Puedes reservar hasta las 6:00 PM para el día siguiente. Después de esta hora, el sistema se cierra para procesamiento. ⏰",
@@ -96,10 +96,10 @@ const Chatbot = () => {
         "Disponemos de: Desayuno (6-7 AM), Almuerzo (12-01:30 PM), Cena (6-7 PM). Cada comida incluye opciones balanceadas. 🍽️",
 
       "Contactar soporte":
-        "📧 soporte.foodsys@sena.edu.co\n📞 (601) 546 1500 Ext. 123\n🏢 Oficina de Sistemas - Centro SENA",
+        "📧 soportefootsies@cena.edu.co\n📞 (601) 546 1500 Ext. 123\n🏢 Oficina de Sistemas",
 
       "¿Es gratuito?":
-        "Sí, completamente gratuito para todos los aprendices y funcionarios del SENA. 💰",
+        "Sí, completamente gratuito para todos los usuarios registrados. 💰",
 
       "¿Olvidé contraseña?":
         "Haz clic en '¿Olvidaste tu contraseña?' o contacta al administrador. 🔓",
@@ -111,16 +111,16 @@ const Chatbot = () => {
         "1) Verifica tu conexión 2) Confirma tus datos 3) Intenta en otro navegador 4) Contacta soporte. 🔄",
 
       "¿Quién puede usarlo?":
-        "Lo pueden usar los aprendices, personal del casino y administradores cada usuario tiene permisos especifics segun su rol",
+        "Lo pueden usar los aprendices, personal del comedor y administradores. Cada usuario tiene permisos específicos según su rol.",
 
       "¿Dónde accedo?":
-        "En la pagina de foodsys con tu usuario",
+        "En la página principal de Foodsys con tu usuario.",
 
       "¿Primer acceso?":
-        "Accede con documento y contraseña temporal(N°.Documento) cambia contraseña en primer ingreso",
+        "Accede con tu documento y contraseña temporal (N°.Documento). Cambia tu contraseña en el primer ingreso.",
 
       "Horarios de comida":
-        "🕐 Horarios exactos de servicio: DESAYUNO Servicio: 6:00 AM - 7:00 AM ALMUERZO Servicio 12:00 PM - 1:30 PM CENA Servicio: 6:00 PM - 7:00 PM ⏱️ Puntualidad asegura calidad del servicio"
+        "🕐 Horarios exactos de servicio:\nDESAYUNO: 6:00 AM - 7:00 AM\nALMUERZO: 12:00 PM - 1:30 PM\nCENA: 6:00 PM - 7:00 PM\n⏱️ La puntualidad asegura la calidad del servicio."
     };
 
     return (
@@ -162,14 +162,10 @@ const Chatbot = () => {
         
         if (preguntasDisponibles.length > 0) {
           setPreguntasActuales(preguntasDisponibles);
-        } else {
-          // No more questions
         }
       }
     }, 800);
   };
-
-
 
   const resetChat = () => {
     setMessages([
@@ -211,57 +207,57 @@ const Chatbot = () => {
   return (
     <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999]">
       {open && (
-        <div className="bg-white rounded-2xl shadow-2xl w-screen sm:w-[360px] h-screen sm:h-[500px] flex flex-col overflow-hidden fixed sm:relative bottom-0 right-0 sm:bottom-auto sm:right-auto">
+        <div className="bg-white/80 backdrop-blur-2xl rounded-[24px] shadow-[0_12px_40px_rgba(30,45,74,0.15)] border border-white/60 w-screen sm:w-[380px] h-screen sm:h-[540px] flex flex-col overflow-hidden fixed sm:relative bottom-0 right-0 sm:bottom-auto sm:right-auto animar-entrada">
           
-          {/* Header */}
-          <div className="bg-gradient-to-r from-green-500 to-green-600 p-3">
+          {/* ── Header (Liquid Glass) ── */}
+          <div className="bg-gradient-to-r from-primario to-primario-oscuro p-4 shadow-md">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3">
                 <div className="relative">
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={avatar} 
-                    className="w-9 h-9 rounded-full border-2 border-white shadow-md" 
+                    className="w-10 h-10 rounded-full border-2 border-white/80 shadow-md object-cover bg-white" 
                     alt="Konnan" 
                   />
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-white border-2 border-green-500 rounded-full"></span>
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-white border-2 border-primario rounded-full"></span>
                 </div>
                 <div>
-                  <div className="font-semibold text-white text-sm">Konnan</div>
-                  <div className="text-white/90 text-[11px]">Asistente Foodsys</div>
+                  <div className="font-extrabold text-white text-[0.95rem]">Konnan</div>
+                  <div className="text-white/80 text-[11px] font-semibold tracking-wide">Asistente Foodsys</div>
                 </div>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-2">
                 {historialNavegacion.length > 0 && (
                   <button
-                    className="w-7 h-7 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 active:scale-95"
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 active:scale-95"
                     onClick={handleVolverAtras}
                     title="Volver atrás"
                   >
-                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <ArrowLeft size={16} />
                   </button>
                 )}
                 <button
-                  className="w-7 h-7 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 active:scale-95"
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 active:scale-95"
                   onClick={() => setOpen(false)}
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X size={16} />
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Chat Body */}
-          <div className="flex-1 bg-gradient-to-b from-green-50/30 to-white overflow-y-auto p-3 space-y-2.5">
+          {/* ── Chat Body ── */}
+          <div className="flex-1 bg-gradient-to-b from-fondo to-white/50 overflow-y-auto p-4 space-y-3">
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"} animar-entrada`}
               >
                 <div
-                  className={`max-w-[85%] px-3 py-2 text-xs leading-relaxed ${
+                  className={`max-w-[85%] px-4 py-2.5 text-[0.8rem] font-medium leading-relaxed whitespace-pre-wrap ${
                     msg.sender === "user"
-                      ? "bg-green-500 text-white rounded-2xl rounded-br-sm shadow-sm"
-                      : "bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100"
+                      ? "bg-gradient-to-br from-primario to-primario-oscuro text-white rounded-2xl rounded-br-sm shadow-md shadow-primario/20"
+                      : "bg-white text-texto-principal rounded-2xl rounded-bl-sm shadow-sm border border-white/60"
                   }`}
                 >
                   {msg.text}
@@ -269,23 +265,23 @@ const Chatbot = () => {
               </div>
             ))}
 
-            {/* Preguntas relacionadas */}
+            {/* Opciones Relacionadas */}
             {!showWelcome && preguntasActuales.length > 0 && (
-              <div className="mt-4 space-y-2">
+              <div className="mt-5 space-y-3 animar-entrada">
                 <div className="flex justify-center">
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium inline-flex items-center gap-1">
-                    <ClipboardCheck className="w-3 h-3" />
+                  <span className="px-4 py-1.5 bg-acento/10 text-acento-oscuro rounded-full text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1.5 border border-acento/20">
+                    <ClipboardCheck size={12} />
                     <span>Relacionadas</span>
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-2">
                   {preguntasActuales.map((p) => (
                     <button
                       key={p.id}
-                      className="flex items-center gap-1.5 p-2 rounded-lg border-2 border-green-500 bg-green-500 text-white hover:bg-green-600 transition-all duration-200 text-[10px] font-medium active:scale-95 shadow-sm"
+                      className="flex items-center gap-2 p-2.5 rounded-xl border border-primario/20 bg-white/60 text-primario hover:bg-primario hover:text-white transition-all duration-300 text-[11px] font-bold shadow-sm"
                       onClick={() => handlePreguntaClick(p)}
                     >
-                      <p.Icon className="w-3 h-3 flex-shrink-0" />
+                      <p.Icon size={14} className="flex-shrink-0" />
                       <span className="text-left flex-1 leading-tight">{p.text}</span>
                     </button>
                   ))}
@@ -293,23 +289,23 @@ const Chatbot = () => {
               </div>
             )}
 
-            {/* Preguntas de bienvenida */}
+            {/* Opciones de Bienvenida */}
             {showWelcome && (
-              <div className="mt-3 space-y-2">
+              <div className="mt-4 space-y-3 animar-entrada">
                 <div className="flex justify-center">
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium inline-flex items-center gap-1">
-                    <Lightbulb className="w-3 h-3" />
+                  <span className="px-4 py-1.5 bg-acento/10 text-acento-oscuro rounded-full text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1.5 border border-acento/20">
+                    <Lightbulb size={12} />
                     <span>¿Cómo ayudarte?</span>
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-2">
                   {preguntasFrecuentes.map((p) => (
                     <button
                       key={p.id}
-                      className="flex items-center gap-1.5 p-2 rounded-lg border-2 border-green-500 bg-green-500 text-white hover:bg-green-600 transition-all duration-200 text-[10px] font-medium active:scale-95 shadow-sm"
+                      className="flex items-center gap-2 p-2.5 rounded-xl border border-primario/20 bg-white/60 text-primario hover:bg-primario hover:text-white transition-all duration-300 text-[11px] font-bold shadow-sm"
                       onClick={() => handlePreguntaClick(p)}
                     >
-                      <p.Icon className="w-3 h-3 flex-shrink-0" />
+                      <p.Icon size={14} className="flex-shrink-0" />
                       <span className="text-left flex-1 leading-tight">{p.text}</span>
                     </button>
                   ))}
@@ -317,25 +313,25 @@ const Chatbot = () => {
               </div>
             )}
 
-            {/* Typing indicator */}
+            {/* Indicador Escribiendo */}
             {isTyping && (
-              <div className="flex items-center gap-2 text-gray-500 text-[10px]">
-                <div className="flex gap-1">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+              <div className="flex items-center gap-2 text-texto-secundario text-[11px] font-semibold py-1">
+                <div className="flex gap-1.5">
+                  <div className="w-1.5 h-1.5 bg-primario-suave rounded-full animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 bg-primario-suave rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                  <div className="w-1.5 h-1.5 bg-primario-suave rounded-full animate-bounce [animation-delay:0.4s]"></div>
                 </div>
                 <span>Konnan está escribiendo...</span>
               </div>
             )}
 
-            {/* Botón reset */}
-            <div className="flex justify-center pt-2">
+            {/* Botón Reiniciar */}
+            <div className="flex justify-center pt-3 pb-2">
               <button
-                className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-[10px] font-medium hover:bg-blue-600 transition-all duration-200 active:scale-95 shadow-sm inline-flex items-center gap-1.5"
+                className="boton-secundario px-4 py-2 text-[10px] uppercase tracking-wider"
                 onClick={resetChat}
               >
-                <RotateCw className="w-3 h-3" />
+                <RotateCw size={12} />
                 Nueva conversación
               </button>
             </div>
@@ -345,49 +341,18 @@ const Chatbot = () => {
         </div>
       )}
 
-      {/* Botón flotante */}
+      {/* ── Botón Flotante ── */}
       {!open && (
         <button
-          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-2xl flex items-center justify-center bg-green-500 hover:bg-green-600 transition-all duration-300 active:scale-95 animate-pulse-soft relative"
+          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-lg flex items-center justify-center bg-gradient-to-br from-primario to-primario-oscuro hover:shadow-primario/40 hover:-translate-y-1 transition-all duration-300 relative z-50 group border border-white/20"
           onClick={() => setOpen(true)}
         >
-          <img src={avatar} className="w-full h-full rounded-full" alt="chat" />
-          <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold animate-bounce">
-            <MessageCircle className="w-3 h-3" />
+          <img src={avatar} loading="lazy" decoding="async" className="w-full h-full rounded-full object-cover p-1 bg-white/10" alt="chat" />
+          <div className="absolute -top-1 -right-1 bg-acento text-white rounded-full w-6 h-6 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+            <MessageCircle size={12} />
           </div>
         </button>
       )}
-
-      {/* Estilos adicionales */}
-      <style>{`
-        @keyframes pulse-soft {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-          50% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
-        }
-        
-        .animate-pulse-soft {
-          animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-
-        /* Scrollbar personalizado */
-        ::-webkit-scrollbar {
-          width: 5px;
-        }
-        
-        ::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 10px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-          background: #10b981;
-          border-radius: 10px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-          background: #059669;
-        }
-      `}</style>
     </div>
   );
 };

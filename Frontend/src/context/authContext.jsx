@@ -12,8 +12,7 @@ export const AuthProvider = ({children}) =>{
         const usuario = localStorage.getItem('usuario')
 
         if(usuario)
-
-            setUser(usuario)
+            setUser(JSON.parse(usuario))
 
 
     }, [])

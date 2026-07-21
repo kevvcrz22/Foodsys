@@ -21,12 +21,7 @@ const UsuariosModel = db.define('usuarios', {
   token: { type: DataTypes.STRING, allowNull: true }
 },
 {
-  freezeTableName: true,
-  Id_Rol: {
-  type: DataTypes.INTEGER,
-  references: { model: "roles", key: "Id_Rol" }
-}
-  
+  freezeTableName: true
 })
 
 

@@ -228,14 +228,12 @@ const CrudReservas = () => {
       name: "Acciones",
       cell: (row) => (
         <div className="flex gap-1.5">
-          {row.Tex_Qr && (
             <button
               className="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors"
               onClick={() => verQr(row)}
             >
-              <QrCode className="w-3 h-3" /> QR
+              <Eye className="w-3 h-3" /> Ver
             </button>
-          )}
           <button
             className="bg-blue-500 hover:bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors"
             onClick={() => editReserva(row)}

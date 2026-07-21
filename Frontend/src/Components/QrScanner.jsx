@@ -35,7 +35,7 @@ import {
 
 // URL base de la API tomada del archivo .env del frontend.
 // Si no esta definida, se usa localhost con el puerto por defecto del backend.
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 // Configuracion del lector QR: 30 fps para detectar casi instantaneamente.
 // El cuadro de 260x260 px funciona bien en pantallas de movil, tablet y PC.

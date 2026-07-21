@@ -44,7 +44,7 @@ import {
 // CONSTANTES DE CONFIGURACION
 // ─────────────────────────────────────────────────────────────────────────────
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 // fps:30 detecta el QR practicamente en el momento en que entra al encuadre.
 // qrbox cuadrado de 260px funciona bien tanto para QRs en pantalla como impresos.
@@ -237,7 +237,7 @@ const TarjetaResultado = ({ Resultado }) => {
   //
   // La URL de uploads apunta a la raiz del servidor (sin /api).
   // Se elimina el sufijo /api de API_URL si lo tiene para que la ruta quede bien formada.
-  // Ejemplo: http://localhost:8000/api -> http://localhost:8000/uploads/foto.jpg
+  // Ejemplo: /api -> /uploads/foto.jpg
   const BaseServidor = API_URL.replace(/\/api$/, "");
   const UrlImagen = Resultado.ImgPlato
     ? `${BaseServidor}/uploads/${Resultado.ImgPlato}`

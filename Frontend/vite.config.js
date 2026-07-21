@@ -17,9 +17,13 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',  // ← puerto de tu backend
         changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/api/, ''),  // Elimina el prefijo /api al enviar la solicitud al backend
+        secure: false
       },
-    },
+      '/uploads': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      }
+    }
 },});
  
