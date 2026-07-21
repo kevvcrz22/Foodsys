@@ -29,31 +29,31 @@ const SelectorPeriodo = ({ Periodo, Set_Periodo, FechaInicio, Set_FechaInicio, F
     </div>
 
     {Periodo === "personalizado" && (
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-end">
-        <div>
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row flex-wrap gap-4 items-end">
+        <div className="w-full sm:w-auto">
           <label className="block text-xs font-semibold text-gray-500 mb-1">Fecha Inicio</label>
           <input 
             type="date" 
             value={FechaInicio} 
             onChange={e => Set_FechaInicio(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="block text-xs font-semibold text-gray-500 mb-1">Fecha Fin</label>
           <input 
             type="date" 
             value={FechaFin} 
             onChange={e => Set_FechaFin(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="block text-xs font-semibold text-gray-500 mb-1">Alimento</label>
           <select 
             value={TipoAlimento} 
             onChange={e => Set_TipoAlimento(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
           >
             <option value="Todos">Todos</option>
             <option value="Desayuno">Desayuno</option>

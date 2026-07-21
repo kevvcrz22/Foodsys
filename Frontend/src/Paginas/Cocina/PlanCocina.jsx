@@ -55,7 +55,7 @@ const CONFIG_TURNO = {
 // Tarjeta de cantidad por plato
 // ─────────────────────────────────────────────────────────────────────────────
 const TarjetaPlato = ({ plato, total }) => {
-  const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000';
+  const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
   return (
     <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
       {plato.Img_Plato ? (

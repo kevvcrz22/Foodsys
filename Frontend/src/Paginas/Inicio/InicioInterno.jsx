@@ -29,7 +29,7 @@ export default function InicioInterno() {
         "Consultar estado de cada reserva",
         "Revisar fechas y tipos de comida",
       ],
-      ruta: "/Interno/Historial",
+      ruta: "/Interno/Reservar",
       boton: "Ver Historial",
       color: "blue"
     },
@@ -38,7 +38,7 @@ export default function InicioInterno() {
   const stats = [
     { label: "Módulos disponibles", value: "2", icon: <CheckCircle className="w-5 h-5 text-green-500" /> },
     { label: "Tu rol", value: "Aprendiz Interno", icon: <User className="w-5 h-5 text-emerald-500" /> },
-    { label: "Comida disponible", value: "Almuerzo", icon: <CheckCircle className="w-5 h-5 text-green-500" /> },
+    { label: "Comida disponible", value: "Desayuno, Almuerzo, Cena", icon: <CheckCircle className="w-5 h-5 text-green-500" /> },
   ];
 
   return (
@@ -56,7 +56,7 @@ export default function InicioInterno() {
           </div>
         </div>
         <p className="text-emerald-100 text-sm max-w-2xl">
-          Bienvenido a Foodsys. Como aprendiz externo puedes reservar tu almuerzo con anticipación y consultar tu historial de reservas. Recuerda reservar antes de las 6:30 p.m. del día anterior.
+          Bienvenido a Foodsys. Como aprendiz interno puedes reservar tus comidas con anticipación y consultar tu historial de reservas. Recuerda reservar antes de las 6:30 p.m. del día anterior.
         </p>
       </div>
 

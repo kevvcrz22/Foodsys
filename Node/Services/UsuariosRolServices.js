@@ -15,7 +15,7 @@ class UsuariosRolService {
                 },
                 {
                     model: RolesModel,
-                    as: "rol",
+                    as: "rolUsuario",
                     attributes: ["Id_Rol", "Nom_Rol"]
                 }
             ],

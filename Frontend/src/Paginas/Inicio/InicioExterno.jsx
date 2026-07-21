@@ -29,7 +29,7 @@ export default function InicioExterno() {
         "Consultar estado de cada reserva",
         "Revisar fechas y tipos de comida",
       ],
-      ruta: "/Externo/Historial",
+      ruta: "/Externo/Reservar",
       boton: "Ver Historial",
       color: "blue"
     },

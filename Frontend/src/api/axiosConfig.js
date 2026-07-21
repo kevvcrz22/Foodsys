@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 const apiNode = axios.create({
   baseURL: API_URL,
@@ -19,5 +19,16 @@ apiNode.interceptors.request.use((config) => {
 
   return config;
 });
+
+apiNode.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.clear();
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default apiNode;

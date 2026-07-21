@@ -26,18 +26,21 @@
 //   Cocina             -> /Cocina          (Verificar reservas de externos, Plan del dia, Reportes)
 //   Bienestar          -> /Bienestar       (Novedades, Reportes)
 
-import { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, Suspense, lazy } from "react";
 import {
   Routes, Route, Navigate,
   useNavigate, useLocation,
 } from "react-router-dom";
 
 // ── Paginas de autenticacion y publicas ──────────────────────────────────────
-import Login        from "./Paginas/Login/Login.jsx";
-import Perfil       from "./Paginas/Perfil/Perfil.jsx";
-import Inicio       from "./Paginas/Inicio/Inicio.jsx";
-import Contacto     from "./Paginas/Contacto/Contacto.jsx";
-import QueEsFoodsys from "./Paginas/About/QueEsFoodsys.jsx";
+const Login         = lazy(() => import("./Paginas/Login/Login.jsx"));
+const Perfil        = lazy(() => import("./Paginas/Perfil/Perfil.jsx"));
+const Inicio        = lazy(() => import("./Paginas/Inicio/Inicio.jsx"));
+const Contacto      = lazy(() => import("./Paginas/Contacto/Contacto.jsx"));
+const QueEsFoodsys  = lazy(() => import("./Paginas/About/QueEsFoodsys.jsx"));
+const Recuperar     = lazy(() => import("./Paginas/Recuperar/Recuperar.jsx"));
+const InicioInterno = lazy(() => import("./Paginas/Inicio/InicioInterno.jsx"));
+const InicioExterno = lazy(() => import("./Paginas/Inicio/InicioExterno.jsx"));
 
 // ── Componentes de layout ────────────────────────────────────────────────────
 import Chatbot  from "./Components/Chatbot.jsx";
@@ -49,27 +52,27 @@ import Sidebar  from "./Components/Sidebar.jsx";
 import { AuthContext } from "./context/authContext.jsx";
 
 // ── Vistas compartidas entre roles ───────────────────────────────────────────
-import Reportes        from "./Paginas/Reportes/Reportes.jsx";
-import Novedades       from "./Paginas/Novedades/Novedades.jsx";
-import RegistrarVista  from "./Paginas/Registrar/Registro.jsx";
-import ReservasPag     from "./Tablas/Reservas/Reservas.jsx";
+const Reportes        = lazy(() => import("./Paginas/Reportes/Reportes.jsx"));
+const Novedades       = lazy(() => import("./Paginas/Novedades/Novedades.jsx"));
+const RegistrarVista  = lazy(() => import("./Paginas/Registrar/Registro.jsx"));
+const ReservasPag     = lazy(() => import("./Tablas/Reservas/Reservas.jsx"));
 
 // Modulo exclusivo del rol Cocina: verificar reservas de externos
-import ValidarReservasCocina from "./Paginas/Validar/ValidarReservas.jsx";
+const ValidarReservasCocina = lazy(() => import("./Paginas/Validar/ValidarReservas.jsx"));
 // Plan del dia de Cocina: cuantos platos preparar, excepcionales, balance del turno
-import PlanCocina from "./Paginas/Cocina/PlanCocina.jsx";
+const PlanCocina = lazy(() => import("./Paginas/Cocina/PlanCocina.jsx"));
 
 // ── Tablas CRUD (uso administrativo) ─────────────────────────────────────────
-import CrudUsuarios       from "./Tablas/Usuarios/CrudUsuarios.jsx";
-import CrudUsuariosRoles  from "./Tablas/RolesUsuarios/CrudUsuariosRoles.jsx";
-import CrudFichas         from "./Tablas/Fichas/CrudFichas.jsx";
-import CrudPrograma       from "./Tablas/Programas/CrudPrograma.jsx";
-import CrudRoles          from "./Tablas/Roles/CrudRoles.jsx";
-import CrudPlatos         from "./Tablas/Platos/CrudPlatos.jsx";
-import CrudMenus          from "./Tablas/Menus/CrudMenus.jsx";
-import CrudReservas       from "./Tablas/Reservas/CrudReservas.jsx";
-import Aprendices         from "./Tablas/Usuarios/Aprendices.jsx";
-import ReservaForm        from "./Tablas/Reservas/ReservaForm.jsx";
+const CrudUsuarios       = lazy(() => import("./Tablas/Usuarios/CrudUsuarios.jsx"));
+const CrudUsuariosRoles  = lazy(() => import("./Tablas/RolesUsuarios/CrudUsuariosRoles.jsx"));
+const CrudFichas         = lazy(() => import("./Tablas/Fichas/CrudFichas.jsx"));
+const CrudPrograma       = lazy(() => import("./Tablas/Programas/CrudPrograma.jsx"));
+const CrudRoles          = lazy(() => import("./Tablas/Roles/CrudRoles.jsx"));
+const CrudPlatos         = lazy(() => import("./Tablas/Platos/CrudPlatos.jsx"));
+const CrudMenus          = lazy(() => import("./Tablas/Menus/CrudMenus.jsx"));
+const CrudReservas       = lazy(() => import("./Tablas/Reservas/CrudReservas.jsx"));
+const Aprendices         = lazy(() => import("./Tablas/Usuarios/Aprendices.jsx"));
+const ReservaForm        = lazy(() => import("./Tablas/Reservas/ReservaForm.jsx"));
 
 // ── Mapa de redireccion despues del login por rol ────────────────────────────
 // Cada rol tiene su propia ruta base. Si un usuario tiene dos roles,
@@ -234,6 +237,7 @@ function App() {
         onCerrarSesion={Manejar_CerrarSesion}
       />
 
+      <Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="w-10 h-10 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin"></div></div>}>
       <Routes>
 
         {/* ── LOGIN ──────────────────────────────────────────────────────── */}
@@ -249,6 +253,7 @@ function App() {
         {/* ── RUTAS PUBLICAS ─────────────────────────────────────────────── */}
         <Route path="/contacto" element={<Contacto />} />
         <Route path="/about"    element={<QueEsFoodsys />} />
+        <Route path="/recuperar" element={<Recuperar />} />
 
         {/* ── ADMINISTRADOR ──────────────────────────────────────────────── */}
         {/* El Administrador tiene acceso a todos los CRUD y modulos          */}
@@ -321,8 +326,8 @@ function App() {
             <ProtectedRoute {...Props_Auth} allowedRoles={["Aprendiz Externo"]}>
               <LayoutConSidebar {...Props_Layout}>
                 <Routes>
-                  <Route index             element={<Inicio />} />
-                  <Route path="Inicio"     element={<Inicio />} />
+                  <Route index             element={<InicioExterno />} />
+                  <Route path="Inicio"     element={<InicioExterno />} />
                   <Route path="Perfil"     element={<Perfil />} />
                   <Route path="Reservar"   element={<ReservasPag />} />
                   <Route path="*" element={<Navigate to="/Externo" replace />} />
@@ -342,8 +347,8 @@ function App() {
             <ProtectedRoute {...Props_Auth} allowedRoles={["Aprendiz Interno"]}>
               <LayoutConSidebar {...Props_Layout}>
                 <Routes>
-                  <Route index             element={<Inicio />} />
-                  <Route path="Inicio"     element={<Inicio />} />
+                  <Route index             element={<InicioInterno />} />
+                  <Route path="Inicio"     element={<InicioInterno />} />
                   <Route path="Perfil"     element={<Perfil />} />
                   <Route path="Reservar"   element={<ReservasPag />} />
                   <Route path="*" element={<Navigate to="/Interno" replace />} />
@@ -492,6 +497,7 @@ function App() {
         {/* Cualquier ruta que no coincida redirige al login o al dashboard   */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      </Suspense>
 
       <Footer />
     </>

@@ -1,1 +1,187 @@
 @import "tailwindcss";
+
+@theme {
+  /* Paleta Institucional (Verde y Azul originales) adaptados a Liquid Glass */
+  --color-primario-claro: #e6f6e3;
+  --color-primario-suave: #73cd60;
+  --color-primario: #42b72a;      /* Verde institucional original */
+  --color-primario-oscuro: #2d851b;
+  
+  --color-acento-claro: #e5eff9;
+  --color-acento-suave: #4d8ce0;
+  --color-acento: #1861c1;        /* Azul institucional original */
+  --color-acento-oscuro: #0f3d7a;
+  
+  --color-fondo: #f4f7fb;
+  --color-tarjeta: rgba(255, 255, 255, 0.85);
+  
+  --color-texto-principal: #1a1a2e; /* Color oscuro original */
+  --color-texto-secundario: #5a6d8a;
+  
+  --color-exito: #42b72a;
+  --color-error: #e53e3e;
+
+  /* Radios de borde exagerados típicos de Claymorfismo */
+  --radius-clay: 24px;
+  --radius-boton: 16px;
+  --radius-input: 14px;
+}
+
+/* 
+  Reset y estilos globales 
+*/
+@layer base {
+  body {
+    @apply bg-fondo text-texto-principal antialiased selection:bg-acento/30 selection:text-texto-principal;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    /* Fondo con un gradiente muy sutil para dar vida al Liquid Glass */
+    background: radial-gradient(circle at 15% 50%, rgba(24, 97, 193, 0.06), transparent 35%),
+                radial-gradient(circle at 85% 30%, rgba(66, 183, 42, 0.08), transparent 35%),
+                var(--color-fondo);
+    min-height: 100vh;
+  }
+}
+
+/*
+  Componentes globales creados a través de Tailwind (Liquid Glass y Claymorfismo)
+*/
+@layer components {
+  /* 
+    1. Efecto Clay (Plastilina suave, amigable)
+    Usa múltiples sombras: una oscura afuera y una clara adentro
+  */
+  .tarjeta-clay {
+    @apply bg-tarjeta backdrop-blur-xl border border-white/60 relative overflow-hidden;
+    border-radius: var(--radius-clay);
+    box-shadow: 
+      8px 12px 24px rgba(26, 26, 46, 0.06),
+      -4px -4px 12px rgba(255, 255, 255, 0.9),
+      inset 2px 2px 8px rgba(255, 255, 255, 0.8),
+      inset -2px -4px 8px rgba(66, 183, 42, 0.04);
+  }
+
+  /* 
+    2. Efecto Liquid Glass (Vidrio esmerilado, líquido)
+  */
+  .panel-glass {
+    @apply bg-white/45 backdrop-blur-lg border border-white/70;
+    border-radius: var(--radius-clay);
+    box-shadow: 0 8px 32px rgba(26, 26, 46, 0.05);
+  }
+
+  /* 
+    3. Botones Clay / Glass 
+  */
+  .boton-primario {
+    @apply relative overflow-hidden flex justify-center items-center gap-2 font-bold text-white transition-all duration-300;
+    background: linear-gradient(135deg, var(--color-primario), var(--color-primario-oscuro));
+    border-radius: var(--radius-boton);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 
+      0 6px 16px rgba(66, 183, 42, 0.25),
+      inset 1px 1px 2px rgba(255, 255, 255, 0.4),
+      inset -1px -2px 4px rgba(0, 0, 0, 0.15);
+  }
+  .boton-primario:hover {
+    @apply -translate-y-0.5;
+    box-shadow: 
+      0 8px 20px rgba(66, 183, 42, 0.35),
+      inset 1px 1px 2px rgba(255, 255, 255, 0.5),
+      inset -1px -2px 4px rgba(0, 0, 0, 0.2);
+  }
+  .boton-primario:active {
+    @apply translate-y-0.5;
+    box-shadow: 
+      0 2px 8px rgba(66, 183, 42, 0.2),
+      inset 1px 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  .boton-primario:disabled {
+    @apply opacity-60 cursor-not-allowed pointer-events-none;
+  }
+
+  /* Botón secundario (azul institucional) */
+  .boton-secundario {
+    @apply flex justify-center items-center gap-2 font-bold transition-all duration-300;
+    background: linear-gradient(135deg, var(--color-acento-claro), white);
+    color: var(--color-acento);
+    border-radius: var(--radius-boton);
+    border: 1px solid rgba(24, 97, 193, 0.2);
+    box-shadow: 
+      0 4px 12px rgba(24, 97, 193, 0.1),
+      inset 1px 1px 2px rgba(255, 255, 255, 0.9);
+  }
+  .boton-secundario:hover {
+    @apply -translate-y-0.5;
+    border-color: rgba(24, 97, 193, 0.3);
+    box-shadow: 0 6px 16px rgba(24, 97, 193, 0.15);
+  }
+
+  /* 
+    4. Inputs y Formulares
+  */
+  .etiqueta-campo {
+    @apply block text-[0.8rem] font-bold text-texto-secundario mb-1.5 uppercase tracking-wider;
+  }
+
+  .campo-glass {
+    @apply w-full bg-white/70 border-2 border-transparent text-texto-principal placeholder-texto-secundario/50 outline-none transition-all duration-300;
+    padding: 12px 16px;
+    border-radius: var(--radius-input);
+    box-shadow: inset 1px 2px 5px rgba(26, 26, 46, 0.03);
+  }
+  .campo-glass:hover {
+    @apply bg-white/90;
+  }
+  .campo-glass:focus {
+    @apply bg-white;
+    border-color: rgba(24, 97, 193, 0.4); /* Foco Azul */
+    box-shadow: 
+      inset 1px 2px 4px rgba(26, 26, 46, 0.02),
+      0 0 0 4px rgba(24, 97, 193, 0.1);
+  }
+
+  .campo-error {
+    @apply border-error/40 bg-error/5;
+  }
+  .campo-error:focus {
+    @apply border-error/60;
+    box-shadow: 0 0 0 4px rgba(229, 62, 62, 0.15);
+  }
+
+  .error-texto {
+    @apply text-error text-xs font-semibold mt-1.5 flex items-center gap-1 animate-pulse;
+  }
+
+  /* 
+    5. Utilidades adicionales 
+  */
+  .texto-gradiente {
+    @apply text-transparent bg-clip-text;
+    background-image: linear-gradient(135deg, var(--color-primario), var(--color-acento));
+  }
+
+  .separador-glass {
+    @apply w-full h-[1px] my-4;
+    background: linear-gradient(90deg, transparent, rgba(26, 26, 46, 0.1), transparent);
+  }
+
+  /* Animaciones suaves */
+  .animar-entrada {
+    animation: entrarSuave 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+}
+
+/* Keyframes personalizados */
+@keyframes entrarSuave {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes girarSuave {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  @apply w-4 h-4 rounded-full border-2 border-white/30 border-t-white;
+  animation: girarSuave 0.8s linear infinite;
+}

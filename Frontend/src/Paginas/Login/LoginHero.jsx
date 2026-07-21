@@ -1,63 +1,75 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // LoginHero.jsx
-// Seccion visual izquierda del login. Muestra el mensaje principal,
-// las tarjetas de caracteristicas del sistema y un widget de estadisticas.
-// Solo se renderiza en pantallas medianas y grandes (oculto en movil).
-// No recibe props; es un componente puramente visual y estatico.
+// Panel visual izquierdo del login con diseño Liquid Glass + Claymorfismo.
 // ─────────────────────────────────────────────────────────────────────────────
 import React from 'react';
+import { CalendarCheck, Users, Utensils, Leaf } from 'lucide-react';
 
-// ─── Datos de las tarjetas de caracteristicas ────────────────────────────────
-// Separar los datos del JSX permite agregar o quitar caracteristicas facilmente
-// sin modificar la estructura del componente.
-const Lis_Caracteristicas = [
-  { Ico_Clase: 'fas fa-calendar-alt', Tex_Nombre: 'Reserva anticipada'    },
-  { Ico_Clase: 'fas fa-users',        Tex_Nombre: 'Control de asistencia' },
-  { Ico_Clase: 'fas fa-utensils',     Tex_Nombre: 'Gestion de raciones'   },
-  { Ico_Clase: 'fas fa-seedling',     Tex_Nombre: 'Sin desperdicios'      },
+// ─── Características del sistema ─────────────────────────────────────────────
+const Caracteristicas = [
+  { icono: CalendarCheck, titulo: 'Reserva anticipada',    descripcion: 'Planifica tus comidas con días de anticipación' },
+  { icono: Users,         titulo: 'Control de asistencia', descripcion: 'Registro preciso de todos los comensales'        },
+  { icono: Utensils,      titulo: 'Gestión de raciones',   descripcion: 'Menús balanceados y planificados'                },
+  { icono: Leaf,          titulo: 'Sin desperdicios',       descripcion: 'Optimización del consumo alimentario'           },
 ];
 
-// ─── Componente principal del Hero ───────────────────────────────────────────
 const LoginHero = () => (
-  /*
-   * Contenedor principal del Hero.
-   * "hidden lg:flex" hace que el Hero sea invisible en moviles
-   * y visible solo desde pantallas grandes (lg = 1024px en adelante).
-   */
-  <section className="hidden lg:flex flex-col justify-between h-full min-h-[600px] bg-[#f0f4ff] rounded-2xl p-10 overflow-hidden relative">
+  <section className="hidden lg:flex flex-col justify-between h-full min-h-[600px] relative overflow-hidden rounded-[24px] p-12 bg-primario-claro">
+    
+    {/* ── Orbes de luz decorativos (Liquid Glass background) ── */}
+    <div className="absolute -top-24 -right-24 w-96 h-96 bg-acento/10 rounded-full blur-3xl mix-blend-multiply pointer-events-none" />
+    <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-primario/10 rounded-full blur-3xl mix-blend-multiply pointer-events-none" />
 
-    {/* Circulo decorativo de fondo para dar profundidad visual */}
-    <div className="absolute -top-20 -right-20 w-72 h-72 bg-blue-100 rounded-full opacity-50 pointer-events-none" />
-    <div className="absolute -bottom-16 -left-16 w-56 h-56 bg-green-100 rounded-full opacity-40 pointer-events-none" />
-
-    {/* Bloque superior: titulo y descripcion */}
+    {/* ── Bloque superior: Título ── */}
     <div className="relative z-10">
-      <h1 className="text-[2.6rem] font-extrabold leading-tight mb-4">
-        {/* Titulo bicolor: primera linea azul, segunda linea verde */}
-        <span className="text-[#1861c1]">Foodsys nos </span>
-        <br />
-        <span className="text-[#42b72a]">Importas tu.</span>
+      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/50 backdrop-blur-md border border-white/60 shadow-sm mb-6">
+        <Utensils size={14} className="text-primario-oscuro" />
+        <span className="text-xs font-bold text-primario-oscuro tracking-widest uppercase">
+          Bienvenido a Foodsys
+        </span>
+      </div>
+
+      <h1 className="text-[2.8rem] font-black leading-[1.1] text-texto-principal mb-4">
+        Gestión <span className="texto-gradiente">inteligente</span><br />
+        del comedor
       </h1>
-      <p className="text-[#4a5568] text-[15px] leading-relaxed max-w-sm">
-        ¡Bienvenido a la plataforma! Anímate a reservar tus platos con anticipación y mantente siempre informado sobre el comedor. Únete para disfrutar de una mejor experiencia cada día.
+      
+      <p className="text-texto-secundario text-[0.95rem] leading-relaxed max-w-sm">
+        Reserva tus platos con anticipación, controla tu asistencia y ayúdanos a evitar el desperdicio de alimentos.
       </p>
     </div>
 
-    {/* Cuadricula 2x2 de tarjetas de caracteristicas */}
-    <div className="grid grid-cols-2 gap-3 my-6 relative z-10">
-      {Lis_Caracteristicas.map(({ Ico_Clase, Tex_Nombre }) => (
+    {/* ── Tarjetas de características (Clay / Glass) ── */}
+    <div className="grid grid-cols-2 gap-4 my-8 relative z-10">
+      {Caracteristicas.map(({ icono: Icono, titulo, descripcion }) => (
         <div
-          key={Tex_Nombre}
-          className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:-translate-y-1 transition-transform duration-200"
+          key={titulo}
+          className="panel-glass p-5 flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1"
         >
-          {/* Icono envuelto en circulo de color suave */}
-          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-            <i className={`${Ico_Clase} text-[#1861c1] text-base`}></i>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primario-claro to-white flex items-center justify-center shadow-sm shadow-primario/10">
+            <Icono size={18} className="text-primario" />
           </div>
-          <span className="font-semibold text-[#1a1a2e] text-sm leading-tight">{Tex_Nombre}</span>
+          <div>
+            <span className="block font-bold text-texto-principal text-sm mb-1">{titulo}</span>
+            <span className="block text-xs text-texto-secundario leading-relaxed">{descripcion}</span>
+          </div>
         </div>
       ))}
     </div>
+
+    {/* ── Estadísticas decorativas ── */}
+    <div className="relative z-10 flex gap-6 p-5 rounded-2xl bg-white/50 backdrop-blur-md border border-white/60 shadow-sm">
+      <div className="flex-1 text-center">
+        <p className="text-xl font-black text-primario-oscuro">98%</p>
+        <p className="text-[0.7rem] font-bold text-texto-secundario uppercase tracking-wider mt-1">Satisfacción</p>
+      </div>
+      <div className="w-[1px] bg-primario/10" />
+      <div className="flex-1 text-center">
+        <p className="text-xl font-black text-acento-oscuro">0</p>
+        <p className="text-[0.7rem] font-bold text-texto-secundario uppercase tracking-wider mt-1">Desperdicios</p>
+      </div>
+    </div>
+    
   </section>
 );
 

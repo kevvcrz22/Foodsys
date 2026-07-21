@@ -4,7 +4,7 @@ import DataTable from "react-data-table-component";
 import PlatosForm from "./PlatosForm";
 import { Pencil, Plus, X, ZoomIn, Search, UtensilsCrossed, Image } from "lucide-react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);

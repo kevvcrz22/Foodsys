@@ -1,9 +1,6 @@
 // Components/Sidebar.jsx
-// Barra lateral de navegacion del sistema FoodSys.
-// Version escritorio: fija a la izquierda, sin boton de cerrar sesion.
-// Version movil: drawer deslizable con NavRolSelector, links de Contacto/About y cerrar sesion.
-// El boton hamburguesa se oculta automaticamente cuando el sidebar movil esta abierto.
-
+// Barra lateral de navegación con estilo Liquid Glass + Claymorfismo.
+// ─────────────────────────────────────────────────────────────────────────────
 import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import {
@@ -15,10 +12,6 @@ import {
 import { useNavBar } from "./CerrarSesion";
 import NavRolSelector from "./NavBar/NavRolSelector";
 
-// Navegacion principal organizada por rol.
-// Cada entrada tiene la ruta exacta (to), el texto del boton (label) y el icono.
-// Las rutas de Pasante Interno y Pasante Externo son rutas base distintas para
-// que el sistema sepa exactamente que permisos aplicar sin mezclarlos.
 const NAV_POR_ROL = {
   Administrador: [
     { to: "/Administrador",         label: "Inicio",    icon: Home         },
@@ -42,15 +35,11 @@ const NAV_POR_ROL = {
     { to: "/Interno/Perfil",        label: "Mi Perfil", icon: User         },
     { to: "/Interno/Reservar",      label: "Reservar",  icon: CalendarCheck },
   ],
-  // Pasante Interno: mismas opciones que Aprendiz Interno pero con ruta separada.
-  // Ruta separada porque el middleware del backend evalua el rol, no el tipo de usuario.
   "Pasante Interno": [
     { to: "/PasanteInterno",         label: "Inicio",    icon: Home         },
     { to: "/PasanteInterno/Perfil",  label: "Mi Perfil", icon: User         },
     { to: "/PasanteInterno/Reservar",label: "Reservar",  icon: CalendarCheck },
   ],
-  // Pasante Externo: mismas opciones que Aprendiz Externo pero con ruta separada.
-  // Solo puede reservar almuerzo y debe pasar por cocina antes del supervisor.
   "Pasante Externo": [
     { to: "/PasanteExterno",         label: "Inicio",    icon: Home         },
     { to: "/PasanteExterno/Perfil",  label: "Mi Perfil", icon: User         },
@@ -65,10 +54,8 @@ const NAV_POR_ROL = {
   Cocina: [
     { to: '/Cocina',                 label: 'Inicio',          icon: Home         },
     { to: '/Cocina/Perfil',          label: 'Mi Perfil',       icon: User         },
-    // Verificar: habilita el QR de aprendices externos (Generado -> Verificado)
     { to: '/Cocina/Verificar',       label: 'Verificar QR',    icon: ShieldCheck  },
-    // PlanCocina: cuantos platos preparar, excepcionales, balance del turno
-    { to: '/Cocina/Plan',            label: 'Plan del Dia',    icon: ChefHat      },
+    { to: '/Cocina/Plan',            label: 'Plan del Día',    icon: ChefHat      },
     { to: '/Cocina/Reportes',        label: 'Reportes',        icon: BarChart3    },
   ],
   Bienestar: [
@@ -79,7 +66,6 @@ const NAV_POR_ROL = {
   ],
 };
 
-// Tablas de administracion visibles por rol
 const TABLAS_POR_ROL = {
   Administrador: [
     { to: "/usuarios", label: "Usuarios", icon: Users },
@@ -90,7 +76,7 @@ const TABLAS_POR_ROL = {
     { to: "/programas", label: "Programas", icon: GraduationCap },
     { to: "/reservas", label: "Reservas", icon: Database },
     { to: "/platos", label: "Platos", icon: Utensils },
-    { to: "/menus", label: "Menus", icon: ClipboardList },
+    { to: "/menus", label: "Menús", icon: ClipboardList },
   ],
   Coordinador: [
     { to: '/aprendices', label: 'Aprendices', icon: User },
@@ -98,59 +84,29 @@ const TABLAS_POR_ROL = {
   Bienestar: [
     { to: '/aprendices', label: 'Aprendices', icon: User },
   ],
-  // Tablas de lectura de menu y platos para que Cocina planifique la produccion
   Cocina: [
-    { to: '/menus',  label: 'Menus',  icon: ClipboardList },
+    { to: '/menus',  label: 'Menús',  icon: ClipboardList },
     { to: '/platos', label: 'Platos', icon: Utensils      },
   ],
 };
 
-// Color de acento por rol para personalizar la apariencia visual del sidebar.
-// Cada rol tiene su propio color para que el usuario identifique rapidamente
-// con que rol esta trabajando en ese momento.
-const ACCENT_POR_ROL = {
-  Administrador:     { accent: "bg-indigo-500",  badge: "bg-indigo-100 text-indigo-700",   activeLink: "bg-indigo-50 text-indigo-700 border-indigo-200"   },
-  Supervisor:        { accent: "bg-blue-500",    badge: "bg-blue-100 text-blue-700",       activeLink: "bg-blue-50 text-blue-700 border-blue-200"         },
-  "Aprendiz Externo":{ accent: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-700", activeLink: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  "Aprendiz Interno":{ accent: "bg-teal-500",    badge: "bg-teal-100 text-teal-700",       activeLink: "bg-teal-50 text-teal-700 border-teal-200"         },
-  "Pasante Interno": { accent: "bg-cyan-500",    badge: "bg-cyan-100 text-cyan-700",       activeLink: "bg-cyan-50 text-cyan-700 border-cyan-200"         },
-  "Pasante Externo": { accent: "bg-sky-500",     badge: "bg-sky-100 text-sky-700",         activeLink: "bg-sky-50 text-sky-700 border-sky-200"           },
-  Coordinador:       { accent: "bg-violet-500",  badge: "bg-violet-100 text-violet-700",   activeLink: "bg-violet-50 text-violet-700 border-violet-200"   },
-  Cocina:            { accent: "bg-orange-500",  badge: "bg-orange-100 text-orange-700",   activeLink: "bg-orange-50 text-orange-700 border-orange-200"   },
-  Bienestar:         { accent: "bg-rose-500",    badge: "bg-rose-100 text-rose-700",       activeLink: "bg-rose-50 text-rose-700 border-rose-200"         },
-};
-
-const DEFAULT_ACCENT = {
-  accent: "bg-gray-500",
-  badge: "bg-gray-100 text-gray-700",
-  activeLink: "bg-gray-100 text-gray-700 border-gray-200",
-};
-
-// Props que recibe desde LayoutConSidebar:
-// - roles: lista de roles del usuario logueado
-// - rolActivo: rol actualmente activo
-// - onCambioRol: funcion para cambiar el rol activo
-// - onCerrarSesion: funcion para resetear estados en App.jsx
 export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambioRol, onCerrarSesion }) {
   const [Sidebar_Abierto, Set_SidebarAbierto] = useState(false);
   const [Usuario, Set_Usuario] = useState(null);
   const [Rol_Activo, Set_RolActivo] = useState("");
   const { handleCerrarSesion } = useNavBar({ onCerrarSesion });
 
-  // Leer datos del usuario y sincronizar el rol activo desde props o localStorage
   useEffect(() => {
     const Usr = JSON.parse(localStorage.getItem("usuario") || "null");
     Set_Usuario(Usr);
     Set_RolActivo(rolActivoProp || localStorage.getItem("rolActivo") || "");
   }, [rolActivoProp]);
 
-  // Bloquear scroll del body cuando el drawer movil esta abierto
   useEffect(() => {
     document.body.style.overflow = Sidebar_Abierto ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [Sidebar_Abierto]);
 
-  // Delegar el cambio de rol al manejador del padre y actualizar el estado local
   const Manejar_CambioRol = (Nuevo_Rol) => {
     Set_RolActivo(Nuevo_Rol);
     if (onCambioRol) onCambioRol(Nuevo_Rol);
@@ -164,18 +120,15 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
   const Inicial = Nombre_Completo.charAt(0).toUpperCase() || "U";
   const Links = NAV_POR_ROL[Rol_Activo] || [];
   const Tablas = TABLAS_POR_ROL[Rol_Activo] || [];
-  const Acento = ACCENT_POR_ROL[Rol_Activo] || DEFAULT_ACCENT;
 
-  // Clase CSS para los links de navegacion segun si estan activos o no
   const Obtener_Clase_Link = ({ isActive }) =>
     [
-      "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium",
+      "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-sm font-bold tracking-wide",
       isActive
-        ? `${Acento.activeLink} border shadow-sm`
-        : "text-gray-500 hover:bg-gray-100 hover:text-gray-800",
+        ? "bg-primario/10 text-primario-oscuro border border-primario/20 shadow-[inset_1px_1px_4px_rgba(255,255,255,0.7)]"
+        : "text-texto-secundario hover:bg-white/60 hover:text-primario",
     ].join(" ");
 
-  // Renderiza una lista de links de navegacion
   const Renderizar_Links = (Lista) =>
     Lista.map((Item) => {
       const Icono_Comp = Item.icon;
@@ -187,31 +140,27 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
           className={Obtener_Clase_Link}
           onClick={() => Set_SidebarAbierto(false)}
         >
-          <Icono_Comp className="w-5 h-5 flex-shrink-0" />
+          <Icono_Comp className="w-[18px] h-[18px] flex-shrink-0" />
           <span>{Item.label}</span>
         </NavLink>
       );
     });
 
-  // Contenido interior compartido entre la version escritorio y movil del sidebar
   const Renderizar_Interior = () => (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
-
-      {/* Encabezado del usuario */}
-      <div className="p-5 border-b border-gray-100">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Avatar con la inicial del nombre */}
-            <div className={`w-11 h-11 flex items-center justify-center ${Acento.accent} rounded-full text-white text-lg font-bold`}>
+    <div className="flex flex-col h-full bg-white/60 backdrop-blur-xl border-r border-white/60 shadow-[4px_0_24px_rgba(74,111,165,0.08)]">
+      
+      {/* ── Encabezado ── */}
+      <div className="p-6 border-b border-primario/10">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-12 h-12 flex items-center justify-center bg-gradient-to-br from-primario-suave to-primario-oscuro rounded-2xl text-white text-xl font-black shadow-md shadow-primario/20 shrink-0">
               {Inicial}
             </div>
             <div className="min-w-0">
-              <p className="text-gray-800 font-semibold text-sm truncate">
+              <p className="text-texto-principal font-extrabold text-sm truncate">
                 {Nombre_Completo}
               </p>
-              {/* En movil: muestra NavRolSelector para cambiar de rol */}
-              {/* En escritorio: muestra solo el badge del rol activo */}
-              <div className="lg:hidden mt-1">
+              <div className="lg:hidden mt-1.5">
                 <NavRolSelector
                   usuario={Usuario}
                   roles={roles}
@@ -219,69 +168,66 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
                   onCambioRol={Manejar_CambioRol}
                 />
               </div>
-              <span className={`hidden lg:inline-flex text-xs px-2 py-0.5 rounded-full ${Acento.badge}`}>
+              <span className="hidden lg:inline-flex mt-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-primario/10 text-primario-oscuro border border-primario/20">
                 {Rol_Activo || "Sin rol"}
               </span>
             </div>
           </div>
-          {/* Boton de cerrar el drawer (solo visible en movil) */}
           <button
             onClick={() => Set_SidebarAbierto(false)}
-            className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-            aria-label="Cerrar menu"
+            className="lg:hidden p-2 rounded-xl bg-white border border-white/60 shadow-sm text-texto-secundario hover:text-primario transition-colors"
+            aria-label="Cerrar menú"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* Menu de navegacion con scroll si hay muchos items */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <p className="text-gray-400 text-xs font-semibold px-4 mb-2">Menu</p>
+      {/* ── Navegación ── */}
+      <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+        <p className="text-texto-secundario/60 text-[10px] font-bold px-2 mb-3 uppercase tracking-widest">Menú Principal</p>
         {Links.length > 0 ? Renderizar_Links(Links) : (
-          <p className="text-gray-400 text-sm px-4">Sin modulos disponibles</p>
+          <p className="text-texto-secundario text-sm px-4">Sin módulos disponibles</p>
         )}
         {Tablas.length > 0 && (
           <>
-            <p className="text-gray-400 text-xs font-semibold px-4 mt-4">
-              Administracion
+            <div className="separador-glass my-6" />
+            <p className="text-texto-secundario/60 text-[10px] font-bold px-2 mb-3 uppercase tracking-widest">
+              Administración
             </p>
             {Renderizar_Links(Tablas)}
           </>
         )}
       </nav>
 
-      {/* Links publicos y cerrar sesion — solo en movil */}
-      <div className="lg:hidden border-t border-gray-100">
-        <div className="px-3 py-3 space-y-1">
-          <p className="text-gray-400 text-xs font-semibold px-4 mb-1">Informacion</p>
+      {/* ── Pie (Móvil) ── */}
+      <div className="lg:hidden border-t border-primario/10 bg-white/40">
+        <div className="px-4 py-4 space-y-1.5">
+          <p className="text-texto-secundario/60 text-[10px] font-bold px-2 mb-2 uppercase tracking-widest">Información</p>
           <NavLink
             to="/contacto"
             onClick={() => Set_SidebarAbierto(false)}
             className={Obtener_Clase_Link}
           >
-            <Phone className="w-5 h-5 flex-shrink-0" />
-            <span>Contactanos</span>
+            <Phone className="w-[18px] h-[18px] flex-shrink-0" />
+            <span>Contáctanos</span>
           </NavLink>
           <NavLink
             to="/about"
             onClick={() => Set_SidebarAbierto(false)}
             className={Obtener_Clase_Link}
           >
-            <Info className="w-5 h-5 flex-shrink-0" />
-            <span>Que es FoodSys</span>
+            <Info className="w-[18px] h-[18px] flex-shrink-0" />
+            <span>¿Qué es FoodSys?</span>
           </NavLink>
         </div>
-        <div className="px-4 pb-4">
+        <div className="px-5 pb-6 pt-2">
           <button
             onClick={handleCerrarSesion}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl
-                       text-sm font-semibold text-red-500 border border-red-200
-                       hover:bg-red-500 hover:text-white hover:border-transparent
-                       transition-all duration-200"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl text-sm font-bold text-error bg-white border border-error/20 hover:bg-error hover:text-white transition-all shadow-sm"
           >
-            <LogOut className="w-4 h-4" />
-            Cerrar sesion
+            <LogOut size={16} />
+            Cerrar sesión
           </button>
         </div>
       </div>
@@ -290,37 +236,32 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
 
   return (
     <>
-      {/* Boton hamburguesa: solo visible en movil y cuando el sidebar esta cerrado */}
       {!Sidebar_Abierto && (
         <button
           onClick={() => Set_SidebarAbierto(true)}
-          className="lg:hidden fixed top-4 left-4 z-[70] p-2.5 bg-white border border-gray-200
-                     rounded-xl shadow-md hover:shadow-lg transition-shadow"
-          aria-label="Abrir menu"
+          className="lg:hidden fixed top-4 left-4 z-[70] p-3 panel-glass hover:shadow-lg transition-all text-primario-oscuro"
+          aria-label="Abrir menú"
         >
-          <Menu className="w-5 h-5 text-gray-700" />
+          <Menu size={20} />
         </button>
       )}
 
-      {/* Overlay oscuro del drawer movil */}
       {Sidebar_Abierto && (
         <div
           onClick={() => Set_SidebarAbierto(false)}
-          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
+          className="lg:hidden fixed inset-0 bg-texto-principal/30 backdrop-blur-sm z-[60] transition-opacity"
           aria-hidden="true"
         />
       )}
 
-      {/* Sidebar version escritorio: siempre visible, sin boton de cerrar sesion */}
-      <aside className="hidden lg:flex flex-col w-64 min-h-screen flex-shrink-0">
+      <aside className="hidden lg:flex flex-col w-[260px] min-h-screen flex-shrink-0 relative z-40">
         {Renderizar_Interior()}
       </aside>
 
-      {/* Sidebar version movil: drawer deslizable */}
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 z-[65] w-72 flex flex-col
-                    transform transition-transform duration-300 ease-in-out
-                    ${Sidebar_Abierto ? "translate-x-0" : "-translate-x-full"}`}
+        className={`lg:hidden fixed inset-y-0 left-0 z-[65] w-[280px] flex flex-col transform transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${
+          Sidebar_Abierto ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         {Renderizar_Interior()}
       </aside>

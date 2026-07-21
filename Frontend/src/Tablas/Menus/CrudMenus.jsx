@@ -2,7 +2,7 @@ import apiAxios from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
 import { Plus, X, Search, ChefHat, Pencil, Calendar, Coffee, Sun, Moon } from "lucide-react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 /* ─────────────────────────────────────────
    Helpers

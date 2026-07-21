@@ -208,7 +208,7 @@ const ReporteDiario = () => {
         <div className="flex flex-col sm:flex-row gap-3 items-end">
 
           {/* Selector de fecha nativo con icono superpuesto */}
-          <div className="flex-1">
+          <div className="w-full sm:flex-1">
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">
               Seleccionar fecha
             </label>
@@ -226,7 +226,7 @@ const ReporteDiario = () => {
           </div>
 
           {/* Botones de seleccion de tipo de comida */}
-          <div className="flex-1">
+          <div className="w-full sm:flex-1">
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">
               Tipo de comida
             </label>
@@ -250,7 +250,7 @@ const ReporteDiario = () => {
           <button
             onClick={Consultar}
             disabled={Cargando}
-            className="px-6 py-2.5 rounded-xl bg-[#1861c1] text-white text-sm font-semibold hover:bg-[#1452a8] active:scale-95 transition-all flex items-center gap-2 disabled:opacity-60 whitespace-nowrap"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#1861c1] text-white text-sm font-semibold hover:bg-[#1452a8] active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-60 whitespace-nowrap"
           >
             {Cargando ? (
               // Spinner mientras el backend responde
