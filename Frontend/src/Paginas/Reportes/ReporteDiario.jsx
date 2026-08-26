@@ -99,7 +99,7 @@ const ReporteDiario = () => {
 
       // Agregar el filtro de tipo solo si no es "Todos" para que el backend
       // no aplique un WHERE innecesario cuando se quieren ver todas las comidas
-      const Url = `/api/Reportes/diario/${Fecha}${Tipo !== "Todos" ? `?tipo=${Tipo}` : ""}`;
+      const Url = `/api/Reportes/diario/detalle?fecha=${Fecha}${Tipo !== "Todos" ? `&tipo=${Tipo}` : ""}`;
       const Respuesta = await apiAxios.get(Url);
       Set_Datos(Respuesta.data);
     } catch (Error) {

@@ -76,8 +76,8 @@ const Reportes = () => {
       // Determinar el endpoint segun el periodo seleccionado
       const Endpoint =
         Periodo === "personalizado"
-          ? "/Reportes/personalizado"
-          : `/Reportes/${Periodo}`;
+          ? "/api/Reportes/personalizado"
+          : `/api/Reportes/${Periodo}`;
 
       // Los parametros extra solo aplican para el periodo personalizado
       const Params =
@@ -86,9 +86,10 @@ const Reportes = () => {
           : {};
 
       const Res = await apiAxios.get(Endpoint, { params: Params });
-      Set_Datos(Res.data);
+      Set_Datos(Array.isArray(Res.data) ? Res.data : []);
     } catch (Err) {
       console.error("Error cargando reporte:", Err);
+      Set_Datos([]);
     } finally {
       Set_Cargando(false);
     }
@@ -102,10 +103,11 @@ const Reportes = () => {
   // Se calculan sumando los campos del array Datos recibido del backend.
   // El operador Number() evita errores si el backend retorna strings numericos.
   // ---------------------------------------------------------------------------
-  const Total_Reservas = Datos.reduce((A, R) => A + Number(R.total || 0), 0);
-  const Total_Desayunos = Datos.reduce((A, R) => A + Number(R.desayunos || 0), 0);
-  const Total_Almuerzos = Datos.reduce((A, R) => A + Number(R.almuerzos || 0), 0);
-  const Total_Cenas = Datos.reduce((A, R) => A + Number(R.cenas || 0), 0);
+  const Datos_Array = Array.isArray(Datos) ? Datos : [];
+  const Total_Reservas = Datos_Array.reduce((A, R) => A + Number(R.total || 0), 0);
+  const Total_Desayunos = Datos_Array.reduce((A, R) => A + Number(R.desayuno || R.desayunos || 0), 0);
+  const Total_Almuerzos = Datos_Array.reduce((A, R) => A + Number(R.almuerzo || R.almuerzos || 0), 0);
+  const Total_Cenas = Datos_Array.reduce((A, R) => A + Number(R.cena || R.cenas || 0), 0);
 
   // ---------------------------------------------------------------------------
   // PREPARACION DE DATOS PARA GRAFICAS DE GOOGLE CHARTS
@@ -114,16 +116,16 @@ const Reportes = () => {
   // ---------------------------------------------------------------------------
   const Datos_Barras = [
     ["Periodo", "Desayunos", "Almuerzos", "Cenas"],
-    ...Datos.map((R) => [
+    ...Datos_Array.map((R) => [
       String(R.label || R.periodo || ""),
-      Number(R.desayunos || 0),
-      Number(R.almuerzos || 0),
-      Number(R.cenas || 0),
+      Number(R.desayuno || R.desayunos || 0),
+      Number(R.almuerzo || R.almuerzos || 0),
+      Number(R.cena || R.cenas || 0),
     ]),
   ];
   const Datos_Lineas = [
     ["Periodo", "Total"],
-    ...Datos.map((R) => [String(R.label || R.periodo || ""), Number(R.total || 0)]),
+    ...Datos_Array.map((R) => [String(R.label || R.periodo || ""), Number(R.total || 0)]),
   ];
   const Datos_Pastel = [
     ["Tipo", "Cantidad"],
@@ -148,7 +150,7 @@ const Reportes = () => {
         Params.tipoAlimento = TipoAlimento;
       }
 
-      const Res = await apiAxios.get(`/Reportes/exportar/${Formato}`, {
+      const Res = await apiAxios.get(`/api/Reportes/exportar/${Formato}`, {
         params: Params,
         responseType: "blob",
       });

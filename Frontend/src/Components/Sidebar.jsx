@@ -254,7 +254,7 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
         />
       )}
 
-      <aside className="hidden lg:flex flex-col w-[260px] min-h-screen flex-shrink-0 relative z-40">
+      <aside className="hidden lg:flex flex-col w-[260px] h-[calc(100vh-58px)] flex-shrink-0 sticky top-[58px] z-40">
         {Renderizar_Interior()}
       </aside>
 

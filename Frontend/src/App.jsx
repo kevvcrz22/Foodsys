@@ -108,15 +108,16 @@ const ProtectedRoute = ({ children, allowedRoles, isAuth, rolActivo }) => {
 // ── Layout con Sidebar ───────────────────────────────────────────────────────
 // Envuelve el contenido de cada ruta interna con la barra lateral de navegacion.
 const LayoutConSidebar = ({ children, roles, rolActivo, onCambioRol, onCerrarSesion }) => (
-  <div className="flex h-full bg-gray-100">
+  <div className="flex bg-gray-100 min-h-[calc(100vh-58px)]">
     <Sidebar
       roles={roles}
       rolActivo={rolActivo}
       onCambioRol={onCambioRol}
       onCerrarSesion={onCerrarSesion}
     />
-    <div className="flex-1 min-w-0">
-      <main className="p-4 md:p-6">{children}</main>
+    <div className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 p-4 md:p-6">{children}</main>
+      <Footer />
     </div>
   </div>
 );
@@ -499,7 +500,7 @@ function App() {
       </Routes>
       </Suspense>
 
-      <Footer />
+      {!Es_Auth && Ubicacion.pathname !== "/" && <Footer />}
     </>
   );
 }
