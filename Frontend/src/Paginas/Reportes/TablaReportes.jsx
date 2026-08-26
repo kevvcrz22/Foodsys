@@ -35,13 +35,13 @@ const TablaReportes = ({ Datos }) => (
                 {Fila.total}
               </td>
               <td className="px-3 py-2 text-purple-600">
-                {Fila.desayunos}
+                {Fila.desayuno || Fila.desayunos || 0}
               </td>
               <td className="px-3 py-2 text-emerald-600">
-                {Fila.almuerzos}
+                {Fila.almuerzo || Fila.almuerzos || 0}
               </td>
               <td className="px-3 py-2 text-amber-600">
-                {Fila.cenas}
+                {Fila.cena || Fila.cenas || 0}
               </td>
             </tr>
           ))}

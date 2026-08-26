@@ -194,6 +194,7 @@ const Novedades = () => {
   // /api/Reservas/reservar/Menu/:Fecha/:Tipo ya filtra por tipo en el servidor.
   // El filtro anterior en el cliente nunca funcionaba porque los datos no llegaban.
   const PlatosFiltrados = PlatosDisp;
+  const PlatoSeleccionadoObj = PlatosFiltrados.find((M) => String(M.plato?.Id_Plato) === String(Plato))?.plato;
 
   const UsuariosFiltrados = Usuarios.filter(
     (U) =>
@@ -352,6 +353,36 @@ const Novedades = () => {
                           No hay menu programado para {Tipo} hoy
                         </div>
                       )}
+
+                      {PlatoSeleccionadoObj && (
+                        <div className="mt-3 flex items-start gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                          {PlatoSeleccionadoObj.Img_Plato ? (
+                            <img
+                              src={
+                                PlatoSeleccionadoObj.Img_Plato.startsWith("http") || PlatoSeleccionadoObj.Img_Plato.startsWith("data:")
+                                  ? PlatoSeleccionadoObj.Img_Plato
+                                  : PlatoSeleccionadoObj.Img_Plato.startsWith("/uploads/")
+                                    ? PlatoSeleccionadoObj.Img_Plato
+                                    : `/uploads/${PlatoSeleccionadoObj.Img_Plato}`
+                              }
+                              alt={PlatoSeleccionadoObj.Nom_Plato}
+                              className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = "https://placehold.co/100x100?text=Plato";
+                              }}
+                            />
+                          ) : (
+                            <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 flex-shrink-0">
+                              <i className="fas fa-utensils"></i>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">{PlatoSeleccionadoObj.Nom_Plato}</p>
+                            <p className="text-xs text-gray-500 line-clamp-2">{PlatoSeleccionadoObj.Des_Plato || "Sin descripción"}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -398,107 +429,115 @@ const Novedades = () => {
 
       {Mostrar_Reporte && Datos_Reporte && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 transition-all duration-300"
           onClick={(E) => { if (E.target === E.currentTarget) Cerrar_Reporte(); }}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+            className="bg-white/95 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(E) => E.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100/60 bg-white/50">
               <div>
-                <h3 className="text-base font-bold text-gray-800">
-                  Reporte de Novedades del Dia
+                <h3 className="text-lg font-extrabold bg-gradient-to-r from-[#1861c1] to-indigo-600 bg-clip-text text-transparent">
+                  Reporte de Novedades del Día
                 </h3>
-                <p className="text-xs text-gray-400">
-                  Fecha: {Datos_Reporte.fecha} &mdash; Generado:{" "}
-                  {new Date(Datos_Reporte.generadoEn).toLocaleTimeString("es-CO", {
+                <p className="text-xs text-gray-500 font-medium mt-1">
+                  Fecha: <span className="text-gray-700">{Datos_Reporte.fecha}</span> &mdash; Generado:{" "}
+                  <span className="text-gray-700">{new Date(Datos_Reporte.generadoEn).toLocaleTimeString("es-CO", {
                     hour: "2-digit",
                     minute: "2-digit",
-                  })}
+                  })}</span>
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => window.print()}
-                  className="text-xs bg-[#1861c1] text-white px-3 py-1.5 rounded-lg font-medium hover:bg-[#1452a8] transition flex items-center gap-1.5"
+                  className="text-xs bg-gradient-to-r from-[#1861c1] to-blue-600 shadow-md shadow-blue-500/20 text-white px-4 py-2 rounded-xl font-bold hover:shadow-lg hover:shadow-blue-500/30 transition-all active:scale-95 flex items-center gap-2"
                 >
-                  <i className="fas fa-print text-xs"></i>
+                  <i className="fas fa-print text-sm"></i>
                   Imprimir
                 </button>
                 <button
                   onClick={Cerrar_Reporte}
-                  className="text-gray-400 hover:text-gray-600 transition w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100"
+                  className="text-gray-400 hover:text-gray-700 transition-colors w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 bg-gray-50"
                 >
                   <i className="fas fa-times text-sm"></i>
                 </button>
               </div>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-6 space-y-5">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="bg-[#1861c1]/5 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-[#1861c1]">{Datos_Reporte.total}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Total novedades</p>
+            <div className="overflow-y-auto flex-1 p-8 space-y-8 bg-[#f8fafc]/50">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-white border border-blue-100 shadow-sm rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden group hover:border-blue-200 transition-colors">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <p className="text-3xl font-black text-blue-600 relative z-10">{Datos_Reporte.total}</p>
+                  <p className="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wide relative z-10">Novedades</p>
                 </div>
                 {Object.entries(Datos_Reporte.porTipo).map(([Tipo_Comida, Conteo]) => (
-                  <div key={Tipo_Comida} className="bg-orange-50 rounded-xl p-3 text-center">
-                    <p className="text-2xl font-bold text-orange-500">{Conteo}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{Tipo_Comida}</p>
+                  <div key={Tipo_Comida} className="bg-white border border-orange-100 shadow-sm rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden group hover:border-orange-200 transition-colors">
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <p className="text-3xl font-black text-orange-500 relative z-10">{Conteo}</p>
+                    <p className="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wide relative z-10">{Tipo_Comida}</p>
                   </div>
                 ))}
                 {Object.entries(Datos_Reporte.porEstado).map(([Estado, Conteo]) => (
-                  <div key={Estado} className="bg-green-50 rounded-xl p-3 text-center">
-                    <p className="text-2xl font-bold text-green-600">{Conteo}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{Estado}</p>
+                  <div key={Estado} className="bg-white border border-green-100 shadow-sm rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden group hover:border-green-200 transition-colors">
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <p className="text-3xl font-black text-green-600 relative z-10">{Conteo}</p>
+                    <p className="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wide relative z-10">{Estado}</p>
                   </div>
                 ))}
               </div>
 
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Detalle de Novedades</h4>
-                <div className="overflow-x-auto rounded-xl border border-gray-100">
-                  <table className="w-full text-xs">
-                    <thead className="bg-gray-50">
+              <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-50 bg-white">
+                  <h4 className="text-sm font-bold text-gray-800">Detalle de Novedades</h4>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50/50">
                       <tr>
-                        <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">#</th>
-                        <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Aprendiz</th>
-                        <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Documento</th>
-                        <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Tipo</th>
-                        <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Plato</th>
-                        <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Estado</th>
-                        <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Hora</th>
+                        <th className="text-left px-6 py-3 text-gray-400 font-bold uppercase tracking-wider text-[10px]">#</th>
+                        <th className="text-left px-6 py-3 text-gray-400 font-bold uppercase tracking-wider text-[10px]">Aprendiz</th>
+                        <th className="text-left px-6 py-3 text-gray-400 font-bold uppercase tracking-wider text-[10px]">Documento</th>
+                        <th className="text-left px-6 py-3 text-gray-400 font-bold uppercase tracking-wider text-[10px]">Tipo</th>
+                        <th className="text-left px-6 py-3 text-gray-400 font-bold uppercase tracking-wider text-[10px]">Plato</th>
+                        <th className="text-left px-6 py-3 text-gray-400 font-bold uppercase tracking-wider text-[10px]">Estado</th>
+                        <th className="text-left px-6 py-3 text-gray-400 font-bold uppercase tracking-wider text-[10px]">Hora</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-gray-50">
                       {Datos_Reporte.detalle.map((Fila, Idx) => (
-                        <tr key={Fila.Id_Reserva} className="border-t border-gray-50 hover:bg-gray-50">
-                          <td className="px-3 py-2 text-gray-400">{Idx + 1}</td>
-                          <td className="px-3 py-2 text-gray-700 font-medium">{Fila.Aprendiz}</td>
-                          <td className="px-3 py-2 text-gray-500">{Fila.Documento}</td>
-                          <td className="px-3 py-2 text-gray-600">{Fila.Tipo}</td>
-                          <td className="px-3 py-2 text-gray-600">{Fila.Plato}</td>
-                          <td className="px-3 py-2">
-                            <span className={`px-2 py-0.5 rounded-full font-semibold ${Fila.Estado === "Consumido"
-                                ? "bg-green-100 text-green-600"
+                        <tr key={Fila.Id_Reserva} className="hover:bg-blue-50/30 transition-colors">
+                          <td className="px-6 py-3.5 text-gray-400 font-medium">{Idx + 1}</td>
+                          <td className="px-6 py-3.5 text-gray-800 font-bold">{Fila.Aprendiz}</td>
+                          <td className="px-6 py-3.5 text-gray-500 font-medium">{Fila.Documento}</td>
+                          <td className="px-6 py-3.5 text-gray-600 font-medium">{Fila.Tipo}</td>
+                          <td className="px-6 py-3.5 text-gray-600">{Fila.Plato}</td>
+                          <td className="px-6 py-3.5">
+                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${Fila.Estado === "Consumido"
+                                ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                                 : Fila.Estado === "Cancelado" || Fila.Estado === "Vencido"
-                                  ? "bg-red-100 text-red-500"
+                                  ? "bg-rose-50 text-rose-500 border-rose-100"
                                   : Fila.Estado === "Verificado"
-                                    ? "bg-blue-100 text-blue-600"
-                                    : "bg-orange-100 text-orange-600"
+                                    ? "bg-blue-50 text-blue-600 border-blue-100"
+                                    : "bg-amber-50 text-amber-600 border-amber-100"
                               }`}>
                               {Fila.Estado}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-gray-400">{Formatear_Hora(Fila.HoraCreacion)}</td>
+                          <td className="px-6 py-3.5 text-gray-400 font-medium">{Formatear_Hora(Fila.HoraCreacion)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                   {Datos_Reporte.detalle.length === 0 && (
-                    <p className="text-center text-gray-400 text-xs py-6">
-                      No hay novedades registradas para generar el reporte
-                    </p>
+                    <div className="text-center py-12 flex flex-col items-center">
+                      <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3">
+                        <i className="fas fa-inbox text-2xl text-gray-300"></i>
+                      </div>
+                      <p className="text-gray-500 font-medium">No hay novedades registradas hoy</p>
+                    </div>
                   )}
                 </div>
               </div>

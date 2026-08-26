@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
 import UsuariosForm from './UsuariosForm.jsx';
 import {
-  Users, Search, CheckCircle, XCircle, Filter, AlertTriangle, ShieldOff, ShieldCheck, History, X
+  Users, Search, CheckCircle2, AlertCircle, ShieldCheck, Ban, Pencil, History, X
 } from 'lucide-react';
 
 const EstadoBadge = ({ estado }) => {
@@ -11,11 +11,13 @@ const EstadoBadge = ({ estado }) => {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4,
-      fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
-      background: activo ? '#d1fae5' : '#fee2e2',
-      color: activo ? '#065f46' : '#991b1b',
+      fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 20,
+      background: activo ? '#ecfdf5' : '#fef2f2',
+      color: activo ? '#059669' : '#dc2626',
+      border: `1px solid ${activo ? '#d1fae5' : '#fee2e2'}`,
+      whiteSpace: 'nowrap'
     }}>
-      {activo ? <CheckCircle size={11} /> : <XCircle size={11} />}
+      {activo ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
       {estado || '—'}
     </span>
   );
@@ -24,12 +26,13 @@ const EstadoBadge = ({ estado }) => {
 const SancionBadge = ({ sancionado }) => (
   <span style={{
     display: 'inline-flex', alignItems: 'center', gap: 4,
-    fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+    fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 20,
     background: sancionado ? '#fef2f2' : '#f0fdf4',
     color: sancionado ? '#dc2626' : '#16a34a',
-    border: `1px solid ${sancionado ? '#fca5a5' : '#86efac'}`,
+    border: `1px solid ${sancionado ? '#fecaca' : '#bbf7d0'}`,
+    whiteSpace: 'nowrap'
   }}>
-    {sancionado ? <AlertTriangle size={11} /> : <CheckCircle size={11} />}
+    {sancionado ? <AlertCircle size={12} /> : <CheckCircle2 size={12} />}
     {sancionado ? 'Sancionado' : 'Activo'}
   </span>
 );
@@ -57,7 +60,7 @@ const Aprendices = () => {
     if (!window.confirm(`¿Deseas ${accion} a ${usuario.Nom_Usuario} ${usuario.Ape_Usuario}?`)) return;
     setActualizandoSancion(usuario.Id_Usuario);
     try {
-      await apiAxios.patch(`/Usuarios/${usuario.Id_Usuario}/sancion`, { San_Usuario: nuevo });
+      await apiAxios.patch(`/api/Usuarios/${usuario.Id_Usuario}/sancion`, { San_Usuario: nuevo });
       setUsuarios(prev =>
         prev.map(u => u.Id_Usuario === usuario.Id_Usuario ? { ...u, San_Usuario: nuevo } : u)
       );
@@ -72,19 +75,25 @@ const Aprendices = () => {
   };
 
   const columnsTable = [
-    { name: 'Documento', selector: r => r.NumDoc_Usuario, width: '110px', cell: r => <span style={{ fontSize: 12, fontWeight: 600 }}>{r.NumDoc_Usuario}</span> },
+    {
+      name: 'Documento',
+      selector: r => r.NumDoc_Usuario,
+      width: '120px',
+      cell: r => <span style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{r.NumDoc_Usuario}</span>
+    },
     {
       name: 'Aprendiz',
       selector: r => `${r.Nom_Usuario} ${r.Ape_Usuario}`,
       sortable: true,
       grow: 2,
+      minWidth: '220px',
       cell: r => {
         const nombre = `${r.Nom_Usuario || ''} ${r.Ape_Usuario || ''}`.trim();
         const sancionado = r.San_Usuario === 'Si';
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '6px 0' }}>
-            <p style={{ fontWeight: 600, color: sancionado ? '#dc2626' : '#1f2937', fontSize: 13, margin: 0 }}>{nombre}</p>
-            <p style={{ fontSize: 11, color: '#6b7280', margin: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 0' }}>
+            <p style={{ fontWeight: 600, color: sancionado ? '#dc2626' : '#0f172a', fontSize: 13, margin: 0 }}>{nombre}</p>
+            <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>
               {r.roles?.join(' · ') || 'Sin rol'}
             </p>
           </div>
@@ -93,12 +102,15 @@ const Aprendices = () => {
     },
     {
       name: 'Reserva Hoy',
-      width: '120px',
+      width: '130px',
       cell: r => (
         <span style={{
-          background: r.tieneReserva ? '#d1fae5' : '#fee2e2',
-          color: r.tieneReserva ? '#065f46' : '#991b1b',
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          background: r.tieneReserva ? '#ecfdf5' : '#f8fafc',
+          color: r.tieneReserva ? '#059669' : '#64748b',
+          border: `1px solid ${r.tieneReserva ? '#a7f3d0' : '#e2e8f0'}`,
           borderRadius: 8, padding: '3px 8px', fontSize: 11, fontWeight: 600,
+          whiteSpace: 'nowrap'
         }}>
           {r.estadoReserva}
         </span>
@@ -106,41 +118,93 @@ const Aprendices = () => {
     },
     {
       name: 'Sanción',
-      width: '110px',
+      width: '115px',
       cell: r => <SancionBadge sancionado={r.San_Usuario === 'Si'} />,
       sortable: false,
     },
     {
       name: 'Acciones',
-      width: '240px',
+      width: '280px',
       cell: row => (
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', whiteSpace: 'nowrap' }}>
           <button
             onClick={() => setUsuarioDetalle(row)}
-            style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+            style={{
+              background: '#f8fafc',
+              color: '#334155',
+              border: '1px solid #cbd5e1',
+              borderRadius: 8,
+              padding: '5px 9px',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+            title="Ver historial de reservas"
           >
-            <History size={12} /> Historial
+            <History size={12} style={{ color: '#64748b' }} />
+            Historial
           </button>
+          
           <button
-            style={{ background: '#dbeafe', color: '#1d4ed8', border: 'none', borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
             onClick={() => editUsuario(row)}
+            style={{
+              background: '#eff6ff',
+              color: '#1d4ed8',
+              border: '1px solid #bfdbfe',
+              borderRadius: 8,
+              padding: '5px 9px',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+            title="Editar aprendiz"
           >
+            <Pencil size={12} style={{ color: '#2563eb' }} />
             Editar
           </button>
+
           <button
             disabled={actualizandoSancion === row.Id_Usuario}
             onClick={() => toggleSancion(row)}
             style={{
-              background: row.San_Usuario === 'Si' ? '#d1fae5' : '#fef2f2',
-              color: row.San_Usuario === 'Si' ? '#065f46' : '#dc2626',
-              border: `1px solid ${row.San_Usuario === 'Si' ? '#6ee7b7' : '#fca5a5'}`,
-              borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 700,
-              cursor: 'pointer', transition: 'all 0.15s',
-              opacity: actualizandoSancion === row.Id_Usuario ? 0.6 : 1,
+              background: row.San_Usuario === 'Si' ? '#ecfdf5' : '#fef2f2',
+              color: row.San_Usuario === 'Si' ? '#047857' : '#b91c1c',
+              border: `1px solid ${row.San_Usuario === 'Si' ? '#a7f3d0' : '#fecaca'}`,
+              borderRadius: 8,
+              padding: '5px 9px',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+              opacity: actualizandoSancion === row.Id_Usuario ? 0.5 : 1,
             }}
-            title={row.San_Usuario === 'Si' ? 'Quitar sanción' : 'Sancionar'}
+            title={row.San_Usuario === 'Si' ? 'Quitar sanción al aprendiz' : 'Sancionar aprendiz'}
           >
-            {row.San_Usuario === 'Si' ? '✓ Quitar' : '⚠ Sancionar'}
+            {row.San_Usuario === 'Si' ? (
+              <>
+                <ShieldCheck size={12} style={{ color: '#059669' }} />
+                Quitar
+              </>
+            ) : (
+              <>
+                <Ban size={12} style={{ color: '#dc2626' }} />
+                Sancionar
+              </>
+            )}
           </button>
         </div>
       ),
@@ -152,25 +216,26 @@ const Aprendices = () => {
   const getAllUsuarios = async () => {
     setCargando(true);
     try {
-      const usuariosRes = await apiAxios.get('/Usuarios/aprendices');
+      const usuariosRes = await apiAxios.get('/api/Usuarios/aprendices');
       let aprendices = Array.isArray(usuariosRes.data) ? usuariosRes.data : [];
 
       aprendices = aprendices.filter(u => {
-        const roles = u.roles || u.rolesUsuario?.map(r => r.rol?.Nom_Rol) || [];
+        const roles = u.roles || u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol || r.rol?.Nom_Rol) || [];
         return roles.some(r => ['Aprendiz Interno', 'Aprendiz Externo'].includes(r));
       });
 
       let reservas = [];
       try {
-        const reservasRes = await apiAxios.get('/Reservas/Todas');
+        const reservasRes = await apiAxios.get('/api/Reservas/Todas');
         reservas = Array.isArray(reservasRes.data) ? reservasRes.data : [];
         setTodasReservas(reservas);
       } catch { /* ignorar */ }
 
       const aprendicesFull = aprendices.map(user => {
         const reserva = reservas.find(
-          r => r.Id_Usuario === user.Id_Usuario && (r.Estado === 'Generada' || r.Estado === 'Verificada')
+          r => String(r.usuario?.NumDoc_Usuario) === String(user.NumDoc_Usuario) && (r.Estado === 'Generada' || r.Estado === 'Verificada')
         );
+        const roles = user.roles || user.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol || r.rol?.Nom_Rol) || [];
         return {
           ...user,
           tieneReserva: !!reserva,
