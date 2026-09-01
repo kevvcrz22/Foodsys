@@ -31,6 +31,8 @@ import {
   Routes, Route, Navigate,
   useNavigate, useLocation,
 } from "react-router-dom";
+import ResetPassword from "./Paginas/Recuperar/resetPassword.jsx";
+import ForgotPassword from "./Paginas/Recuperar/forgotPassword.jsx";
 
 // ── Paginas de autenticacion y publicas ──────────────────────────────────────
 const Login         = lazy(() => import("./Paginas/Login/Login.jsx"));
@@ -38,7 +40,7 @@ const Perfil        = lazy(() => import("./Paginas/Perfil/Perfil.jsx"));
 const Inicio        = lazy(() => import("./Paginas/Inicio/Inicio.jsx"));
 const Contacto      = lazy(() => import("./Paginas/Contacto/Contacto.jsx"));
 const QueEsFoodsys  = lazy(() => import("./Paginas/About/QueEsFoodsys.jsx"));
-const Recuperar     = lazy(() => import("./Paginas/Recuperar/Recuperar.jsx"));
+const Recuperar     = lazy(() => import("./Paginas/Recuperar/forgotPassword.jsx"));
 const InicioInterno = lazy(() => import("./Paginas/Inicio/InicioInterno.jsx"));
 const InicioExterno = lazy(() => import("./Paginas/Inicio/InicioExterno.jsx"));
 
@@ -496,7 +498,10 @@ function App() {
         {/* ── FALLBACK ──────────────────────────────────────────────────── */}
         {/* Cualquier ruta que no coincida redirige al login o al dashboard   */}
         <Route path="*" element={<Navigate to="/" />} />
+        <Route path='/forgotPassword' element={<ForgotPassword/>}></Route>
+        <Route path='/reset-password/:token' element={<ResetPassword/>}></Route>
       </Routes>
+      
       </Suspense>
 
       <Footer />

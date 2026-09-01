@@ -22,6 +22,8 @@ import {
   importarSeleccionados,
   ActualizarSancion,
   GetSancionados,
+  getResetPassword,
+  setNewPassword
 } from '../Controllers/UsuariosControllers.js';
 
 const Router = express.Router();
@@ -52,6 +54,10 @@ Router.post(
 
 // Inicio de sesion
 Router.post("/login", Login);
+Router.post('/request-reset-password', getResetPassword)
+Router.post('/reset-password', setNewPassword)
+
+
 
 // Listado de aprendices
 Router.get('/aprendices', authMiddleware, getAprendices);
