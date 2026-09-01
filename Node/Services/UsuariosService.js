@@ -4,11 +4,47 @@ import FichasModel from "../Models/FichasModel.js";
 import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import RolesModel from "../Models/RolesModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
+import EmailService from "./EmailService.js";
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import {v4 as uuidv4} from 'uuid';
 
 class UsuariosService {
+
+    // Metodo para solicitar restablecimiento de contrasena
+async resetPassword(email) {
+  const usuario = await UsuariosModel.findOne({ where: { Cor_Usuario: email } });
+  if (!usuario) throw new Error("Ups, algo paso.");
+
+  const tokenForPassword = jwt.sign(
+    { usuario: { id: usuario.Id_Usuario } },
+    process.env.JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+
+  await EmailService.sendPasswordResetEmail(email, tokenForPassword);
+  return;
+}
+
+// Metodo que recibe la nueva contrasena
+async setNewPassword(data) {
+  const { tokenForPassword, newPassword } = data;
+
+  // Extrae los datos que se enviaron en el token (payload)
+  const decodificado = jwt.verify(tokenForPassword, process.env.JWT_SECRET);
+
+  const usuario = await UsuariosModel.findByPk(decodificado.usuario.id);
+  if (!usuario) throw new Error("Ups, algo paso.");
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  await UsuariosModel.update(
+    { password: hashedPassword },
+    { where: { Id_Usuario: decodificado.usuario.id } }
+  );
+
+  return;
+}
 
   async Login(data) {
     const { TipDoc_Usuario, NumDoc_Usuario, password } = data;

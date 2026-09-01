@@ -4,6 +4,7 @@
 // Nomenclatura: PascalCase en espanol sin tildes
 
 import UsuariosService from "../Services/UsuariosService.js";
+import EmailService from "../Services/EmailService.js";
 import CsvService from "../Services/CsvService.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
 import bcrypt from "bcrypt";
@@ -27,7 +28,26 @@ const COLUMNAS_PLANTILLA = [
   "Tel_Usuario",
   "Id_Ficha",
 ];
+//Solicitar restablecer contraseña
+export const getResetPassword = async (req, res) => {
+  const {email} = req.body
 
+  try {
+    await UsuariosService.resetPassword(email)
+    res.status(200).json({ message: 'El mensaje para restablecer contraseña fue enviado correctamente.'})
+  } catch (error) {
+    res.status(400).json({ message: error.message})
+  }
+}
+//Recibir la nueva contraseña
+export const setNewPassword = async(req,res) => {
+  try {
+    await UsuariosService.setNewPassword(req.body)
+    res.status(200).json({ message: "Contraseña actualizada correctamente"})
+  } catch(error) {
+    res.status(400).json({message: "Informacion invalida o el tiempo ha expirado."})
+  }
+}
 // ─────────────────────────────────────────────────────────────
 // AUTENTICACION Y CRUD BASICO
 // ─────────────────────────────────────────────────────────────
