@@ -22,7 +22,23 @@ const CONFIG_ESTADO = {
         borde: "border-l-amber-400",
         modalBanner: "from-amber-400 to-orange-400",
     },
+    Generada: {
+        label: "Pendiente",
+        icon: Clock,
+        clases: "bg-amber-50 text-amber-700 border-amber-200",
+        dot: "bg-amber-400",
+        borde: "border-l-amber-400",
+        modalBanner: "from-amber-400 to-orange-400",
+    },
     Verificado: {
+        label: "Verificado",
+        icon: ShieldCheck,
+        clases: "bg-blue-50 text-blue-700 border-blue-200",
+        dot: "bg-blue-400",
+        borde: "border-l-blue-400",
+        modalBanner: "from-blue-400 to-indigo-400",
+    },
+    Verificada: {
         label: "Verificado",
         icon: ShieldCheck,
         clases: "bg-blue-50 text-blue-700 border-blue-200",
@@ -38,8 +54,40 @@ const CONFIG_ESTADO = {
         borde: "border-l-emerald-400",
         modalBanner: "from-emerald-400 to-teal-400",
     },
+    Consumida: {
+        label: "Consumido",
+        icon: CheckCircle2,
+        clases: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        dot: "bg-emerald-400",
+        borde: "border-l-emerald-400",
+        modalBanner: "from-emerald-400 to-teal-400",
+    },
+    Vencido: {
+        label: "Vencida",
+        icon: XCircle,
+        clases: "bg-red-50 text-red-700 border-red-200",
+        dot: "bg-red-400",
+        borde: "border-l-red-400",
+        modalBanner: "from-red-400 to-rose-500",
+    },
+    Vencida: {
+        label: "Vencida",
+        icon: XCircle,
+        clases: "bg-red-50 text-red-700 border-red-200",
+        dot: "bg-red-400",
+        borde: "border-l-red-400",
+        modalBanner: "from-red-400 to-rose-500",
+    },
     Cancelado: {
         label: "Cancelado",
+        icon: XCircle,
+        clases: "bg-slate-100 text-slate-500 border-slate-200",
+        dot: "bg-slate-300",
+        borde: "border-l-slate-300",
+        modalBanner: "from-slate-300 to-slate-400",
+    },
+    Cancelada: {
+        label: "Cancelada",
         icon: XCircle,
         clases: "bg-slate-100 text-slate-500 border-slate-200",
         dot: "bg-slate-300",
@@ -251,7 +299,7 @@ function ModalQR({ reserva, usuario, onCerrar }) {
                             <div className="w-full flex items-center gap-2 bg-slate-50 border border-slate-200
                               rounded-xl px-3 py-2.5 text-xs text-slate-500">
                                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-                                Este QR ya no es valido. La reserva fue {reserva.Est_Reserva.toLowerCase()}.
+                                Este QR ya no es valido. La reserva fue {(reserva.Est_Reserva || "cancelada").toLowerCase()}.
                             </div>
                         )}
 

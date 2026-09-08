@@ -39,9 +39,10 @@ export default function AlertaInasistencias({ estado, cargando, alRecargar }) {
     inasistenciasSemana = 0,
     maxInasistencias = 3,
     esInterno = false,
+    esExterno = false,
     tripleFallaMismoDia = false,
     detalle = []
-  } = estado;
+  } = estado || {};
 
   // Determinar nivel de alerta
   const esPeligroMaximo = estaSancionado || inasistenciasSemana >= 3;

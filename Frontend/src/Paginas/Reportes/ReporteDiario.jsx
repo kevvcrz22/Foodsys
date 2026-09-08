@@ -34,9 +34,9 @@ import { useSocketListener } from "../../api/socket";
 // Devuelve las clases Tailwind de color para el badge del estado de una reserva.
 // Se centraliza aqui para no repetir la logica en cada fila de la tabla.
 const Color_Estado = (Estado) => {
-  if (Estado === "Consumido") return "bg-green-100 text-green-700";
-  if (Estado === "Verificado") return "bg-blue-100 text-blue-700";
-  if (Estado === "Cancelado" || Estado === "Vencido") return "bg-red-100 text-red-600";
+  if (Estado === "Consumido" || Estado === "Consumida") return "bg-green-100 text-green-700";
+  if (Estado === "Verificado" || Estado === "Verificada") return "bg-blue-100 text-blue-700";
+  if (Estado === "Cancelado" || Estado === "Cancelada" || Estado === "Vencido" || Estado === "Vencida") return "bg-red-100 text-red-600";
   return "bg-orange-100 text-orange-600"; // Estado por defecto: Generado
 };
 

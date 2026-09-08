@@ -43,10 +43,16 @@ const HORARIOS = [
 // Tarjeta que muestra los datos de la reserva encontrada
 const TarjetaReserva = ({ reserva, onVerificar, verificando }) => {
   const colorEstado = {
-    Generado:  'bg-yellow-100 text-yellow-800 border-yellow-300',
-    Verificado:'bg-green-100 text-green-800 border-green-300',
-    Consumido: 'bg-blue-100 text-blue-800 border-blue-300',
-    Cancelado: 'bg-red-100 text-red-800 border-red-300',
+    Generado:   'bg-yellow-100 text-yellow-800 border-yellow-300',
+    Generada:   'bg-yellow-100 text-yellow-800 border-yellow-300',
+    Verificado: 'bg-green-100 text-green-800 border-green-300',
+    Verificada: 'bg-green-100 text-green-800 border-green-300',
+    Consumido:  'bg-blue-100 text-blue-800 border-blue-300',
+    Consumida:  'bg-blue-100 text-blue-800 border-blue-300',
+    Vencido:    'bg-red-100 text-red-800 border-red-300',
+    Vencida:    'bg-red-100 text-red-800 border-red-300',
+    Cancelado:  'bg-gray-100 text-gray-800 border-gray-300',
+    Cancelada:  'bg-gray-100 text-gray-800 border-gray-300',
   };
 
   const nombreAprendiz = reserva.usuario

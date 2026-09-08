@@ -225,7 +225,8 @@ class VencimientoService {
     const huboDesancionEstaSemana = fecDesancion && fecDesancion >= inicioSemanaDate;
 
     const reservasVencidasSemana = reservasSemana.filter(reserva => {
-      if (reserva.Est_Reserva !== 'Vencido') return false;
+      const est = (reserva.Est_Reserva || '').toLowerCase();
+      if (est !== 'vencido' && est !== 'vencida') return false;
 
       // Si se levantó la sanción en esta semana, solo contar vencimientos posteriores a la desanción
       if (huboDesancionEstaSemana) {
@@ -253,9 +254,14 @@ class VencimientoService {
           if (fechaDate < fecDesancion) continue;
         }
 
-        const tieneDesayunoVencido = list.some(r => r.Tip_Reserva === 'Desayuno' && r.Est_Reserva === 'Vencido');
-        const tieneAlmuerzoVencido = list.some(r => r.Tip_Reserva === 'Almuerzo' && r.Est_Reserva === 'Vencido');
-        const tieneCenaVencida = list.some(r => r.Tip_Reserva === 'Cena' && r.Est_Reserva === 'Vencido');
+        const isVencida = (est) => {
+          const e = (est || '').toLowerCase();
+          return e === 'vencido' || e === 'vencida';
+        };
+
+        const tieneDesayunoVencido = list.some(r => r.Tip_Reserva === 'Desayuno' && isVencida(r.Est_Reserva));
+        const tieneAlmuerzoVencido = list.some(r => r.Tip_Reserva === 'Almuerzo' && isVencida(r.Est_Reserva));
+        const tieneCenaVencida = list.some(r => r.Tip_Reserva === 'Cena' && isVencida(r.Est_Reserva));
 
         if (tieneDesayunoVencido && tieneAlmuerzoVencido && tieneCenaVencida) {
           tripleFallaMismoDia = true;
