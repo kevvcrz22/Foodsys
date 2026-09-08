@@ -11,7 +11,7 @@ const NavBar = ({ usuario, roles = [], rolActivo, onCambioRol, onCerrarSesion })
   });
 
   return (
-    <header className="sticky top-0 z-50 bg-[#0f3f80] text-white px-4 py-3 shadow-md">
+    <header className="sticky top-0 z-50 bg-[#2E5792] text-white px-4 py-3 shadow-md">
       <div className="w-full flex items-center justify-center md:justify-between">
         <NavLogo />
         <nav className="hidden md:flex items-center gap-3">

@@ -1,42 +1,43 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Login.jsx
 // Contenedor principal del módulo de Login.
+// Diseño limpio, moderno estilo Enterprise centrado, sin recuadros innecesarios
+// ni fondos oscuros, manteniendo 100% la lógica y validación original.
 // ─────────────────────────────────────────────────────────────────────────────
-import React, { useState, useRef, useContext }  from 'react';
-import { useNavigate }                           from 'react-router-dom';
-import { AuthContext }                           from '../../context/authContext';
+import React, { useState, useRef, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../../context/authContext';
 import { Validar_Campo, Validar_Formulario, Formulario_Es_Valido } from './LoginValidacion';
-import LoginHero                                 from './LoginHero';
-import LoginFormulario                           from './LoginFormulario';
-import LoginModalPolitica                        from './LoginModalPolitica';
+import LoginFormulario from './LoginFormulario';
+import LoginModalPolitica from './LoginModalPolitica';
 
-// ─── Valores iniciales del formulario (variables 100% en español) ────────────
+// ─── Valores iniciales del formulario ─────────────────────────────────────────
 import apiNode from '../../api/axiosConfig';
 
-const Est_InicialFormulario = { TipDoc_Usuario: '', NumDoc_Usuario: '', contrasena: '' };
-const Est_InicialErrores    = { TipDoc_Usuario: '', NumDoc_Usuario: '', contrasena: '' };
-const Est_InicialTocado     = { TipDoc_Usuario: false, NumDoc_Usuario: false, contrasena: false };
+const Est_InicialFormulario = { TipDoc_Usuario: '', NumDoc_Usuario: '', contraseña: '' };
+const Est_InicialErrores = { TipDoc_Usuario: '', NumDoc_Usuario: '', contraseña: '' };
+const Est_InicialTocado = { TipDoc_Usuario: false, NumDoc_Usuario: false, contraseña: false };
 
 const Login = ({ onLogin }) => {
   const { setUser } = useContext(AuthContext);
   const Nav_Redireccion = useNavigate();
 
-  const [Dat_Formulario,   Set_DatFormulario]   = useState(Est_InicialFormulario);
-  const [Err_Campos,       Set_ErrCampos]        = useState(Est_InicialErrores);
-  const [Est_Tocado,       Set_EstTocado]        = useState(Est_InicialTocado);
-  const [Mst_Password,     Set_MstPassword]      = useState(false);
-  const [Est_Cargando,     Set_EstCargando]      = useState(false);
-  const [Tex_ErrorGeneral, Set_TexErrorGeneral]  = useState('');
+  const [Dat_Formulario, Set_DatFormulario] = useState(Est_InicialFormulario);
+  const [Err_Campos, Set_ErrCampos] = useState(Est_InicialErrores);
+  const [Est_Tocado, Set_EstTocado] = useState(Est_InicialTocado);
+  const [Mst_Password, Set_MstPassword] = useState(false);
+  const [Est_Cargando, Set_EstCargando] = useState(false);
+  const [Tex_ErrorGeneral, Set_TexErrorGeneral] = useState('');
 
-  const [Mst_Politica,    Set_MstPolitica]   = useState(false);
-  const [Pen_Login,       Set_PenLogin]      = useState(null);
+  const [Mst_Politica, Set_MstPolitica] = useState(false);
+  const [Pen_Login, Set_PenLogin] = useState(null);
 
   const Ref_Formulario = useRef(null);
 
   const Mj_Cambio = ({ target: { name, value } }) => {
     Set_DatFormulario((Prv) => ({ ...Prv, [name]: value }));
-    if (Est_Tocado[name])    Set_ErrCampos((Prv) => ({ ...Prv, [name]: Validar_Campo(name, value) }));
-    if (Tex_ErrorGeneral)    Set_TexErrorGeneral('');
+    if (Est_Tocado[name]) Set_ErrCampos((Prv) => ({ ...Prv, [name]: Validar_Campo(name, value) }));
+    if (Tex_ErrorGeneral) Set_TexErrorGeneral('');
   };
 
   const Mj_Blur = ({ target: { name, value } }) => {
@@ -53,20 +54,19 @@ const Login = ({ onLogin }) => {
 
     const Obj_Errores = Validar_Formulario(Dat_Formulario);
     Set_ErrCampos(Obj_Errores);
-    Set_EstTocado({ TipDoc_Usuario: true, NumDoc_Usuario: true, contrasena: true });
-    
+    Set_EstTocado({ TipDoc_Usuario: true, NumDoc_Usuario: true, contraseña: true });
+
     if (!Formulario_Es_Valido(Obj_Errores)) return;
 
     try {
       Set_EstCargando(true);
       Set_TexErrorGeneral('');
 
-      // Mapear 'contrasena' a 'password' para mantener compatibilidad estricta
-      // con la BD y el backend existente (regla del usuario).
+      // Mapear 'contraseña' a 'password' para compatibilidad estricta con el backend
       const Datos_Backend = {
         TipDoc_Usuario: Dat_Formulario.TipDoc_Usuario,
         NumDoc_Usuario: Dat_Formulario.NumDoc_Usuario,
-        password:       Dat_Formulario.contrasena,
+        password: Dat_Formulario.contraseña,
       };
 
       const Res_Respuesta = await apiNode.post("/api/Usuarios/login", Datos_Backend);
@@ -78,7 +78,7 @@ const Login = ({ onLogin }) => {
 
       setUser(Res_Data.usuario);
 
-      const Lis_Roles     = Res_Data.roles;
+      const Lis_Roles = Res_Data.roles;
       const Txt_RolActivo = Lis_Roles.includes('Administrador') ? 'Administrador' : Lis_Roles[0];
 
       if (Res_Data.usuario.Pol_Usuario !== 'Si') {
@@ -116,7 +116,7 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-fondo flex items-center justify-center px-4 py-8 font-['Segoe_UI',system-ui,sans-serif]">
+    <div className="min-h-[calc(100vh-64px)] bg-slate-50 flex items-center justify-center px-4 py-8 font-sans">
       {Mst_Politica && (
         <LoginModalPolitica
           Fn_Aceptar={Mj_AceptarPolitica}
@@ -124,22 +124,19 @@ const Login = ({ onLogin }) => {
         />
       )}
 
-      <div className="w-full max-w-[1100px] flex flex-col lg:flex-row gap-6 items-stretch">
-        <div className="flex-1">
-          <LoginHero />
-        </div>
+      <div className="w-full max-w-md">
         <LoginFormulario
-          Dat_Formulario   = {Dat_Formulario}
-          Err_Campos       = {Err_Campos}
-          Est_Tocado       = {Est_Tocado}
-          Tex_ErrorGeneral = {Tex_ErrorGeneral}
-          Est_Cargando     = {Est_Cargando}
-          Mst_Password     = {Mst_Password}
-          Fn_Cambio        = {Mj_Cambio}
-          Fn_Blur          = {Mj_Blur}
-          Fn_Submit        = {Mj_Submit}
-          Fn_TogglePass    = {() => Set_MstPassword((Prv) => !Prv)}
-          Ref_Formulario   = {Ref_Formulario}
+          Dat_Formulario={Dat_Formulario}
+          Err_Campos={Err_Campos}
+          Est_Tocado={Est_Tocado}
+          Tex_ErrorGeneral={Tex_ErrorGeneral}
+          Est_Cargando={Est_Cargando}
+          Mst_Password={Mst_Password}
+          Fn_Cambio={Mj_Cambio}
+          Fn_Blur={Mj_Blur}
+          Fn_Submit={Mj_Submit}
+          Fn_TogglePass={() => Set_MstPassword((Prv) => !Prv)}
+          Ref_Formulario={Ref_Formulario}
         />
       </div>
     </div>

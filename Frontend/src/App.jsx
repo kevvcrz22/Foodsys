@@ -44,6 +44,7 @@ const QueEsFoodsys = lazy(() => import("./Paginas/About/QueEsFoodsys.jsx"));
 const Recuperar = lazy(() => import("./Paginas/Recuperar/forgotPassword.jsx"));
 const InicioInterno = lazy(() => import("./Paginas/Inicio/InicioInterno.jsx"));
 const InicioExterno = lazy(() => import("./Paginas/Inicio/InicioExterno.jsx"));
+const InicioLanding = lazy(() => import("./Paginas/Inicio/InicioLanding.jsx"));
 
 // ── Componentes de layout ────────────────────────────────────────────────────
 import Chatbot from "./Components/Chatbot.jsx";
@@ -225,6 +226,8 @@ function App() {
 
   // El chatbot no aparece en la vista del coordinador por diseno
   const Ocultar_Chatbot = Ubicacion.pathname.startsWith("/coordinador");
+  // La pantalla de inicio (Landing) tiene su propio header de navegacion institucional
+  const Es_LandingPage = !Es_Auth && Ubicacion.pathname === "/";
 
   return (
     <>
@@ -246,27 +249,39 @@ function App() {
         }}
       />
       {!Ocultar_Chatbot && <Chatbot />}
-      <NavBar
-        usuario={Usuario_Logeado}
-        roles={Roles}
-        rolActivo={Rol_Activo}
-        onCambioRol={(Nuevo_Rol) => {
-          localStorage.setItem("rolActivo", Nuevo_Rol);
-          Set_RolActivo(Nuevo_Rol);
-          Navegar(RUTAS_POR_ROL[Nuevo_Rol] || "/");
-        }}
-        onCerrarSesion={Manejar_CerrarSesion}
-      />
+      {!Es_LandingPage && (
+        <NavBar
+          usuario={Usuario_Logeado}
+          roles={Roles}
+          rolActivo={Rol_Activo}
+          onCambioRol={(Nuevo_Rol) => {
+            localStorage.setItem("rolActivo", Nuevo_Rol);
+            Set_RolActivo(Nuevo_Rol);
+            Navegar(RUTAS_POR_ROL[Nuevo_Rol] || "/");
+          }}
+          onCerrarSesion={Manejar_CerrarSesion}
+        />
+      )}
 
       <Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="w-10 h-10 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin"></div></div>}>
         <Routes>
 
-          {/* ── LOGIN ──────────────────────────────────────────────────────── */}
+          {/* ── PANTALLA DE INICIO (LANDING PAGE) ─────────────────────────── */}
           <Route
             path="/"
             element={
               Es_Auth
-                ? <Navigate to={RUTAS_POR_ROL[Rol_Activo]} />
+                ? <Navigate to={RUTAS_POR_ROL[Rol_Activo]} replace />
+                : <InicioLanding />
+            }
+          />
+
+          {/* ── LOGIN ──────────────────────────────────────────────────────── */}
+          <Route
+            path="/login"
+            element={
+              Es_Auth
+                ? <Navigate to={RUTAS_POR_ROL[Rol_Activo]} replace />
                 : <Login onLogin={Manejar_Login} />
             }
           />
@@ -523,7 +538,7 @@ function App() {
 
       </Suspense>
 
-      {!Es_Auth && Ubicacion.pathname !== "/" && <Footer />}
+      {!Es_Auth && !["/", "/login"].includes(Ubicacion.pathname) && <Footer />}
     </>
   );
 }

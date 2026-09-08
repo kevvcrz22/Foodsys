@@ -1,8 +1,8 @@
 // Node/Routes/UsuariosRoutes.js
 
-import express        from "express";
-import multer         from "multer";
-import { check }      from "express-validator";
+import express from "express";
+import multer from "multer";
+import { check } from "express-validator";
 import authMiddleware from "../Middleware/authMiddleware.js";
 
 import {
@@ -98,19 +98,19 @@ Router.post("/importar-seleccionados", importarSeleccionados);
 // ─────────────────────────────────────────────────────────────
 
 // Consulta publica de todos los usuarios o uno por Id
-Router.get("/",    getAllUsuarios);
+Router.get("/", getAllUsuarios);
 Router.get("/:Id", getUsuarios);
 
 // Aceptacion de politica de privacidad
 Router.patch("/:Id/politica", aceptarPolitica);
 
 // Actualizacion y eliminacion (requieren token)
-Router.put(   "/:Id", authMiddleware, updateUsuarios);
+Router.put("/:Id", authMiddleware, updateUsuarios);
 Router.delete("/:Id", authMiddleware, deleteUsuarios);
 
-// Cambio de contrasena en dos pasos (requieren token)
+// Cambio de contraseña en dos pasos (requieren token)
 Router.post('/:Id/validar-password', authMiddleware, validarPasswordActual);
-Router.put( '/:Id/password',         authMiddleware, cambiarPassword);
+Router.put('/:Id/password', authMiddleware, cambiarPassword);
 
 // Gestion de sanciones: Coordinador, Bienestar y Admin pueden cambiar San_Usuario
 // PATCH /:Id/sancion -> { San_Usuario: "Si" | "No" }

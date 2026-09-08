@@ -13,7 +13,7 @@ const Validar_Campo = (Nom_Campo, Val_Campo) => {
       if (!/^\d+$/.test(Val_Campo)) return 'El documento debe contener solo números';
       return '';
 
-    case 'contrasena':
+    case 'contraseña':
       if (!Val_Campo) return 'La contraseña es requerida';
       if (Val_Campo.length < 8) return 'La contraseña debe tener al menos 8 caracteres';
       return '';
@@ -26,12 +26,12 @@ const Validar_Campo = (Nom_Campo, Val_Campo) => {
 const Validar_Formulario = (Dat_Formulario) => ({
   TipDoc_Usuario: Validar_Campo('TipDoc_Usuario', Dat_Formulario.TipDoc_Usuario),
   NumDoc_Usuario: Validar_Campo('NumDoc_Usuario', Dat_Formulario.NumDoc_Usuario),
-  contrasena:     Validar_Campo('contrasena',     Dat_Formulario.contrasena),
+  contraseña: Validar_Campo('contraseña', Dat_Formulario.contraseña),
 });
 
 const Formulario_Es_Valido = (Obj_Errores) =>
   !Obj_Errores.TipDoc_Usuario &&
   !Obj_Errores.NumDoc_Usuario &&
-  !Obj_Errores.contrasena;
+  !Obj_Errores.contraseña;
 
 export { Validar_Campo, Validar_Formulario, Formulario_Es_Valido };

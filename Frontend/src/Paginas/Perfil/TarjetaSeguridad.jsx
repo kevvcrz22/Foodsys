@@ -1,9 +1,9 @@
 // Paginas/Perfil/TarjetaSeguridad.jsx
-// Tarjeta de cambio de contrasena con flujo de 3 pasos
+// Tarjeta de cambio de contraseña con flujo de 3 pasos
 // Paso 1: verificar actual, Paso 2: nueva, Paso 3: exito
 
 import { Lock, CheckCircle } from "lucide-react";
-import CampoContrasena from "./CampoContrasena";
+import Campocontraseña from "./CampoContrasena";
 import CabeceraTarjeta from "./CabeceraTarjeta";
 import AlertaMensaje from "./AlertaMensaje";
 
@@ -40,9 +40,9 @@ const IndicadorPasos = ({ Paso_Actual }) => (
 
 const TarjetaSeguridad = ({
   Paso, Guardando, Mensaje,
-  Contrasena_Actual, Set_ContrasenaActual,
-  Contrasena_Nueva, Set_ContrasenaNueva,
-  Contrasena_Confirmar, Set_ContrasenaConfirmar,
+  contraseña_Actual, Set_contraseñaActual,
+  contraseña_Nueva, Set_contraseñaNueva,
+  contraseña_Confirmar, Set_contraseñaConfirmar,
   Vis_Actual, Toggle_VisActual,
   Vis_Nueva, Toggle_VisNueva,
   Vis_Confirmar, Toggle_VisConfirmar,
@@ -53,20 +53,20 @@ const TarjetaSeguridad = ({
     <IndicadorPasos Paso_Actual={Paso} />
     <div className="space-y-3">
       {Paso === 1 && (<>
-        <CampoContrasena Etiqueta="Contrasena Actual" Valor={Contrasena_Actual} onChange={E => Set_ContrasenaActual(E.target.value)} Visible={Vis_Actual} OnToggle={Toggle_VisActual} Placeholder="Ingrese su contrasena actual" />
+        <Campocontraseña Etiqueta="contraseña Actual" Valor={contraseña_Actual} onChange={E => Set_contraseñaActual(E.target.value)} Visible={Vis_Actual} OnToggle={Toggle_VisActual} Placeholder="Ingrese su contraseña actual" />
         <AlertaMensaje Mensaje={Mensaje.Texto} Tipo={Mensaje.Tipo} />
         <button onClick={Validar} disabled={Guardando} className={["w-full py-2.5 rounded-xl text-sm font-semibold text-white border-0 transition-all duration-150", Guardando ? "bg-slate-400 cursor-wait" : "bg-slate-700 hover:bg-slate-800 cursor-pointer"].join(" ")}>
-          {Guardando ? "Verificando..." : "Verificar Contrasena"}
+          {Guardando ? "Verificando..." : "Verificar contraseña"}
         </button>
       </>)}
       {Paso === 2 && (<>
-        <CampoContrasena Etiqueta="Nueva Contrasena" Valor={Contrasena_Nueva} onChange={E => Set_ContrasenaNueva(E.target.value)} Visible={Vis_Nueva} OnToggle={Toggle_VisNueva} Placeholder="Minimo 8 caracteres" />
-        <CampoContrasena Etiqueta="Confirmar Contrasena" Valor={Contrasena_Confirmar} onChange={E => Set_ContrasenaConfirmar(E.target.value)} Visible={Vis_Confirmar} OnToggle={Toggle_VisConfirmar} Placeholder="Repita la nueva contrasena" />
+        <Campocontraseña Etiqueta="Nueva contraseña" Valor={contraseña_Nueva} onChange={E => Set_contraseñaNueva(E.target.value)} Visible={Vis_Nueva} OnToggle={Toggle_VisNueva} Placeholder="Minimo 8 caracteres" />
+        <Campocontraseña Etiqueta="Confirmar contraseña" Valor={contraseña_Confirmar} onChange={E => Set_contraseñaConfirmar(E.target.value)} Visible={Vis_Confirmar} OnToggle={Toggle_VisConfirmar} Placeholder="Repita la nueva contraseña" />
         <AlertaMensaje Mensaje={Mensaje.Texto} Tipo={Mensaje.Tipo} />
         <div className="flex gap-2 pt-1">
           <button onClick={Reiniciar} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all duration-150">Cancelar</button>
           <button onClick={Guardar} disabled={Guardando} className={["flex-[2] py-2.5 rounded-xl text-sm font-semibold text-white border-0 transition-all duration-150", Guardando ? "bg-slate-400 cursor-wait" : "bg-slate-700 hover:bg-slate-800 cursor-pointer"].join(" ")}>
-            {Guardando ? "Guardando..." : "Guardar Contrasena"}
+            {Guardando ? "Guardando..." : "Guardar contraseña"}
           </button>
         </div>
       </>)}
@@ -75,8 +75,8 @@ const TarjetaSeguridad = ({
           <div className="w-14 h-14 rounded-2xl bg-green-50 border border-green-200 flex items-center justify-center mx-auto mb-3">
             <CheckCircle size={24} className="text-green-600" />
           </div>
-          <p className="text-sm font-semibold text-slate-700 mb-1">Contrasena Actualizada</p>
-          <p className="text-xs text-slate-500 mb-4">La contrasena fue cambiada correctamente</p>
+          <p className="text-sm font-semibold text-slate-700 mb-1">contraseña Actualizada</p>
+          <p className="text-xs text-slate-500 mb-4">La contraseña fue cambiada correctamente</p>
           <button onClick={Reiniciar} className="text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer bg-transparent border-0 underline transition-colors">Cambiar nuevamente</button>
         </div>
       )}

@@ -1,6 +1,6 @@
 // Perfil.jsx
 // Modulo de perfil de usuario del sistema Foodsys
-// Permite al usuario ver sus datos, editar contacto y cambiar contrasena con flujo seguro
+// Permite al usuario ver sus datos, editar contacto y cambiar contraseña con flujo seguro
 
 import { useState, useEffect } from "react";
 import {
@@ -55,8 +55,8 @@ const CampoEntrada = ({
   </div>
 );
 
-// Componente reutilizable: campo de contrasena con icono de ojo para alternar visibilidad
-const CampoContrasena = ({
+// Componente reutilizable: campo de contraseña con icono de ojo para alternar visibilidad
+const Campocontraseña = ({
   Etiqueta,
   Valor,
   onChange,
@@ -78,9 +78,11 @@ const CampoContrasena = ({
         value={Valor}
         onChange={onChange}
         placeholder={Placeholder}
+        autoComplete="new-password"
+        name="sec_pwd_field"
         className="w-full pl-9 pr-10 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all duration-150"
       />
-      {/* Boton para mostrar u ocultar el texto de la contrasena */}
+      {/* Boton para mostrar u ocultar el texto de la contraseña */}
       <button
         type="button"
         onClick={OnToggle}
@@ -134,17 +136,17 @@ const Perfil = () => {
   const [GuardandoContacto, setGuardandoContacto] = useState(false);
   const [MensajeContacto, setMensajeContacto] = useState({ Texto: "", Tipo: "" });
 
-  // Estado del flujo de cambio de contrasena
-  // Paso 1 = ingresar contrasena actual | Paso 2 = nueva contrasena | Paso 3 = exito
+  // Estado del flujo de cambio de contraseña
+  // Paso 1 = ingresar contraseña actual | Paso 2 = nueva contraseña | Paso 3 = exito
   const [Paso, setPaso] = useState(1);
-  const [ContrasenaActual, setContrasenaActual] = useState("");
-  const [ContrasenaNueva, setContrasenaNueva] = useState("");
-  const [ContrasenaConfirmar, setContrasenaConfirmar] = useState("");
+  const [contraseñaActual, setcontraseñaActual] = useState("");
+  const [contraseñaNueva, setcontraseñaNueva] = useState("");
+  const [contraseñaConfirmar, setcontraseñaConfirmar] = useState("");
   const [VisActual, setVisActual] = useState(false);
   const [VisNueva, setVisNueva] = useState(false);
   const [VisConfirmar, setVisConfirmar] = useState(false);
-  const [GuardandoContrasena, setGuardandoContrasena] = useState(false);
-  const [MensajeContrasena, setMensajeContrasena] = useState({ Texto: "", Tipo: "" });
+  const [Guardandocontraseña, setGuardandocontraseña] = useState(false);
+  const [Mensajecontraseña, setMensajecontraseña] = useState({ Texto: "", Tipo: "" });
 
   // Al montar el componente: lee el ID del localStorage y carga datos frescos de la API
   useEffect(() => {
@@ -222,86 +224,86 @@ const Perfil = () => {
     }
   };
 
-  // Paso 1 del flujo: valida la contrasena actual contra la base de datos
+  // Paso 1 del flujo: valida la contraseña actual contra la base de datos
   // Solo si es correcta se avanza al paso 2
-  const ValidarContrasenaActual = async () => {
-    if (!ContrasenaActual.trim()) {
-      setMensajeContrasena({
-        Texto: "Ingrese su contrasena actual para continuar",
+  const ValidarcontraseñaActual = async () => {
+    if (!contraseñaActual.trim()) {
+      setMensajecontraseña({
+        Texto: "Ingrese su contraseña actual para continuar",
         Tipo: "error",
       });
       return;
     }
-    setGuardandoContrasena(true);
+    setGuardandocontraseña(true);
     try {
       await apiAxios.post(
         `/api/Usuarios/${Usuario.Id_Usuario}/validar-password`,
-        { currentPassword: ContrasenaActual }
+        { currentPassword: contraseñaActual }
       );
       setPaso(2);
-      setMensajeContrasena({ Texto: "", Tipo: "" });
+      setMensajecontraseña({ Texto: "", Tipo: "" });
     } catch {
-      setMensajeContrasena({
-        Texto: "La contrasena actual es incorrecta",
+      setMensajecontraseña({
+        Texto: "La contraseña actual es incorrecta",
         Tipo: "error",
       });
     } finally {
-      setGuardandoContrasena(false);
+      setGuardandocontraseña(false);
     }
   };
 
-  // Paso 2 del flujo: envia la nueva contrasena al backend donde se encripta con bcrypt
-  const GuardarContrasena = async () => {
-    if (!ContrasenaNueva.trim()) {
-      setMensajeContrasena({ Texto: "Ingrese la nueva contrasena", Tipo: "error" });
+  // Paso 2 del flujo: envia la nueva contraseña al backend donde se encripta con bcrypt
+  const Guardarcontraseña = async () => {
+    if (!contraseñaNueva.trim()) {
+      setMensajecontraseña({ Texto: "Ingrese la nueva contraseña", Tipo: "error" });
       return;
     }
-    if (ContrasenaNueva.length < 8) {
-      setMensajeContrasena({
-        Texto: "La contrasena debe tener minimo 8 caracteres",
+    if (contraseñaNueva.length < 8) {
+      setMensajecontraseña({
+        Texto: "La contraseña debe tener minimo 8 caracteres",
         Tipo: "error",
       });
       return;
     }
-    if (ContrasenaNueva !== ContrasenaConfirmar) {
-      setMensajeContrasena({
+    if (contraseñaNueva !== contraseñaConfirmar) {
+      setMensajecontraseña({
         Texto: "Las contrasenias no coinciden",
         Tipo: "error",
       });
       return;
     }
-    setGuardandoContrasena(true);
+    setGuardandocontraseña(true);
     try {
       // El backend recibe ambas contrasenias: la actual para verificar y la nueva para guardar
       await apiAxios.put(`/api/Usuarios/${Usuario.Id_Usuario}/password`, {
-        currentPassword: ContrasenaActual,
-        newPassword: ContrasenaNueva,
+        currentPassword: contraseñaActual,
+        newPassword: contraseñaNueva,
       });
       setPaso(3);
-      setMensajeContrasena({
-        Texto: "Contrasena actualizada correctamente",
+      setMensajecontraseña({
+        Texto: "contraseña actualizada correctamente",
         Tipo: "exito",
       });
     } catch {
-      setMensajeContrasena({
-        Texto: "Error al actualizar la contrasena",
+      setMensajecontraseña({
+        Texto: "Error al actualizar la contraseña",
         Tipo: "error",
       });
     } finally {
-      setGuardandoContrasena(false);
+      setGuardandocontraseña(false);
     }
   };
 
-  // Reinicia el formulario de contrasena a su estado inicial (paso 1)
-  const ReiniciarContrasena = () => {
+  // Reinicia el formulario de contraseña a su estado inicial (paso 1)
+  const Reiniciarcontraseña = () => {
     setPaso(1);
-    setContrasenaActual("");
-    setContrasenaNueva("");
-    setContrasenaConfirmar("");
+    setcontraseñaActual("");
+    setcontraseñaNueva("");
+    setcontraseñaConfirmar("");
     setVisActual(false);
     setVisNueva(false);
     setVisConfirmar(false);
-    setMensajeContrasena({ Texto: "", Tipo: "" });
+    setMensajecontraseña({ Texto: "", Tipo: "" });
   };
 
   // Pantalla de espera mientras se obtienen los datos desde la API
@@ -330,7 +332,7 @@ const Perfil = () => {
         ? "Femenino"
         : "Prefiero no decirlo";
 
-  // Configuracion de los pasos del indicador de progreso de cambio de contrasena
+  // Configuracion de los pasos del indicador de progreso de cambio de contraseña
   const ConfigPasos = [
     { Numero: 1, Titulo: "Verificar" },
     { Numero: 2, Titulo: "Nueva clave" },
@@ -355,9 +357,20 @@ const Perfil = () => {
               <h1 className="text-xl font-bold text-slate-800">
                 {Usuario.Nom_Usuario} {Usuario.Ape_Usuario}
               </h1>
-              <p className="text-sm text-slate-500 mt-0.5 truncate">
-                {Roles.length > 0 ? Roles.join(" - ") : "Sin rol asignado"}
-              </p>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                {Roles.length > 0 ? (
+                  Roles.map((rol) => (
+                    <span
+                      key={rol}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-[#1861c1] border border-blue-200/80"
+                    >
+                      {rol}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-slate-400">Sin rol asignado</span>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2 mt-2">
                 {/* Badge de estado activo o inactivo basado en San_Usuario */}
                 <span
@@ -506,7 +519,7 @@ const Perfil = () => {
             </div>
           )}
 
-          {/* Tarjeta 4: seguridad — flujo de 3 pasos para cambio seguro de contrasena */}
+          {/* Tarjeta 4: seguridad — flujo de 3 pasos para cambio seguro de contraseña */}
           <div className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
             <CabeceraTarjeta
               Color="bg-slate-700"
@@ -556,96 +569,96 @@ const Perfil = () => {
 
             <div className="space-y-3">
 
-              {/* Paso 1: el usuario escribe su contrasena actual para ser validada en el backend */}
+              {/* Paso 1: el usuario escribe su contraseña actual para ser validada en el backend */}
               {Paso === 1 && (
                 <>
-                  <CampoContrasena
-                    Etiqueta="Contrasena Actual"
-                    Valor={ContrasenaActual}
-                    onChange={(E) => setContrasenaActual(E.target.value)}
+                  <Campocontraseña
+                    Etiqueta="contraseña Actual"
+                    Valor={contraseñaActual}
+                    onChange={(E) => setcontraseñaActual(E.target.value)}
                     Visible={VisActual}
                     OnToggle={() => setVisActual(!VisActual)}
-                    Placeholder="Ingrese su contrasena actual"
+                    Placeholder="Ingrese su contraseña actual"
                   />
                   <AlertaMensaje
-                    Mensaje={MensajeContrasena.Texto}
-                    Tipo={MensajeContrasena.Tipo}
+                    Mensaje={Mensajecontraseña.Texto}
+                    Tipo={Mensajecontraseña.Tipo}
                   />
                   <button
-                    onClick={ValidarContrasenaActual}
-                    disabled={GuardandoContrasena}
+                    onClick={ValidarcontraseñaActual}
+                    disabled={Guardandocontraseña}
                     className={[
                       "w-full py-2.5 rounded-xl text-sm font-semibold text-white border-0 transition-all duration-150",
-                      GuardandoContrasena
+                      Guardandocontraseña
                         ? "bg-slate-400 cursor-wait"
                         : "bg-slate-700 hover:bg-slate-800 cursor-pointer",
                     ].join(" ")}
                   >
-                    {GuardandoContrasena ? "Verificando..." : "Verificar Contrasena"}
+                    {Guardandocontraseña ? "Verificando..." : "Verificar contraseña"}
                   </button>
                 </>
               )}
 
-              {/* Paso 2: el usuario ingresa y confirma la nueva contrasena */}
+              {/* Paso 2: el usuario ingresa y confirma la nueva contraseña */}
               {Paso === 2 && (
                 <>
-                  <CampoContrasena
-                    Etiqueta="Nueva Contrasena"
-                    Valor={ContrasenaNueva}
-                    onChange={(E) => setContrasenaNueva(E.target.value)}
+                  <Campocontraseña
+                    Etiqueta="Nueva contraseña"
+                    Valor={contraseñaNueva}
+                    onChange={(E) => setcontraseñaNueva(E.target.value)}
                     Visible={VisNueva}
                     OnToggle={() => setVisNueva(!VisNueva)}
                     Placeholder="Minimo 8 caracteres"
                   />
-                  <CampoContrasena
-                    Etiqueta="Confirmar Contrasena"
-                    Valor={ContrasenaConfirmar}
-                    onChange={(E) => setContrasenaConfirmar(E.target.value)}
+                  <Campocontraseña
+                    Etiqueta="Confirmar contraseña"
+                    Valor={contraseñaConfirmar}
+                    onChange={(E) => setcontraseñaConfirmar(E.target.value)}
                     Visible={VisConfirmar}
                     OnToggle={() => setVisConfirmar(!VisConfirmar)}
-                    Placeholder="Repita la nueva contrasena"
+                    Placeholder="Repita la nueva contraseña"
                   />
                   <AlertaMensaje
-                    Mensaje={MensajeContrasena.Texto}
-                    Tipo={MensajeContrasena.Tipo}
+                    Mensaje={Mensajecontraseña.Texto}
+                    Tipo={Mensajecontraseña.Tipo}
                   />
                   <div className="flex gap-2 pt-1">
                     <button
-                      onClick={ReiniciarContrasena}
+                      onClick={Reiniciarcontraseña}
                       className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all duration-150"
                     >
                       Cancelar
                     </button>
                     <button
-                      onClick={GuardarContrasena}
-                      disabled={GuardandoContrasena}
+                      onClick={Guardarcontraseña}
+                      disabled={Guardandocontraseña}
                       className={[
                         "flex-2 py-2.5 rounded-xl text-sm font-semibold text-white border-0 transition-all duration-150",
-                        GuardandoContrasena
+                        Guardandocontraseña
                           ? "bg-slate-400 cursor-wait"
                           : "bg-slate-700 hover:bg-slate-800 cursor-pointer",
                       ].join(" ")}
                     >
-                      {GuardandoContrasena ? "Guardando..." : "Guardar Contrasena"}
+                      {Guardandocontraseña ? "Guardando..." : "Guardar contraseña"}
                     </button>
                   </div>
                 </>
               )}
 
-              {/* Paso 3: pantalla de confirmacion exitosa del cambio de contrasena */}
+              {/* Paso 3: pantalla de confirmacion exitosa del cambio de contraseña */}
               {Paso === 3 && (
                 <div className="text-center py-5">
                   <div className="w-14 h-14 rounded-2xl bg-green-50 border border-green-200 flex items-center justify-center mx-auto mb-3">
                     <CheckCircle size={24} className="text-green-600" />
                   </div>
                   <p className="text-sm font-semibold text-slate-700 mb-1">
-                    Contrasena Actualizada
+                    contraseña Actualizada
                   </p>
                   <p className="text-xs text-slate-500 mb-4">
-                    La contrasena fue cambiada correctamente en el sistema
+                    La contraseña fue cambiada correctamente en el sistema
                   </p>
                   <button
-                    onClick={ReiniciarContrasena}
+                    onClick={Reiniciarcontraseña}
                     className="text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer bg-transparent border-0 underline transition-colors"
                   >
                     Cambiar nuevamente

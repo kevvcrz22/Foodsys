@@ -24,9 +24,20 @@ const EncabezadoPerfil = ({ Usuario, Roles }) => {
           <h1 className="text-lg sm:text-xl font-bold text-slate-800">
             {Usuario.Nom_Usuario} {Usuario.Ape_Usuario}
           </h1>
-          <p className="text-sm text-slate-500 mt-0.5 truncate">
-            {Roles.length > 0 ? Roles.join(" - ") : "Sin rol asignado"}
-          </p>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            {Roles.length > 0 ? (
+              Roles.map((rol) => (
+                <span
+                  key={rol}
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-[#1861c1] border border-blue-200/80"
+                >
+                  {rol}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-slate-400">Sin rol asignado</span>
+            )}
+          </div>
           <div className="flex flex-wrap gap-2 mt-2">
             <span className={[
               "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border",

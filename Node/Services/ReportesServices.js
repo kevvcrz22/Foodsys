@@ -190,7 +190,7 @@ class ReportesService {
         {
           model: UsuariosModel,
           as: "usuario",
-          // Solo los campos del aprendiz necesarios para el reporte, sin contrasena ni token
+          // Solo los campos del aprendiz necesarios para el reporte, sin contraseña ni token
           attributes: [
             "Id_Usuario", "Nom_Usuario", "Ape_Usuario",
             "NumDoc_Usuario", "TipDoc_Usuario",

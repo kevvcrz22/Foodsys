@@ -8,44 +8,44 @@ import EmailService from "./EmailService.js";
 import VencimientoService from "./VencimientoService.js";
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import {v4 as uuidv4} from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 class UsuariosService {
 
-    // Metodo para solicitar restablecimiento de contrasena
-async resetPassword(email) {
-  const usuario = await UsuariosModel.findOne({ where: { Cor_Usuario: email } });
-  if (!usuario) throw new Error("Ups, algo paso.");
+  // Metodo para solicitar restablecimiento de contraseña
+  async resetPassword(email) {
+    const usuario = await UsuariosModel.findOne({ where: { Cor_Usuario: email } });
+    if (!usuario) throw new Error("Ups, algo paso.");
 
-  const tokenForPassword = jwt.sign(
-    { usuario: { id: usuario.Id_Usuario } },
-    process.env.JWT_SECRET,
-    { expiresIn: '15m' }
-  );
+    const tokenForPassword = jwt.sign(
+      { usuario: { id: usuario.Id_Usuario } },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
 
-  await EmailService.sendPasswordResetEmail(email, tokenForPassword);
-  return;
-}
+    await EmailService.sendPasswordResetEmail(email, tokenForPassword);
+    return;
+  }
 
-// Metodo que recibe la nueva contrasena
-async setNewPassword(data) {
-  const { tokenForPassword, newPassword } = data;
+  // Metodo que recibe la nueva contraseña
+  async setNewPassword(data) {
+    const { tokenForPassword, newPassword } = data;
 
-  // Extrae los datos que se enviaron en el token (payload)
-  const decodificado = jwt.verify(tokenForPassword, process.env.JWT_SECRET);
+    // Extrae los datos que se enviaron en el token (payload)
+    const decodificado = jwt.verify(tokenForPassword, process.env.JWT_SECRET);
 
-  const usuario = await UsuariosModel.findByPk(decodificado.usuario.id);
-  if (!usuario) throw new Error("Ups, algo paso.");
+    const usuario = await UsuariosModel.findByPk(decodificado.usuario.id);
+    if (!usuario) throw new Error("Ups, algo paso.");
 
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-  await UsuariosModel.update(
-    { password: hashedPassword },
-    { where: { Id_Usuario: decodificado.usuario.id } }
-  );
+    await UsuariosModel.update(
+      { password: hashedPassword },
+      { where: { Id_Usuario: decodificado.usuario.id } }
+    );
 
-  return;
-}
+    return;
+  }
 
   async Login(data) {
     const { TipDoc_Usuario, NumDoc_Usuario, password } = data;
@@ -181,44 +181,44 @@ async setNewPassword(data) {
     return true;
   }
 
-async getAprendices() {
-  // Procesar vencimientos pendientes en tiempo real antes de listar aprendices
-  try {
-    await VencimientoService.procesarVencimientosGlobales();
-  } catch (err) {
-    console.error("Error al procesar vencimientos en getAprendices:", err.message);
-  }
+  async getAprendices() {
+    // Procesar vencimientos pendientes en tiempo real antes de listar aprendices
+    try {
+      await VencimientoService.procesarVencimientosGlobales();
+    } catch (err) {
+      console.error("Error al procesar vencimientos en getAprendices:", err.message);
+    }
 
-  const todos = await UsuariosModel.findAll({
-    include: [
-      {
-        model: UsuariosRolModel,
-        as: 'rolesUsuario',
-        include: [{ model: RolesModel, as: 'rolUsuario' }]
-      },
-      {
-        model: FichasModel,
-        as: 'ficha',
-        attributes: ['Id_Ficha', 'Num_Ficha'],
-        include: [
-          // ✅ Solo un alias — el que esté definido en las asociaciones de FichasModel
-          { model: ProgramaModel, as: 'programas', attributes: ['Nom_Programa'] }
-        ]
-      }
-    ]
-  });
-
-  return todos
-    .filter((u) => {
-      const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
-      return roles.some(r => ['Aprendiz Interno', 'Aprendiz Externo'].includes(r));
-    })
-    .map((u) => {
-      const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
-      const { password, token, ...rest } = u.toJSON();
-      return { ...rest, roles };
+    const todos = await UsuariosModel.findAll({
+      include: [
+        {
+          model: UsuariosRolModel,
+          as: 'rolesUsuario',
+          include: [{ model: RolesModel, as: 'rolUsuario' }]
+        },
+        {
+          model: FichasModel,
+          as: 'ficha',
+          attributes: ['Id_Ficha', 'Num_Ficha'],
+          include: [
+            // ✅ Solo un alias — el que esté definido en las asociaciones de FichasModel
+            { model: ProgramaModel, as: 'programas', attributes: ['Nom_Programa'] }
+          ]
+        }
+      ]
     });
-}
+
+    return todos
+      .filter((u) => {
+        const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+        return roles.some(r => ['Aprendiz Interno', 'Aprendiz Externo'].includes(r));
+      })
+      .map((u) => {
+        const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+        const { password, token, ...rest } = u.toJSON();
+        return { ...rest, roles };
+      });
+  }
 }
 
 export default new UsuariosService();

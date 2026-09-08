@@ -31,7 +31,7 @@ export const Generar_OTP = async (peticion, respuesta) => {
 
     // Generar código numérico de 6 dígitos
     const codigoOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     // Guardar OTP en memoria con tiempo de expiración (10 min = 600000 ms)
     otpsEnMemoria.set(documento, {
       codigo: codigoOtp,
@@ -57,8 +57,8 @@ export const Generar_OTP = async (peticion, respuesta) => {
 
     await Servicio_Correo.Enviar_Correo(usuario.Cor_Usuario, "Código de Seguridad - Recuperación de Contraseña", cuerpoHtml);
 
-    return respuesta.status(200).json({ 
-      mensaje: "Código enviado exitosamente", 
+    return respuesta.status(200).json({
+      mensaje: "Código enviado exitosamente",
       correoOculto: usuario.Cor_Usuario.replace(/(.{2})(.*)(?=@)/, (gp1, gp2, gp3) => gp2 + '*'.repeat(gp3.length))
     });
 
@@ -106,10 +106,10 @@ export const Validar_OTP = async (peticion, respuesta) => {
 /**
  * Paso 3: Cambiar la contraseña después de validar el OTP.
  */
-export const Cambiar_Contrasena_OTP = async (peticion, respuesta) => {
-  const { documento, nuevaContrasena } = peticion.body;
+export const Cambiar_contraseña_OTP = async (peticion, respuesta) => {
+  const { documento, nuevacontraseña } = peticion.body;
 
-  if (!documento || !nuevaContrasena || nuevaContrasena.length < 8) {
+  if (!documento || !nuevacontraseña || nuevacontraseña.length < 8) {
     return respuesta.status(400).json({ mensaje: "Datos incompletos o contraseña muy corta." });
   }
 
@@ -120,10 +120,10 @@ export const Cambiar_Contrasena_OTP = async (peticion, respuesta) => {
   }
 
   try {
-    const hash = await bcrypt.hash(nuevaContrasena, 10);
-    
+    const hash = await bcrypt.hash(nuevacontraseña, 10);
+
     await UsuariosModel.update(
-      { password: hash }, 
+      { password: hash },
       { where: { NumDoc_Usuario: documento } }
     );
 
