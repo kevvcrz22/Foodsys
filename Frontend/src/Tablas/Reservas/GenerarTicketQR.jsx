@@ -92,10 +92,16 @@ const RectanguloRedondeado = (ctx, x, y, ancho, alto, radio) => {
 // ─── Configuracion visual por estado ─────────────────────────────────────────
 
 const COLORES_ESTADO = {
-    Generado: { texto: "Pendiente", fondo: "#fffbeb", color: "#b45309", punto: "#f59e0b" },
+    Generado:   { texto: "Pendiente", fondo: "#fffbeb", color: "#b45309", punto: "#f59e0b" },
+    Generada:   { texto: "Pendiente", fondo: "#fffbeb", color: "#b45309", punto: "#f59e0b" },
     Verificado: { texto: "Verificado", fondo: "#eff6ff", color: "#1d4ed8", punto: "#3b82f6" },
-    Consumido: { texto: "Consumido", fondo: "#f0fdf4", color: "#15803d", punto: "#22c55e" },
-    Cancelado: { texto: "Cancelado", fondo: "#f8fafc", color: "#64748b", punto: "#94a3b8" },
+    Verificada: { texto: "Verificado", fondo: "#eff6ff", color: "#1d4ed8", punto: "#3b82f6" },
+    Consumido:  { texto: "Consumido", fondo: "#f0fdf4", color: "#15803d", punto: "#22c55e" },
+    Consumida:  { texto: "Consumido", fondo: "#f0fdf4", color: "#15803d", punto: "#22c55e" },
+    Vencido:    { texto: "Vencida", fondo: "#fef2f2", color: "#b91c1c", punto: "#ef4444" },
+    Vencida:    { texto: "Vencida", fondo: "#fef2f2", color: "#b91c1c", punto: "#ef4444" },
+    Cancelado:  { texto: "Cancelado", fondo: "#f8fafc", color: "#64748b", punto: "#94a3b8" },
+    Cancelada:  { texto: "Cancelada", fondo: "#f8fafc", color: "#64748b", punto: "#94a3b8" },
 };
 
 const COLORES_TIPO = {
