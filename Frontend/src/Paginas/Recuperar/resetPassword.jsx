@@ -7,9 +7,9 @@ const ResetPassword = () => {
   const { token } = useParams();
   const Navegar = useNavigate();
 
-  const [Dat_NuevaPassword, Set_NuevaPassword]     = useState("");
+  const [Dat_NuevaPassword, Set_NuevaPassword] = useState("");
   const [Dat_ConfirmarPassword, Set_ConfirmarPassword] = useState("");
-  const [Tex_Error, Set_Error]     = useState("");
+  const [Tex_Error, Set_Error] = useState("");
   const [Tex_Mensaje, Set_Mensaje] = useState("");
   const [Est_Cargando, Set_Cargando] = useState(false);
 
@@ -19,12 +19,12 @@ const ResetPassword = () => {
     Set_Mensaje("");
 
     if (Dat_NuevaPassword.length < 8) {
-      Set_Error("La contrasena debe tener minimo 8 caracteres.");
+      Set_Error("La contraseña debe tener minimo 8 caracteres.");
       return;
     }
 
     if (Dat_NuevaPassword !== Dat_ConfirmarPassword) {
-      Set_Error("Las contrasenas no coinciden.");
+      Set_Error("Las contraseñas no coinciden.");
       return;
     }
 
@@ -49,7 +49,7 @@ const ResetPassword = () => {
 
         <div className="text-center mb-6">
           <h2 className="text-[#1a1a2e] text-2xl font-extrabold">
-            Nueva <span className="text-[#42b72a]">contrasena</span>
+            Nueva <span className="text-[#42b72a]">contraseña</span>
           </h2>
         </div>
 
@@ -68,7 +68,7 @@ const ResetPassword = () => {
         <form onSubmit={Fn_Submit} className="space-y-4">
           <div>
             <label className="block text-sm font-bold text-[#1a1a2e] mb-1">
-              Nueva contrasena
+              Nueva contraseña
             </label>
             <input
               type="password"
@@ -81,7 +81,7 @@ const ResetPassword = () => {
 
           <div>
             <label className="block text-sm font-bold text-[#1a1a2e] mb-1">
-              Repetir contrasena
+              Repetir contraseña
             </label>
             <input
               type="password"
@@ -96,7 +96,7 @@ const ResetPassword = () => {
             disabled={Est_Cargando}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm bg-[#42b72a] text-white hover:bg-[#38a024] active:scale-[0.98] disabled:opacity-60 transition-all"
           >
-            {Est_Cargando ? "Actualizando..." : "Actualizar contrasena"}
+            {Est_Cargando ? "Actualizando..." : "Actualizar contraseña"}
           </button>
         </form>
       </aside>

@@ -4,8 +4,8 @@ import { Link } from "react-router-dom";
 import apiNode from "../../api/axiosConfig";
 
 const ForgotPassword = () => {
-  const [Dat_Email, Set_Email]     = useState("");
-  const [Tex_Error, Set_Error]     = useState("");
+  const [Dat_Email, Set_Email] = useState("");
+  const [Tex_Error, Set_Error] = useState("");
   const [Tex_Mensaje, Set_Mensaje] = useState("");
   const [Est_Cargando, Set_Cargando] = useState(false);
 
@@ -33,7 +33,7 @@ const ForgotPassword = () => {
 
         <div className="text-center mb-6">
           <h2 className="text-[#1a1a2e] text-2xl font-extrabold">
-            Recuperar <span className="text-[#42b72a]">contrasena</span>
+            Recuperar <span className="text-[#42b72a]">contraseña</span>
           </h2>
           <p className="text-[#888] text-sm mt-1">
             Te enviaremos un enlace a tu correo

@@ -6,7 +6,7 @@ import multer from 'multer';
 import {
   Generar_OTP,
   Validar_OTP,
-  Cambiar_Contrasena_OTP,
+  Cambiar_contraseña_OTP,
   Enviar_Contacto
 } from '../Controllers/Controlador_Autenticacion.js';
 
@@ -32,7 +32,7 @@ const configuracionMulter = multer({
 // Rutas de Recuperación de Contraseña (Flujo OTP)
 Enrutador.post('/recuperar/generar-otp', Generar_OTP);
 Enrutador.post('/recuperar/validar-otp', Validar_OTP);
-Enrutador.post('/recuperar/cambiar-contrasena', Cambiar_Contrasena_OTP);
+Enrutador.post('/recuperar/cambiar-contraseña', Cambiar_contraseña_OTP);
 
 // Ruta de Contacto Público
 // 'adjunto' es el nombre del campo en el FormData del frontend

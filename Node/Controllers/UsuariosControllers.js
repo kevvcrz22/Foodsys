@@ -30,22 +30,22 @@ const COLUMNAS_PLANTILLA = [
 ];
 //Solicitar restablecer contraseña
 export const getResetPassword = async (req, res) => {
-  const {email} = req.body
+  const { email } = req.body
 
   try {
     await UsuariosService.resetPassword(email)
-    res.status(200).json({ message: 'El mensaje para restablecer contraseña fue enviado correctamente.'})
+    res.status(200).json({ message: 'El mensaje para restablecer contraseña fue enviado correctamente.' })
   } catch (error) {
-    res.status(400).json({ message: error.message})
+    res.status(400).json({ message: error.message })
   }
 }
 //Recibir la nueva contraseña
-export const setNewPassword = async(req,res) => {
+export const setNewPassword = async (req, res) => {
   try {
     await UsuariosService.setNewPassword(req.body)
-    res.status(200).json({ message: "Contraseña actualizada correctamente"})
-  } catch(error) {
-    res.status(400).json({message: "Informacion invalida o el tiempo ha expirado."})
+    res.status(200).json({ message: "Contraseña actualizada correctamente" })
+  } catch (error) {
+    res.status(400).json({ message: "Informacion invalida o el tiempo ha expirado." })
   }
 }
 // ─────────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export const RegisterUsuarios = async (req, res) => {
   Login
   Paso 1: Se reciben las credenciales del usuario (documento + password).
   Paso 2: El servicio verifica la existencia del usuario, compara la
-          contrasena con bcrypt y genera el token JWT.
+          contraseña con bcrypt y genera el token JWT.
   Paso 3: Se responde con el objeto usuario, sus roles y el token.
           El frontend guarda el token para enviarlo en cabeceras futuras.
 */
@@ -178,9 +178,9 @@ export const getAprendices = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// CAMBIO DE CONTRASENA EN DOS PASOS
+// CAMBIO DE contraseña EN DOS PASOS
 // El flujo se divide en dos endpoints para mejorar la UX:
-// el usuario confirma su contrasena actual antes de escribir
+// el usuario confirma su contraseña actual antes de escribir
 // la nueva, evitando errores de tipeo y accesos no autorizados.
 // ─────────────────────────────────────────────────────────────
 
@@ -191,7 +191,7 @@ export const getAprendices = async (req, res) => {
   Paso 3: bcrypt.compare compara el texto plano con el hash;
           retorna true/false sin exponer el hash al cliente.
   Paso 4: Si es valida se responde { valid: true } y el frontend
-          habilita el formulario para ingresar la nueva contrasena.
+          habilita el formulario para ingresar la nueva contraseña.
   Nota: No se modifica nada en la BD en este paso.
 */
 export const validarPasswordActual = async (req, res) => {
@@ -200,7 +200,7 @@ export const validarPasswordActual = async (req, res) => {
     const { currentPassword } = req.body;
 
     if (!currentPassword) {
-      return res.status(400).json({ message: "La contrasena actual es requerida" });
+      return res.status(400).json({ message: "La contraseña actual es requerida" });
     }
 
     const Usuario = await UsuariosModel.findByPk(Id);
@@ -210,7 +210,7 @@ export const validarPasswordActual = async (req, res) => {
 
     const EsValida = await bcrypt.compare(currentPassword, Usuario.password);
     if (!EsValida) {
-      return res.status(401).json({ message: "La contrasena actual es incorrecta" });
+      return res.status(401).json({ message: "La contraseña actual es incorrecta" });
     }
 
     res.status(200).json({ valid: true });
@@ -227,7 +227,7 @@ export const validarPasswordActual = async (req, res) => {
           de seguridad; evita que un token robado cambie la clave
           sin conocer la actual.
   Paso 3: bcrypt.hash genera un nuevo hash con salt de 10 rondas.
-          Nunca se guarda la contrasena en texto plano.
+          Nunca se guarda la contraseña en texto plano.
   Paso 4: UsuariosModel.update aplica solo el campo password.
           Si Resultado[0] === 0 significa que no se actualizo ninguna
           fila (Id inexistente), se lanza error controlado.
@@ -238,11 +238,11 @@ export const cambiarPassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: "La contrasena actual y la nueva son requeridas" });
+      return res.status(400).json({ message: "La contraseña actual y la nueva son requeridas" });
     }
 
     if (newPassword.length < 8) {
-      return res.status(400).json({ message: "La nueva contrasena debe tener al menos 8 caracteres" });
+      return res.status(400).json({ message: "La nueva contraseña debe tener al menos 8 caracteres" });
     }
 
     const Usuario = await UsuariosModel.findByPk(Id);
@@ -252,7 +252,7 @@ export const cambiarPassword = async (req, res) => {
 
     const EsValida = await bcrypt.compare(currentPassword, Usuario.password);
     if (!EsValida) {
-      return res.status(401).json({ message: "La contrasena actual es incorrecta" });
+      return res.status(401).json({ message: "La contraseña actual es incorrecta" });
     }
 
     const NuevoHash = await bcrypt.hash(newPassword, 10);
@@ -262,10 +262,10 @@ export const cambiarPassword = async (req, res) => {
     );
 
     if (Resultado[0] === 0) {
-      throw new Error("No se pudo actualizar la contrasena en la base de datos");
+      throw new Error("No se pudo actualizar la contraseña en la base de datos");
     }
 
-    res.status(200).json({ message: "Contrasena actualizada correctamente" });
+    res.status(200).json({ message: "contraseña actualizada correctamente" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -381,7 +381,7 @@ export const previewImport = async (req, res) => {
     Paso 1: Validar que existan los campos minimos obligatorios.
     Paso 2: Buscar duplicado por NumDoc_Usuario; si existe, omitir.
     Paso 3: Buscar duplicado por Cor_Usuario (si viene informado).
-    Paso 4: La contrasena temporal es el propio numero de documento;
+    Paso 4: La contraseña temporal es el propio numero de documento;
             se encripta con bcrypt antes de persistir.
     Paso 5: Crear el registro con uuid unico y timestamps actuales.
   Al final se responde con el conteo de creados, omitidos y el
@@ -425,7 +425,7 @@ export const importarSeleccionados = async (req, res) => {
         }
       }
 
-      // Paso 4: contrasena temporal = numero de documento encriptado
+      // Paso 4: contraseña temporal = numero de documento encriptado
       const HashPwd = await bcrypt.hash(String(Fila.NumDoc_Usuario), 10);
 
       // Paso 5: persistir el nuevo usuario con todos los valores seguros

@@ -7,3 +7,4 @@ Node/.env
 npm-debug.log*
 .DS_Store
 Thumbs.db
+Frontend/dist/

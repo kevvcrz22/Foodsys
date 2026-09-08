@@ -69,7 +69,7 @@ const MANUAL_POR_ROL = {
       {
         Icono: Edit,
         Titulo: "Iniciar un Turno",
-        Descripcion: "Ve al modulo Registrar, ingresa tu contrasena y selecciona el tipo de comida (Desayuno, Almuerzo o Cena).",
+        Descripcion: "Ve al modulo Registrar, ingresa tu contraseña y selecciona el tipo de comida (Desayuno, Almuerzo o Cena).",
         Link: "/supervisor/Registrar",
       },
       {

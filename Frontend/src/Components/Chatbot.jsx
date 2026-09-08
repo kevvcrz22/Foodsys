@@ -207,10 +207,10 @@ const Chatbot = () => {
   return (
     <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999]">
       {open && (
-        <div className="bg-white/80 backdrop-blur-2xl rounded-[24px] shadow-[0_12px_40px_rgba(30,45,74,0.15)] border border-white/60 w-screen sm:w-[380px] h-screen sm:h-[540px] flex flex-col overflow-hidden fixed sm:relative bottom-0 right-0 sm:bottom-auto sm:right-auto animar-entrada">
+        <div className="bg-white/90 backdrop-blur-2xl rounded-none sm:rounded-[24px] shadow-[0_12px_40px_rgba(30,45,74,0.15)] border-0 sm:border border-white/60 w-full sm:w-[380px] h-[100dvh] sm:h-[540px] max-h-[100dvh] sm:max-h-[540px] flex flex-col overflow-hidden fixed sm:relative inset-0 sm:inset-auto bottom-0 right-0 animar-entrada">
           
-          {/* ── Header (Liquid Glass) ── */}
-          <div className="bg-gradient-to-r from-primario to-primario-oscuro p-4 shadow-md">
+          {/* ── Header (Liquid Glass) con espacio superior seguro para móviles ── */}
+          <div className="bg-gradient-to-r from-primario to-primario-oscuro px-4 pt-7 pb-4 sm:p-4 shadow-md shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -229,7 +229,7 @@ const Chatbot = () => {
               <div className="flex gap-2">
                 {historialNavegacion.length > 0 && (
                   <button
-                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 active:scale-95"
+                    className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 active:scale-95 cursor-pointer"
                     onClick={handleVolverAtras}
                     title="Volver atrás"
                   >
@@ -237,10 +237,12 @@ const Chatbot = () => {
                   </button>
                 )}
                 <button
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 active:scale-95"
+                  className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 active:scale-95 cursor-pointer"
                   onClick={() => setOpen(false)}
+                  title="Cerrar asistente"
+                  aria-label="Cerrar chat"
                 >
-                  <X size={16} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
@@ -341,14 +343,15 @@ const Chatbot = () => {
         </div>
       )}
 
-      {/* ── Botón Flotante ── */}
+      {/* ── Botón Flotante con efecto respiración interno ── */}
       {!open && (
         <button
-          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-lg flex items-center justify-center bg-gradient-to-br from-primario to-primario-oscuro hover:shadow-primario/40 hover:-translate-y-1 transition-all duration-300 relative z-50 group border border-white/20"
+          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-lg flex items-center justify-center bg-gradient-to-br from-primario to-primario-oscuro hover:shadow-primario/40 hover:-translate-y-1 transition-all duration-300 relative z-50 group border border-white/20 animate-pulse cursor-pointer"
           onClick={() => setOpen(true)}
+          title="Abrir asistente Konnan"
         >
-          <img src={avatar} loading="lazy" decoding="async" className="w-full h-full rounded-full object-cover p-1 bg-white/10" alt="chat" />
-          <div className="absolute -top-1 -right-1 bg-acento text-white rounded-full w-6 h-6 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+          <img src={avatar} loading="lazy" decoding="async" className="w-full h-full rounded-full object-cover p-1 bg-white/10 relative z-10" alt="chat" />
+          <div className="absolute -top-1 -right-1 bg-acento text-white rounded-full w-6 h-6 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform z-20">
             <MessageCircle size={12} />
           </div>
         </button>

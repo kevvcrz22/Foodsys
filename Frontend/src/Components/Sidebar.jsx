@@ -150,36 +150,40 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
     <div className="flex flex-col h-full bg-white/60 backdrop-blur-xl border-r border-white/60 shadow-[4px_0_24px_rgba(74,111,165,0.08)]">
       
       {/* ── Encabezado ── */}
-      <div className="p-6 border-b border-primario/10">
+      <div className="p-4 sm:p-5 border-b border-primario/10">
+        {/* Fila superior: Avatar, Nombre y Botón X de salir */}
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="w-12 h-12 flex items-center justify-center bg-gradient-to-br from-primario-suave to-primario-oscuro rounded-2xl text-white text-xl font-black shadow-md shadow-primario/20 shrink-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center bg-gradient-to-br from-primario-suave to-primario-oscuro rounded-2xl text-white text-lg sm:text-xl font-black shadow-md shadow-primario/20 shrink-0">
               {Inicial}
             </div>
-            <div className="min-w-0">
-              <p className="text-texto-principal font-extrabold text-sm truncate">
+            <div className="min-w-0 flex-1">
+              <p className="text-texto-principal font-extrabold text-sm truncate" title={Nombre_Completo}>
                 {Nombre_Completo}
               </p>
-              <div className="lg:hidden mt-1.5">
-                <NavRolSelector
-                  usuario={Usuario}
-                  roles={roles}
-                  rolActivo={Rol_Activo}
-                  onCambioRol={Manejar_CambioRol}
-                />
-              </div>
-              <span className="hidden lg:inline-flex mt-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-primario/10 text-primario-oscuro border border-primario/20">
+              <span className="hidden lg:inline-flex mt-0.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primario/10 text-primario-oscuro border border-primario/20">
                 {Rol_Activo || "Sin rol"}
               </span>
             </div>
           </div>
           <button
             onClick={() => Set_SidebarAbierto(false)}
-            className="lg:hidden p-2 rounded-xl bg-white border border-white/60 shadow-sm text-texto-secundario hover:text-primario transition-colors"
+            className="lg:hidden p-2 rounded-xl bg-white border border-slate-200 shadow-xs text-slate-500 hover:text-slate-800 transition-colors shrink-0 cursor-pointer"
             aria-label="Cerrar menú"
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Fila inferior exclusiva para el selector de rol en móviles */}
+        <div className="lg:hidden mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Rol:</span>
+          <NavRolSelector
+            usuario={Usuario}
+            roles={roles}
+            rolActivo={Rol_Activo}
+            onCambioRol={Manejar_CambioRol}
+          />
         </div>
       </div>
 

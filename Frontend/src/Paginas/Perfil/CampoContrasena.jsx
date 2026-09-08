@@ -1,10 +1,10 @@
-// Paginas/Perfil/CampoContrasena.jsx
-// Campo de contrasena con icono de ojo para alternar
+// Paginas/Perfil/Campocontraseña.jsx
+// Campo de contraseña con icono de ojo para alternar
 // la visibilidad del texto ingresado
 
 import { Lock, Eye, EyeOff } from "lucide-react";
 
-const CampoContrasena = ({
+const Campocontraseña = ({
   Etiqueta, Valor, onChange,
   Visible, OnToggle, Placeholder,
 }) => (
@@ -22,6 +22,8 @@ const CampoContrasena = ({
         value={Valor}
         onChange={onChange}
         placeholder={Placeholder}
+        autoComplete="new-password"
+        name="sec_pwd_field"
         className="w-full pl-9 pr-10 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all duration-150"
       />
       <button
@@ -35,4 +37,4 @@ const CampoContrasena = ({
   </div>
 );
 
-export default CampoContrasena;
+export default Campocontraseña;
