@@ -485,7 +485,12 @@ export const ActualizarSancion = async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    await usuario.update({ San_Usuario });
+    const camposActualizar = { San_Usuario };
+    if (San_Usuario === 'No') {
+      camposActualizar.Fec_Desancion = new Date();
+    }
+
+    await usuario.update(camposActualizar);
 
     return res.status(200).json({
       message: `Sancion ${San_Usuario === 'Si' ? 'activada' : 'eliminada'} correctamente`,

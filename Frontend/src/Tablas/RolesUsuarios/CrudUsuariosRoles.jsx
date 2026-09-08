@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import apiAxios from "../../api/axiosConfig.js";
 import DataTable from "react-data-table-component";
+import toast from "react-hot-toast";
 import UsuariosRolesForm from "../RolesUsuarios/UsuariosRolesForm.jsx";
 import { Shield, Plus, Search, X, Pencil, Users } from "lucide-react";
 
@@ -33,23 +34,24 @@ const CrudUsuariosRoles = () => {
   const [cargando, setCargando] = useState(true);
 
   const columnsTable = [
-    { name: "ID", selector: (row) => row.Id_UsuariosRol, sortable: true, width: "70px" },
+    { name: "ID", selector: (row) => row.Id_UsuariosRol, sortable: true, width: "65px" },
     {
       name: "Usuario",
       selector: (row) => `${row.usuario?.Nom_Usuario || ""} ${row.usuario?.Ape_Usuario || ""}`,
       sortable: true,
       grow: 2,
+      minWidth: "220px",
       cell: (row) => {
         const nombre = `${row.usuario?.Nom_Usuario || ""} ${row.usuario?.Ape_Usuario || ""}`.trim();
         const initials = nombre.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
         return (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0" }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: "#dbeafe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <span style={{ color: "#1d4ed8", fontWeight: 600, fontSize: 11 }}>{initials || "?"}</span>
+          <div className="flex items-center gap-2.5 py-1.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
+              <span className="text-violet-700 font-semibold text-[11px]">{initials || "?"}</span>
             </div>
-            <div>
-              <p style={{ fontWeight: 600, color: "var(--color-text-primary)", fontSize: 13, margin: 0 }}>{nombre || "—"}</p>
-              <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: 0 }}>{row.usuario?.NumDoc_Usuario || "—"}</p>
+            <div className="min-w-0">
+              <p className="font-semibold text-slate-800 text-[13px] m-0 truncate">{nombre || "—"}</p>
+              <p className="text-[11px] text-slate-400 m-0 truncate">{row.usuario?.NumDoc_Usuario || "—"}</p>
             </div>
           </div>
         );
@@ -59,13 +61,17 @@ const CrudUsuariosRoles = () => {
       name: "Rol",
       selector: (row) => row.rol?.Nom_Rol,
       sortable: true,
-      cell: (row) => row.rol?.Nom_Rol ? <RolBadge nombre={row.rol.Nom_Rol} /> : <span style={{ color: "#9ca3af", fontSize: 12 }}>Sin rol</span>,
+      minWidth: "150px",
+      cell: (row) => row.rol?.Nom_Rol ? <RolBadge nombre={row.rol.Nom_Rol} /> : <span className="text-slate-400 text-xs whitespace-nowrap">Sin rol</span>,
     },
     {
       name: "Acciones",
+      minWidth: "120px",
       cell: (row) => (
-        <button style={{ background: "#dbeafe", color: "#1d4ed8", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-          onClick={() => editItem(row)}>
+        <button
+          className="bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-colors whitespace-nowrap"
+          onClick={() => editItem(row)}
+        >
           <Pencil size={12} /> Editar
         </button>
       ),
@@ -78,7 +84,6 @@ const CrudUsuariosRoles = () => {
     setCargando(true);
     try {
       const response = await apiAxios.get("/api/UsuariosRoles");
-      // Fix alias: el backend usa as: "rolUsuario" pero el frontend espera "rol"
       const data = Array.isArray(response.data) ? response.data.map((item) => ({
         ...item,
         rol: item.rol || item.rolUsuario || null,
@@ -86,6 +91,7 @@ const CrudUsuariosRoles = () => {
       setUsuariosRol(data);
     } catch (error) {
       console.error("Error al cargar UsuariosRol:", error);
+      toast.error("Error al cargar asignaciones de roles");
     } finally {
       setCargando(false);
     }
@@ -105,58 +111,67 @@ const CrudUsuariosRoles = () => {
   });
 
   const customStyles = {
-    headRow: { style: { background: "#f8fafc", fontSize: 11, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #e5e7eb", textTransform: "uppercase", letterSpacing: "0.04em" } },
-    rows: { style: { fontSize: 13, borderBottom: "1px solid #f3f4f6", "&:hover": { background: "#f5f3ff" } } },
+    table:      { style: { minWidth: "600px" } },
+    headRow:    { style: { background: "#f8fafc", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #e5e7eb", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" } },
+    headCells:  { style: { whiteSpace: "nowrap" } },
+    cells:      { style: { whiteSpace: "nowrap" } },
+    rows:       { style: { fontSize: 13, borderBottom: "1px solid #f3f4f6", "&:hover": { background: "#f5f3ff" } } },
     pagination: { style: { borderTop: "1px solid #e5e7eb", fontSize: 13 } },
   };
 
   return (
     <>
-      <div style={{ width: "100%", display: "flex", flexDirection: "column", background: "var(--color-background-tertiary)" }}>
-        <div style={{ background: "var(--color-background-primary)", borderBottom: "1px solid var(--color-border-tertiary)", padding: "16px 20px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 12, background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Shield size={18} style={{ color: "#fff" }} />
+      <div className="w-full h-full flex flex-col bg-slate-50 min-h-0">
+        <div className="bg-white border-b border-slate-100 px-5 py-4 shrink-0">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
+                <Shield size={18} className="text-white" />
               </div>
               <div>
-                <h1 style={{ fontWeight: 600, color: "var(--color-text-primary)", fontSize: 16, margin: 0 }}>Usuarios - Roles</h1>
-                <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0 }}>{usuariosRol.length} asignaciones</p>
+                <h1 className="font-semibold text-slate-800 text-base m-0">Usuarios - Roles</h1>
+                <p className="text-xs text-slate-400 m-0">{usuariosRol.length} asignaciones</p>
               </div>
             </div>
-            <button onClick={() => { setSelectedItem(null); setEditar(false); setIsModalOpen(true); }}
-              style={{ display: "flex", alignItems: "center", gap: 6, background: "#7c3aed", color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            <button
+              onClick={() => { setSelectedItem(null); setEditar(false); setIsModalOpen(true); }}
+              className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white border-0 rounded-xl px-4 py-2 text-[13px] font-semibold cursor-pointer transition-colors shadow-sm"
+            >
               <Plus size={14} /> Asignar Rol
             </button>
           </div>
-          <div style={{ position: "relative" }}>
-            <Search size={14} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-secondary)" }} />
-            <input type="text" placeholder="Buscar por usuario, documento o rol..."
-              style={{ width: "100%", paddingLeft: 34, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: "1px solid var(--color-border-tertiary)", borderRadius: 8, fontSize: 13, background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" }}
-              value={filterText} onChange={(e) => setFilterText(e.target.value)} />
+          <div className="mt-3 relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar por usuario, documento o rol..."
+              className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-[13px] bg-slate-50 text-slate-700 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-400/10 transition-all"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+            />
           </div>
         </div>
 
-        <div style={{ padding: "16px 20px" }}>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
           {cargando ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 0", color: "var(--color-text-secondary)" }}>
-              <div style={{ width: 28, height: 28, border: "3px solid #ddd6fe", borderTop: "3px solid #7c3aed", borderRadius: "50%", animation: "spin 0.8s linear infinite", marginBottom: 10 }} />
-              <p style={{ fontSize: 13 }}>Cargando asignaciones...</p>
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <div className="w-7 h-7 border-2 border-violet-200 border-t-violet-600 rounded-full animate-spin mb-2" />
+              <p className="text-sm">Cargando asignaciones...</p>
             </div>
           ) : (
-            <div style={{ background: "var(--color-background-primary)", borderRadius: 16, border: "1px solid var(--color-border-tertiary)", overflow: "hidden" }}>
+            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
               <DataTable
                 columns={columnsTable}
                 data={newList}
                 keyField="Id_UsuariosRol"
                 pagination
                 highlightOnHover
-                striped
+                responsive
                 customStyles={customStyles}
                 noDataComponent={
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 0", color: "var(--color-text-secondary)" }}>
-                    <Users size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
-                    <p style={{ fontSize: 13 }}>No hay asignaciones para mostrar</p>
+                  <div className="flex flex-col items-center py-12 text-slate-400">
+                    <Users size={32} className="opacity-30 mb-2" />
+                    <p className="text-[13px]">No hay asignaciones para mostrar</p>
                   </div>
                 }
               />

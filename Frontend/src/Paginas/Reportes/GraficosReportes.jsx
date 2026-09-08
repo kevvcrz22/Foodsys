@@ -17,7 +17,7 @@ const EnvoltorioGrafico = ({ Titulo, Icono: Comp_Icono, Color_Icono, children })
   </div>
 );
 
-// Opciones base de los graficos
+// Opciones base de los graficos con etiquetas numericas directas
 const Opciones_Base = {
   Barras: {
     chartArea: { width: "75%", height: "65%" },
@@ -25,43 +25,92 @@ const Opciones_Base = {
     legend: { position: "bottom" },
     hAxis: { textStyle: { fontSize: 11 } },
     vAxis: { minValue: 0, textStyle: { fontSize: 11 } },
+    annotations: {
+      alwaysOutside: true,
+      textStyle: {
+        fontSize: 10,
+        bold: true,
+        color: "#1f2937",
+        auraColor: "none",
+      },
+    },
   },
   Lineas: {
     chartArea: { width: "75%", height: "65%" },
     colors: ["#6366f1"],
     legend: { position: "none" },
     curveType: "function",
-    pointSize: 5,
+    pointSize: 6,
+    annotations: {
+      textStyle: {
+        fontSize: 11,
+        bold: true,
+        color: "#4338ca",
+        auraColor: "none",
+      },
+    },
   },
   Pastel: {
     colors: ["#6366f1", "#10b981", "#f59e0b"],
     chartArea: { width: "85%", height: "80%" },
     legend: { position: "right" },
     pieHole: 0.4,
+    pieSliceText: "value", // Muestra el numero directamente sobre cada rebanada
+    sliceVisibilityThreshold: 0,
   },
 };
 
-export const GraficoBarras = ({ Datos, Periodo }) => (
-  <EnvoltorioGrafico Titulo="Reservas por tipo" Icono={BarChart3} Color_Icono="text-indigo-500">
-    <Chart
-      chartType="BarChart"
-      data={Datos}
-      options={{ ...Opciones_Base.Barras, title: `Reservas por tipo - ${Periodo}` }}
-      width="100%" height="320px"
-    />
-  </EnvoltorioGrafico>
-);
+export const GraficoBarras = ({ Datos, Periodo }) => {
+  // Transforma los datos para inyectar la columna de anotacion (numero visible) si no esta presente
+  let datosConAnotaciones = Datos;
+  if (Array.isArray(Datos) && Datos.length > 1 && Datos[0].length === 4) {
+    const cabecera = [
+      Datos[0][0],
+      Datos[0][1], { role: "annotation", type: "string" },
+      Datos[0][2], { role: "annotation", type: "string" },
+      Datos[0][3], { role: "annotation", type: "string" },
+    ];
+    const filas = Datos.slice(1).map((r) => [
+      r[0],
+      Number(r[1] || 0), String(r[1] || 0),
+      Number(r[2] || 0), String(r[2] || 0),
+      Number(r[3] || 0), String(r[3] || 0),
+    ]);
+    datosConAnotaciones = [cabecera, ...filas];
+  }
 
-export const GraficoLineas = ({ Datos }) => (
-  <EnvoltorioGrafico Titulo="Evolucion total" Icono={TrendingUp} Color_Icono="text-emerald-500">
-    <Chart
-      chartType="LineChart"
-      data={Datos}
-      options={Opciones_Base.Lineas}
-      width="100%" height="320px"
-    />
-  </EnvoltorioGrafico>
-);
+  return (
+    <EnvoltorioGrafico Titulo="Reservas por tipo" Icono={BarChart3} Color_Icono="text-indigo-500">
+      <Chart
+        chartType="BarChart"
+        data={datosConAnotaciones}
+        options={{ ...Opciones_Base.Barras, title: `Reservas por tipo - ${Periodo}` }}
+        width="100%" height="320px"
+      />
+    </EnvoltorioGrafico>
+  );
+};
+
+export const GraficoLineas = ({ Datos }) => {
+  // Transforma los datos para inyectar la columna de anotacion si no esta presente
+  let datosConAnotaciones = Datos;
+  if (Array.isArray(Datos) && Datos.length > 1 && Datos[0].length === 2) {
+    const cabecera = [Datos[0][0], Datos[0][1], { role: "annotation", type: "string" }];
+    const filas = Datos.slice(1).map((r) => [r[0], Number(r[1] || 0), String(r[1] || 0)]);
+    datosConAnotaciones = [cabecera, ...filas];
+  }
+
+  return (
+    <EnvoltorioGrafico Titulo="Evolucion total" Icono={TrendingUp} Color_Icono="text-emerald-500">
+      <Chart
+        chartType="LineChart"
+        data={datosConAnotaciones}
+        options={Opciones_Base.Lineas}
+        width="100%" height="320px"
+      />
+    </EnvoltorioGrafico>
+  );
+};
 
 export const GraficoPastel = ({ Datos }) => (
   <EnvoltorioGrafico Titulo="Distribucion por tipo" Icono={PieChart} Color_Icono="text-amber-500">

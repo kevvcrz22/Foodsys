@@ -8,6 +8,8 @@
 // Al seleccionar un aprendiz se llama Manejar_Seleccionar (definido en el padre)
 // que se encarga de consultar al backend los tipos de comida permitidos para ese perfil.
 
+import { IdCard } from "lucide-react";
+
 const BuscadorAprendiz = ({
   Busqueda,
   Set_Busqueda,
@@ -46,16 +48,19 @@ const BuscadorAprendiz = ({
             <button
               key={U.Id_Usuario}
               onClick={() => Manejar_Seleccionar(U)}
-              className="w-full text-left px-4 py-3 hover:bg-[#f0f4ff] transition text-sm border-b border-gray-50 last:border-0"
+              className="w-full text-left px-4 py-3 hover:bg-[#f0f4ff] transition text-sm border-b border-gray-50 last:border-0 flex items-center flex-wrap gap-2"
             >
               <span className="font-medium text-gray-700">
                 {U.Nom_Usuario} {U.Ape_Usuario}
               </span>
-              <span className="text-gray-400 ml-2">-- {U.NumDoc_Usuario}</span>
+              <span className="inline-flex items-center gap-1 text-gray-400 text-xs">
+                <IdCard className="w-3.5 h-3.5 text-gray-400" />
+                {U.NumDoc_Usuario}
+              </span>
               {/* La etiqueta Externo/Interno es solo visual para orientar al Coordinador.
                   La restriccion real de tipos de comida la aplica el backend. */}
               <span
-                className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                className={`ml-auto text-xs px-2 py-0.5 rounded-full ${
                   U.roles?.includes("Aprendiz Externo") ||
                   U.roles?.includes("Pasante Externo")
                     ? "bg-orange-100 text-orange-600"

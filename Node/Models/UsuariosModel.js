@@ -14,6 +14,7 @@ const UsuariosModel = db.define('usuarios', {
   Est_Usuario: { type: DataTypes.STRING, allowNull: true},
   Pol_Usuario: {type: DataTypes.STRING, allowNull: true},
   San_Usuario: {type: DataTypes.STRING, allowNull: true},
+  Fec_Desancion: { type: DataTypes.DATE, allowNull: true },
   Id_Ficha: {type: DataTypes.INTEGER,references: { model: "fichas", key: "Id_Ficha" }},
   password: { type: DataTypes.STRING, allowNull: true },
  

@@ -21,10 +21,11 @@
 //   - Constantes y estados en PascalCase con prefijo Set_ para setters (convencion del proyecto).
 //   - Funciones auxiliares con mayuscula inicial.
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import apiAxios from "../../api/axiosConfig";
 import { Chart } from "react-google-charts";
 import { FileText, FileSpreadsheet } from "lucide-react";
+import { useSocketListener } from "../../api/socket";
 
 // ---------------------------------------------------------------------------
 // UTILIDADES DE PRESENTACION
@@ -85,10 +86,8 @@ const ReporteDiario = () => {
   // ---------------------------------------------------------------------------
   // FUNCION: Consultar
   // Construye la URL con los filtros activos y llama al backend.
-  // El endpoint GET /api/Reportes/diario/:fecha acepta ?tipo=Almuerzo como query param.
   // ---------------------------------------------------------------------------
-  const Consultar = async () => {
-    // Validar que el Coordinador selecciono una fecha antes de consultar
+  const Consultar = useCallback(async () => {
     if (!Fecha) {
       Set_Error_Msg("Selecciona una fecha para consultar el reporte");
       return;
@@ -97,20 +96,29 @@ const ReporteDiario = () => {
       Set_Cargando(true);
       Set_Error_Msg(null);
 
-      // Agregar el filtro de tipo solo si no es "Todos" para que el backend
-      // no aplique un WHERE innecesario cuando se quieren ver todas las comidas
       const Url = `/api/Reportes/diario/detalle?fecha=${Fecha}${Tipo !== "Todos" ? `&tipo=${Tipo}` : ""}`;
       const Respuesta = await apiAxios.get(Url);
       Set_Datos(Respuesta.data);
     } catch (Error) {
-      // Mostrar el mensaje de error del backend si existe, o uno generico
       Set_Error_Msg(Error.response?.data?.message || "Error al consultar el reporte diario");
       Set_Datos(null);
     } finally {
-      // Siempre desbloquear el boton al finalizar, haya error o no
       Set_Cargando(false);
     }
-  };
+  }, [Fecha, Tipo]);
+
+  // Carga automática inicial y al cambiar fecha o tipo
+  useEffect(() => {
+    Consultar();
+  }, [Consultar]);
+
+  // Socket.IO: Sincronización en tiempo real silenciosa sin recargar la página
+  useSocketListener("reservas:actualizadas", () => {
+    const hoy = new Date().toISOString().split("T")[0];
+    if (Fecha === hoy) {
+      Consultar();
+    }
+  });
 
   // ---------------------------------------------------------------------------
   // FUNCION: Exportar
@@ -162,10 +170,10 @@ const ReporteDiario = () => {
   // Google Charts requiere que la primera fila sea el encabezado de columnas.
   // ---------------------------------------------------------------------------
 
-  // Grafica de barras: reservas agrupadas por tipo de comida para el dia
+  // Grafica de barras: reservas agrupadas por tipo de comida para el dia con numero directo
   const Datos_Barras = Datos ? [
-    ["Tipo", "Cantidad"],
-    ...Object.entries(Datos.resumen?.porTipo || {}).map(([K, V]) => [K, Number(V)])
+    ["Tipo", "Cantidad", { role: "annotation", type: "string" }],
+    ...Object.entries(Datos.resumen?.porTipo || {}).map(([K, V]) => [K, Number(V), String(V)])
   ] : [];
 
   // Grafica de pastel: distribucion porcentual por tipo de comida
@@ -174,10 +182,10 @@ const ReporteDiario = () => {
     ...Object.entries(Datos.resumen?.porTipo || {}).map(([K, V]) => [K, Number(V)])
   ] : [];
 
-  // Grafica de estados: cuantas reservas hay en cada estado (Consumido, Vencido, etc.)
+  // Grafica de estados: cuantas reservas hay en cada estado con numero directo
   const Datos_Estados = Datos ? [
-    ["Estado", "Cantidad"],
-    ...Object.entries(Datos.resumen?.porEstado || {}).map(([K, V]) => [K, Number(V)])
+    ["Estado", "Cantidad", { role: "annotation", type: "string" }],
+    ...Object.entries(Datos.resumen?.porEstado || {}).map(([K, V]) => [K, Number(V), String(V)])
   ] : [];
 
   // La grafica de barras necesita al menos una fila de datos (ademas del encabezado)
@@ -380,6 +388,10 @@ const ReporteDiario = () => {
                     legend: { position: "none" },
                     hAxis: { minValue: 0, textStyle: { fontSize: 10 } },
                     vAxis: { textStyle: { fontSize: 10 } },
+                    annotations: {
+                      alwaysOutside: true,
+                      textStyle: { fontSize: 10, bold: true, color: "#1861c1", auraColor: "none" },
+                    },
                   }}
                   width="100%"
                   height="220px"
@@ -400,6 +412,8 @@ const ReporteDiario = () => {
                     chartArea: { width: "85%", height: "80%" },
                     legend: { position: "right", textStyle: { fontSize: 10 } },
                     pieHole: 0.4,
+                    pieSliceText: "value", // Muestra el numero directamente sobre cada rebanada
+                    sliceVisibilityThreshold: 0,
                   }}
                   width="100%"
                   height="220px"
@@ -421,6 +435,10 @@ const ReporteDiario = () => {
                     legend: { position: "none" },
                     hAxis: { minValue: 0, textStyle: { fontSize: 10 } },
                     vAxis: { textStyle: { fontSize: 10 } },
+                    annotations: {
+                      alwaysOutside: true,
+                      textStyle: { fontSize: 10, bold: true, color: "#10b981", auraColor: "none" },
+                    },
                   }}
                   width="100%"
                   height="220px"

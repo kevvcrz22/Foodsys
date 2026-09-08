@@ -1,6 +1,7 @@
 // Frontend/src/Tablas/Usuarios/ExportExcel.js
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import toast from "react-hot-toast";
 
 /**
  * Exporta la lista de usuarios a un archivo Excel (.xlsx)
@@ -8,7 +9,7 @@ import { saveAs } from "file-saver";
  */
 export const exportarUsuariosExcel = (usuarios) => {
   if (!usuarios || usuarios.length === 0) {
-    alert("No hay datos para exportar.");
+    toast.error("No hay datos para exportar.");
     return;
   }
 

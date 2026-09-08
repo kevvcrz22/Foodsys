@@ -54,9 +54,17 @@ import {
   consumirPorDocumento,
   consumirPorId,
   ContarVencidas,
-  ResumenSupervisor
+  ResumenSupervisor,
+  obtenerEstadoInasistencias
 } from "../Controllers/ReservasController.js";
 const router = Router();
+
+// Retorna el conteo y estado de inasistencias en la semana actual
+router.get(
+  '/reservar/estado-inasistencias',
+  authMiddleware,
+  obtenerEstadoInasistencias
+);
 
 // Genera una nueva reserva para el dia siguiente.
 // El tipo de comida disponible (Desayuno/Almuerzo/Cena) depende del rol del usuario

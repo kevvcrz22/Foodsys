@@ -1,6 +1,7 @@
 // Frontend/src/Tablas/Usuarios/ImportarExcel.jsx
 import { useState, useRef } from "react";
 import apiAxios from "../../api/axiosConfig";
+import toast from "react-hot-toast";
 import {
   Upload, X, CheckCircle, AlertCircle,
   FileSpreadsheet, ChevronRight, FileCheck, Download,
@@ -34,8 +35,9 @@ const ImportarExcel = ({ onClose, reload }) => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      toast.success("Plantilla descargada correctamente");
     } catch {
-      alert("No se pudo descargar la plantilla.");
+      toast.error("No se pudo descargar la plantilla.");
     }
   };
 

@@ -1,10 +1,8 @@
 // Frontend/src/Tablas/Programas/ProgramaForm.jsx
 // Formulario para crear y actualizar programas de formacion.
-// Se conecta al endpoint /api/Programa del Node (sin 's' al final).
-// Los campos Are_Programa y NivFor_Programa deben coincidir exactamente
-// con los nombres de columna definidos en ProgramaModel.js del backend.
 import { useState, useEffect } from "react";
 import apiAxios from "../../api/axiosConfig.js";
+import toast from "react-hot-toast";
 
 const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
 
@@ -13,7 +11,6 @@ const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
   const [Are_Programa,    setAre_Programa]     = useState("");
   const [NivFor_Programa, setNivFor_Programa]  = useState("");
   const [loading,         setLoading]          = useState(false);
-  const [error,           setError]            = useState("");
 
   // Rellena el formulario cuando se va a editar un programa existente
   useEffect(() => {
@@ -28,15 +25,17 @@ const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
       setAre_Programa("");
       setNivFor_Programa("");
     }
-    setError("");
   }, [programa]);
 
   const gestionarForm = async (e) => {
     e.preventDefault();
-    setError("");
+    if (!Nom_Programa || !Are_Programa || !NivFor_Programa) {
+      toast.error("Por favor completa todos los campos requeridos.");
+      return;
+    }
+
     setLoading(true);
 
-    // El payload usa los mismos nombres de campo que la BD y el modelo de Sequelize
     const payload = {
       Nom_Programa,
       Are_Programa,
@@ -45,20 +44,18 @@ const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
 
     try {
       if (programa) {
-        // PUT /api/Programa/:id — actualiza el programa existente
         await apiAxios.put(`/api/Programa/${Id_Programa}`, payload);
-        alert("Programa actualizado correctamente");
+        toast.success("Programa actualizado correctamente");
       } else {
-        // POST /api/Programa — crea un nuevo programa
         await apiAxios.post("/api/Programa/", payload);
-        alert("Programa creado correctamente");
+        toast.success("Programa creado correctamente");
       }
       actualizarLista();
       hideModal();
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || "Error desconocido";
-      setError(msg);
+      const msg = err.response?.data?.message || err.message || "Error al guardar programa";
       console.error("Error al guardar programa:", err);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -67,12 +64,6 @@ const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
   return (
     <form onSubmit={gestionarForm} className="space-y-4">
 
-      {/* Mensaje de error visible al usuario */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
-          {error}
-        </div>
-      )}
 
       <div>
         <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">

@@ -9,6 +9,7 @@
 
 import { useState, useRef } from "react";
 import apiAxios from "../../api/axiosConfig";
+import toast from "react-hot-toast";
 import {
   X, Download, Upload, CheckCircle, AlertCircle,
   FileSpreadsheet, ChevronRight, Loader2, ToggleLeft, ToggleRight, Calendar,
@@ -67,12 +68,6 @@ const ImportarFichas = ({ onClose, reload }) => {
   const InputRef = useRef(null);
 
   // ── Descarga la plantilla de fichas desde el backend ──
-  /*
-    La plantilla contiene los seis encabezados del modelo:
-    Num_Ficha, FecIniLec_Ficha, FecFinLec_Ficha,
-    FecIniPra_Ficha, FecFinPra_Ficha, Id_Programa.
-    Las fechas deben ingresarse en formato YYYY-MM-DD.
-  */
   const DescargarPlantilla = async () => {
     try {
       setCargando(true);
@@ -83,8 +78,10 @@ const ImportarFichas = ({ onClose, reload }) => {
       Link.download = "plantilla_fichas.xlsx";
       Link.click();
       URL.revokeObjectURL(Url);
+      toast.success("Plantilla de fichas descargada correctamente");
     } catch {
       setError("No se pudo descargar la plantilla. Verifica la conexion con el servidor.");
+      toast.error("No se pudo descargar la plantilla");
     } finally {
       setCargando(false);
     }
@@ -146,7 +143,11 @@ const ImportarFichas = ({ onClose, reload }) => {
     Responde { creados, omitidos, errores }.
   */
   const ConfirmarImportacion = async () => {
-    if (!Seleccion.length) { setError("Selecciona al menos una ficha."); return; }
+    if (!Seleccion.length) {
+      setError("Selecciona al menos una ficha.");
+      toast.error("Selecciona al menos una ficha para importar.");
+      return;
+    }
     try {
       setCargando(true);
       setError("");
@@ -156,9 +157,12 @@ const ImportarFichas = ({ onClose, reload }) => {
       });
       setResultado(Resp.data);
       setPaso(3);
+      toast.success("Importación de fichas completada");
       reload?.();
     } catch (Err) {
-      setError(Err.response?.data?.message || "Error al importar. Intenta de nuevo.");
+      const msg = Err.response?.data?.message || "Error al importar. Intenta de nuevo.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setCargando(false);
     }

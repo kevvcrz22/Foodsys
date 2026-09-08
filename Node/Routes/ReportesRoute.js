@@ -59,6 +59,9 @@ import {
   getAprendizReporte,
   actualizarSancion,
   getPlatosTopConsumo,
+  getNoConsumidos,
+  exportarNoConsumidosPDF,
+  exportarNoConsumidosExcel,
 } from "../Controllers/ReportesController.js";
 
 const router = Router();
@@ -140,5 +143,17 @@ router.patch("/aprendiz/sancion", authMiddleware, actualizarSancion);
 // Top N platos mas consumidos en el periodo indicado para el ranking visual.
 // Ejemplo: GET /api/Reportes/platos/top?periodo=mensual&n=3
 router.get("/platos/top", authMiddleware, getPlatosTopConsumo);
+
+// Listado de aprendices que no consumieron alimentos (inasistencias)
+// Ejemplo: GET /api/Reportes/no-consumidos?periodo=diario&tipoAlimento=Todos
+router.get("/no-consumidos", authMiddleware, getNoConsumidos);
+
+// Exportar inasistencias a PDF
+// Ejemplo: GET /api/Reportes/no-consumidos/exportar/pdf?periodo=diario
+router.get("/no-consumidos/exportar/pdf", authMiddleware, exportarNoConsumidosPDF);
+
+// Exportar inasistencias a Excel
+// Ejemplo: GET /api/Reportes/no-consumidos/exportar/excel?periodo=diario
+router.get("/no-consumidos/exportar/excel", authMiddleware, exportarNoConsumidosExcel);
 
 export default router;

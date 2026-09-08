@@ -251,8 +251,8 @@ const Novedades = () => {
       {Mensaje && (
         <div
           className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium ${Mensaje.tipo === "exito"
-              ? "bg-green-100 text-green-700 border border-green-200"
-              : "bg-red-100 text-red-700 border border-red-200"
+            ? "bg-blue-100 text-blue-700 border border-blue-200"
+            : "bg-red-100 text-red-700 border border-red-200"
             }`}
         >
           {Mensaje.texto}
@@ -263,8 +263,8 @@ const Novedades = () => {
         <button
           onClick={() => Set_TabActiva("novedades")}
           className={`pb-3 px-4 text-sm font-medium transition border-b-2 -mb-px ${TabActiva === "novedades"
-              ? "border-[#1861c1] text-[#1861c1]"
-              : "border-transparent text-gray-500 hover:text-gray-700"
+            ? "border-[#1861c1] text-[#1861c1]"
+            : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
         >
           Registrar Novedad
@@ -273,8 +273,8 @@ const Novedades = () => {
         <button
           onClick={() => Set_TabActiva("especial")}
           className={`pb-3 px-4 text-sm font-medium transition border-b-2 -mb-px flex items-center gap-2 ${TabActiva === "especial"
-              ? "border-purple-500 text-purple-600"
-              : "border-transparent text-gray-500 hover:text-gray-700"
+            ? "border-purple-500 text-purple-600"
+            : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
         >
           Estado Especial
@@ -336,51 +336,59 @@ const Novedades = () => {
                         Plato (Menu del dia)
                       </label>
                       {PlatosFiltrados.length > 0 ? (
-                        <select
-                          value={Plato}
-                          onChange={(E) => Set_Plato(E.target.value)}
-                          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                        >
-                          <option value="">-- Seleccione un plato --</option>
-                          {PlatosFiltrados.map((M) => (
-                            <option key={M.Id_Menu} value={M.plato?.Id_Plato}>
-                              {M.plato?.Nom_Plato}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="grid gap-2 max-h-60 overflow-y-auto pr-1">
+                          {PlatosFiltrados.map((M) => {
+                            const platoData = M.plato;
+                            const isSelected = String(platoData?.Id_Plato) === String(Plato);
+                            return (
+                              <button
+                                key={M.Id_Menu}
+                                type="button"
+                                onClick={() => Set_Plato(String(platoData?.Id_Plato))}
+                                className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${isSelected
+                                  ? "border-[#1861c1] bg-blue-50 ring-2 ring-[#1861c1]/30"
+                                  : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                                  }`}
+                              >
+                                {platoData?.Img_Plato ? (
+                                  <img
+                                    src={
+                                      platoData.Img_Plato.startsWith("http") || platoData.Img_Plato.startsWith("data:")
+                                        ? platoData.Img_Plato
+                                        : platoData.Img_Plato.startsWith("/uploads/")
+                                          ? platoData.Img_Plato
+                                          : `/uploads/${platoData.Img_Plato}`
+                                    }
+                                    alt={platoData.Nom_Plato}
+                                    className="w-14 h-14 object-cover rounded-lg flex-shrink-0"
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = "https://placehold.co/100x100?text=Plato";
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-14 h-14 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 flex-shrink-0">
+                                    <i className="fas fa-utensils"></i>
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-semibold ${isSelected ? "text-[#1861c1]" : "text-gray-800"}`}>
+                                    {platoData?.Nom_Plato}
+                                  </p>
+                                  <p className="text-xs text-gray-500 line-clamp-2">
+                                    {platoData?.Des_Plato || "Sin descripción"}
+                                  </p>
+                                </div>
+                                {isSelected && (
+                                  <i className="fas fa-check-circle text-[#1861c1] text-lg flex-shrink-0"></i>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
                       ) : (
                         <div className="text-sm text-gray-500 bg-gray-50 p-2 rounded-xl border text-center">
                           No hay menu programado para {Tipo} hoy
-                        </div>
-                      )}
-
-                      {PlatoSeleccionadoObj && (
-                        <div className="mt-3 flex items-start gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                          {PlatoSeleccionadoObj.Img_Plato ? (
-                            <img
-                              src={
-                                PlatoSeleccionadoObj.Img_Plato.startsWith("http") || PlatoSeleccionadoObj.Img_Plato.startsWith("data:")
-                                  ? PlatoSeleccionadoObj.Img_Plato
-                                  : PlatoSeleccionadoObj.Img_Plato.startsWith("/uploads/")
-                                    ? PlatoSeleccionadoObj.Img_Plato
-                                    : `/uploads/${PlatoSeleccionadoObj.Img_Plato}`
-                              }
-                              alt={PlatoSeleccionadoObj.Nom_Plato}
-                              className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = "https://placehold.co/100x100?text=Plato";
-                              }}
-                            />
-                          ) : (
-                            <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 flex-shrink-0">
-                              <i className="fas fa-utensils"></i>
-                            </div>
-                          )}
-                          <div>
-                            <p className="text-sm font-semibold text-gray-800">{PlatoSeleccionadoObj.Nom_Plato}</p>
-                            <p className="text-xs text-gray-500 line-clamp-2">{PlatoSeleccionadoObj.Des_Plato || "Sin descripción"}</p>
-                          </div>
                         </div>
                       )}
                     </div>
@@ -516,12 +524,12 @@ const Novedades = () => {
                           <td className="px-6 py-3.5 text-gray-600">{Fila.Plato}</td>
                           <td className="px-6 py-3.5">
                             <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${Fila.Estado === "Consumido"
-                                ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                : Fila.Estado === "Cancelado" || Fila.Estado === "Vencido"
-                                  ? "bg-rose-50 text-rose-500 border-rose-100"
-                                  : Fila.Estado === "Verificado"
-                                    ? "bg-blue-50 text-blue-600 border-blue-100"
-                                    : "bg-amber-50 text-amber-600 border-amber-100"
+                              ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                              : Fila.Estado === "Cancelado" || Fila.Estado === "Vencido"
+                                ? "bg-rose-50 text-rose-500 border-rose-100"
+                                : Fila.Estado === "Verificado"
+                                  ? "bg-blue-50 text-blue-600 border-blue-100"
+                                  : "bg-amber-50 text-amber-600 border-amber-100"
                               }`}>
                               {Fila.Estado}
                             </span>

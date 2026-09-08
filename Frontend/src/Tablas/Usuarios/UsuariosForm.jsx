@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import apiAxios from "../../api/axiosConfig";
+import toast from "react-hot-toast";
 import { User, Hash, Mail, Phone, FileText, Shield, Tag, BookOpen, Lock } from "lucide-react";
 
 /* ── Clases base reutilizables ── */
@@ -83,7 +84,7 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
   const gestionarForm = async (e) => {
     e.preventDefault();
     if (!TipDoc_Usuario || !NumDoc_Usuario || !Nom_Usuario || !Ape_Usuario) {
-      alert("Tipo documento, N° documento, Nombres y Apellidos son requeridos.");
+      toast.error("Tipo de documento, N° documento, Nombres y Apellidos son obligatorios.");
       return;
     }
     setEnviando(true);
@@ -97,15 +98,15 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
       };
       if (textFormButton === "Guardar") {
         await apiAxios.post("/api/Usuarios/", payload);
-        alert("Usuario creado correctamente");
+        toast.success("Usuario creado correctamente");
       } else {
         await apiAxios.put(`/api/Usuarios/${Id_Usuario}`, payload);
-        alert("Usuario actualizado correctamente");
+        toast.success("Usuario actualizado correctamente");
       }
       reload();
       hideModal();
     } catch (error) {
-      alert(error.response?.data?.message || error.message);
+      toast.error(error.response?.data?.message || error.message || "Error al procesar el usuario");
     } finally {
       setEnviando(false);
     }

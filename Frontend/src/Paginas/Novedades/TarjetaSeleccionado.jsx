@@ -2,6 +2,8 @@
 // Muestra la tarjeta del aprendiz seleccionado
 // con opcion de deseleccionar
 
+import { IdCard } from "lucide-react";
+
 const TarjetaSeleccionado = ({
   Usuario, Limpiar_Seleccion,
 }) => {
@@ -13,11 +15,9 @@ const TarjetaSeleccionado = ({
         <p className="text-sm font-semibold text-[#1861c1]">
           {Usuario.Nom_Usuario} {Usuario.Ape_Usuario}
         </p>
-        <p className="text-xs text-gray-500">
-          {Usuario.TipDoc_Usuario} -- {Usuario.NumDoc_Usuario}
-        </p>
-        <p className="text-xs text-gray-400">
-          {Usuario.roles?.join(", ")}
+        <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
+          <IdCard className="w-3.5 h-3.5 text-gray-400" />
+          {Usuario.NumDoc_Usuario}
         </p>
       </div>
       <button

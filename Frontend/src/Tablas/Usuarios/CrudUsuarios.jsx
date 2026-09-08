@@ -2,26 +2,63 @@
 import apiAxios from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
 import DataTable from "react-data-table-component";
+import toast from "react-hot-toast";
 import UsuariosForm from "./UsuariosForm.jsx";
 import ImportarExcel from "./ImportarExcel.jsx";
 import { exportarUsuariosExcel } from "./ExportExcel.jsx";
 import {
-  Users, Eye, Pencil, Plus, Search, X,
-  Mail, Hash, CheckCircle, XCircle, FileDown, Upload,
+  Users, Pencil, Plus, Search, X, History,
+  CheckCircle2, AlertCircle, Ban, ShieldCheck,
+  Download, Upload,
 } from "lucide-react";
 
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
-  useEffect(() => {
-    const h = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
-  return isMobile;
+const EstadoBadge = ({ estado }) => {
+  const activo = estado === "Activo" || estado === "activo" || estado === "En Formacion";
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: 11,
+        fontWeight: 600,
+        padding: "3px 9px",
+        borderRadius: 20,
+        background: activo ? "#ecfdf5" : "#fef2f2",
+        color: activo ? "#059669" : "#dc2626",
+        border: `1px solid ${activo ? "#d1fae5" : "#fee2e2"}`,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {activo ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
+      {estado || "—"}
+    </span>
+  );
 };
 
-const getInitials = (nom, ape) =>
-  `${(nom || "").charAt(0).toUpperCase()}${(ape || "").charAt(0).toUpperCase()}` || "??";
+const SancionBadge = ({ sancionado }) => {
+  const esSan = sancionado === "Si" || sancionado === 1;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: 11,
+        fontWeight: 600,
+        padding: "3px 9px",
+        borderRadius: 20,
+        background: esSan ? "#fef2f2" : "#f0fdf4",
+        color: esSan ? "#dc2626" : "#16a34a",
+        border: `1px solid ${esSan ? "#fecaca" : "#bbf7d0"}`,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {esSan ? <AlertCircle size={12} /> : <CheckCircle2 size={12} />}
+      {esSan ? "Sancionado" : "Sin sanción"}
+    </span>
+  );
+};
 
 const avatarColor = (str) => {
   const colors = ["#dbeafe", "#ede9fe", "#d1fae5", "#fef3c7", "#fee2e2", "#cffafe", "#e0e7ff"];
@@ -32,191 +69,320 @@ const avatarColor = (str) => {
   return { bg: colors[idx], color: text[idx] };
 };
 
-const EstadoBadge = ({ estado }) => {
-  const activo = estado === "Activo" || estado === "activo" || estado === "En Formacion";
-  return (
-    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${activo ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
-      {activo ? <CheckCircle size={11} /> : <XCircle size={11} />}
-      {estado || "—"}
-    </span>
-  );
-};
-
-const DetalleModal = ({ usuario, onClose, onEdit }) => {
-  if (!usuario) return null;
-  const nombre = `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim();
-  const { bg, color } = avatarColor(nombre);
-  const rows = [
-    { label: "ID",           value: usuario.Id_Usuario },
-    { label: "Tipo Doc.",    value: usuario.TipDoc_Usuario },
-    { label: "N° Documento", value: usuario.NumDoc_Usuario },
-    { label: "Nombres",      value: usuario.Nom_Usuario },
-    { label: "Apellidos",    value: usuario.Ape_Usuario },
-    { label: "Género",       value: usuario.Gen_Usuario },
-    { label: "Correo",       value: usuario.Cor_Usuario },
-    { label: "Teléfono",     value: usuario.Tel_Usuario },
-    { label: "Centro Conv.", value: usuario.CenCon_Usuario },
-    { label: "Estado",       value: usuario.Est_Usuario, isEstado: true },
-    { label: "Sanción",      value: usuario.San_Usuario },
-    { label: "Ficha",        value: usuario.ficha?.Num_Ficha || "Sin ficha" },
-    { label: "Creado",       value: usuario.createdat ? new Date(usuario.createdat).toLocaleDateString("es-CO") : "—" },
-  ];
-  return (
-    <div className="fixed inset-0 z-9999 flex items-end sm:items-center justify-center sm:p-4">
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden z-10">
-        <div className="bg-blue-600 px-5 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: bg }}>
-              <span className="font-semibold text-sm" style={{ color }}>{getInitials(usuario.Nom_Usuario, usuario.Ape_Usuario)}</span>
-            </div>
-            <div>
-              <p className="text-white font-semibold text-sm m-0">{nombre}</p>
-              <p className="text-blue-200 text-xs m-0">{usuario.Cor_Usuario || "—"}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="bg-white/20 border-0 rounded-xl p-2 cursor-pointer text-white flex items-center">
-            <X size={16} />
-          </button>
-        </div>
-        <div className="overflow-y-auto flex-1 px-5 py-4">
-          {rows.map(({ label, value, isEstado }) => (
-            <div key={label} className="flex justify-between items-center py-2 border-b border-slate-100">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide min-w-[90px]">{label}</span>
-              {isEstado
-                ? <EstadoBadge estado={value} />
-                : <span className="text-[13px] text-slate-700 font-medium text-right wrap-break-word">{value || "—"}</span>}
-            </div>
-          ))}
-        </div>
-        <div className="px-5 py-4 border-t border-slate-100">
-          <button onClick={() => { onEdit(usuario); onClose(); }}
-            className="w-full bg-blue-600 text-white border-0 rounded-xl py-3 text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors">
-            <Pencil size={14} /> Editar Usuario
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const UsuarioCard = ({ usuario, onEdit, onView }) => {
-  const nombre = `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim();
-  const { bg, color } = avatarColor(nombre);
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 px-4 py-3.5 flex items-center gap-3 shadow-sm">
-      <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: bg }}>
-        <span className="font-semibold text-sm" style={{ color }}>{getInitials(usuario.Nom_Usuario, usuario.Ape_Usuario)}</span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-semibold text-slate-800 text-sm">{nombre}</span>
-          <EstadoBadge estado={usuario.Est_Usuario} />
-        </div>
-        <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-          <Mail size={11} className="shrink-0" />{usuario.Cor_Usuario || "Sin correo"}
-        </p>
-        <p className="text-xs text-slate-400 flex items-center gap-1">
-          <Hash size={11} className="shrink-0" />{usuario.NumDoc_Usuario || "—"}
-          {usuario.ficha && (
-            <span className="ml-1.5 bg-violet-100 text-violet-700 rounded-lg px-1.5 py-px text-[11px]">
-              Ficha {usuario.ficha.Num_Ficha}
-            </span>
-          )}
-        </p>
-      </div>
-      <div className="flex flex-col gap-1.5 shrink-0">
-        <button onClick={() => onView(usuario)}
-          className="w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer flex items-center justify-center hover:bg-slate-100 transition-colors">
-          <Eye size={14} className="text-slate-400" />
-        </button>
-        <button onClick={() => onEdit(usuario)}
-          className="w-9 h-9 rounded-xl border-0 bg-blue-100 cursor-pointer flex items-center justify-center hover:bg-blue-200 transition-colors">
-          <Pencil size={14} className="text-blue-700" />
-        </button>
-      </div>
-    </div>
-  );
-};
-
 const CrudUsuarios = () => {
-  const [Usuarios,       setUsuarios]   = useState([]);
-  const [filterText,     setFilterText] = useState("");
-  const [selectedUsuario, setSelected] = useState(null);
-  const [isEdit,         setIsEdit]     = useState(false);
-  const [isModalOpen,    setIsModalOpen] = useState(false);
-  const [detalleOpen,    setDetalleOpen] = useState(false);
-  const [usuarioDetalle, setDetalle]    = useState(null);
-  const [exportando,     setExportando] = useState(false);
-  const [importModal,    setImportModal] = useState(false);
-  const isMobile = useIsMobile();
+  const [Usuarios,         setUsuarios]         = useState([]);
+  const [TodasReservas,    setTodasReservas]    = useState([]);
+  const [filterText,       setFilterText]       = useState("");
+  const [filtroEstado,     setFiltroEstado]     = useState("todos");
+  const [filtroSancion,    setFiltroSancion]    = useState("todos");
+  const [filtroRol,        setFiltroRol]        = useState("todos");
+
+  const [selectedUsuario,  setSelectedUsuario]  = useState(null);
+  const [usuarioDetalle,   setUsuarioDetalle]   = useState(null);
+  const [isEdit,           setIsEdit]           = useState(false);
+  const [isModalOpen,      setIsModalOpen]      = useState(false);
+  const [importModal,      setImportModal]      = useState(false);
+  const [exportando,       setExportando]       = useState(false);
+  const [cargando,         setCargando]         = useState(true);
+  const [actualizandoSan,  setActualizandoSan]  = useState(null);
+
   const rolActivo = localStorage.getItem("rolActivo") || "";
   const canToggleSan = rolActivo === "Administrador" || rolActivo === "Coordinador";
 
-  const toggleSancion = async (usuario) => {
+  const toggleSancion = (usuario) => {
+    const nuevo = (usuario.San_Usuario === "Si" || usuario.San_Usuario === 1) ? "No" : "Si";
+    const esSancionar = nuevo === "Si";
+    const nombre = `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim();
+
+    toast(
+      (t) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 320, padding: "4px 2px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: esSancionar ? "#fee2e2" : "#dcfce7",
+                color: esSancionar ? "#dc2626" : "#16a34a",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              {esSancionar ? <Ban size={18} /> : <ShieldCheck size={18} />}
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: 700, color: "#1e293b", fontSize: 14, margin: 0 }}>
+                {esSancionar ? "¿Sancionar usuario?" : "¿Quitar sanción?"}
+              </p>
+              <p style={{ fontSize: 12, color: "#64748b", margin: "3px 0 0 0", lineHeight: 1.3 }}>
+                {nombre} {usuario.NumDoc_Usuario ? `(${usuario.NumDoc_Usuario})` : ""}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                toast("Acción cancelada", { icon: "ℹ️", duration: 1000 });
+              }}
+              style={{
+                background: "#f1f5f9",
+                color: "#475569",
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+                padding: "6px 14px",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "background 0.15s",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={async () => {
+                toast.dismiss(t.id);
+                await ejecutarToggleSancion(usuario, nuevo);
+              }}
+              style={{
+                background: esSancionar ? "#dc2626" : "#16a34a",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                padding: "6px 16px",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                transition: "background 0.15s",
+              }}
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: Infinity }
+    );
+  };
+
+  const ejecutarToggleSancion = async (usuario, nuevo) => {
+    setActualizandoSan(usuario.Id_Usuario);
+    const toastId = toast.loading("Actualizando sanción...");
     try {
-      const nuevaSancion = usuario.San_Usuario === 1 ? 0 : 1;
-      await apiAxios.put(`/api/Usuarios/${usuario.Id_Usuario}`, { San_Usuario: nuevaSancion });
-      getAllUsuarios();
-    } catch {
-      alert("Error al actualizar el estado de sancion");
+      await apiAxios.patch(`/api/Usuarios/${usuario.Id_Usuario}/sancion`, { San_Usuario: nuevo });
+      setUsuarios((prev) =>
+        prev.map((u) => (u.Id_Usuario === usuario.Id_Usuario ? { ...u, San_Usuario: nuevo } : u))
+      );
+      if (usuarioDetalle?.Id_Usuario === usuario.Id_Usuario) {
+        setUsuarioDetalle((prev) => ({ ...prev, San_Usuario: nuevo }));
+      }
+      toast.success(
+        nuevo === "Si" ? "Usuario sancionado correctamente" : "Sanción retirada correctamente",
+        { id: toastId }
+      );
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Error al actualizar la sanción", { id: toastId });
+    } finally {
+      setActualizandoSan(null);
     }
   };
 
   const columnsTable = [
-    { name: "ID", selector: (r) => r.Id_Usuario, sortable: true, width: "60px" },
+    {
+      name: "Documento",
+      selector: (r) => r.NumDoc_Usuario,
+      width: "125px",
+      cell: (r) => <span style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>{r.NumDoc_Usuario || "—"}</span>,
+    },
     {
       name: "Usuario",
       selector: (r) => `${r.Nom_Usuario} ${r.Ape_Usuario}`,
       sortable: true,
       grow: 2,
+      minWidth: "220px",
       cell: (r) => {
         const nombre = `${r.Nom_Usuario || ""} ${r.Ape_Usuario || ""}`.trim();
         const { bg, color } = avatarColor(nombre);
+        const roles = r.roles || r.rolesUsuario?.map((ru) => ru.rolUsuario?.Nom_Rol || ru.rol?.Nom_Rol) || [];
+        const sancionado = r.San_Usuario === "Si" || r.San_Usuario === 1;
+
         return (
-          <div className="flex items-center gap-2.5 py-1.5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: bg }}>
-              <span className="font-semibold text-[11px]" style={{ color }}>{getInitials(r.Nom_Usuario, r.Ape_Usuario)}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", minWidth: 0 }}>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                background: bg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                fontWeight: 700,
+                fontSize: 12,
+                color: color,
+              }}
+            >
+              {`${r.Nom_Usuario?.[0] || ""}${r.Ape_Usuario?.[0] || ""}`.toUpperCase() || "?"}
             </div>
-            <div>
-              <p className="font-semibold text-slate-800 text-[13px] m-0">{nombre}</p>
-              <p className="text-[11px] text-slate-400 m-0">{r.Cor_Usuario || "—"}</p>
+            <div style={{ minWidth: 0 }}>
+              <p
+                style={{
+                  fontWeight: 600,
+                  color: sancionado ? "#dc2626" : "#0f172a",
+                  fontSize: 13,
+                  margin: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {nombre}
+              </p>
+              <p style={{ fontSize: 11, color: "#64748b", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {roles.length > 0 ? roles.join(" · ") : (r.Cor_Usuario || "Sin rol")}
+              </p>
             </div>
           </div>
         );
       },
     },
-    { name: "Documento", selector: (r) => r.NumDoc_Usuario, sortable: true, cell: (r) => <span className="text-[13px]">{r.NumDoc_Usuario || "—"}</span> },
-    { name: "Teléfono",  selector: (r) => r.Tel_Usuario,    cell: (r) => <span className="text-[13px]">{r.Tel_Usuario || "—"}</span> },
     {
-      name: "Ficha",
+      name: "Ficha / Programa",
       selector: (r) => r.ficha?.Num_Ficha,
       sortable: true,
-      cell: (r) => r.ficha?.Num_Ficha
-        ? <span className="bg-violet-100 text-violet-700 rounded-lg px-2 py-0.5 text-xs font-semibold">{r.ficha.Num_Ficha}</span>
-        : <span className="text-slate-400 text-xs">Sin ficha</span>,
+      minWidth: "160px",
+      cell: (r) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {r.ficha?.Num_Ficha ? (
+            <span
+              style={{
+                background: "#f5f3ff",
+                color: "#6d28d9",
+                border: "1px solid #ddd6fe",
+                borderRadius: 6,
+                padding: "2px 6px",
+                fontSize: 11,
+                fontWeight: 700,
+                display: "inline-block",
+                width: "fit-content",
+              }}
+            >
+              Ficha {r.ficha.Num_Ficha}
+            </span>
+          ) : (
+            <span style={{ fontSize: 11, color: "#94a3b8" }}>Sin ficha</span>
+          )}
+          {r.ficha?.programas?.Nom_Programa && (
+            <span style={{ fontSize: 11, color: "#64748b", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.ficha.programas.Nom_Programa}>
+              {r.ficha.programas.Nom_Programa}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
-      name: "Programa",
-      selector: (r) => r.ficha?.programas?.Nom_Programa,
+      name: "Estado",
+      selector: (r) => r.Est_Usuario,
       sortable: true,
-      cell: (r) => r.ficha?.programas?.Nom_Programa 
-        ? <span className="text-[12px] text-slate-600">{r.ficha.programas.Nom_Programa}</span> 
-        : <span className="text-[12px] text-slate-400">Sin programa</span>,
+      width: "120px",
+      cell: (r) => <EstadoBadge estado={r.Est_Usuario} />,
     },
-    { name: "Estado", selector: (r) => r.Est_Usuario, sortable: true, cell: (r) => <EstadoBadge estado={r.Est_Usuario} /> },
+    {
+      name: "Sanción",
+      selector: (r) => r.San_Usuario,
+      sortable: true,
+      width: "125px",
+      cell: (r) => <SancionBadge sancionado={r.San_Usuario} />,
+    },
     {
       name: "Acciones",
+      width: "280px",
       cell: (row) => (
-        <div className="flex gap-2">
-          <button className="bg-blue-600 text-white border-0 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1 hover:bg-blue-700 transition-colors"
-            onClick={() => editUsuario(row)}>
-            <Pencil size={12} /> Editar
+        <div style={{ display: "flex", gap: 6, alignItems: "center", whiteSpace: "nowrap" }}>
+          <button
+            onClick={() => setUsuarioDetalle(row)}
+            style={{
+              background: "#f8fafc",
+              color: "#334155",
+              border: "1px solid #cbd5e1",
+              borderRadius: 8,
+              padding: "5px 9px",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              whiteSpace: "nowrap",
+              transition: "all 0.15s ease",
+            }}
+            title="Ver detalle e historial"
+          >
+            <History size={12} style={{ color: "#64748b" }} />
+            Detalle
           </button>
+
+          <button
+            onClick={() => editUsuario(row)}
+            style={{
+              background: "#eff6ff",
+              color: "#1d4ed8",
+              border: "1px solid #bfdbfe",
+              borderRadius: 8,
+              padding: "5px 9px",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              whiteSpace: "nowrap",
+              transition: "all 0.15s ease",
+            }}
+            title="Editar usuario"
+          >
+            <Pencil size={12} style={{ color: "#2563eb" }} />
+            Editar
+          </button>
+
           {canToggleSan && (
-            <button className={`${row.San_Usuario=== 1 ? "bg-green-600 hover:bg-green-700" : "bg-orange-600 hover:bg-orange-700"} text-white border-0 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors`}
-              onClick={() => toggleSancion(row)}>
-              {row.San_Usuario=== 1 ? "Reactivar" : "Inactivar"}
+            <button
+              disabled={actualizandoSan === row.Id_Usuario}
+              onClick={() => toggleSancion(row)}
+              style={{
+                background: (row.San_Usuario === "Si" || row.San_Usuario === 1) ? "#ecfdf5" : "#fef2f2",
+                color: (row.San_Usuario === "Si" || row.San_Usuario === 1) ? "#047857" : "#b91c1c",
+                border: `1px solid ${(row.San_Usuario === "Si" || row.San_Usuario === 1) ? "#a7f3d0" : "#fecaca"}`,
+                borderRadius: 8,
+                padding: "5px 9px",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                whiteSpace: "nowrap",
+                transition: "all 0.15s ease",
+                opacity: actualizandoSan === row.Id_Usuario ? 0.5 : 1,
+              }}
+              title={(row.San_Usuario === "Si" || row.San_Usuario === 1) ? "Quitar sanción al usuario" : "Sancionar usuario"}
+            >
+              {(row.San_Usuario === "Si" || row.San_Usuario === 1) ? (
+                <>
+                  <ShieldCheck size={12} style={{ color: "#059669" }} />
+                  Quitar
+                </>
+              ) : (
+                <>
+                  <Ban size={12} style={{ color: "#dc2626" }} />
+                  Sancionar
+                </>
+              )}
             </button>
           )}
         </div>
@@ -224,19 +390,43 @@ const CrudUsuarios = () => {
     },
   ];
 
-  useEffect(() => { getAllUsuarios(); }, []);
+  useEffect(() => {
+    getAllUsuarios();
+  }, []);
 
   const getAllUsuarios = async () => {
+    setCargando(true);
     try {
-      const res = await apiAxios.get("/api/Usuarios/");
-      setUsuarios(Array.isArray(res.data) ? res.data : []);
+      const [usuariosRes, reservasRes] = await Promise.allSettled([
+        apiAxios.get("/api/Usuarios/"),
+        apiAxios.get("/api/Reservas/Todas"),
+      ]);
+
+      if (usuariosRes.status === "fulfilled") {
+        setUsuarios(Array.isArray(usuariosRes.value.data) ? usuariosRes.value.data : []);
+      }
+      if (reservasRes.status === "fulfilled") {
+        setTodasReservas(Array.isArray(reservasRes.value.data) ? reservasRes.value.data : []);
+      }
     } catch (error) {
-      console.error("Error al obtener Usuarios:", error);
+      console.error("Error cargando usuarios:", error);
+      toast.error("Error al cargar la lista de usuarios");
+    } finally {
+      setCargando(false);
     }
   };
 
-  const editUsuario = (row) => { setSelected(row); setIsEdit(true); setIsModalOpen(true); };
-  const hideModal   = ()    => { setIsModalOpen(false); setSelected(null); setIsEdit(false); };
+  const editUsuario = (row) => {
+    setSelectedUsuario(row);
+    setIsEdit(true);
+    setIsModalOpen(true);
+  };
+
+  const hideModal = () => {
+    setIsModalOpen(false);
+    setSelectedUsuario(null);
+    setIsEdit(false);
+  };
 
   const handleExportar = async () => {
     setExportando(true);
@@ -244,137 +434,634 @@ const CrudUsuarios = () => {
       exportarUsuariosExcel(filterText ? newList : Usuarios);
     } catch (err) {
       console.error(err);
-      alert("Error al exportar Excel");
+      toast.error("Error al exportar usuarios a Excel");
     } finally {
       setExportando(false);
     }
   };
 
-  const newList = Usuarios.filter((a) => {
+  // Filtrado
+  let listaFiltrada = Usuarios;
+
+  if (filtroEstado === "activos") {
+    listaFiltrada = listaFiltrada.filter(
+      (u) => u.Est_Usuario === "Activo" || u.Est_Usuario === "activo" || u.Est_Usuario === "En Formacion"
+    );
+  } else if (filtroEstado === "inactivos") {
+    listaFiltrada = listaFiltrada.filter(
+      (u) => u.Est_Usuario !== "Activo" && u.Est_Usuario !== "activo" && u.Est_Usuario !== "En Formacion"
+    );
+  }
+
+  if (filtroSancion === "sancionados") {
+    listaFiltrada = listaFiltrada.filter((u) => u.San_Usuario === "Si" || u.San_Usuario === 1);
+  } else if (filtroSancion === "sin_sancion") {
+    listaFiltrada = listaFiltrada.filter((u) => u.San_Usuario !== "Si" && u.San_Usuario !== 1);
+  }
+
+  if (filtroRol !== "todos") {
+    listaFiltrada = listaFiltrada.filter((u) => {
+      const roles = u.roles || u.rolesUsuario?.map((ru) => ru.rolUsuario?.Nom_Rol || ru.rol?.Nom_Rol) || [];
+      return roles.some((r) => r && r.toLowerCase().includes(filtroRol.toLowerCase()));
+    });
+  }
+
+  const newList = listaFiltrada.filter((a) => {
     const t = filterText.toLowerCase();
     return (
       String(a.NumDoc_Usuario || "").toLowerCase().includes(t) ||
-      String(a.Nom_Usuario    || "").toLowerCase().includes(t) ||
-      String(a.Ape_Usuario    || "").toLowerCase().includes(t) ||
-      String(a.ficha?.Num_Ficha || "").toLowerCase().includes(t)
+      String(a.Nom_Usuario || "").toLowerCase().includes(t) ||
+      String(a.Ape_Usuario || "").toLowerCase().includes(t) ||
+      String(a.Cor_Usuario || "").toLowerCase().includes(t) ||
+      String(a.ficha?.Num_Ficha || "").toLowerCase().includes(t) ||
+      String(a.ficha?.programas?.Nom_Programa || "").toLowerCase().includes(t)
     );
   });
 
+  const cantSancionados = Usuarios.filter((u) => u.San_Usuario === "Si" || u.San_Usuario === 1).length;
+
   const customStyles = {
-    headRow:    { style: { background: "#f8fafc", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #e5e7eb", textTransform: "uppercase", letterSpacing: "0.05em" } },
-    rows:       { style: { fontSize: 13, borderBottom: "1px solid #f3f4f6", "&:hover": { background: "#f0f9ff" } } },
+    headRow: {
+      style: {
+        background: "#f8fafc",
+        fontSize: 11,
+        fontWeight: 700,
+        color: "#6b7280",
+        borderBottom: "1px solid #e5e7eb",
+        textTransform: "uppercase",
+      },
+    },
+    rows: {
+      style: {
+        fontSize: 13,
+        borderBottom: "1px solid #f3f4f6",
+        "&:hover": { background: "#f0f9ff" },
+      },
+    },
     pagination: { style: { borderTop: "1px solid #e5e7eb", fontSize: 13 } },
+  };
+
+  const btnFiltro = (valor, label, bg, color, group = "estado") => {
+    let activo = false;
+    if (group === "estado") activo = filtroEstado === valor;
+    if (group === "sancion") activo = filtroSancion === valor;
+    if (group === "rol") activo = filtroRol === valor;
+
+    return (
+      <button
+        onClick={() => {
+          if (group === "estado") setFiltroEstado(valor);
+          if (group === "sancion") setFiltroSancion(valor);
+          if (group === "rol") setFiltroRol(valor);
+        }}
+        style={{
+          background: activo ? bg : "#fff",
+          color: activo ? color : "#6b7280",
+          border: `1px solid ${activo ? "transparent" : "#e5e7eb"}`,
+          borderRadius: 8,
+          padding: "4px 12px",
+          fontSize: 11,
+          fontWeight: 600,
+          cursor: "pointer",
+          transition: "all 0.15s",
+        }}
+      >
+        {label}
+      </button>
+    );
   };
 
   return (
     <>
-      <div className="w-full h-full flex flex-col bg-slate-50 min-h-0">
-
-        {/* ── Header / Toolbar ── */}
-        <div className="bg-white border-b border-slate-100 px-5 py-4 shrink-0">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
-                <Users size={18} className="text-white" />
+      <div style={{ display: "flex", height: "calc(100vh - 100px)", gap: 16, overflow: "hidden" }}>
+        {/* PANEL IZQUIERDO: Tabla y Filtros */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            background: "#fff",
+            borderRadius: 16,
+            border: "1px solid #e5e7eb",
+            overflow: "hidden",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+          }}
+        >
+          {/* Cabecera */}
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 16,
+                flexWrap: "wrap",
+                gap: 12,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Users size={20} style={{ color: "#fff" }} />
+                </div>
+                <div>
+                  <h1 style={{ fontWeight: 700, color: "#111827", fontSize: 18, margin: 0 }}>Gestión de Usuarios</h1>
+                  <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>
+                    {Usuarios.length} totales{" "}
+                    {cantSancionados > 0 && (
+                      <span style={{ color: "#dc2626", fontWeight: 600 }}>({cantSancionados} sancionados)</span>
+                    )}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="font-semibold text-slate-800 text-base m-0">Usuarios</h1>
-                <p className="text-xs text-slate-400 m-0">{Usuarios.length} registros</p>
+
+              {/* Botones de acción: Importar (flecha abajo), Exportar (flecha arriba), Nuevo */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  onClick={() => setImportModal(true)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: "#ecfdf5",
+                    color: "#065f46",
+                    border: "1px solid #a7f3d0",
+                    borderRadius: 10,
+                    padding: "7px 14px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                  }}
+                  title="Importar usuarios desde Excel"
+                >
+                  <Download size={14} /> Importar Excel
+                </button>
+
+                <button
+                  onClick={handleExportar}
+                  disabled={exportando || Usuarios.length === 0}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: "#eff6ff",
+                    color: "#1d4ed8",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: 10,
+                    padding: "7px 14px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                    opacity: exportando || Usuarios.length === 0 ? 0.6 : 1,
+                  }}
+                  title="Exportar usuarios a Excel"
+                >
+                  <Upload size={14} /> {exportando ? "Exportando..." : "Exportar Excel"}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSelectedUsuario(null);
+                    setIsEdit(false);
+                    setIsModalOpen(true);
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: "#2563eb",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 10,
+                    padding: "7px 16px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    boxShadow: "0 1px 3px rgba(37,99,235,0.3)",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <Plus size={14} /> Nuevo Usuario
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => setImportModal(true)}
-                className="flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border-0 rounded-xl px-3.5 py-2 text-[13px] font-semibold cursor-pointer hover:bg-emerald-200 transition-colors">
-                <Upload size={14} /> Importar Excel
-              </button>
-              <button onClick={handleExportar} disabled={exportando || Usuarios.length === 0}
-                className="flex items-center gap-1.5 bg-blue-100 text-blue-700 border-0 rounded-xl px-3.5 py-2 text-[13px] font-semibold cursor-pointer hover:bg-blue-200 transition-colors disabled:opacity-50">
-                <FileDown size={14} />
-                <span className="hidden sm:inline">{exportando ? "Exportando..." : "Exportar"}</span>
-              </button>
-              <button onClick={() => { setSelected(null); setIsEdit(false); setIsModalOpen(true); }}
-                className="flex items-center gap-1.5 bg-blue-600 text-white border-0 rounded-xl px-4 py-2 text-[13px] font-semibold cursor-pointer hover:bg-blue-700 transition-colors shadow-sm">
-                <Plus size={14} /> Nuevo
-              </button>
-            </div>
-          </div>
-          <div className="mt-3 relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" placeholder="Buscar por nombre, documento o ficha..."
-              className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-[13px] bg-slate-50 text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/10 transition-all"
-              value={filterText} onChange={(e) => setFilterText(e.target.value)} />
-          </div>
-        </div>
 
-        {/* ── Contenido ── */}
-        <div className="flex-1 overflow-y-auto">
-          {isMobile ? (
-            <div className="p-3 flex flex-col gap-2">
-              {newList.length === 0
-                ? <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                    <Users size={40} className="opacity-30 mb-2" />
-                    <p className="text-sm">No hay usuarios para mostrar</p>
-                  </div>
-                : newList.map((u) => (
-                  <UsuarioCard key={u.Id_Usuario} usuario={u} onEdit={editUsuario}
-                    onView={(usr) => { setDetalle(usr); setDetalleOpen(true); }} />
-                ))}
-            </div>
-          ) : (
-            <div className="p-5">
-              <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
-                <DataTable columns={columnsTable} data={newList} keyField="Id_Usuario"
-                  pagination highlightOnHover striped customStyles={customStyles}
-                  noDataComponent={
-                    <div className="flex flex-col items-center py-12 text-slate-400">
-                      <Users size={32} className="opacity-30 mb-2" />
-                      <p className="text-[13px]">No hay usuarios para mostrar</p>
-                    </div>
-                  }
+            {/* Búsqueda y Filtros de Chips */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ position: "relative" }}>
+                <Search
+                  size={16}
+                  style={{
+                    position: "absolute",
+                    left: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#9ca3af",
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Buscar por documento, nombre, correo o ficha..."
+                  style={{
+                    width: "100%",
+                    paddingLeft: 38,
+                    paddingRight: 12,
+                    paddingTop: 10,
+                    paddingBottom: 10,
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 10,
+                    fontSize: 13,
+                    outline: "none",
+                    background: "#f8fafc",
+                  }}
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
                 />
               </div>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* ── Modal detalle ── */}
-      {detalleOpen && (
-        <DetalleModal usuario={usuarioDetalle} onClose={() => setDetalleOpen(false)} onEdit={editUsuario} />
-      )}
-
-      {/* ── Modal importar ── */}
-      {importModal && (
-        <ImportarExcel onClose={() => setImportModal(false)} reload={getAllUsuarios} />
-      )}
-
-      {/* ── Modal crear / editar ── */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-9999 flex items-center justify-center p-4">
-          {/* Overlay */}
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={hideModal} />
-
-          {/* Tarjeta del modal */}
-          <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden z-10">
-
-            {/* Cabecera */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 shrink-0">
-              <h2 className="font-semibold text-slate-800 text-[15px] m-0 flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
-                  {isEdit
-                    ? <Pencil size={13} className="text-blue-700" />
-                    : <Plus   size={13} className="text-blue-700" />}
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase" }}>
+                    Estado:
+                  </span>
+                  {btnFiltro("todos", "Todos", "#e0e7ff", "#3730a3", "estado")}
+                  {btnFiltro("activos", "Activos", "#f0fdf4", "#16a34a", "estado")}
+                  {btnFiltro("inactivos", "Inactivos", "#fef2f2", "#dc2626", "estado")}
                 </div>
-                {isEdit ? "Editar Usuario" : "Nuevo Usuario"}
-              </h2>
-              <button onClick={hideModal}
-                className="bg-slate-100 border-0 rounded-lg p-2 cursor-pointer text-slate-500 flex items-center hover:bg-slate-200 transition-colors">
-                <X size={15} />
+
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase" }}>
+                    Sanción:
+                  </span>
+                  {btnFiltro("todos", "Todos", "#e0e7ff", "#3730a3", "sancion")}
+                  {btnFiltro("sancionados", "Sancionados", "#fef2f2", "#dc2626", "sancion")}
+                  {btnFiltro("sin_sancion", "Sin Sanción", "#f0fdf4", "#16a34a", "sancion")}
+                </div>
+
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase" }}>
+                    Rol:
+                  </span>
+                  {btnFiltro("todos", "Todos", "#e0e7ff", "#3730a3", "rol")}
+                  {btnFiltro("aprendiz", "Aprendices", "#dbeafe", "#1e40af", "rol")}
+                  {btnFiltro("instructor", "Instructores", "#fef3c7", "#92400e", "rol")}
+                  {btnFiltro("administrador", "Admin / Coord", "#ede9fe", "#6d28d9", "rol")}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabla */}
+          <div style={{ flex: 1, overflow: "auto" }}>
+            {cargando ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: "100%",
+                  color: "#6b7280",
+                }}
+              >
+                Cargando usuarios...
+              </div>
+            ) : (
+              <DataTable
+                columns={columnsTable}
+                data={newList}
+                keyField="Id_Usuario"
+                pagination
+                highlightOnHover
+                customStyles={customStyles}
+                conditionalRowStyles={[
+                  {
+                    when: (row) => row.San_Usuario === "Si" || row.San_Usuario === 1,
+                    style: { backgroundColor: "#fff5f5" },
+                  },
+                ]}
+                noDataComponent={
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 0", color: "#9ca3af" }}>
+                    <Users size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
+                    <p style={{ fontSize: 13, margin: 0 }}>No se encontraron usuarios</p>
+                  </div>
+                }
+              />
+            )}
+          </div>
+        </div>
+
+        {/* PANEL DERECHO: Perfil e Historial del Usuario */}
+        {usuarioDetalle && (
+          <div
+            style={{
+              width: "380px",
+              background: "#fff",
+              borderRadius: 16,
+              border: "1px solid #e5e7eb",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+              animation: "slideIn 0.3s ease-out",
+            }}
+          >
+            {/* Header lateral */}
+            <div
+              style={{
+                padding: "20px",
+                borderBottom: "1px solid #e5e7eb",
+                background: "#f8fafc",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 16,
+                      background:
+                        usuarioDetalle.San_Usuario === "Si" || usuarioDetalle.San_Usuario === 1
+                          ? "#fee2e2"
+                          : "#dbeafe",
+                      border: `2px solid ${
+                        usuarioDetalle.San_Usuario === "Si" || usuarioDetalle.San_Usuario === 1
+                          ? "#fca5a5"
+                          : "#93c5fd"
+                      }`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <span
+                      style={{
+                        color:
+                          usuarioDetalle.San_Usuario === "Si" || usuarioDetalle.San_Usuario === 1
+                            ? "#dc2626"
+                            : "#1d4ed8",
+                        fontWeight: 700,
+                        fontSize: 16,
+                      }}
+                    >
+                      {`${usuarioDetalle.Nom_Usuario?.[0] || ""}${usuarioDetalle.Ape_Usuario?.[0] || ""}`.toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "#111827" }}>
+                      {usuarioDetalle.Nom_Usuario} {usuarioDetalle.Ape_Usuario}
+                    </h2>
+                    <p style={{ fontSize: 12, color: "#6b7280", margin: "2px 0 0 0" }}>
+                      {usuarioDetalle.NumDoc_Usuario}
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <p style={{ fontSize: 12, margin: 0 }}>
+                    <strong style={{ color: "#4b5563" }}>Correo:</strong> {usuarioDetalle.Cor_Usuario || "—"}
+                  </p>
+                  <p style={{ fontSize: 12, margin: 0 }}>
+                    <strong style={{ color: "#4b5563" }}>Teléfono:</strong> {usuarioDetalle.Tel_Usuario || "—"}
+                  </p>
+                  <p style={{ fontSize: 12, margin: 0 }}>
+                    <strong style={{ color: "#4b5563" }}>Ficha:</strong> {usuarioDetalle.ficha?.Num_Ficha || "N/A"}
+                  </p>
+                  <p style={{ fontSize: 12, margin: 0 }}>
+                    <strong style={{ color: "#4b5563" }}>Programa:</strong>{" "}
+                    {usuarioDetalle.ficha?.programas?.Nom_Programa || "N/A"}
+                  </p>
+                  <p style={{ fontSize: 12, margin: 0 }}>
+                    <strong style={{ color: "#4b5563" }}>Estado:</strong>{" "}
+                    <EstadoBadge estado={usuarioDetalle.Est_Usuario} />
+                  </p>
+                  <p style={{ fontSize: 12, margin: 0 }}>
+                    <strong style={{ color: "#4b5563" }}>Sanción:</strong>{" "}
+                    <SancionBadge sancionado={usuarioDetalle.San_Usuario} />
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setUsuarioDetalle(null)}
+                style={{
+                  background: "#e5e7eb",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: 28,
+                  height: 28,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: "#4b5563",
+                }}
+              >
+                <X size={16} />
               </button>
             </div>
 
-            {/* Cuerpo con el formulario */}
-            <div className="px-5 py-4 overflow-y-auto flex-1">
+            {/* Historial de reservas */}
+            <div style={{ padding: "20px", flex: 1, overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <h3
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "#111827",
+                    margin: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <History size={16} style={{ color: "#6366f1" }} />
+                  Historial de Reservas
+                </h3>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {TodasReservas.filter((r) => r.Id_Usuario === usuarioDetalle.Id_Usuario)
+                  .sort((a, b) => new Date(b.Fec_Reserva || b.createdAt) - new Date(a.Fec_Reserva || a.createdAt))
+                  .map((res) => {
+                    const est = res.Est_Reserva || res.Estado || "—";
+                    const tipo = res.Tip_Reserva || res.Tipo || "—";
+                    let colorEstado = "#f3f4f6";
+                    let textEstado = "#374151";
+                    if (est === "Generado" || est === "Generada" || est === "Verificado" || est === "Verificada") {
+                      colorEstado = "#dbeafe";
+                      textEstado = "#1d4ed8";
+                    } else if (est === "Consumido" || est === "Consumida" || est === "Usada") {
+                      colorEstado = "#d1fae5";
+                      textEstado = "#065f46";
+                    } else if (est === "Vencido" || est === "Vencida" || est === "Cancelado" || est === "Cancelada") {
+                      colorEstado = "#fee2e2";
+                      textEstado = "#991b1b";
+                    }
+
+                    return (
+                      <div
+                        key={res.Id_Reserva}
+                        style={{
+                          background: "#fff",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 10,
+                          padding: "12px",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: 6,
+                          }}
+                        >
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{tipo}</span>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              background: colorEstado,
+                              color: textEstado,
+                              padding: "2px 8px",
+                              borderRadius: 12,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {est}
+                          </span>
+                        </div>
+                        {res.plato?.Nom_Plato && (
+                          <p style={{ fontSize: 11, color: "#059669", fontWeight: 600, margin: "0 0 4px 0" }}>
+                            🍽️ {res.plato.Nom_Plato}
+                          </p>
+                        )}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 11, color: "#6b7280" }}>
+                            {res.Fec_Reserva
+                              ? new Date(res.Fec_Reserva).toLocaleDateString("es-CO", {
+                                  weekday: "short",
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })
+                              : "—"}
+                          </span>
+                          <span style={{ fontSize: 11, color: "#9ca3af", fontFamily: "monospace" }}>
+                            #{res.Id_Reserva.toString().padStart(4, "0")}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {TodasReservas.filter((r) => r.Id_Usuario === usuarioDetalle.Id_Usuario).length === 0 && (
+                  <div style={{ textAlign: "center", padding: "32px 0", color: "#9ca3af" }}>
+                    <p style={{ fontSize: 13 }}>Este usuario no registra reservas.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer con botón editar */}
+            <div style={{ padding: "16px 20px", borderTop: "1px solid #e5e7eb", background: "#f8fafc" }}>
+              <button
+                onClick={() => {
+                  editUsuario(usuarioDetalle);
+                }}
+                style={{
+                  width: "100%",
+                  background: "#2563eb",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "10px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                <Pencil size={14} /> Editar Información
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modal formulario de Usuario */}
+      {isModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(2px)",
+            }}
+            onClick={hideModal}
+          />
+          <div
+            style={{
+              background: "#fff",
+              width: "100%",
+              maxWidth: 640,
+              borderRadius: 20,
+              zIndex: 10,
+              maxHeight: "92vh",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+            }}
+          >
+            <div
+              style={{
+                padding: "16px 20px",
+                borderBottom: "1px solid #e5e7eb",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "#111827" }}>
+                {isEdit ? "Editar Usuario" : "Nuevo Usuario"}
+              </h2>
+              <button
+                onClick={hideModal}
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: "#6b7280" }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: "20px", overflowY: "auto" }}>
               <UsuariosForm
                 hideModal={hideModal}
                 UsuarioSeleccionado={selectedUsuario}
@@ -385,6 +1072,21 @@ const CrudUsuarios = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Importar Excel */}
+      {importModal && (
+        <ImportarExcel
+          onClose={() => setImportModal(false)}
+          reload={getAllUsuarios}
+        />
+      )}
+
+      <style>{`
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
     </>
   );
 };

@@ -5,6 +5,7 @@ import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import RolesModel from "../Models/RolesModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
 import EmailService from "./EmailService.js";
+import VencimientoService from "./VencimientoService.js";
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import {v4 as uuidv4} from 'uuid';
@@ -104,6 +105,12 @@ async setNewPassword(data) {
   }
 
   async getAll() {
+    try {
+      await VencimientoService.procesarVencimientosGlobales();
+    } catch (err) {
+      console.error("Error al procesar vencimientos en getAll:", err.message);
+    }
+
     return await UsuariosModel.findAll({
       include: [
         {
@@ -175,6 +182,13 @@ async setNewPassword(data) {
   }
 
 async getAprendices() {
+  // Procesar vencimientos pendientes en tiempo real antes de listar aprendices
+  try {
+    await VencimientoService.procesarVencimientosGlobales();
+  } catch (err) {
+    console.error("Error al procesar vencimientos en getAprendices:", err.message);
+  }
+
   const todos = await UsuariosModel.findAll({
     include: [
       {

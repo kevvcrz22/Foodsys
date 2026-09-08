@@ -10,7 +10,7 @@ export default defineConfig({
     basicSsl(),
   ],
   server: {
-    https: true,
+    https: false,
     host: true,
     port: 5173,
     proxy: {
@@ -21,6 +21,12 @@ export default defineConfig({
       },
       '/uploads': {
         target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/socket.io': {
+        target: 'http://localhost:8000',
+        ws: true,
         changeOrigin: true,
         secure: false
       }

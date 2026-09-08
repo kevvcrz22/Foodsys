@@ -1,6 +1,7 @@
 import apiAxios from '../../api/axiosConfig';
 import { useState, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
+import toast from 'react-hot-toast';
 import UsuariosForm from './UsuariosForm.jsx';
 import {
   Users, Search, CheckCircle2, AlertCircle, ShieldCheck, Ban, Pencil, History, X
@@ -54,21 +55,105 @@ const Aprendices = () => {
   const [cargando, setCargando] = useState(true);
   const [actualizandoSancion, setActualizandoSancion] = useState(null);
 
-  const toggleSancion = async (usuario) => {
+  const toggleSancion = (usuario) => {
     const nuevo = usuario.San_Usuario === 'Si' ? 'No' : 'Si';
-    const accion = nuevo === 'Si' ? 'sancionar' : 'quitar la sanción de';
-    if (!window.confirm(`¿Deseas ${accion} a ${usuario.Nom_Usuario} ${usuario.Ape_Usuario}?`)) return;
+    const esSancionar = nuevo === 'Si';
+    const nombre = `${usuario.Nom_Usuario || ''} ${usuario.Ape_Usuario || ''}`.trim();
+
+    toast(
+      (t) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 320, padding: '4px 2px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: esSancionar ? '#fee2e2' : '#dcfce7',
+                color: esSancionar ? '#dc2626' : '#16a34a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {esSancionar ? <Ban size={18} /> : <ShieldCheck size={18} />}
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: 700, color: '#1e293b', fontSize: 14, margin: 0 }}>
+                {esSancionar ? '¿Sancionar aprendiz?' : '¿Quitar sanción?'}
+              </p>
+              <p style={{ fontSize: 12, color: '#64748b', margin: '3px 0 0 0', lineHeight: 1.3 }}>
+                {nombre} {usuario.NumDoc_Usuario ? `(${usuario.NumDoc_Usuario})` : ''}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                toast('Acción cancelada', { icon: 'ℹ️', duration: 1000 });
+              }}
+              style={{
+                background: '#f1f5f9',
+                color: '#475569',
+                border: '1px solid #e2e8f0',
+                borderRadius: 8,
+                padding: '6px 14px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'background 0.15s',
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={async () => {
+                toast.dismiss(t.id);
+                await ejecutarToggleSancion(usuario, nuevo);
+              }}
+              style={{
+                background: esSancionar ? '#dc2626' : '#16a34a',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                padding: '6px 16px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                transition: 'background 0.15s',
+              }}
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        duration: Infinity,
+      }
+    );
+  };
+
+  const ejecutarToggleSancion = async (usuario, nuevo) => {
     setActualizandoSancion(usuario.Id_Usuario);
+    const toastId = toast.loading('Actualizando sanción...');
     try {
       await apiAxios.patch(`/api/Usuarios/${usuario.Id_Usuario}/sancion`, { San_Usuario: nuevo });
-      setUsuarios(prev =>
-        prev.map(u => u.Id_Usuario === usuario.Id_Usuario ? { ...u, San_Usuario: nuevo } : u)
+      setUsuarios((prev) =>
+        prev.map((u) => (u.Id_Usuario === usuario.Id_Usuario ? { ...u, San_Usuario: nuevo } : u))
       );
       if (usuarioDetalle?.Id_Usuario === usuario.Id_Usuario) {
-        setUsuarioDetalle(prev => ({ ...prev, San_Usuario: nuevo }));
+        setUsuarioDetalle((prev) => ({ ...prev, San_Usuario: nuevo }));
       }
+      toast.success(
+        nuevo === 'Si' ? 'Aprendiz sancionado correctamente' : 'Sanción retirada correctamente',
+        { id: toastId }
+      );
     } catch (err) {
-      alert(err?.response?.data?.message || 'Error al actualizar la sanción');
+      toast.error(err?.response?.data?.message || 'Error al actualizar la sanción', { id: toastId });
     } finally {
       setActualizandoSancion(null);
     }

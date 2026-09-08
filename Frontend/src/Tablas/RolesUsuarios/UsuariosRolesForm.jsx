@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import apiAxios from "../../api/axiosConfig.js";
+import toast from "react-hot-toast";
 
 const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
 
@@ -15,6 +16,7 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
     const [usuariosFiltrados, setUsuariosFiltrados] = useState([]);
     const [mostrarDropdown, setMostrarDropdown] = useState(false);
     const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
+    const [enviando, setEnviando] = useState(false);
 
     const inputRef = useRef(null);
     const dropdownRef = useRef(null);
@@ -29,10 +31,11 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
                     apiAxios.get("/api/Usuarios"),
                     apiAxios.get("/api/Roles")
                 ]);
-                setUsuarios(resUsuarios.data);
-                setRoles(resRoles.data);
+                setUsuarios(Array.isArray(resUsuarios.data) ? resUsuarios.data : []);
+                setRoles(Array.isArray(resRoles.data) ? resRoles.data : []);
             } catch (error) {
                 console.error("Error cargando datos:", error);
+                toast.error("Error al cargar la lista de usuarios o roles");
             }
         };
         cargarDatos();
@@ -112,10 +115,11 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
         e.preventDefault();
 
         if (!Id_Usuario || !Id_Rol) {
-            alert("Por favor selecciona usuario y rol");
+            toast.error("Por favor selecciona un usuario y un rol");
             return;
         }
 
+        setEnviando(true);
         const payload = {
             Id_Usuario: Number(Id_Usuario),
             Id_Rol: Number(Id_Rol),
@@ -124,30 +128,28 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
         try {
             if (!Edit) {
                 await apiAxios.post("/api/UsuariosRoles", payload);
-                alert("Registro creado correctamente");
+                toast.success("Rol asignado al usuario correctamente");
             } else {
                 await apiAxios.put(`/api/UsuariosRoles/${Id_UsuarioRol}`, payload);
-                alert("Registro actualizado correctamente");
+                toast.success("Asignación de rol actualizada correctamente");
             }
             reload();
             hideModal();
         } catch (error) {
-            const msg = error.response?.data?.message || error.message;
-            alert(`Error: ${msg}`);
+            const msg = error.response?.data?.message || error.message || "Error al procesar la solicitud";
+            toast.error(msg);
+        } finally {
+            setEnviando(false);
         }
     };
 
     return (
         <form onSubmit={gestionarForm} className="space-y-4">
 
-            <h2 className="text-lg font-bold text-gray-700">
-                {Edit ? "Editar Usuario - Rol" : "Nuevo Usuario - Rol"}
-            </h2>
-
             {/* ── AUTOCOMPLETE USUARIO ── */}
             <div>
-                <label className="block text-sm font-medium mb-2">
-                    Buscar Usuario (nombre o número de documento)
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                    Buscar Usuario (nombre o número de documento) *
                 </label>
 
                 <div className="relative">
@@ -155,8 +157,10 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
                         ref={inputRef}
                         type="text"
                         placeholder="Ej: Kevin Cruz o 1234567890"
-                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400
-                            ${usuarioSeleccionado ? "border-green-500 bg-green-50" : "border-gray-300"}`}
+                        className={`w-full px-3.5 py-2.5 text-sm border rounded-xl outline-none transition-all duration-150
+                            ${usuarioSeleccionado 
+                                ? "border-emerald-500 bg-emerald-50/50 text-slate-800 ring-2 ring-emerald-500/10" 
+                                : "border-slate-200 bg-white text-slate-800 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10"}`}
                         value={busqueda}
                         onChange={handleBusqueda}
                         onFocus={() => usuariosFiltrados.length > 0 && setMostrarDropdown(true)}
@@ -166,25 +170,25 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
 
                     {/* ✅ Icono verde si ya está seleccionado */}
                     {usuarioSeleccionado && (
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-lg">✓</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-sm">✓</span>
                     )}
 
                     {/* ✅ Dropdown de resultados */}
                     {mostrarDropdown && usuariosFiltrados.length > 0 && (
                         <ul
                             ref={dropdownRef}
-                            className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-52 overflow-y-auto"
+                            className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl shadow-xl mt-1 max-h-52 overflow-y-auto divide-y divide-slate-100"
                         >
                             {usuariosFiltrados.map((u) => (
                                 <li
                                     key={u.Id_Usuario}
                                     onClick={() => seleccionarUsuario(u)}
-                                    className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm flex justify-between items-center"
+                                    className="px-3.5 py-2.5 hover:bg-violet-50 cursor-pointer text-sm flex justify-between items-center transition-colors"
                                 >
-                                    <span className="font-medium text-gray-800">
+                                    <span className="font-medium text-slate-800">
                                         {u.Nom_Usuario} {u.Ape_Usuario}
                                     </span>
-                                    <span className="text-gray-400 text-xs">{u.NumDoc_Usuario}</span>
+                                    <span className="text-slate-400 text-xs font-mono">{u.NumDoc_Usuario}</span>
                                 </li>
                             ))}
                         </ul>
@@ -192,7 +196,7 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
 
                     {/* Sin resultados */}
                     {mostrarDropdown && usuariosFiltrados.length === 0 && busqueda.length > 0 && (
-                        <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow mt-1 px-4 py-3 text-sm text-gray-400">
+                        <div className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl shadow mt-1 px-4 py-3 text-sm text-slate-400">
                             No se encontraron usuarios
                         </div>
                     )}
@@ -201,14 +205,14 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
 
             {/* ── DROPDOWN ROL ── */}
             <div>
-                <label className="block text-sm font-medium mb-2">Rol</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Rol *</label>
                 <select
-                    className="w-full px-4 py-2 border rounded-lg bg-white"
+                    className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl bg-white text-slate-800 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-all"
                     value={Id_Rol}
                     onChange={(e) => setId_Rol(e.target.value)}
                     required
                 >
-                    <option value="">Selecciona un rol</option>
+                    <option value="">Selecciona un rol...</option>
                     {roles.map((r) => (
                         <option key={r.Id_Rol} value={r.Id_Rol}>
                             {r.Nom_Rol}
@@ -217,19 +221,20 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
                 </select>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t">
+            <div className="flex gap-2.5 pt-3 border-t border-slate-100">
                 <button
                     type="button"
                     onClick={hideModal}
-                    className="flex-1 px-4 py-2 bg-gray-200 rounded-lg"
+                    className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                     Cancelar
                 </button>
                 <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg"
+                    disabled={enviando}
+                    className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 transition-colors cursor-pointer shadow-sm"
                 >
-                    {textFormButton}
+                    {enviando ? "Guardando..." : textFormButton}
                 </button>
             </div>
 

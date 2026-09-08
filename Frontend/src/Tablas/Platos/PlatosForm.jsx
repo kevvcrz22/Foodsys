@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import apiAxios from "../../api/axiosConfig";
+import toast from "react-hot-toast";
 
 const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload }) => {
 
@@ -7,7 +8,8 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload }) => {
   const [Nom_Plato, setNom_Plato] = useState("");
   const [Des_Plato, setDes_Plato] = useState("");
   const [Tip_Plato, setTip_Plato] = useState("");
-  const [Img_Plato, setImg_Plato] = useState(null); // 👈 NUEVO
+  const [Img_Plato, setImg_Plato] = useState(null);
+  const [enviando, setEnviando] = useState(false);
 
   const [textFormButton, setTextFormButton] = useState("Guardar");
 
@@ -31,11 +33,22 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload }) => {
   const gestionarForm = async (e) => {
     e.preventDefault();
 
-    try {
-      const formData = new FormData(); // 👈 CLAVE
+    if (!Nom_Plato.trim()) {
+      toast.error("Ingresa el nombre del plato");
+      return;
+    }
 
-      formData.append("Nom_Plato", Nom_Plato);
-      formData.append("Des_Plato", Des_Plato);
+    if (!Tip_Plato) {
+      toast.error("Selecciona el tipo de comida");
+      return;
+    }
+
+    setEnviando(true);
+    try {
+      const formData = new FormData();
+
+      formData.append("Nom_Plato", Nom_Plato.trim());
+      formData.append("Des_Plato", Des_Plato.trim());
       formData.append("Tip_Plato", Tip_Plato);
 
       if (Img_Plato) {
@@ -46,12 +59,12 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload }) => {
         await apiAxios.post("/api/platos", formData, {
           headers: { "Content-Type": "multipart/form-data" }
         });
-        alert("Plato creado correctamente");
+        toast.success("Plato creado correctamente");
       } else {
         await apiAxios.put(`/api/platos/${Id_Plato}`, formData, {
           headers: { "Content-Type": "multipart/form-data" }
         });
-        alert("Plato actualizado correctamente");
+        toast.success("Plato actualizado correctamente");
       }
 
       reload();
@@ -59,7 +72,10 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload }) => {
 
     } catch (error) {
       console.error(error);
-      alert("Error al guardar");
+      const msg = error.response?.data?.message || "Error al guardar el plato";
+      toast.error(msg);
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -108,7 +124,7 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload }) => {
         </select>
       </div>
 
-      {/* 👇 INPUT DE IMAGEN */}
+      {/* INPUT DE IMAGEN */}
       <div>
         <label className="block text-sm mb-1">Imagen De Referencia</label>
         <input
@@ -124,14 +140,19 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload }) => {
         <button
           type="button"
           onClick={hideModal}
-          className="flex-1 px-4 py-2 bg-gray-200 rounded-lg"
+          disabled={enviando}
+          className="flex-1 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm text-gray-700"
         >
           Cancelar
         </button>
         <button
           type="submit"
-          className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg"
+          disabled={enviando}
+          className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
         >
+          {enviando && (
+            <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+          )}
           {textFormButton}
         </button>
       </div>
