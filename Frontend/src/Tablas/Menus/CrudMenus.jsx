@@ -1,6 +1,7 @@
 import apiAxios from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
 import { Plus, X, Search, ChefHat, Pencil, Calendar, Coffee, Sun, Moon } from "lucide-react";
+import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -79,11 +80,11 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
     e.preventDefault();
 
     if (platosSeleccionados.length === 0) {
-      alert("Selecciona al menos un plato");
+      toast.error("Selecciona al menos un plato");
       return;
     }
     if (!Fec_Menu) {
-      alert("Selecciona una fecha");
+      toast.error("Selecciona una fecha");
       return;
     }
 
@@ -95,7 +96,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
           apiAxios.post("/api/Menus", { Fec_Menu, Tip_Menu, Id_Plato })
         );
         await Promise.all(promises);
-        alert(
+        toast.success(
           platosSeleccionados.length === 2
             ? "Menú creado con 2 platos correctamente"
             : "Menú creado correctamente"
@@ -106,16 +107,16 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
           Tip_Menu,
           Id_Plato: platosSeleccionados[0],
         });
-        alert("Menú actualizado correctamente");
+        toast.success("Menú actualizado correctamente");
       }
       reload();
       hideModal();
     } catch (err) {
-      alert(err?.response?.data?.message || "Error al guardar");
+      toast.error(err?.response?.data?.message || "Error al guardar el menú");
     } finally {
       setEnviando(false);
     }
-  }
+  };
   const cfg = tipoConfig[Tip_Menu];
 
   return (
@@ -331,6 +332,7 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
       setMenus(res.data);
     } catch (err) {
       console.error(err);
+      toast.error("Error al cargar los menús");
     }
   };
 
@@ -340,6 +342,7 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
       setPlatos(res.data);
     } catch (err) {
       console.error(err);
+      toast.error("Error al cargar la lista de platos");
     }
   };
 
@@ -376,53 +379,53 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
 
   return (
     <>
-      <div className="w-full flex flex-col bg-gray-50 min-h-screen">
+      <div className="w-full h-full flex flex-col bg-slate-50 min-h-0">
 
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-4 py-4 sm:px-6">
-          <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="bg-white border-b border-slate-100 px-5 py-4 shrink-0">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-green-600 flex items-center justify-center shrink-0">
-                <ChefHat className="w-4 h-4 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center shrink-0">
+                <ChefHat size={18} className="text-white" />
               </div>
               <div>
-                <h1 className="font-bold text-gray-900 text-base sm:text-lg leading-tight">Menús</h1>
-                <p className="text-xs text-gray-400 hidden sm:block">{menus.length} registros</p>
+                <h1 className="font-semibold text-slate-800 text-base m-0">Menús</h1>
+                <p className="text-xs text-slate-400 m-0">{menus.length} registros</p>
               </div>
             </div>
             {/* Solo muestra el boton Nuevo Menu si no es modo solo lectura */}
             {!soloLectura && (
               <button
                 onClick={() => { setSelectedMenu(null); setIsEdit(false); setIsModalOpen(true); }}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 sm:px-5 rounded-xl text-sm font-semibold transition-colors shrink-0"
+                className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white border-0 rounded-xl px-4 py-2 text-[13px] font-semibold cursor-pointer transition-colors shadow-sm"
               >
-                <Plus className="w-4 h-4" />
+                <Plus size={14} />
                 <span className="hidden sm:inline">Nuevo Menú</span>
               </button>
             )}
           </div>
 
-          {/* Búsqueda */}
-          <div className="flex gap-2 flex-col sm:flex-row">
+          {/* Búsqueda y Filtros */}
+          <div className="flex gap-2 flex-col sm:flex-row mt-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Buscar por fecha, tipo o plato..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-gray-50"
+                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-[13px] bg-slate-50 text-slate-700 outline-none focus:border-green-400 focus:ring-2 focus:ring-green-400/10 transition-all"
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
               />
             </div>
             {/* Filtro tipo */}
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 items-center">
               {["Todos", ...TIPOS].map((t) => (
                 <button
                   key={t}
                   onClick={() => setFiltroTipo(t)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${filtroTipo === t
-                      ? "bg-green-600 text-white border-transparent"
-                      : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${filtroTipo === t
+                      ? "bg-green-600 text-white border-transparent shadow-sm"
+                      : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
                     }`}
                 >
                   {t === "Todos" ? "Todos" : t}

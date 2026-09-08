@@ -2,9 +2,10 @@
 import apiAxios from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
 import DataTable from "react-data-table-component";
+import toast from "react-hot-toast";
 import FichasForm from "./FichasForm";
 import ImportarFichas from "./ImportarFichas.jsx";
-import { FileText, Pencil, Plus, Search, X, Users, Upload } from "lucide-react";
+import { FileText, Pencil, Plus, Search, X, Users, Download } from "lucide-react";
 
 /* ── Modal lista de aprendices por ficha ── */
 const AprendicesModal = ({ ficha, aprendices, loading, onClose }) => {
@@ -86,7 +87,10 @@ const CrudFichas = () => {
     try {
       const res = await apiAxios.get("/api/Fichas/");
       setFichas(Array.isArray(res.data) ? res.data : []);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al cargar la lista de fichas");
+    }
   };
 
   const getAllUsuarios = async () => {
@@ -108,40 +112,45 @@ const CrudFichas = () => {
   };
 
   const columnsTable = [
-    { name: "ID", selector: (r) => r.Id_Ficha, sortable: true, width: "70px" },
+    { name: "ID", selector: (r) => r.Id_Ficha, sortable: true, width: "65px" },
     {
-      name: "N Ficha",
+      name: "N° Ficha",
       selector: (r) => r.Num_Ficha,
       sortable: true,
-      cell: (r) => <span className="font-bold text-blue-600 text-sm tracking-tight">{r.Num_Ficha}</span>,
+      minWidth: "110px",
+      cell: (r) => <span className="font-bold text-blue-600 text-[13px] tracking-tight whitespace-nowrap">{r.Num_Ficha}</span>,
     },
     {
       name: "Inicio Lectiva",
       selector: (r) => r.FecIniLec_Ficha,
       sortable: true,
-      cell: (r) => <span className="text-[12px] text-slate-500">{r.FecIniLec_Ficha?.slice(0, 10) || "—"}</span>,
+      minWidth: "120px",
+      cell: (r) => <span className="text-[12px] text-slate-600 whitespace-nowrap">{r.FecIniLec_Ficha?.slice(0, 10) || "—"}</span>,
     },
     {
       name: "Fin Lectiva",
       selector: (r) => r.FecFinLec_Ficha,
       sortable: true,
-      cell: (r) => <span className="text-[12px] text-slate-500">{r.FecFinLec_Ficha?.slice(0, 10) || "—"}</span>,
+      minWidth: "120px",
+      cell: (r) => <span className="text-[12px] text-slate-600 whitespace-nowrap">{r.FecFinLec_Ficha?.slice(0, 10) || "—"}</span>,
     },
     {
       name: "Programa",
       selector: (r) => r.programas?.Nom_Programa,
       sortable: true,
       grow: 2,
-      cell: (r) => <span className="text-[12px] text-slate-600 font-medium leading-tight">{r.programas?.Nom_Programa || "Sin programa"}</span>,
+      minWidth: "200px",
+      cell: (r) => <span className="text-[12px] text-slate-700 font-medium truncate block max-w-[220px]" title={r.programas?.Nom_Programa}>{r.programas?.Nom_Programa || "Sin programa"}</span>,
     },
     {
       name: "Aprendices",
       center: true,
+      minWidth: "110px",
       cell: (row) => {
         const count = contarAprendices(row.Id_Ficha);
         return (
           <button onClick={() => verAprendices(row)}
-            className={`flex items-center gap-1.5 border-0 rounded-full px-3 py-1 text-xs font-bold cursor-pointer transition-all ${count > 0 ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : "bg-slate-100 text-slate-400"}`}>
+            className={`flex items-center gap-1.5 border-0 rounded-full px-3 py-1 text-xs font-bold cursor-pointer transition-all whitespace-nowrap ${count > 0 ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : "bg-slate-100 text-slate-400"}`}>
             <Users size={12} />{count}
           </button>
         );
@@ -151,12 +160,14 @@ const CrudFichas = () => {
       name: "Creado",
       selector: (r) => r.createdat,
       sortable: true,
-      cell: (r) => <span className="text-[11px] text-slate-400">{r.createdat ? new Date(r.createdat).toLocaleDateString("es-CO") : "—"}</span>,
+      minWidth: "110px",
+      cell: (r) => <span className="text-[11px] text-slate-400 whitespace-nowrap">{r.createdat ? new Date(r.createdat).toLocaleDateString("es-CO") : "—"}</span>,
     },
     {
       name: "Acciones",
+      minWidth: "110px",
       cell: (row) => (
-        <button className="bg-blue-600 text-white border-0 rounded-lg px-4 py-2 text-xs font-semibold cursor-pointer flex items-center gap-2 hover:bg-blue-700 transition-colors"
+        <button className="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-colors whitespace-nowrap"
           onClick={() => { setSelectedFicha(row); setIsEdit(true); setIsModalOpen(true); }}>
           <Pencil size={12} /> Editar
         </button>
@@ -165,7 +176,10 @@ const CrudFichas = () => {
   ];
 
   const customStyles = {
-    headRow:    { style: { background: "#f8fafc", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #e5e7eb", textTransform: "uppercase", letterSpacing: "0.05em" } },
+    table:      { style: { minWidth: "850px" } },
+    headRow:    { style: { background: "#f8fafc", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #e5e7eb", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" } },
+    headCells:  { style: { whiteSpace: "nowrap" } },
+    cells:      { style: { whiteSpace: "nowrap" } },
     rows:       { style: { fontSize: 13, borderBottom: "1px solid #f3f4f6", "&:hover": { background: "#f0f9ff" } } },
     pagination: { style: { borderTop: "1px solid #e5e7eb", fontSize: 13 } },
   };
@@ -181,46 +195,52 @@ const CrudFichas = () => {
 
         {/* ── Header ── */}
         <div className="bg-white border-b border-slate-100 px-5 py-4 shrink-0">
-          <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 shadow-lg shadow-blue-200">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
                 <FileText size={18} className="text-white" />
               </div>
               <div>
-                <h1 className="font-semibold text-slate-800 text-base m-0">Gestion de Fichas</h1>
+                <h1 className="font-semibold text-slate-800 text-base m-0">Gestión de Fichas</h1>
                 <p className="text-xs text-slate-400 m-0">{Fichas.length} fichas registradas</p>
               </div>
             </div>
 
-            {/* Botones de accion */}
+            {/* Botones de acción */}
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Boton importar — nuevo */}
               <button onClick={() => setImportModal(true)}
                 className="flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border-0 rounded-xl px-3.5 py-2 text-[13px] font-semibold cursor-pointer hover:bg-emerald-200 transition-colors">
-                <Upload size={14} />
+                <Download size={14} />
                 <span className="hidden sm:inline">Importar Excel</span>
               </button>
 
               <button onClick={() => { setSelectedFicha(null); setIsEdit(false); setIsModalOpen(true); }}
-                className="flex items-center gap-2 bg-blue-600 text-white border-0 rounded-xl px-5 py-2.5 text-sm font-semibold cursor-pointer hover:bg-blue-700 transition-all shadow-md active:scale-95">
-                <Plus size={16} /><span>Nueva Ficha</span>
+                className="flex items-center gap-1.5 bg-blue-600 text-white border-0 rounded-xl px-4 py-2 text-[13px] font-semibold cursor-pointer hover:bg-blue-700 transition-colors shadow-sm">
+                <Plus size={14} />
+                <span className="hidden sm:inline">Nueva Ficha</span>
               </button>
             </div>
           </div>
 
-          <div className="relative">
+          <div className="mt-3 relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" placeholder="Buscar por numero de ficha o programa..."
+            <input type="text" placeholder="Buscar por número de ficha o programa..."
               className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-[13px] bg-slate-50 text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/10 transition-all"
               value={filterText} onChange={(e) => setFilterText(e.target.value)} />
           </div>
         </div>
 
         {/* ── Tabla ── */}
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
           <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
-            <DataTable columns={columnsTable} data={newList} keyField="Id_Ficha"
-              pagination highlightOnHover striped customStyles={customStyles}
+            <DataTable
+              columns={columnsTable}
+              data={newList}
+              keyField="Id_Ficha"
+              pagination
+              highlightOnHover
+              responsive
+              customStyles={customStyles}
               noDataComponent={
                 <div className="flex flex-col items-center py-12 text-slate-400">
                   <FileText size={32} className="opacity-20 mb-2" />

@@ -379,3 +379,128 @@ export const getPlatosTopConsumo = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// GET /api/Reportes/no-consumidos
+// Retorna la lista de aprendices que reservaron pero no consumieron,
+// con filtros por periodo (diario, semanal, mensual, anual, personalizado),
+// por tipo de alimento y búsqueda de aprendiz.
+export const getNoConsumidos = async (req, res) => {
+  try {
+    const {
+      periodo = "diario",
+      fecha,
+      anio,
+      semana,
+      mes,
+      fechaInicio,
+      fechaFin,
+      tipoAlimento = "Todos",
+      busqueda = ""
+    } = req.query;
+
+    const data = await ReportesService.getNoConsumidos({
+      periodo,
+      fecha,
+      anio,
+      semana,
+      mes,
+      fechaInicio,
+      fechaFin,
+      tipoAlimento,
+      busqueda
+    });
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error("[ReportesController] getNoConsumidos:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/Reportes/no-consumidos/exportar/pdf
+export const exportarNoConsumidosPDF = async (req, res) => {
+  try {
+    const {
+      periodo = "diario",
+      fecha,
+      anio,
+      semana,
+      mes,
+      fechaInicio,
+      fechaFin,
+      tipoAlimento = "Todos",
+      busqueda = ""
+    } = req.query;
+
+    const data = await ReportesService.getNoConsumidos({
+      periodo,
+      fecha,
+      anio,
+      semana,
+      mes,
+      fechaInicio,
+      fechaFin,
+      tipoAlimento,
+      busqueda
+    });
+
+    const pdfBuffer = await ExportService.generarPDFNoConsumidos(data, {
+      periodo,
+      tipoAlimento,
+      fecha: fecha || new Date().toISOString().split("T")[0]
+    });
+
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="Inasistencias_${periodo}_${new Date().toISOString().split("T")[0]}.pdf"`,
+    });
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error("[ReportesController] exportarNoConsumidosPDF:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/Reportes/no-consumidos/exportar/excel
+export const exportarNoConsumidosExcel = async (req, res) => {
+  try {
+    const {
+      periodo = "diario",
+      fecha,
+      anio,
+      semana,
+      mes,
+      fechaInicio,
+      fechaFin,
+      tipoAlimento = "Todos",
+      busqueda = ""
+    } = req.query;
+
+    const data = await ReportesService.getNoConsumidos({
+      periodo,
+      fecha,
+      anio,
+      semana,
+      mes,
+      fechaInicio,
+      fechaFin,
+      tipoAlimento,
+      busqueda
+    });
+
+    const buffer = await ExportService.generarExcelNoConsumidos(data, {
+      periodo,
+      tipoAlimento,
+      fecha: fecha || new Date().toISOString().split("T")[0]
+    });
+
+    res.set({
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename="Inasistencias_${periodo}_${new Date().toISOString().split("T")[0]}.xlsx"`,
+    });
+    res.send(buffer);
+  } catch (error) {
+    console.error("[ReportesController] exportarNoConsumidosExcel:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};

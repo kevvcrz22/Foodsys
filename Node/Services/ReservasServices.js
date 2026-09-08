@@ -30,6 +30,7 @@ import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import RolesModel from "../Models/RolesModel.js";
 import PlatosModels from "../Models/PlatosModels.js";
 import MenusModel from "../Models/MenusModels.js";
+import VencimientoService from "./VencimientoService.js";
 
 // Roles que requieren pasar por cocina si no tienen estado Especial.
 // Los internos (Aprendiz Interno, Pasante Interno) nunca pasan por este paso.
@@ -233,7 +234,10 @@ class ReservasServices {
   async generarReservaPass(Id_Usuario, rolesUsuario, Tip_Reserva, platoElegido, fechaReserva, esNovedad = false, Jus_Reserva = null) {
     return await db.transaction(async (transaction) => {
 
-      // Paso 1: confirmar que el usuario existe en la base de datos
+      // Paso 0: Procesar vencimientos pendientes del usuario y aplicar sanciones si corresponde
+      await VencimientoService.procesarVencimientosUsuario(Id_Usuario, transaction);
+
+      // Paso 1: confirmar que el usuario existe en la base de datos y obtener su estado actualizado
       const usuario = await UsuariosModel.findByPk(Id_Usuario, { transaction });
       if (!usuario) throw new Error("Usuario no encontrado");
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import apiAxios from "../../api/axiosConfig";
+import toast from "react-hot-toast";
 
 const MenusForm = ({ hideModal, selectedMenu, isEdit, reload }) => {
 
@@ -10,6 +11,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload }) => {
 
   const [platos, setPlatos] = useState([]);
   const [textFormButton, setTextFormButton] = useState("Guardar");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     getPlatos();
@@ -34,15 +36,22 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload }) => {
   const getPlatos = async () => {
     try {
       const res = await apiAxios.get("/api/platos");
-      setPlatos(res.data);
+      setPlatos(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error(error);
+      toast.error("Error al cargar la lista de platos");
     }
   };
 
   const gestionarForm = async (e) => {
     e.preventDefault();
 
+    if (!Fec_Menu || !Tip_Menu || !Id_Plato) {
+      toast.error("Por favor completa todos los campos requeridos.");
+      return;
+    }
+
+    setLoading(true);
     try {
       if (!isEdit) {
         await apiAxios.post("/api/menu", {
@@ -50,14 +59,14 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload }) => {
           Tip_Menu,
           Id_Plato
         });
-        alert("Menú creado correctamente");
+        toast.success("Menú creado correctamente");
       } else {
         await apiAxios.put(`/api/menu/${Id_Menu}`, {
           Fec_Menu,
           Tip_Menu,
           Id_Plato
         });
-        alert("Menú actualizado correctamente");
+        toast.success("Menú actualizado correctamente");
       }
 
       reload();
@@ -65,7 +74,10 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload }) => {
 
     } catch (error) {
       console.error(error);
-      alert("Error al guardar menú");
+      const msg = error.response?.data?.message || "Error al guardar menú";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
     }
   };
 

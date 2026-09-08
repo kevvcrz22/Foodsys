@@ -3,6 +3,7 @@
 // Arquitectura Clean Code y Seguridad Senior implementada.
 
 // ---------- 1. IMPORTACIÓN DE DEPENDENCIAS ----------
+import http from 'http';
 import Express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -12,6 +13,7 @@ import db from './Database/db.js';
 import { fileURLToPath } from 'url';
 import Path from 'path';
 import './Jobs/VencimientoJob.js';
+import { initSocket } from './Services/SocketService.js';
 
 // ---------- 2. IMPORTACIÓN DE RUTAS ----------
 import UsuariosRoute from './Routes/UsuariosRoute.js';
@@ -47,13 +49,28 @@ const aplicacion = Express();
 // Seguridad: Cabeceras HTTP seguras
 aplicacion.use(helmet());
 
-// Seguridad: Rate Limiting para evitar ataques de fuerza bruta o DDoS
+// Seguridad: Rate Limiting global permisivo para navegación y consumo normal de la API
 const limitadorGlobal = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // Límite de 100 peticiones por IP cada 15 minutos
-  message: 'Demasiadas peticiones desde esta IP, por favor intenta de nuevo en 15 minutos.',
+  max: process.env.NODE_ENV === 'production' ? 2000 : 10000, // Límite amplio para evitar bloqueos en la SPA
+  standardHeaders: true, // Devuelve cabeceras estándar `RateLimit-*`
+  legacyHeaders: false, // Desactiva cabeceras `X-RateLimit-*`
+  message: {
+    mensaje: 'Demasiadas peticiones al servidor, por favor intenta nuevamente más tarde.'
+  }
 });
 aplicacion.use('/api', limitadorGlobal);
+
+// Seguridad: Rate Limiting estricto para rutas sensibles (prevención de fuerza bruta en Login y OTP)
+const limitadorSensible = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 20, // Máximo 20 intentos en 15 minutos
+  message: {
+    mensaje: 'Demasiados intentos. Por motivos de seguridad, por favor intenta nuevamente en 15 minutos.'
+  }
+});
+aplicacion.use('/api/Usuarios/login', limitadorSensible);
+aplicacion.use('/api/Auth/recuperar', limitadorSensible);
 
 // Middlewares estándar
 aplicacion.use(Express.json());
@@ -90,8 +107,18 @@ aplicacion.get('/', (peticion, respuesta) => respuesta.send('Hola Mundo Foodsys 
 try {
   await db.authenticate();
   console.log('✅ Conexión a la base de datos exitosa');
+  // Asegurar existencia de columna Fec_Desancion en usuarios
+  try {
+    const [cols] = await db.query("SHOW COLUMNS FROM usuarios LIKE 'Fec_Desancion'");
+    if (cols.length === 0) {
+      await db.query("ALTER TABLE usuarios ADD COLUMN Fec_Desancion DATETIME NULL");
+      console.log('Columna Fec_Desancion creada exitosamente en tabla usuarios');
+    }
+  } catch (errCol) {
+    console.warn('Nota sobre columna Fec_Desancion:', errCol.message);
+  }
 } catch (errorDb) {
-  console.error('❌ Error al conectar a la Base de Datos: ', errorDb);
+  console.error('Error al conectar a la Base de Datos: ', errorDb);
   process.exit(1);
 }
 
@@ -145,6 +172,9 @@ setInterval(async () => {
 
 // ---------- 11. INICIAR EL SERVIDOR ----------
 const PUERTO = process.env.PORT || 8000;
-aplicacion.listen(PUERTO, () => console.log(`🚀 Servidor ejecutándose en http://localhost:${PUERTO}`));
+const servidorHttp = http.createServer(aplicacion);
+initSocket(servidorHttp, opcionesCors);
+
+servidorHttp.listen(PUERTO, () => console.log(`Servidor ejecutándose en http://localhost:${PUERTO}`));
 
 export default aplicacion;

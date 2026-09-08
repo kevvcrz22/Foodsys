@@ -2,14 +2,15 @@
 import apiNode from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
 import DataTable from "react-data-table-component";
+import toast from "react-hot-toast";
 import ProgramaForm from "./ProgramaForm.jsx";
 import ImportarProgramas from "./ImportarProgramas.jsx";
-import { BookOpen, Pencil, Plus, Search, X, Layers, Eye, Upload } from "lucide-react";
+import { BookOpen, Pencil, Plus, Search, X, Layers, Eye, Download } from "lucide-react";
 
 const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 1024);
+    const handler = () => setIsMobile(window.innerWidth < 640);
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
   }, []);
@@ -112,25 +113,53 @@ const CrudPrograma = () => {
   const isMobile = useIsMobile();
 
   const columnsTable = [
-    { name: "N", selector: (r) => r.Id_Programa, sortable: true, width: "70px" },
-    { name: "Nombre Programa", selector: (r) => r.Nom_Programa, sortable: true, grow: 2 },
-    { name: "Area", selector: (r) => r.Are_Programa, sortable: true },
+    { name: "ID", selector: (r) => r.Id_Programa, sortable: true, width: "65px" },
     {
-      name: "Nivel",
+      name: "Nombre Programa",
+      selector: (r) => r.Nom_Programa,
+      sortable: true,
+      grow: 2,
+      minWidth: "220px",
+      cell: (r) => (
+        <div className="flex items-center gap-2.5 py-1.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+            <BookOpen className="w-4 h-4 text-indigo-700" />
+          </div>
+          <span className="font-semibold text-slate-800 text-[13px] truncate">{r.Nom_Programa}</span>
+        </div>
+      ),
+    },
+    {
+      name: "Área",
+      selector: (r) => r.Are_Programa,
+      sortable: true,
+      minWidth: "140px",
+      cell: (r) => <span className="text-[13px] text-slate-600 font-medium whitespace-nowrap">{r.Are_Programa || "—"}</span>,
+    },
+    {
+      name: "Nivel Formación",
       selector: (r) => r.NivFor_Programa,
       sortable: true,
+      minWidth: "150px",
       cell: (r) => (
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${nivelColor(r.NivFor_Programa)}`}>
+        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
+          r.NivFor_Programa === "Tecnólogo" ? "bg-purple-50 text-purple-700 border-purple-200" :
+          r.NivFor_Programa === "Técnico" ? "bg-blue-50 text-blue-700 border-blue-200" :
+          "bg-amber-50 text-amber-700 border-amber-200"
+        }`}>
           {r.NivFor_Programa || "—"}
         </span>
       ),
     },
     {
       name: "Acciones",
+      minWidth: "120px",
       cell: (row) => (
-        <button className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
-          onClick={() => editPrograma(row)}>
-          <Pencil className="w-3 h-3" /> Editar
+        <button
+          className="bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-colors"
+          onClick={() => editPrograma(row)}
+        >
+          <Pencil size={12} /> Editar
         </button>
       ),
     },
@@ -144,6 +173,7 @@ const CrudPrograma = () => {
       setPrograma(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error al obtener programas:", error);
+      toast.error("Error al cargar la lista de programas");
     }
   };
 
@@ -151,53 +181,57 @@ const CrudPrograma = () => {
   const hideModal = () => { setIsModalOpen(false); setProgramaSeleccionado(null); };
 
   const newList = Programa.filter((p) =>
-    (p.Nom_Programa || "").toLowerCase().includes(filterText.toLowerCase())
+    (p.Nom_Programa || "").toLowerCase().includes(filterText.toLowerCase()) ||
+    (p.Are_Programa || "").toLowerCase().includes(filterText.toLowerCase()) ||
+    (p.NivFor_Programa || "").toLowerCase().includes(filterText.toLowerCase())
   );
 
   const customStyles = {
-    headRow: { style: { backgroundColor: "#f8fafc", fontSize: "13px", fontWeight: "700", color: "#374151", borderBottom: "2px solid #e5e7eb" } },
-    rows: { style: { fontSize: "13px", "&:hover": { backgroundColor: "#eef2ff" }, borderBottom: "1px solid #f3f4f6" } },
-    pagination: { style: { borderTop: "1px solid #e5e7eb", fontSize: "13px" } },
+    table:      { style: { minWidth: "700px" } },
+    headRow:    { style: { background: "#f8fafc", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #e5e7eb", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" } },
+    headCells:  { style: { whiteSpace: "nowrap" } },
+    cells:      { style: { whiteSpace: "nowrap" } },
+    rows:       { style: { fontSize: 13, borderBottom: "1px solid #f3f4f6", "&:hover": { background: "#f5f3ff" } } },
+    pagination: { style: { borderTop: "1px solid #e5e7eb", fontSize: 13 } },
   };
 
   return (
     <>
-      <div className="w-full h-full flex flex-col bg-gray-50 min-h-0">
+      <div className="w-full h-full flex flex-col bg-slate-50 min-h-0">
 
         {/* ── Header ── */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3 lg:px-6 lg:py-4 flex-shrink-0">
+        <div className="bg-white border-b border-slate-100 px-5 py-4 shrink-0">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center flex-shrink-0">
-                <BookOpen className="w-4 h-4 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+                <BookOpen size={18} className="text-white" />
               </div>
               <div className="min-w-0">
-                <h1 className="font-bold text-gray-900 text-base lg:text-lg leading-tight">Programas</h1>
-                <p className="text-xs text-gray-400 hidden sm:block">{Programa.length} registros</p>
+                <h1 className="font-semibold text-slate-800 text-base m-0">Programas</h1>
+                <p className="text-xs text-slate-400 m-0">{Programa.length} registros</p>
               </div>
             </div>
 
-            {/* Botones de accion */}
+            {/* Botones de acción */}
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Boton importar — nuevo */}
               <button onClick={() => setImportModal(true)}
                 className="flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border-0 rounded-xl px-3.5 py-2 text-[13px] font-semibold cursor-pointer hover:bg-emerald-200 transition-colors">
-                <Upload size={14} />
+                <Download size={14} />
                 <span className="hidden sm:inline">Importar Excel</span>
               </button>
 
               <button onClick={() => { setProgramaSeleccionado(null); setIsModalOpen(true); }}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 lg:px-5 lg:py-2.5 rounded-xl text-sm font-semibold transition-colors flex-shrink-0 shadow-sm shadow-indigo-200">
-                <Plus className="w-4 h-4" />
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white border-0 rounded-xl px-4 py-2 text-[13px] font-semibold cursor-pointer transition-colors shadow-sm">
+                <Plus size={14} />
                 <span className="hidden sm:inline">Nuevo Programa</span>
               </button>
             </div>
           </div>
 
           <div className="mt-3 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Buscar programa..."
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50"
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input type="text" placeholder="Buscar por programa o área..."
+              className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-[13px] bg-slate-50 text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/10 transition-all"
               value={filterText} onChange={(e) => setFilterText(e.target.value)} />
           </div>
         </div>
@@ -207,8 +241,8 @@ const CrudPrograma = () => {
           {isMobile ? (
             <div className="p-3 space-y-2">
               {newList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                  <BookOpen className="w-10 h-10 mb-2 opacity-30" />
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <BookOpen size={40} className="mb-2 opacity-30" />
                   <p className="text-sm">No hay programas para mostrar</p>
                 </div>
               ) : (
@@ -220,14 +254,20 @@ const CrudPrograma = () => {
               )}
             </div>
           ) : (
-            <div className="p-4 lg:p-6">
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <DataTable columns={columnsTable} data={newList} keyField="Id_Programa"
-                  pagination highlightOnHover striped customStyles={customStyles}
+            <div className="p-4 sm:p-5">
+              <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                <DataTable
+                  columns={columnsTable}
+                  data={newList}
+                  keyField="Id_Programa"
+                  pagination
+                  highlightOnHover
+                  responsive
+                  customStyles={customStyles}
                   noDataComponent={
-                    <div className="flex flex-col items-center py-12 text-gray-400">
-                      <BookOpen className="w-8 h-8 mb-2 opacity-30" />
-                      <p className="text-sm">No hay programas para mostrar</p>
+                    <div className="flex flex-col items-center py-12 text-slate-400">
+                      <BookOpen size={32} className="mb-2 opacity-30" />
+                      <p className="text-[13px]">No hay programas para mostrar</p>
                     </div>
                   }
                 />

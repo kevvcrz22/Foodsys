@@ -19,6 +19,8 @@ import ReservaModel from "../Models/ReservasModel.js";
 import MenuModel from "../Models/MenusModels.js";
 import PlatosModel from "../Models/PlatosModels.js";
 import ReservasServices from "../Services/ReservasServices.js";
+import VencimientoService from "../Services/VencimientoService.js";
+import { notificarCambioReservas } from "../Services/SocketService.js";
 
 // Genera una reserva para el dia siguiente segun el tipo de comida y plato elegido.
 // El Id_Usuario y los roles vienen del token JWT decodificado por authMiddleware.
@@ -51,6 +53,7 @@ export const generarAlimentoTomorrow = async (req, res) => {
       fechaReserva
     );
 
+    notificarCambioReservas({ accion: "creada", Id_Usuario });
     return res.status(201).json(result);
   } catch (err) {
     console.error("[ReservasController] generarAlimentoTomorrow:", err.message);
@@ -94,6 +97,7 @@ export const cancelarReserva = async (req, res) => {
     }
 
     await ReservasServices.cancelarReserva(Id_Reserva, Id_Usuario);
+    notificarCambioReservas({ accion: "cancelada", Id_Reserva });
     return res.status(200).json({ message: 'Reserva cancelada correctamente' });
   } catch (err) {
     console.error("[ReservasController] cancelarReserva:", err.message);
@@ -119,6 +123,7 @@ export const verificarCocina = async (req, res) => {
     }
 
     const resultado = await ReservasServices.procesarVerificacionCocina(Id_Reserva);
+    notificarCambioReservas({ accion: "verificada", Id_Reserva });
     return res.status(200).json(resultado);
   } catch (err) {
     console.error("[ReservasController] verificarCocina:", err.message);
@@ -145,6 +150,7 @@ export const consumirQRSupervisor = async (req, res) => {
     }
 
     const resultado = await ReservasServices.procesarConsumoSupervisor(encriptadoQR);
+    notificarCambioReservas({ accion: "consumida", Id_Reserva: resultado?.idReserva || resultado?.Id_Reserva });
     return res.status(200).json(resultado);
   } catch (err) {
     console.error("[ReservasController] consumirQRSupervisor:", err.message);
@@ -330,6 +336,19 @@ export const ResumenSupervisor = async (req, res) => {
     });
   } catch (err) {
     console.error('[ReservasController] ResumenSupervisor:', err.message);
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+// Retorna el estado de inasistencias de la semana actual para el usuario autenticado
+export const obtenerEstadoInasistencias = async (req, res) => {
+  try {
+    const Id_Usuario = req.user.id;
+    await VencimientoService.procesarVencimientosUsuario(Id_Usuario);
+    const estado = await VencimientoService.evaluarInasistenciasUsuario(Id_Usuario);
+    return res.status(200).json(estado);
+  } catch (err) {
+    console.error('[ReservasController] obtenerEstadoInasistencias:', err.message);
     return res.status(500).json({ message: err.message });
   }
 };

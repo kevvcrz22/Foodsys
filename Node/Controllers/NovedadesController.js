@@ -14,6 +14,7 @@
 //   POST   /api/Novedades/especial/revertir-expirados   -> revertirEspecialesExpirados
 
 import NovedadesService from "../Services/NovedadesService.js";
+import { notificarCambioReservas } from "../Services/SocketService.js";
 
 // Retorna las reservas excepcionales (novedades) creadas durante el dia actual.
 // Incluye nombre, documento del aprendiz, tipo de comida, estado y justificacion.
@@ -83,6 +84,8 @@ export const crearNovedad = async (req, res) => {
       parseInt(platoElegido),
       Jus_Reserva.trim()
     );
+
+    notificarCambioReservas({ accion: "novedad_creada", Id_Usuario: Id_UsuarioAprendiz });
 
     return res.status(201).json({
       message: "Novedad creada exitosamente",

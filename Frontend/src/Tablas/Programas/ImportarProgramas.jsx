@@ -1,13 +1,6 @@
-// Frontend/src/Tablas/Programas/ImportarProgramas.jsx
-// Modal de importacion masiva de programas desde Excel.
-// Flujo de tres pasos que replica el patron de ImportarExcel de Usuarios:
-//   Paso 1 — Descargar la plantilla .xlsx vacia desde el backend.
-//   Paso 2 — Subir el archivo y obtener un preview sin persistir nada.
-//   Paso 3 — Seleccionar las filas a importar y confirmar la escritura.
-// Toda la logica de validacion y persistencia vive en el backend Node.
-
 import { useState, useRef } from "react";
 import apiAxios from "../../api/axiosConfig";
+import toast from "react-hot-toast";
 import {
   X, Download, Upload, CheckCircle, AlertCircle,
   FileSpreadsheet, ChevronRight, Loader2, ToggleLeft, ToggleRight,
@@ -68,11 +61,6 @@ const ImportarProgramas = ({ onClose, reload }) => {
   const InputRef = useRef(null);
 
   // ── Paso 1: descarga la plantilla vacia desde el backend ──
-  /*
-    El backend genera el .xlsx en memoria y lo envia como attachment.
-    Se crea un enlace temporal en el DOM para disparar la descarga
-    sin abrir una nueva pestana.
-  */
   const DescargarPlantilla = async () => {
     try {
       setCargando(true);
@@ -83,8 +71,10 @@ const ImportarProgramas = ({ onClose, reload }) => {
       Link.download = "plantilla_programas.xlsx";
       Link.click();
       URL.revokeObjectURL(Url);
+      toast.success("Plantilla de programas descargada correctamente");
     } catch {
       setError("No se pudo descargar la plantilla. Verifica la conexion con el servidor.");
+      toast.error("No se pudo descargar la plantilla");
     } finally {
       setCargando(false);
     }
@@ -146,7 +136,11 @@ const ImportarProgramas = ({ onClose, reload }) => {
     Responde con { creados, omitidos, errores }.
   */
   const ConfirmarImportacion = async () => {
-    if (!Seleccion.length) { setError("Selecciona al menos un programa."); return; }
+    if (!Seleccion.length) {
+      setError("Selecciona al menos un programa.");
+      toast.error("Selecciona al menos un programa para importar.");
+      return;
+    }
     try {
       setCargando(true);
       setError("");
@@ -156,9 +150,12 @@ const ImportarProgramas = ({ onClose, reload }) => {
       });
       setResultado(Resp.data);
       setPaso(3);
+      toast.success("Importación de programas completada");
       reload?.();
     } catch (Err) {
-      setError(Err.response?.data?.message || "Error al importar. Intenta de nuevo.");
+      const msg = Err.response?.data?.message || "Error al importar. Intenta de nuevo.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setCargando(false);
     }

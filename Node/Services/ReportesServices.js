@@ -42,6 +42,7 @@ import RolesModel from "../Models/RolesModel.js";
 import PlatosModel from "../Models/PlatosModels.js";
 import FichasModel from "../Models/FichasModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
+import VencimientoService from "./VencimientoService.js";
 
 class ReportesService {
 
@@ -526,8 +527,13 @@ class ReportesService {
     const Usuario = await UsuariosModel.findByPk(Id_Usuario);
     if (!Usuario) throw new Error("Usuario no encontrado");
 
-    // Actualizar solo el campo San_Usuario, sin tocar ningun otro dato del usuario
-    await Usuario.update({ San_Usuario });
+    // Actualizar San_Usuario, y si se levanta la sanción ('No'), registrar Fec_Desancion
+    const camposActualizar = { San_Usuario };
+    if (San_Usuario === "No") {
+      camposActualizar.Fec_Desancion = new Date();
+    }
+
+    await Usuario.update(camposActualizar);
 
     return {
       Id_Usuario,
@@ -1043,6 +1049,200 @@ class ReportesService {
       periodo: Periodo,
       limite: Limite,
       platos: Resultado
+    };
+  }
+
+  // Retorna el listado de aprendices que reservaron pero NO consumieron sus alimentos.
+  // Consulta reservas con estado 'Vencido' o reservas pasadas no consumidas (sin contar 'Cancelado').
+  // Soporta filtros por periodo (diario, semanal, mensual, anual, personalizado),
+  // por tipo de comida (Desayuno, Almuerzo, Cena) y por búsqueda de aprendiz.
+  async getNoConsumidos(filtros = {}) {
+    try {
+      await VencimientoService.procesarVencimientosGlobales();
+    } catch (err) {
+      console.error("Error al procesar vencimientos en getNoConsumidos:", err.message);
+    }
+
+    const {
+      periodo = "diario",
+      fecha,
+      anio,
+      semana,
+      mes,
+      fechaInicio,
+      fechaFin,
+      tipoAlimento = "Todos",
+      busqueda = ""
+    } = filtros;
+
+    const hoy = new Date().toISOString().split("T")[0];
+    let condicionFecha = {};
+
+    if (periodo === "diario") {
+      const fechaConsulta = fecha || hoy;
+      condicionFecha = { Fec_Reserva: fechaConsulta };
+    } else if (periodo === "semanal") {
+      const anioNum = parseInt(anio) || new Date().getFullYear();
+      const semanaNum = parseInt(semana) || 1;
+      try {
+        const desglose = await this.getSemanalDesglose(anioNum, semanaNum);
+        condicionFecha = { Fec_Reserva: { [Op.between]: [desglose.lunes, desglose.domingo] } };
+      } catch {
+        condicionFecha = { Fec_Reserva: { [Op.gte]: db.literal("CURDATE() - INTERVAL 7 DAY") } };
+      }
+    } else if (periodo === "mensual") {
+      const anioNum = parseInt(anio) || new Date().getFullYear();
+      const mesNum = parseInt(mes) || (new Date().getMonth() + 1);
+      const primerDia = `${anioNum}-${String(mesNum).padStart(2, "0")}-01`;
+      const fechaTemp = new Date(anioNum, mesNum, 0);
+      const ultimoDia = `${anioNum}-${String(mesNum).padStart(2, "0")}-${String(fechaTemp.getDate()).padStart(2, "0")}`;
+      condicionFecha = { Fec_Reserva: { [Op.between]: [primerDia, ultimoDia] } };
+    } else if (periodo === "anual") {
+      const anioNum = parseInt(anio) || new Date().getFullYear();
+      condicionFecha = { Fec_Reserva: { [Op.between]: [`${anioNum}-01-01`, `${anioNum}-12-31`] } };
+    } else if (periodo === "personalizado") {
+      if (fechaInicio && fechaFin) {
+        condicionFecha = { Fec_Reserva: { [Op.between]: [fechaInicio, fechaFin] } };
+      } else if (fechaInicio) {
+        condicionFecha = { Fec_Reserva: { [Op.gte]: fechaInicio } };
+      }
+    }
+
+    // Filtrar estrictamente las reservas que fueron reservadas pero no consumidas (estado Vencido)
+    const condicionEstado = {
+      Est_Reserva: "Vencido"
+    };
+
+    const whereClause = {
+      ...condicionFecha,
+      ...condicionEstado
+    };
+
+    if (tipoAlimento && tipoAlimento !== "Todos") {
+      whereClause.Tip_Reserva = tipoAlimento;
+    }
+
+    const reservas = await ReservaModel.findAll({
+      where: whereClause,
+      include: [
+        {
+          model: UsuariosModel,
+          as: "usuario",
+          attributes: [
+            "Id_Usuario",
+            "Nom_Usuario",
+            "Ape_Usuario",
+            "TipDoc_Usuario",
+            "NumDoc_Usuario",
+            "Tel_Usuario",
+            "Cor_Usuario",
+            "San_Usuario",
+            "Est_Usuario"
+          ],
+          include: [
+            {
+              model: FichasModel,
+              as: "ficha",
+              attributes: ["Num_Ficha"],
+              include: [{
+                model: ProgramaModel,
+                as: "programas",
+                attributes: ["Nom_Programa"]
+              }]
+            },
+            {
+              model: UsuariosRolModel,
+              as: "rolesUsuario",
+              include: [{
+                model: RolesModel,
+                as: "rolUsuario",
+                attributes: ["Nom_Rol"]
+              }]
+            }
+          ]
+        },
+        {
+          model: PlatosModel,
+          as: "plato",
+          attributes: ["Id_Plato", "Nom_Plato", "Img_Plato", "Tip_Plato"]
+        }
+      ],
+      order: [["Fec_Reserva", "DESC"], ["createdAt", "DESC"]]
+    });
+
+    let filtradas = reservas.map((r) => ({
+      Id_Reserva: r.Id_Reserva,
+      Fec_Reserva: r.Fec_Reserva,
+      Tip_Reserva: r.Tip_Reserva,
+      Est_Reserva: r.Est_Reserva,
+      HoraReserva: r.createdAt,
+      aprendiz: {
+        Id_Usuario: r.usuario?.Id_Usuario,
+        nombreCompleto: `${r.usuario?.Nom_Usuario || ""} ${r.usuario?.Ape_Usuario || ""}`.trim(),
+        NumDoc_Usuario: r.usuario?.NumDoc_Usuario || "",
+        TipDoc_Usuario: r.usuario?.TipDoc_Usuario || "",
+        Tel_Usuario: r.usuario?.Tel_Usuario || "",
+        Cor_Usuario: r.usuario?.Cor_Usuario || "",
+        San_Usuario: r.usuario?.San_Usuario || "No",
+        Est_Usuario: r.usuario?.Est_Usuario || "",
+        Num_Ficha: r.usuario?.ficha?.Num_Ficha || "Sin ficha",
+        Nom_Programa: r.usuario?.ficha?.programas?.Nom_Programa || "Sin programa",
+        roles: r.usuario?.rolesUsuario?.map((ru) => ru.rolUsuario?.Nom_Rol).filter(Boolean) || []
+      },
+      plato: {
+        Id_Plato: r.plato?.Id_Plato,
+        Nom_Plato: r.plato?.Nom_Plato || "Sin plato",
+        Img_Plato: r.plato?.Img_Plato || null,
+        Tip_Plato: r.plato?.Tip_Plato || r.Tip_Reserva
+      }
+    }));
+
+    if (busqueda && busqueda.trim()) {
+      const q = busqueda.trim().toLowerCase();
+      filtradas = filtradas.filter((item) =>
+        item.aprendiz.nombreCompleto.toLowerCase().includes(q) ||
+        String(item.aprendiz.NumDoc_Usuario).includes(q) ||
+        String(item.aprendiz.Num_Ficha).includes(q)
+      );
+    }
+
+    const porTipo = { Desayuno: 0, Almuerzo: 0, Cena: 0 };
+    const aprendicesSet = new Set();
+    let sancionados = 0;
+
+    filtradas.forEach((item) => {
+      if (porTipo[item.Tip_Reserva] !== undefined) {
+        porTipo[item.Tip_Reserva]++;
+      }
+      if (item.aprendiz.Id_Usuario) {
+        aprendicesSet.add(item.aprendiz.Id_Usuario);
+      }
+      if (item.aprendiz.San_Usuario === "Si") {
+        sancionados++;
+      }
+    });
+
+    return {
+      periodo,
+      filtros: {
+        fecha: fecha || hoy,
+        anio,
+        semana,
+        mes,
+        fechaInicio,
+        fechaFin,
+        tipoAlimento,
+        busqueda
+      },
+      resumen: {
+        totalNoConsumidos: filtradas.length,
+        desayunos: porTipo.Desayuno,
+        almuerzos: porTipo.Almuerzo,
+        cenas: porTipo.Cena,
+        totalAprendicesUnicos: aprendicesSet.size,
+        totalSancionados: sancionados
+      },
+      registros: filtradas
     };
   }
 

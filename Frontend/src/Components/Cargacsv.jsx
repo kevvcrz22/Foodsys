@@ -82,7 +82,7 @@ const CargaCSV = ({ onImportado }) => {
         onClick={() => { setOpen(true); setResultado(null); }}
         className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm shadow-violet-200"
       >
-        <Upload className="w-4 h-4" />
+        <Download className="w-4 h-4" />
         <span>Cargar CSV</span>
       </button>
 
@@ -95,7 +95,7 @@ const CargaCSV = ({ onImportado }) => {
             {/* Cabecera */}
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Upload className="w-5 h-5 text-violet-600" />
+                <Download className="w-5 h-5 text-violet-600" />
                 Importar Aprendices CSV
               </h2>
               <button
