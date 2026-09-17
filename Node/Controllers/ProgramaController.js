@@ -83,16 +83,29 @@ export const updatePrograma = async (req, res) => {
   }
 };
 
+export const cambiarEstadoPrograma = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { estado } = req.body || {};
+    const resultado = await ProgramaService.cambiarEstado(id, estado);
+    res.status(200).json({
+      message: `Programa ${resultado.estado === 'Activo' ? 'activado' : 'inactivado'} correctamente`,
+      estado: resultado.estado
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 /*
   deletePrograma
-  204 No Content es la respuesta estandar para eliminaciones exitosas;
-  no se envia cuerpo porque el recurso ya no existe.
+  Inactiva lógicamente el programa para preservar integridad referencial.
 */
 export const deletePrograma = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     await ProgramaService.delete(id);
-    res.status(204).send();
+    res.status(200).json({ message: "Programa inactivado correctamente" });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

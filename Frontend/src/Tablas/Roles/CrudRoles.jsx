@@ -271,7 +271,7 @@ const CrudRoles = () => {
               </button>
             </div>
             <div className="px-5 py-4 overflow-y-auto flex-1">
-              <RolesForm hideModal={hideModal} selectedRole={RolSeleccionado} actualizarLista={getAllRoles} />
+              <RolesForm hideModal={hideModal} rol={RolSeleccionado} selectedRole={RolSeleccionado} actualizarLista={getAllRoles} />
             </div>
           </div>
         </div>

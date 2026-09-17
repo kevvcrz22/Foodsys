@@ -117,6 +117,18 @@ try {
   } catch (errCol) {
     console.warn('Nota sobre columna Fec_Desancion:', errCol.message);
   }
+
+  // Asegurar existencia de columna Est_Programa en programas
+  try {
+    const [colsProg] = await db.query("SHOW COLUMNS FROM programas LIKE 'Est_Programa'");
+    if (colsProg.length === 0) {
+      await db.query("ALTER TABLE programas ADD COLUMN Est_Programa VARCHAR(20) DEFAULT 'Activo'");
+      await db.query("UPDATE programas SET Est_Programa = 'Activo' WHERE Est_Programa IS NULL");
+      console.log('Columna Est_Programa creada exitosamente en tabla programas');
+    }
+  } catch (errCol) {
+    console.warn('Nota sobre columna Est_Programa:', errCol.message);
+  }
 } catch (errorDb) {
   console.error('Error al conectar a la Base de Datos: ', errorDb);
   process.exit(1);

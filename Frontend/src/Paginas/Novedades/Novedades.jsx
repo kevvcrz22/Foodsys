@@ -273,13 +273,13 @@ const Novedades = () => {
         <button
           onClick={() => Set_TabActiva("especial")}
           className={`pb-3 px-4 text-sm font-medium transition border-b-2 -mb-px flex items-center gap-2 ${TabActiva === "especial"
-            ? "border-purple-500 text-purple-600"
+            ? "border-[#1861c1] text-[#1861c1]"
             : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
         >
           Estado Especial
           {Usuarios.filter((U) => U.Est_Usuario === "Especial").length > 0 && (
-            <span className="bg-purple-100 text-purple-600 text-xs font-bold px-2 py-0.5 rounded-full">
+            <span className="bg-blue-100 text-[#1861c1] text-xs font-bold px-2 py-0.5 rounded-full">
               {Usuarios.filter((U) => U.Est_Usuario === "Especial").length}
             </span>
           )}
@@ -432,7 +432,7 @@ const Novedades = () => {
       )}
 
       {TabActiva === "especial" && (
-        <PanelEspecial Usuarios={Usuarios} />
+        <PanelEspecial Usuarios={Usuarios} onRecargar={Cargar_Usuarios} />
       )}
 
       {Mostrar_Reporte && Datos_Reporte && (

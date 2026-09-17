@@ -31,7 +31,7 @@ import {
   Routes, Route, Navigate,
   useNavigate, useLocation,
 } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
+import { Toaster, toast } from "react-hot-toast";
 import ResetPassword from "./Paginas/Recuperar/resetPassword.jsx";
 import ForgotPassword from "./Paginas/Recuperar/forgotPassword.jsx";
 
@@ -138,7 +138,7 @@ function App() {
   const [Roles, Set_Roles] = useState([]);
   const [Rol_Activo, Set_RolActivo] = useState(null);
 
-  // Rehidrata la sesion al recargar la pagina.
+  // Rehidrata la sesion al recargar la pagina o cuando cambian los roles en vivo.
   // Lee el token y el usuario de localStorage para no pedir el login de nuevo.
   useEffect(() => {
     const Sincronizar = () => {
@@ -167,7 +167,19 @@ function App() {
         setUser(Obj_Usuario);
         Set_EsAuth(true);
         Set_Roles(Roles_Guardados);
-        Set_RolActivo(Rol_Guardado);
+
+        // Si el rol activo guardado no está en los roles nuevos o no existe, seleccionar el primero si hay roles
+        if (Roles_Guardados.length > 0) {
+          if (!Rol_Guardado || !Roles_Guardados.includes(Rol_Guardado)) {
+            const PrimerRol = Roles_Guardados[0];
+            localStorage.setItem("rolActivo", PrimerRol);
+            Set_RolActivo(PrimerRol);
+          } else {
+            Set_RolActivo(Rol_Guardado);
+          }
+        } else {
+          Set_RolActivo(Rol_Guardado);
+        }
       } catch {
         localStorage.clear();
         Set_EsAuth(false);
@@ -179,8 +191,17 @@ function App() {
 
     Sincronizar();
     window.addEventListener("storage", Sincronizar);
-    return () => window.removeEventListener("storage", Sincronizar);
+    window.addEventListener("rolesActualizados", Sincronizar);
+    return () => {
+      window.removeEventListener("storage", Sincronizar);
+      window.removeEventListener("rolesActualizados", Sincronizar);
+    };
   }, [setUser]);
+
+  // Limpia cualquier notificación de confirmación activa al cambiar de módulo o ruta
+  useEffect(() => {
+    toast.dismiss();
+  }, [Ubicacion.pathname]);
 
   const Props_Auth = { isAuth: Es_Auth, rolActivo: Rol_Activo };
 
@@ -366,6 +387,7 @@ function App() {
                     <Route path="Inicio" element={<InicioExterno />} />
                     <Route path="Perfil" element={<Perfil />} />
                     <Route path="Reservar" element={<ReservasPag />} />
+                    <Route path="Reservas" element={<ReservasPag />} />
                     <Route path="*" element={<Navigate to="/Externo" replace />} />
                   </Routes>
                 </LayoutConSidebar>
@@ -387,6 +409,7 @@ function App() {
                     <Route path="Inicio" element={<InicioInterno />} />
                     <Route path="Perfil" element={<Perfil />} />
                     <Route path="Reservar" element={<ReservasPag />} />
+                    <Route path="Reservas" element={<ReservasPag />} />
                     <Route path="*" element={<Navigate to="/Interno" replace />} />
                   </Routes>
                 </LayoutConSidebar>
@@ -407,6 +430,7 @@ function App() {
                     <Route path="Inicio" element={<Inicio />} />
                     <Route path="Perfil" element={<Perfil />} />
                     <Route path="Reservar" element={<ReservasPag />} />
+                    <Route path="Reservas" element={<ReservasPag />} />
                     <Route path="*" element={<Navigate to="/PasanteInterno" replace />} />
                   </Routes>
                 </LayoutConSidebar>
@@ -427,6 +451,7 @@ function App() {
                     <Route path="Inicio" element={<Inicio />} />
                     <Route path="Perfil" element={<Perfil />} />
                     <Route path="Reservar" element={<ReservasPag />} />
+                    <Route path="Reservas" element={<ReservasPag />} />
                     <Route path="*" element={<Navigate to="/PasanteExterno" replace />} />
                   </Routes>
                 </LayoutConSidebar>

@@ -53,5 +53,12 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "vite": "^7.1.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "core-js",
+      "esbuild"
+    ]
   }
 }

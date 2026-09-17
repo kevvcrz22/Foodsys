@@ -5,9 +5,14 @@ const ProgramaModel = db.define('programas', {
   Id_Programa: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   Nom_Programa: { type: DataTypes.STRING, },
   Are_Programa: { type: DataTypes.STRING, },
-  NivFor_Programa: { type: DataTypes.STRING, }
+  NivFor_Programa: { type: DataTypes.STRING, },
+  Est_Programa: { type: DataTypes.STRING, allowNull: true, defaultValue: 'Activo' },
+  createdat: { type: DataTypes.DATE },
+  updatedat: { type: DataTypes.DATE }
 }, {
-  freezeTableName: true
+  freezeTableName: true,
+  createdAt: 'createdat',
+  updatedAt: 'updatedat'
 });
 
 export default ProgramaModel;

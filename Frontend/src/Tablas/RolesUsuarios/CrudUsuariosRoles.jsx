@@ -4,7 +4,7 @@ import apiAxios from "../../api/axiosConfig.js";
 import DataTable from "react-data-table-component";
 import toast from "react-hot-toast";
 import UsuariosRolesForm from "../RolesUsuarios/UsuariosRolesForm.jsx";
-import { Shield, Plus, Search, X, Pencil, Users } from "lucide-react";
+import { Shield, Plus, Search, X, Pencil, Trash2, Users, Undo2 } from "lucide-react";
 
 const rolColors = {
   "Administrador":    { bg: "#fce7f3", color: "#9d174d" },
@@ -66,19 +66,30 @@ const CrudUsuariosRoles = () => {
     },
     {
       name: "Acciones",
-      minWidth: "120px",
+      minWidth: "160px",
       cell: (row) => (
-        <button
-          className="bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-colors whitespace-nowrap"
-          onClick={() => editItem(row)}
-        >
-          <Pencil size={12} /> Editar
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            className="bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors whitespace-nowrap"
+            onClick={() => editItem(row)}
+          >
+            <Pencil size={12} /> Editar
+          </button>
+          <button
+            className="bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors whitespace-nowrap"
+            onClick={() => eliminarItem(row)}
+          >
+            <Trash2 size={12} /> Quitar
+          </button>
+        </div>
       ),
     },
   ];
 
-  useEffect(() => { getAllUsuariosRol(); }, []);
+  useEffect(() => {
+    getAllUsuariosRol();
+    return () => toast.dismiss();
+  }, []);
 
   const getAllUsuariosRol = async () => {
     setCargando(true);
@@ -94,6 +105,86 @@ const CrudUsuariosRoles = () => {
       toast.error("Error al cargar asignaciones de roles");
     } finally {
       setCargando(false);
+    }
+  };
+
+  const eliminarItem = (row) => {
+    const nombre = `${row.usuario?.Nom_Usuario || ""} ${row.usuario?.Ape_Usuario || ""}`.trim();
+    const rolNombre = row.rol?.Nom_Rol || "este rol";
+
+    toast.custom((t) => (
+      <div
+        className={`${
+          t.visible ? 'animate-enter' : 'animate-leave'
+        } max-w-md w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex flex-col p-4 border border-slate-200`}
+        style={{ zIndex: 99999 }}
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center shrink-0 text-rose-600">
+            <Trash2 size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-slate-800 m-0">¿Quitar rol asignado?</h4>
+            <p className="text-xs text-slate-500 mt-1 mb-0 leading-relaxed">
+              ¿Estás seguro de quitar el rol <span className="font-semibold text-slate-700">"{rolNombre}"</span> a <span className="font-semibold text-slate-700">{nombre}</span>?
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              toast("Acción cancelada", { icon: <Undo2 size={16} className="text-slate-500" />, duration: 1500 });
+            }}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer border-0"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              procederEliminarItem(row);
+            }}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 transition-colors shadow-sm cursor-pointer border-0"
+          >
+            Sí, quitar rol
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity });
+  };
+
+  const procederEliminarItem = async (row) => {
+    try {
+      await apiAxios.delete(`/api/UsuariosRoles/${row.Id_UsuariosRol}`);
+      toast.success("Rol quitado correctamente");
+
+      // Sincronización en vivo si es el usuario en sesión
+      try {
+        const usuarioActualRaw = localStorage.getItem("usuario");
+        if (usuarioActualRaw) {
+          const usuarioActual = JSON.parse(usuarioActualRaw);
+          if (Number(usuarioActual.Id_Usuario) === Number(row.Id_Usuario)) {
+            const resUsuario = await apiAxios.get(`/api/Usuarios/${row.Id_Usuario}`);
+            if (resUsuario.data && Array.isArray(resUsuario.data.roles)) {
+              localStorage.setItem("roles", JSON.stringify(resUsuario.data.roles));
+              const rolActivo = localStorage.getItem("rolActivo");
+              if (!resUsuario.data.roles.includes(rolActivo) && resUsuario.data.roles.length > 0) {
+                localStorage.setItem("rolActivo", resUsuario.data.roles[0]);
+              }
+              window.dispatchEvent(new Event("rolesActualizados"));
+            }
+          }
+        }
+      } catch (errSync) {
+        console.warn("Error al sincronizar roles en vivo:", errSync);
+      }
+
+      getAllUsuariosRol();
+    } catch (error) {
+      const msg = error.response?.data?.message || "Error al eliminar asignación de rol";
+      toast.error(msg);
     }
   };
 

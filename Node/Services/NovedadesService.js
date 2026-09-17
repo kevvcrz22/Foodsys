@@ -354,6 +354,54 @@ class NovedadesService {
     return resultados;
   }
 
+  // Revoca el estado Especial a una lista de IDs de usuarios y los regresa a "En Formacion".
+  async RevocarEstadoEspecial(idsUsuarios) {
+    if (!Array.isArray(idsUsuarios) || idsUsuarios.length === 0) {
+      throw new Error("Se debe proporcionar al menos un ID de usuario");
+    }
+
+    const resultados = { revocados: [], rechazados: [] };
+
+    for (const Id_Usuario of idsUsuarios) {
+      try {
+        const usuario = await UsuariosModel.findByPk(Id_Usuario);
+
+        if (!usuario) {
+          resultados.rechazados.push({
+            Id_Usuario,
+            motivo: 'Usuario no encontrado en el sistema'
+          });
+          continue;
+        }
+
+        if (usuario.Est_Usuario !== 'Especial') {
+          resultados.rechazados.push({
+            Id_Usuario,
+            nombre: `${usuario.Nom_Usuario} ${usuario.Ape_Usuario}`,
+            motivo: 'El usuario no tiene estado Especial activo'
+          });
+          continue;
+        }
+
+        await usuario.update({ Est_Usuario: 'En Formacion' });
+
+        resultados.revocados.push({
+          Id_Usuario,
+          nombre: `${usuario.Nom_Usuario} ${usuario.Ape_Usuario}`,
+          documento: usuario.NumDoc_Usuario,
+        });
+
+      } catch (error) {
+        resultados.rechazados.push({
+          Id_Usuario,
+          motivo: `Error interno: ${error.message}`
+        });
+      }
+    }
+
+    return resultados;
+  }
+
   // Revierte a "En Formacion" todos los usuarios externos cuyo estado Especial
   // haya superado los 30 dias desde la ultima actualizacion del registro (updatedAt).
   //

@@ -133,6 +133,28 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
                 await apiAxios.put(`/api/UsuariosRoles/${Id_UsuarioRol}`, payload);
                 toast.success("Asignación de rol actualizada correctamente");
             }
+
+            // Sincronización en vivo ultraliviana si el usuario afectado es el usuario en sesión
+            try {
+                const usuarioActualRaw = localStorage.getItem("usuario");
+                if (usuarioActualRaw) {
+                    const usuarioActual = JSON.parse(usuarioActualRaw);
+                    if (Number(usuarioActual.Id_Usuario) === Number(Id_Usuario)) {
+                        const resUsuario = await apiAxios.get(`/api/Usuarios/${Id_Usuario}`);
+                        if (resUsuario.data && Array.isArray(resUsuario.data.roles)) {
+                            localStorage.setItem("roles", JSON.stringify(resUsuario.data.roles));
+                            const rolActivo = localStorage.getItem("rolActivo");
+                            if (!resUsuario.data.roles.includes(rolActivo) && resUsuario.data.roles.length > 0) {
+                                localStorage.setItem("rolActivo", resUsuario.data.roles[0]);
+                            }
+                            window.dispatchEvent(new Event("rolesActualizados"));
+                        }
+                    }
+                }
+            } catch (errSync) {
+                console.warn("No se pudo sincronizar roles en vivo:", errSync);
+            }
+
             reload();
             hideModal();
         } catch (error) {

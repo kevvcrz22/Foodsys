@@ -5,7 +5,7 @@ import DataTable from "react-data-table-component";
 import toast from "react-hot-toast";
 import ProgramaForm from "./ProgramaForm.jsx";
 import ImportarProgramas from "./ImportarProgramas.jsx";
-import { BookOpen, Pencil, Plus, Search, X, Layers, Eye, Download } from "lucide-react";
+import { BookOpen, Pencil, Plus, Search, X, Layers, Eye, Download, Ban, CheckCircle2, Power, Undo2 } from "lucide-react";
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
@@ -34,6 +34,7 @@ const DetalleModal = ({ programa, onClose, onEdit }) => {
     { label: "Nombre", value: programa.Nom_Programa },
     { label: "Area", value: programa.Are_Programa },
     { label: "Nivel de Formacion", value: programa.NivFor_Programa },
+    { label: "Estado", value: programa.Est_Programa || "Activo" },
   ];
   return (
     <div className="fixed inset-0 z-9999 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -73,33 +74,52 @@ const DetalleModal = ({ programa, onClose, onEdit }) => {
 };
 
 /* ── Tarjeta Movil ── */
-const ProgramaCard = ({ programa, onEdit, onView }) => (
-  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-4 active:scale-[0.99] transition-transform">
-    <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-      <BookOpen className="w-5 h-5 text-indigo-600" />
+const ProgramaCard = ({ programa, onEdit, onView, onToggleEstado }) => {
+  const esActivo = programa.Est_Programa !== "Inactivo";
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-4 active:scale-[0.99] transition-transform">
+      <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+        <BookOpen className="w-5 h-5 text-indigo-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-gray-900 text-sm truncate">{programa.Nom_Programa}</p>
+        <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 truncate">
+          <Layers className="w-3 h-3 flex-shrink-0" />
+          {programa.Are_Programa || "Sin area"}
+        </p>
+        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${nivelColor(programa.NivFor_Programa)}`}>
+            {programa.NivFor_Programa || "Sin nivel"}
+          </span>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+            esActivo ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"
+          }`}>
+            {esActivo ? "Activo" : "Inactivo"}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 flex-shrink-0">
+        <button onClick={() => onView(programa)}
+          className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-gray-100 flex items-center justify-center transition-colors cursor-pointer"
+          title="Ver detalle">
+          <Eye className="w-4 h-4 text-gray-500" />
+        </button>
+        <button onClick={() => onEdit(programa)}
+          className="w-9 h-9 rounded-xl bg-indigo-50 hover:bg-indigo-100 flex items-center justify-center transition-colors cursor-pointer"
+          title="Editar programa">
+          <Pencil className="w-4 h-4 text-indigo-600" />
+        </button>
+        <button onClick={() => onToggleEstado(programa)}
+          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+            esActivo ? "bg-amber-50 hover:bg-amber-100 text-amber-600" : "bg-emerald-50 hover:bg-emerald-100 text-emerald-600"
+          }`}
+          title={esActivo ? "Inactivar programa" : "Activar programa"}>
+          {esActivo ? <Ban className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+        </button>
+      </div>
     </div>
-    <div className="flex-1 min-w-0">
-      <p className="font-bold text-gray-900 text-sm truncate">{programa.Nom_Programa}</p>
-      <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 truncate">
-        <Layers className="w-3 h-3 flex-shrink-0" />
-        {programa.Are_Programa || "Sin area"}
-      </p>
-      <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${nivelColor(programa.NivFor_Programa)}`}>
-        {programa.NivFor_Programa || "Sin nivel"}
-      </span>
-    </div>
-    <div className="flex flex-col gap-2 flex-shrink-0">
-      <button onClick={() => onView(programa)}
-        className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-gray-100 flex items-center justify-center transition-colors">
-        <Eye className="w-4 h-4 text-gray-500" />
-      </button>
-      <button onClick={() => onEdit(programa)}
-        className="w-9 h-9 rounded-xl bg-indigo-50 hover:bg-indigo-100 flex items-center justify-center transition-colors">
-        <Pencil className="w-4 h-4 text-indigo-600" />
-      </button>
-    </div>
-  </div>
-);
+  );
+};
 
 /* ─────────────── MAIN ─────────────── */
 const CrudPrograma = () => {
@@ -111,6 +131,68 @@ const CrudPrograma = () => {
   const [progDetalle, setProgDetalle] = useState(null);
   const [importModal, setImportModal] = useState(false);
   const isMobile = useIsMobile();
+
+  const handleToggleEstado = (prog) => {
+    const esActivo = prog.Est_Programa !== "Inactivo";
+    const accion = esActivo ? "inactivar" : "activar";
+
+    toast.custom((t) => (
+      <div
+        className={`${
+          t.visible ? 'animate-enter' : 'animate-leave'
+        } max-w-md w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex flex-col p-4 border border-slate-200`}
+        style={{ zIndex: 99999 }}
+      >
+        <div className="flex items-start gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+            esActivo ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"
+          }`}>
+            {esActivo ? <Ban size={20} /> : <CheckCircle2 size={20} />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-slate-800 m-0">¿{esActivo ? "Inactivar" : "Activar"} programa?</h4>
+            <p className="text-xs text-slate-500 mt-1 mb-0 leading-relaxed">
+              ¿Estás seguro de que deseas {accion} el programa <span className="font-semibold text-slate-700">"{prog.Nom_Programa}"</span>?
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              toast("Acción cancelada", { icon: <Undo2 size={16} className="text-slate-500" />, duration: 1500 });
+            }}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer border-0"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              procederCambioEstado(prog, esActivo ? "Inactivo" : "Activo");
+            }}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white transition-colors shadow-sm cursor-pointer border-0 ${
+              esActivo ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"
+            }`}
+          >
+            Sí, {accion}
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity });
+  };
+
+  const procederCambioEstado = async (prog, nuevoEstado) => {
+    try {
+      await apiNode.patch(`/api/Programa/${prog.Id_Programa}/estado`, { estado: nuevoEstado });
+      toast.success(`Programa ${nuevoEstado === "Activo" ? "activado" : "inactivado"} correctamente`);
+      getAllPrograma();
+    } catch (error) {
+      const msg = error.response?.data?.message || "Error al cambiar el estado del programa";
+      toast.error(msg);
+    }
+  };
 
   const columnsTable = [
     { name: "ID", selector: (r) => r.Id_Programa, sortable: true, width: "65px" },
@@ -152,20 +234,57 @@ const CrudPrograma = () => {
       ),
     },
     {
-      name: "Acciones",
+      name: "Estado",
+      selector: (r) => r.Est_Programa,
+      sortable: true,
       minWidth: "120px",
-      cell: (row) => (
-        <button
-          className="bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-colors"
-          onClick={() => editPrograma(row)}
-        >
-          <Pencil size={12} /> Editar
-        </button>
-      ),
+      cell: (r) => {
+        const esActivo = r.Est_Programa !== "Inactivo";
+        return (
+          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
+            esActivo ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"
+          }`}>
+            {esActivo ? "Activo" : "Inactivo"}
+          </span>
+        );
+      },
+    },
+    {
+      name: "Acciones",
+      minWidth: "180px",
+      cell: (row) => {
+        const esActivo = row.Est_Programa !== "Inactivo";
+        return (
+          <div className="flex items-center gap-1.5">
+            <button
+              className="bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors"
+              onClick={() => editPrograma(row)}
+              title="Editar programa"
+            >
+              <Pencil size={12} /> Editar
+            </button>
+            <button
+              className={`border rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors ${
+                esActivo
+                  ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                  : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+              }`}
+              onClick={() => handleToggleEstado(row)}
+              title={esActivo ? "Inactivar programa" : "Activar programa"}
+            >
+              {esActivo ? <Ban size={12} /> : <CheckCircle2 size={12} />}
+              {esActivo ? "Inactivar" : "Activar"}
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
-  useEffect(() => { getAllPrograma(); }, []);
+  useEffect(() => {
+    getAllPrograma();
+    return () => toast.dismiss();
+  }, []);
 
   const getAllPrograma = async () => {
     try {
@@ -249,6 +368,7 @@ const CrudPrograma = () => {
                 newList.map((p) => (
                   <ProgramaCard key={p.Id_Programa} programa={p}
                     onEdit={editPrograma}
+                    onToggleEstado={handleToggleEstado}
                     onView={(prog) => { setProgDetalle(prog); setDetalleOpen(true); }} />
                 ))
               )}
