@@ -158,10 +158,19 @@ const CrudFichas = () => {
     },
     {
       name: "Creado",
-      selector: (r) => r.createdat,
+      selector: (r) => r.createdat || r.createdAt,
       sortable: true,
       minWidth: "110px",
-      cell: (r) => <span className="text-[11px] text-slate-400 whitespace-nowrap">{r.createdat ? new Date(r.createdat).toLocaleDateString("es-CO") : "—"}</span>,
+      cell: (r) => {
+        const fecha = r.createdat || r.createdAt;
+        if (!fecha) return <span className="text-[11px] text-slate-400 whitespace-nowrap">—</span>;
+        const d = new Date(fecha);
+        return (
+          <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap" title={!isNaN(d.getTime()) ? d.toLocaleString("es-CO") : ""}>
+            {!isNaN(d.getTime()) ? d.toLocaleDateString("es-CO") : "—"}
+          </span>
+        );
+      },
     },
     {
       name: "Acciones",

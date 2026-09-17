@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import apiNode from "../../api/axiosConfig";
 import toast from "react-hot-toast";
 
-const RolesForm = ({ hideModal, rol, actualizarLista }) => {
+const RolesForm = ({ hideModal, rol, selectedRole, actualizarLista }) => {
+  const rolActual = rol || selectedRole;
   const [Nom_Rol, setNom_Rol] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -21,12 +22,12 @@ const RolesForm = ({ hideModal, rol, actualizarLista }) => {
 
   // Al abrir el modal, cargar el rol existente o limpiar
   useEffect(() => {
-    if (rol && rol.Nom_Rol) {
-      setNom_Rol(rol.Nom_Rol);
+    if (rolActual && rolActual.Nom_Rol) {
+      setNom_Rol(rolActual.Nom_Rol);
     } else {
       setNom_Rol("");
     }
-  }, [rol]);
+  }, [rolActual]);
 
   const gestionarForm = async (e) => {
     e.preventDefault();
@@ -39,9 +40,9 @@ const RolesForm = ({ hideModal, rol, actualizarLista }) => {
 
     setLoading(true);
     try {
-      if (rol && rol.Id_Rol) {
+      if (rolActual && rolActual.Id_Rol) {
         // Actualizar rol existente
-        await apiNode.put(`/api/Roles/${rol.Id_Rol}`, { Nom_Rol: nombreLimpio });
+        await apiNode.put(`/api/Roles/${rolActual.Id_Rol}`, { Nom_Rol: nombreLimpio });
         toast.success("Rol actualizado correctamente");
       } else {
         // Crear nuevo rol
@@ -98,7 +99,7 @@ const RolesForm = ({ hideModal, rol, actualizarLista }) => {
           disabled={loading}
           className="flex-1 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl transition-all text-sm shadow-lg shadow-violet-200 disabled:opacity-50 cursor-pointer"
         >
-          {loading ? "Guardando..." : rol && rol.Id_Rol ? "Actualizar" : "Guardar"}
+          {loading ? "Guardando..." : rolActual && rolActual.Id_Rol ? "Actualizar" : "Guardar"}
         </button>
       </div>
     </form>

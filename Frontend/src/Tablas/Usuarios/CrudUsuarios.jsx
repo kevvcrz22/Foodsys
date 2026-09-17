@@ -9,7 +9,7 @@ import { exportarUsuariosExcel } from "./ExportExcel.jsx";
 import {
   Users, Pencil, Plus, Search, X, History,
   CheckCircle2, AlertCircle, Ban, ShieldCheck,
-  Download, Upload,
+  Download, Upload, Undo2,
 } from "lucide-react";
 
 const EstadoBadge = ({ estado }) => {
@@ -126,7 +126,7 @@ const CrudUsuarios = () => {
             <button
               onClick={() => {
                 toast.dismiss(t.id);
-                toast("Acción cancelada", { icon: "ℹ️", duration: 1000 });
+                toast("Acción cancelada", { icon: <Undo2 size={16} className="text-slate-500" />, duration: 1500 });
               }}
               style={{
                 background: "#f1f5f9",
@@ -392,6 +392,7 @@ const CrudUsuarios = () => {
 
   useEffect(() => {
     getAllUsuarios();
+    return () => toast.dismiss();
   }, []);
 
   const getAllUsuarios = async () => {
@@ -709,14 +710,18 @@ const CrudUsuarios = () => {
                   {btnFiltro("sin_sancion", "Sin Sanción", "#f0fdf4", "#16a34a", "sancion")}
                 </div>
 
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                   <span style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase" }}>
                     Rol:
                   </span>
                   {btnFiltro("todos", "Todos", "#e0e7ff", "#3730a3", "rol")}
                   {btnFiltro("aprendiz", "Aprendices", "#dbeafe", "#1e40af", "rol")}
-                  {btnFiltro("instructor", "Instructores", "#fef3c7", "#92400e", "rol")}
-                  {btnFiltro("administrador", "Admin / Coord", "#ede9fe", "#6d28d9", "rol")}
+                  {btnFiltro("pasante", "Pasantes", "#fef3c7", "#92400e", "rol")}
+                  {btnFiltro("coordinador", "Coordinador", "#fce7f3", "#9d174d", "rol")}
+                  {btnFiltro("administrador", "Administrador", "#ede9fe", "#6d28d9", "rol")}
+                  {btnFiltro("supervisor", "Supervisor", "#e0f2fe", "#0369a1", "rol")}
+                  {btnFiltro("cocina", "Cocina", "#fef9c3", "#854d0e", "rol")}
+                  {btnFiltro("bienestar", "Bienestar", "#ecfdf5", "#065f46", "rol")}
                 </div>
               </div>
             </div>

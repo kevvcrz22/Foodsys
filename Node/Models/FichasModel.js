@@ -12,9 +12,13 @@ const FichasModel = db.define('fichas', {
   Id_Programa: {                                                                // Llave foranea hacia la tabla programas
     type: DataTypes.INTEGER,
     references: { model: 'programas', key: 'Id_Programa' }
-  }
+  },
+  createdat: { type: DataTypes.DATE },
+  updatedat: { type: DataTypes.DATE }
 }, {
-  freezeTableName: true // Evita que Sequelize pluralice el nombre de la tabla
+  freezeTableName: true, // Evita que Sequelize pluralice el nombre de la tabla
+  createdAt: 'createdat',
+  updatedAt: 'updatedat'
 });
 
 export default FichasModel;

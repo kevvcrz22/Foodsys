@@ -40,6 +40,7 @@ import {
   crearNovedad,
   obtenerReporteDelDia,
   asignarEstadoEspecial,
+  revocarEstadoEspecial,
   importarEspecialesExcel,
   revertirEspecialesExpirados,
 } from "../Controllers/NovedadesController.js";
@@ -102,6 +103,14 @@ router.patch(
   '/especial/asignar',
   authMiddleware,
   asignarEstadoEspecial
+);
+
+// Revoca el estado Especial a los usuarios indicados y los regresa a "En Formacion".
+// Body: { idsUsuarios: [1, 5, 12] }
+router.patch(
+  '/especial/revocar',
+  authMiddleware,
+  revocarEstadoEspecial
 );
 
 // Importa masivamente aprendices con estado Especial desde un archivo Excel.

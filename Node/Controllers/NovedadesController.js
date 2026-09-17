@@ -141,6 +141,29 @@ export const asignarEstadoEspecial = async (req, res) => {
   }
 };
 
+// Revoca el estado Especial de una lista de aprendices externos.
+// Solo accesible para usuarios autenticados.
+export const revocarEstadoEspecial = async (req, res) => {
+  try {
+    const { idsUsuarios } = req.body;
+
+    if (!Array.isArray(idsUsuarios) || idsUsuarios.length === 0) {
+      return res.status(400).json({
+        message: "Se debe enviar un array 'idsUsuarios' con al menos un ID"
+      });
+    }
+
+    const resultado = await NovedadesService.RevocarEstadoEspecial(idsUsuarios);
+    return res.status(200).json({
+      message: `Proceso completado: ${resultado.revocados.length} revocados, ${resultado.rechazados.length} rechazados`,
+      resultado
+    });
+  } catch (err) {
+    console.error("[NovedadesController] revocarEstadoEspecial:", err.message);
+    return res.status(400).json({ message: err.message });
+  }
+};
+
 // Procesa la importacion masiva de aprendices con estado Especial desde un archivo Excel.
 // Solo accesible para usuarios con rol Coordinador.
 //

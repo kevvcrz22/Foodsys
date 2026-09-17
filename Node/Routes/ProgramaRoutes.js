@@ -14,6 +14,7 @@ import {
   createPrograma,
   updatePrograma,
   deletePrograma,
+  cambiarEstadoPrograma,
   // Importacion Excel en tres pasos
   descargarPlantillaPrograma,
   previewImportPrograma,
@@ -63,6 +64,7 @@ Router.post("/", authMiddleware, createPrograma);
 
 Router.get("/:id", getPrograma);
 Router.put("/:id", authMiddleware, updatePrograma);
+Router.patch("/:id/estado", authMiddleware, cambiarEstadoPrograma);
 Router.delete("/:id", authMiddleware, deletePrograma);
 
 export default Router;

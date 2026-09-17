@@ -4,7 +4,7 @@ import DataTable from 'react-data-table-component';
 import toast from 'react-hot-toast';
 import UsuariosForm from './UsuariosForm.jsx';
 import {
-  Users, Search, CheckCircle2, AlertCircle, ShieldCheck, Ban, Pencil, History, X
+  Users, Search, CheckCircle2, AlertCircle, ShieldCheck, Ban, Pencil, History, X, Undo2
 } from 'lucide-react';
 
 const EstadoBadge = ({ estado }) => {
@@ -92,7 +92,7 @@ const Aprendices = () => {
             <button
               onClick={() => {
                 toast.dismiss(t.id);
-                toast('Acción cancelada', { icon: 'ℹ️', duration: 1000 });
+                toast('Acción cancelada', { icon: <Undo2 size={16} className="text-slate-500" />, duration: 1500 });
               }}
               style={{
                 background: '#f1f5f9',
@@ -296,7 +296,10 @@ const Aprendices = () => {
     },
   ];
 
-  useEffect(() => { getAllUsuarios(); }, []);
+  useEffect(() => {
+    getAllUsuarios();
+    return () => toast.dismiss();
+  }, []);
 
   const getAllUsuarios = async () => {
     setCargando(true);

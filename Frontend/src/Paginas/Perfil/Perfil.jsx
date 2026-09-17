@@ -352,25 +352,11 @@ const Perfil = () => {
               {Iniciales || "U"}
             </div>
 
-            {/* Bloque central: nombre, roles y badges de estado */}
+            {/* Bloque central: nombre y badges de estado */}
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold text-slate-800">
                 {Usuario.Nom_Usuario} {Usuario.Ape_Usuario}
               </h1>
-              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                {Roles.length > 0 ? (
-                  Roles.map((rol) => (
-                    <span
-                      key={rol}
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-[#1861c1] border border-blue-200/80"
-                    >
-                      {rol}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-xs text-slate-400">Sin rol asignado</span>
-                )}
-              </div>
               <div className="flex flex-wrap gap-2 mt-2">
                 {/* Badge de estado activo o inactivo basado en San_Usuario */}
                 <span

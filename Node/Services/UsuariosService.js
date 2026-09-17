@@ -111,8 +111,13 @@ class UsuariosService {
       console.error("Error al procesar vencimientos en getAll:", err.message);
     }
 
-    return await UsuariosModel.findAll({
+    const todos = await UsuariosModel.findAll({
       include: [
+        {
+          model: UsuariosRolModel,
+          as: 'rolesUsuario',
+          include: [{ model: RolesModel, as: 'rolUsuario' }]
+        },
         {
           model: FichasModel,
           as: 'ficha',
@@ -127,11 +132,22 @@ class UsuariosService {
         }
       ]
     });
+
+    return todos.map((u) => {
+      const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+      const userObj = u.toJSON ? u.toJSON() : u;
+      return { ...userObj, roles };
+    });
   }
 
   async getById(Id) {
-    const usuarios = await UsuariosModel.findByPk(Id, {
+    const usuario = await UsuariosModel.findByPk(Id, {
       include: [
+        {
+          model: UsuariosRolModel,
+          as: 'rolesUsuario',
+          include: [{ model: RolesModel, as: 'rolUsuario' }]
+        },
         {
           model: FichasModel,
           as: 'ficha',
@@ -146,8 +162,10 @@ class UsuariosService {
         }
       ]
     });
-    if (!usuarios) throw new Error("Usuario no encontrado");
-    return usuarios;
+    if (!usuario) throw new Error("Usuario no encontrado");
+    const roles = usuario.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+    const userObj = usuario.toJSON ? usuario.toJSON() : usuario;
+    return { ...userObj, roles };
   }
 
   async create(data) {

@@ -52,7 +52,11 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
   const fetchProgramas = async () => {
     try {
       const res = await apiAxios.get("/api/Programa");
-      setProgramas(Array.isArray(res.data) ? res.data : []);
+      const lista = Array.isArray(res.data) ? res.data : [];
+      const ordenada = lista
+        .filter((p) => p && p.Nom_Programa && (p.Est_Programa !== "Inactivo" || (selectedFicha && Number(selectedFicha.Id_Programa) === Number(p.Id_Programa))))
+        .sort((a, b) => a.Nom_Programa.localeCompare(b.Nom_Programa));
+      setProgramas(ordenada);
     } catch (err) {
       console.error("Error al cargar programas:", err);
       toast.error("Error al cargar la lista de programas");
@@ -122,11 +126,14 @@ const FichasForm = ({ hideModal, selectedFicha, isEdit, reload }) => {
             className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-400/5 transition-all appearance-none"
           >
             <option value="">Seleccione un programa...</option>
-            {Programas.map((prog) => (
-              <option key={prog.Id_Programa} value={prog.Id_Programa}>
-                {prog.Nom_Programa}
-              </option>
-            ))}
+            {Programas.map((prog) => {
+              const extra = [prog.NivFor_Programa, prog.Are_Programa].filter(Boolean).join(" - ");
+              return (
+                <option key={prog.Id_Programa} value={prog.Id_Programa}>
+                  {prog.Nom_Programa} {extra ? `(${extra})` : ""}
+                </option>
+              );
+            })}
           </select>
         </div>
 
