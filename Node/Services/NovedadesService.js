@@ -67,24 +67,56 @@ class NovedadesService {
   }
 
   // Retorna los tipos de comida disponibles para un usuario segun sus roles.
-  // Esta logica es la misma que en ReservasServices.ObtenerRolesPermitidos
-  // pero expresada para el contexto de novedades (el Coordinador la consulta
-  // al abrir el formulario de novedad para saber que opciones mostrar).
+  // En novedades NUNCA se incluye Desayuno (solo Almuerzo y Cena).
   Obtener_Tipos_Por_Rol(Roles_Usuario) {
     const EsInterno = Roles_Usuario.some(
       (R) => R === "Aprendiz Interno" || R === "Pasante Interno"
     );
-    if (EsInterno) return ["Desayuno", "Almuerzo", "Cena"];
+    if (EsInterno) return ["Almuerzo", "Cena"];
 
     const EsExterno = Roles_Usuario.some(
       (R) => R === "Aprendiz Externo" || R === "Pasante Externo"
     );
-    // Los externos solo tienen derecho a almuerzo segun las reglas de negocio del comedor.
-    // El desayuno y la cena no aplican para su tipo de vinculacion.
+    // Los externos solo tienen derecho a almuerzo
     if (EsExterno) return ["Almuerzo"];
 
     return [];
   }
+
+  // Valida que el tipo de novedad se encuentre dentro de la franja horaria permitida:
+  //   - Almuerzo : maximo hasta las 09:00 AM (09:00)
+  //   - Cena     : maximo hasta las 03:00 PM (15:00)
+  //   - Desayuno : no permitido en novedades
+  ValidarHorarioLimiteNovedad(TipoNormalizado) {
+    if (TipoNormalizado === "Desayuno") {
+      throw new Error(
+        "El Desayuno no está habilitado para registro de novedades. Solo aplican Almuerzo y Cena."
+      );
+    }
+
+    // Hora en zona horaria de Colombia (America/Bogota)
+    const fechaHoraColombia = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "America/Bogota" })
+    );
+    const hora = fechaHoraColombia.getHours();
+    const minutos = fechaHoraColombia.getMinutes();
+    const minutosTotales = hora * 60 + minutos;
+
+    // Límite Almuerzo: 09:00 AM (9 * 60 = 540 min)
+    if (TipoNormalizado === "Almuerzo" && minutosTotales > 9 * 60) {
+      throw new Error(
+        "La hora límite para registrar novedades de Almuerzo son las 09:00 AM. El plazo para el día de hoy ya venció."
+      );
+    }
+
+    // Límite Cena: 03:00 PM (15:00 = 15 * 60 = 900 min)
+    if (TipoNormalizado === "Cena" && minutosTotales > 15 * 60) {
+      throw new Error(
+        "La hora límite para registrar novedades de Cena son las 03:00 PM (15:00). El plazo para el día de hoy ya venció."
+      );
+    }
+  }
+
   // Retorna las reservas excepcionales del dia actual con los datos del aprendiz.
   // Se usa en la vista de novedades del Coordinador y en la generacion del reporte.
   async Obtener_Excepcionales_Hoy() {
@@ -112,23 +144,20 @@ class NovedadesService {
     return Reservas;
   }
 
-  // Valida que el aprendiz NO tenga una reserva activa o consumida para ese tipo de comida hoy.
-  // La condicion de novedad existe precisamente cuando el aprendiz NO alcanzo a reservar el
-  // dia anterior (no cumplio la regla de 24 horas). Si ya tiene reserva, no hay novedad.
-  //
-  // Tipos permitidos para novedad: solo Almuerzo y Cena.
-  // El desayuno no aplica como novedad porque el servicio inicia muy temprano y no es
-  // practico que el coordinador gestione excepciones a esa hora.
+  // Valida que el aprendiz NO tenga una reserva activa o consumida para ese tipo de comida hoy
+  // y que se encuentre dentro de la franja horaria permitida para novedades del día.
   async ValidarElegibilidadNovedad(Id_Usuario, Tip_Reserva, fechaHoy) {
     const TipoNormalizado = Tip_Reserva.charAt(0).toUpperCase() + Tip_Reserva.slice(1);
 
     const tiposPermitidosNovedad = ['Almuerzo', 'Cena'];
     if (!tiposPermitidosNovedad.includes(TipoNormalizado)) {
       throw new Error(
-        `Solo se pueden crear novedades para Almuerzo o Cena del dia actual. ` +
-        `El Desayuno no aplica como novedad.`
+        `Solo se pueden crear novedades para Almuerzo o Cena del día actual. El Desayuno no aplica como novedad.`
       );
     }
+
+    // Validar hora límite de novedad (Almuerzo <= 09:00 AM, Cena <= 03:00 PM)
+    this.ValidarHorarioLimiteNovedad(TipoNormalizado);
 
     // Si el aprendiz ya tiene una reserva en cualquier estado que no sea Cancelado,
     // significa que si reservo y no hay motivo para una novedad.

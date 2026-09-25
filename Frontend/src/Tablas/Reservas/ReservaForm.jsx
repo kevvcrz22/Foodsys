@@ -72,14 +72,10 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
         const res = await apiAxios.get("/api/Reservas/reservar/Tipos-Permitidos");
         const tipos = res.data.tiposPermitidos || ["Desayuno", "Almuerzo", "Cena"];
         setTiposPermitidos(tipos);
-        if (tipos.length > 0 && !tipReserva) {
-          manejarCambioTipo(tipos[0]);
-        }
       } catch (err) {
         // Fallback para admin/coordinador o error
         const fallback = ["Desayuno", "Almuerzo", "Cena"];
         setTiposPermitidos(fallback);
-        if (!tipReserva) manejarCambioTipo(fallback[0]);
       }
     };
     obtenerTipos();
@@ -158,6 +154,8 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
       setQrData(res.data);
       obtenerEstadoInasistencias();
       if (reload) reload();
+      // Notificar reactivamente a toda la app que se generó una reserva
+      window.dispatchEvent(new Event("reservasActualizadas"));
       if (mostrarQR && res.data.Qr_Reserva) {
         mostrarQR(res.data.Qr_Reserva);
       }
@@ -224,10 +222,16 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
                 Elige tu plato
               </label>
 
-              {platos.length === 0 ? (
+              {!tipReserva ? (
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 text-center text-slate-500 text-xs">
+                  <UtensilsCrossed className="w-7 h-7 mx-auto mb-2 opacity-40 text-slate-400" />
+                  <p className="font-bold text-slate-700 mb-0.5">Elige un tipo de comida</p>
+                  <p className="text-slate-400 text-[11px]">Selecciona Desayuno, Almuerzo o Cena en el menú superior para ver los platos disponibles.</p>
+                </div>
+              ) : platos.length === 0 ? (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center text-slate-400 text-xs">
                   <UtensilsCrossed className="w-6 h-6 mx-auto mb-1.5 opacity-40 text-slate-400" />
-                  No hay menú disponible para {tipReserva || "este turno"} en la fecha seleccionada ({fechaReserva}).
+                  No hay menú disponible para {tipReserva} en la fecha seleccionada ({fechaReserva}).
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

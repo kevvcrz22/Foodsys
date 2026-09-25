@@ -116,9 +116,20 @@ const Novedades = () => {
       const Respuesta = await apiAxios.post("/api/Novedades/tipos-comida", {
         roles: RolesAprendiz,
       });
-      const TiposRecibidos = Respuesta.data.tipos || [];
+      // Filtrar Desayuno (no aplica en novedades)
+      const TiposRecibidos = (Respuesta.data.tipos || []).filter((t) => t !== "Desayuno");
       Set_TiposDisp(TiposRecibidos);
-      Set_Tipo(TiposRecibidos[0] || "");
+
+      // Auto-seleccionar el primer tipo que aún se encuentre en horario válido
+      const ahora = new Date();
+      const minutos = ahora.getHours() * 60 + ahora.getMinutes();
+      const disponible = TiposRecibidos.find((t) => {
+        if (t === "Almuerzo") return minutos <= 9 * 60;
+        if (t === "Cena") return minutos <= 15 * 60;
+        return false;
+      });
+
+      Set_Tipo(disponible || TiposRecibidos[0] || "");
     } catch (Error) {
       console.error("[Novedades] Error cargando tipos de comida:", Error);
       Set_TiposDisp([]);
@@ -131,7 +142,7 @@ const Novedades = () => {
     Set_Plato("");
     Set_Jus_Reserva("");
     // Cargar_Tipos_Permitidos actualiza Tipo, lo que dispara el useEffect
-    // que llama a Cargar_Platos con el nuevo tipo. No hay que llamar Cargar_Platos aqui.
+    // que llama a Cargar_Platos con el nuevo tipo.
     Cargar_Tipos_Permitidos(UsuarioElegido.roles || []);
   };
 
@@ -150,10 +161,29 @@ const Novedades = () => {
       Set_Mensaje({ tipo: "error", texto: "Selecciona un aprendiz primero" });
       return;
     }
-    if (!Tipo) {
-      Set_Mensaje({ tipo: "error", texto: "El tipo de comida no esta disponible para este aprendiz" });
+    if (!Tipo || Tipo === "Desayuno") {
+      Set_Mensaje({ tipo: "error", texto: "El Desayuno no está habilitado para novedades. Solo aplican Almuerzo y Cena." });
       return;
     }
+
+    // Validar horarios límites de novedad
+    const ahora = new Date();
+    const minutos = ahora.getHours() * 60 + ahora.getMinutes();
+    if (Tipo === "Almuerzo" && minutos > 9 * 60) {
+      Set_Mensaje({
+        tipo: "error",
+        texto: "La hora límite para registrar novedades de Almuerzo son las 09:00 AM. El plazo para hoy ya venció.",
+      });
+      return;
+    }
+    if (Tipo === "Cena" && minutos > 15 * 60) {
+      Set_Mensaje({
+        tipo: "error",
+        texto: "La hora límite para registrar novedades de Cena son las 03:00 PM (15:00). El plazo para hoy ya venció.",
+      });
+      return;
+    }
+
     if (!Plato) {
       Set_Mensaje({ tipo: "error", texto: "Debes seleccionar un plato del menu del dia" });
       return;
@@ -176,6 +206,9 @@ const Novedades = () => {
         tipo: "exito",
         texto: `Novedad registrada correctamente para ${UsuarioSel.Nom_Usuario} ${UsuarioSel.Ape_Usuario}`,
       });
+
+      // Notificar reactivamente a la app para sincronizar vistas
+      window.dispatchEvent(new Event("reservasActualizadas"));
 
       Limpiar_Seleccion();
       Cargar_Excepcionales();

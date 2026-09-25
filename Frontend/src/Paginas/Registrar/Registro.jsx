@@ -1,616 +1,659 @@
-// Pantalla principal del supervisor para el control de consumo de reservas.
-//
-// CAMBIOS RESPECTO A LA VERSION ANTERIOR:
-//   - Overlay animado sobre la camara al detectar un QR ("Detectado" → "Procesando...")
-//   - Estado QRDetectado para feedback visual inmediato antes de llamar al API
-//   - TarjetaResultado con categorias visuales ampliadas (fecha invalida, ya consumido, vencido, etc.)
-//   - Scanner optimizado: fps:30, experimentalFeatures activo, deduplicacion inteligente de 1s
-//   - Los mensajes de exito/error persisten hasta el siguiente escaneo o busqueda manual
-//   - Tabs de busqueda manual (documento, ID) completamente funcionales
-//   - Soporte pistola de codigos USB/Bluetooth (keyboard wedge)
-//   - Encriptacion base64url en backend: QR ~33% mas pequeno, lectura mas rapida
-//
-// FLUJOS DE CONSUMO (definidos en ReservasServices.js):
-//   EXTERNO NORMAL   -> Generado -> Verificado (cocina) -> Consumido (supervisor)
-//   EXTERNO ESPECIAL -> Generado -> Consumido (supervisor directo)
-//   INTERNO          -> Generado -> Consumido (supervisor directo)
-//
-// ENDPOINTS API REQUERIDOS:
-//   POST /api/Reservas/consumir/supervisor  -> { encriptadoQR }
-//   POST /api/Reservas/consumir/documento   -> { NumDoc }
-//   POST /api/Reservas/consumir/id          -> { Id_Reserva }
-//   GET  /api/Reservas/canceladas/count?fecha=YYYY-MM-DD
-//   GET  /api/Reservas/vencidas/count?fecha=YYYY-MM-DD
-//
-// DEPENDENCIAS NPM:
-//   npm install html5-qrcode react-google-charts jspdf html2canvas
+// =============================================================================
+// Foodsys - Módulo de Registro de Consumo para Supervisor
+// Estilo Verde Normal SENA, Escaneo QR en Cámara, Búsqueda Manual
+// Inteligente y Reportes en PDF con Gráficos.
+// =============================================================================
 
-
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Chart } from "react-google-charts";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import {
   QrCode, Search, Play, Square, ClipboardList,
-  CheckCircle2, XCircle, Clock, AlertCircle,
+  CheckCircle2, XCircle, Clock,
   User, Utensils, Camera, Hash, FileText,
   Download, X, RefreshCw, TrendingUp, BarChart3,
-  PieChart, Shield, ChevronRight, Loader2,
+  PieChart, Shield, Loader2,
   ScanLine, CalendarX, Ban, AlertTriangle,
+  Sparkles, Check, Coffee, SunMedium,
+  Moon, CheckCheck, ArrowRight
 } from "lucide-react";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTES DE CONFIGURACION
-// ─────────────────────────────────────────────────────────────────────────────
-
+// URL base de la API
 const API_URL = import.meta.env.VITE_API_URL || "";
 
-// fps:30 detecta el QR practicamente en el momento en que entra al encuadre.
-// qrbox cuadrado de 260px funciona bien tanto para QRs en pantalla como impresos.
-// useBarCodeDetectorIfSupported usa la API nativa del navegador (mucho mas rapida que ZXing JS puro).
+// Configuración de escaneo a pantalla completa (sin recuadro nativo duplicado)
 const CONFIG_QR = {
   fps: 30,
-  qrbox: { width: 260, height: 260 },
   aspectRatio: 1.0,
   disableFlip: false,
   experimentalFeatures: { useBarCodeDetectorIfSupported: true },
 };
 
-// Estilos semanticos por estado de reserva.
-const ESTILOS_ESTADO = {
-  Generado: "bg-blue-100   text-blue-700   border border-blue-200",
-  Verificado: "bg-amber-100  text-amber-700  border border-amber-200",
-  Consumido: "bg-green-100  text-green-700  border border-green-200",
-  Cancelado: "bg-red-100    text-red-700    border border-red-200",
-  Vencido: "bg-slate-100  text-slate-600  border border-slate-200",
-};
-
+// Paleta de estilos por tipo de comida
 const ESTILOS_TIPO = {
-  Desayuno: "bg-orange-100 text-orange-700 border border-orange-200",
-  Almuerzo: "bg-teal-100   text-teal-700   border border-teal-200",
-  Cena: "bg-indigo-100 text-indigo-700 border border-indigo-200",
+  Desayuno: {
+    badge: "bg-amber-50 text-amber-800 border-amber-200",
+    icon: Coffee,
+    color: "#f59e0b",
+  },
+  Almuerzo: {
+    badge: "bg-green-50 text-green-800 border-green-200",
+    icon: SunMedium,
+    color: "#16a34a",
+  },
+  Cena: {
+    badge: "bg-blue-50 text-blue-800 border-blue-200",
+    icon: Moon,
+    color: "#2563eb",
+  },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// UTILIDAD: ClasificarError
-// Analiza el mensaje de error del backend y retorna categoria + color + icono.
-// ─────────────────────────────────────────────────────────────────────────────
+// Horarios de turnos del comedor
+const HORARIOS_SERVICIO = [
+  { tipo: "Desayuno", horario: "06:00 – 07:00", inicioMin: 6 * 60, finMin: 7 * 60, icon: Coffee, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
+  { tipo: "Almuerzo", horario: "11:30 – 13:30", inicioMin: 11 * 60 + 30, finMin: 13 * 60 + 30, icon: SunMedium, color: "text-green-700", bg: "bg-green-50", border: "border-green-200" },
+  { tipo: "Cena",     horario: "18:00 – 19:00", inicioMin: 18 * 60, finMin: 19 * 60, icon: Moon, color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200" },
+];
+
+// Clasificador inteligente de respuestas de error del backend
 const ClasificarError = (mensaje) => {
-  if (!mensaje) return { tipo: "generico", color: "red" };
-
+  if (!mensaje || typeof mensaje !== "string") return { tipo: "generico" };
   const m = mensaje.toLowerCase();
-
   if (m.includes("código qr es para el") || m.includes("codigo qr es para el") || m.includes("fecha")) {
-    return { tipo: "fecha_invalida", color: "amber" };
+    return { tipo: "fecha_invalida" };
   }
-  if (m.includes("vencido")) {
-    return { tipo: "qr_vencido", color: "slate" };
+  if (m.includes("vencido") || m.includes("vencida")) {
+    return { tipo: "qr_vencido" };
   }
-  if (m.includes("consumido") || m.includes("ya fue consumida")) {
-    return { tipo: "ya_consumido", color: "blue" };
+  if (m.includes("consumido") || m.includes("ya fue consumida") || m.includes("ya fue")) {
+    return { tipo: "ya_consumido" };
   }
   if (m.includes("cancelado") || m.includes("cancelada")) {
-    return { tipo: "cancelado", color: "orange" };
+    return { tipo: "cancelado" };
   }
-  if (m.includes("cocina") || m.includes("verificada")) {
-    return { tipo: "falta_cocina", color: "amber" };
+  if (m.includes("cocina") || m.includes("verificada") || m.includes("verificar")) {
+    return { tipo: "falta_cocina" };
   }
   if (m.includes("horario") || m.includes("habilitado")) {
-    return { tipo: "fuera_horario", color: "amber" };
+    return { tipo: "fuera_horario" };
   }
-  if (m.includes("sancionado")) {
-    return { tipo: "sancionado", color: "red" };
+  if (m.includes("sancionado") || m.includes("sanción")) {
+    return { tipo: "sancionado" };
   }
-
-  return { tipo: "generico", color: "red" };
+  return { tipo: "generico" };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPONENTE: TarjetaMetrica
+// COMPONENTE: Tarjeta de Métrica Estadística Compacta y Proporcional
 // ─────────────────────────────────────────────────────────────────────────────
-const TarjetaMetrica = ({
-  Label, Valor, Icono: Comp,
-  ColorFondo, ColorTexto, ColorIcono,
-}) => (
-  <div className={`rounded-2xl p-4 sm:p-5 ${ColorFondo} flex items-center gap-3 sm:gap-4`}>
-    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center bg-white/70 shrink-0">
-      <Comp className={`w-5 h-5 sm:w-6 sm:h-6 ${ColorIcono}`} />
+const TarjetaMetrica = ({ label, valor, icon: IconComponent, colorTheme, onRefresh, loading }) => {
+  const themes = {
+    green: {
+      bg: "bg-green-50/60 border-green-200/80 hover:border-green-300",
+      textVal: "text-green-900",
+      textLbl: "text-green-700",
+      iconBg: "bg-green-600 text-white shadow-xs shadow-green-600/20",
+    },
+    purple: {
+      bg: "bg-purple-50/60 border-purple-200/80 hover:border-purple-300",
+      textVal: "text-purple-900",
+      textLbl: "text-purple-700",
+      iconBg: "bg-purple-600 text-white shadow-xs shadow-purple-600/20",
+    },
+    rose: {
+      bg: "bg-red-50/60 border-red-200/80 hover:border-red-300",
+      textVal: "text-red-900",
+      textLbl: "text-red-700",
+      iconBg: "bg-red-600 text-white shadow-xs shadow-red-600/20",
+    },
+    slate: {
+      bg: "bg-gray-50 border-gray-200/80 hover:border-gray-300",
+      textVal: "text-gray-900",
+      textLbl: "text-gray-600",
+      iconBg: "bg-gray-600 text-white shadow-xs shadow-gray-600/20",
+    },
+  };
+
+  const currentTheme = themes[colorTheme] || themes.green;
+
+  return (
+    <div className={`relative flex items-center justify-between gap-3 rounded-2xl border p-3 sm:px-3.5 shadow-2xs transition-all duration-200 hover:shadow-xs ${currentTheme.bg}`}>
+      <div className="flex items-center gap-3 min-w-0">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${currentTheme.iconBg}`}>
+          <IconComponent className="w-4.5 h-4.5" />
+        </div>
+        <div className="min-w-0">
+          <p className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate leading-tight ${currentTheme.textLbl}`}>
+            {label}
+          </p>
+          <span className={`text-lg sm:text-xl font-black tracking-tight leading-none block mt-0.5 ${currentTheme.textVal}`}>
+            {valor}
+          </span>
+        </div>
+      </div>
+      {onRefresh && (
+        <button
+          onClick={onRefresh}
+          title="Actualizar datos"
+          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-white/80 transition-colors cursor-pointer shrink-0"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-green-600" : ""}`} />
+        </button>
+      )}
     </div>
-    <div>
-      <p className={`text-3xl sm:text-4xl font-extrabold ${ColorTexto} leading-none`}>
-        {Valor}
-      </p>
-      <p className={`text-xs sm:text-sm font-medium ${ColorTexto} opacity-75 mt-1`}>
-        {Label}
-      </p>
-    </div>
-  </div>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPONENTE: TarjetaResultado
+// COMPONENTE: Tarjeta de Resultado del Escaneo / Búsqueda
 // ─────────────────────────────────────────────────────────────────────────────
-const TarjetaResultado = ({ Resultado }) => {
-  if (!Resultado) return null;
+const TarjetaResultado = ({ resultado }) => {
+  if (!resultado) return null;
 
-  if (Resultado.Error) {
-    const { tipo } = ClasificarError(Resultado.Error);
+  // CASO DE ERROR CLASIFICADO
+  if (resultado.Error) {
+    const { tipo } = ClasificarError(resultado.Error);
 
-    const ConfigError = {
+    const configuraciones = {
       fecha_invalida: {
-        Icono: CalendarX,
-        Titulo: "Reserva de otra fecha",
-        BgCard: "bg-amber-50 border-amber-200",
-        BgIcono: "bg-amber-100",
-        ColorIcono: "text-amber-600",
-        ColorTitulo: "text-amber-800",
-        ColorMensaje: "text-amber-700",
+        icono: CalendarX,
+        titulo: "Reserva de otra fecha",
+        cardBg: "bg-amber-50 border-amber-200",
+        iconBox: "bg-amber-500 text-white shadow-sm",
+        titleColor: "text-amber-900",
+        msgColor: "text-amber-800",
+        pill: "Fecha incorrecta",
       },
       qr_vencido: {
-        Icono: Clock,
-        Titulo: "QR vencido",
-        BgCard: "bg-slate-50 border-slate-200",
-        BgIcono: "bg-slate-100",
-        ColorIcono: "text-slate-500",
-        ColorTitulo: "text-slate-700",
-        ColorMensaje: "text-slate-600",
+        icono: Clock,
+        titulo: "Código QR / Reserva vencida",
+        cardBg: "bg-gray-100 border-gray-300",
+        iconBox: "bg-gray-600 text-white shadow-sm",
+        titleColor: "text-gray-900",
+        msgColor: "text-gray-700",
+        pill: "Turno expirado",
       },
       ya_consumido: {
-        Icono: CheckCircle2,
-        Titulo: "Ya fue consumida",
-        BgCard: "bg-blue-50 border-blue-200",
-        BgIcono: "bg-blue-100",
-        ColorIcono: "text-blue-500",
-        ColorTitulo: "text-blue-700",
-        ColorMensaje: "text-blue-600",
+        icono: CheckCircle2,
+        titulo: "Reserva ya consumida",
+        cardBg: "bg-blue-50 border-blue-200",
+        iconBox: "bg-blue-600 text-white shadow-sm",
+        titleColor: "text-blue-900",
+        msgColor: "text-blue-800",
+        pill: "Ya registrada hoy",
       },
       cancelado: {
-        Icono: Ban,
-        Titulo: "Reserva cancelada",
-        BgCard: "bg-orange-50 border-orange-200",
-        BgIcono: "bg-orange-100",
-        ColorIcono: "text-orange-500",
-        ColorTitulo: "text-orange-700",
-        ColorMensaje: "text-orange-600",
+        icono: Ban,
+        titulo: "Reserva cancelada",
+        cardBg: "bg-orange-50 border-orange-200",
+        iconBox: "bg-orange-500 text-white shadow-sm",
+        titleColor: "text-orange-900",
+        msgColor: "text-orange-800",
+        pill: "Cancelada por aprendiz",
       },
       falta_cocina: {
-        Icono: AlertTriangle,
-        Titulo: "Verificacion pendiente",
-        BgCard: "bg-amber-50 border-amber-200",
-        BgIcono: "bg-amber-100",
-        ColorIcono: "text-amber-600",
-        ColorTitulo: "text-amber-800",
-        ColorMensaje: "text-amber-700",
+        icono: AlertTriangle,
+        titulo: "Verificación de Cocina pendiente",
+        cardBg: "bg-amber-50 border-amber-300",
+        iconBox: "bg-amber-500 text-white shadow-sm",
+        titleColor: "text-amber-950",
+        msgColor: "text-amber-800",
+        pill: "Requiere paso por cocina",
       },
       fuera_horario: {
-        Icono: Clock,
-        Titulo: "Fuera del horario de servicio",
-        BgCard: "bg-amber-50 border-amber-200",
-        BgIcono: "bg-amber-100",
-        ColorIcono: "text-amber-600",
-        ColorTitulo: "text-amber-800",
-        ColorMensaje: "text-amber-700",
+        icono: Clock,
+        titulo: "Fuera de la franja horaria",
+        cardBg: "bg-amber-50 border-amber-200",
+        iconBox: "bg-amber-500 text-white shadow-sm",
+        titleColor: "text-amber-900",
+        msgColor: "text-amber-800",
+        pill: "Comedor fuera de servicio",
       },
       sancionado: {
-        Icono: Shield,
-        Titulo: "Aprendiz sancionado",
-        BgCard: "bg-red-50 border-red-200",
-        BgIcono: "bg-red-100",
-        ColorIcono: "text-red-500",
-        ColorTitulo: "text-red-700",
-        ColorMensaje: "text-red-600",
+        icono: Shield,
+        titulo: "Aprendiz con sanción activa",
+        cardBg: "bg-red-50 border-red-300",
+        iconBox: "bg-red-600 text-white shadow-sm",
+        titleColor: "text-red-950",
+        msgColor: "text-red-800",
+        pill: "Acceso bloqueado",
       },
       generico: {
-        Icono: XCircle,
-        Titulo: "No se pudo procesar",
-        BgCard: "bg-red-50 border-red-200",
-        BgIcono: "bg-red-100",
-        ColorIcono: "text-red-500",
-        ColorTitulo: "text-red-700",
-        ColorMensaje: "text-red-600",
+        icono: XCircle,
+        titulo: "No se pudo registrar el consumo",
+        cardBg: "bg-red-50 border-red-200",
+        iconBox: "bg-red-600 text-white shadow-sm",
+        titleColor: "text-red-950",
+        msgColor: "text-red-800",
+        pill: "Rechazado",
       },
     };
 
-    const C = ConfigError[tipo] ?? ConfigError.generico;
-    const IconoError = C.Icono;
+    const cfg = configuraciones[tipo] || configuraciones.generico;
+    const ErrorIcon = cfg.icono;
 
     return (
-      <div className={`border rounded-2xl p-4 sm:p-5 flex items-start gap-3 ${C.BgCard}`}>
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${C.BgIcono}`}>
-          <IconoError className={`w-5 h-5 ${C.ColorIcono}`} />
-        </div>
-        <div>
-          <p className={`font-bold text-sm sm:text-base ${C.ColorTitulo}`}>
-            {C.Titulo}
-          </p>
-          <p className={`text-sm mt-1 leading-relaxed ${C.ColorMensaje}`}>
-            {Resultado.Error}
-          </p>
+      <div className={`rounded-2xl border-2 p-5 shadow-xs transition-all ${cfg.cardBg}`}>
+        <div className="flex items-start gap-4">
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${cfg.iconBox}`}>
+            <ErrorIcon className="w-6 h-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className={`text-base font-bold ${cfg.titleColor}`}>
+                {cfg.titulo}
+              </h4>
+              <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white border border-current/20">
+                {cfg.pill}
+              </span>
+            </div>
+            <p className={`mt-1.5 text-sm leading-relaxed ${cfg.msgColor}`}>
+              {resultado.Error}
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Bloque de exito: se muestra cuando el consumo fue registrado correctamente
-  // Incluye nombre del aprendiz, documento, imagen del plato, nombre y descripcion del plato
-  //
-  // La URL de uploads apunta a la raiz del servidor (sin /api).
-  // Se elimina el sufijo /api de API_URL si lo tiene para que la ruta quede bien formada.
-  // Ejemplo: /api -> /uploads/foto.jpg
-  const BaseServidor = API_URL.replace(/\/api$/, "");
-  const UrlImagen = Resultado.ImgPlato
-    ? `${BaseServidor}/uploads/${Resultado.ImgPlato}`
-    : null;
+  // CASO DE ÉXITO: Consumo registrado
+  const baseServidor = API_URL.replace(/\/api$/, "");
+  const urlImagen = resultado.ImgPlato ? `${baseServidor}/uploads/${resultado.ImgPlato}` : null;
+  const configTipo = ESTILOS_TIPO[resultado.Tipo] || ESTILOS_TIPO.Almuerzo;
+  const TipoIcon = configTipo.icon;
 
   return (
-    <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4 sm:p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-          <CheckCircle2 className="w-5 h-5 text-green-600" />
-        </div>
-        <p className="font-bold text-green-700 text-base sm:text-lg">
-          Consumo registrado
-        </p>
-        {Resultado.flujoEspecial && (
-          <span className="ml-auto text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full">
-            ESPECIAL
-          </span>
-        )}
-        {Resultado.flujoInterno && !Resultado.flujoEspecial && (
-          <span className="ml-auto text-xs font-bold bg-teal-100 text-teal-700 border border-teal-200 px-2.5 py-1 rounded-full">
-            INTERNO
-          </span>
-        )}
-        {!Resultado.flujoEspecial && !Resultado.flujoInterno && (
-          <span className="ml-auto text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-full">
-            EXTERNO
-          </span>
-        )}
-      </div>
-
-      {/* Imagen del plato si esta disponible */}
-      {UrlImagen && (
-        <div className="flex justify-center mb-4">
-          <img
-            src={UrlImagen}
-            alt={Resultado.Plato}
-            className="w-24 h-24 object-cover rounded-xl border border-green-100 shadow-sm"
-            onError={(e) => { e.target.style.display = "none"; }}
-          />
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <InfoFila Icono={User} Label="Aprendiz" Valor={Resultado.Aprendiz} />
-        <InfoFila Icono={Hash} Label="Documento" Valor={Resultado.NumDoc} />
-        <InfoFila Icono={Utensils} Label="Plato" Valor={Resultado.Plato} />
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-white/80 flex items-center justify-center shrink-0">
-            <Clock className="w-3.5 h-3.5 text-gray-400" />
+    <div className="rounded-2xl border-2 border-green-300 bg-green-50/80 p-5 sm:p-6 shadow-xs transition-all">
+      {/* Cabecera del resultado */}
+      <div className="flex items-center justify-between gap-3 border-b border-green-200 pb-3.5 mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-green-600 text-white flex items-center justify-center shadow-xs">
+            <CheckCheck className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs text-gray-400 leading-none">Tipo</p>
-            <span className={`mt-1 inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${ESTILOS_TIPO[Resultado.Tipo] || "bg-gray-100 text-gray-600"}`}>
-              {Resultado.Tipo}
-            </span>
+            <h4 className="font-extrabold text-green-950 text-base sm:text-lg leading-tight">
+              ¡Consumo Autorizado!
+            </h4>
+            <p className="text-xs font-semibold text-green-700">
+              Registrado exitosamente en el sistema
+            </p>
           </div>
+        </div>
+
+        {/* Badge de perfil de flujo */}
+        <div>
+          {resultado.flujoEspecial && (
+            <span className="inline-flex items-center gap-1 text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300 px-3 py-1 rounded-full">
+              <Shield className="w-3 h-3" /> Especial
+            </span>
+          )}
+          {resultado.flujoInterno && !resultado.flujoEspecial && (
+            <span className="inline-flex items-center gap-1 text-xs font-bold bg-green-100 text-green-800 border border-green-300 px-3 py-1 rounded-full">
+              <User className="w-3 h-3" /> Interno
+            </span>
+          )}
+          {!resultado.flujoEspecial && !resultado.flujoInterno && (
+            <span className="inline-flex items-center gap-1 text-xs font-bold bg-gray-100 text-gray-700 border border-gray-300 px-3 py-1 rounded-full">
+              <User className="w-3 h-3" /> Externo
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Descripcion del plato: informacion adicional para el personal de cocina */}
-      {Resultado.DescPlato && (
-        <p className="mt-3 text-xs text-green-700 leading-relaxed border-t border-green-200 pt-3">
-          {Resultado.DescPlato}
-        </p>
-      )}
-    </div>
-  );
-};
-
-const InfoFila = ({ Icono: Comp, Label, Valor }) => (
-  <div className="flex items-center gap-2">
-    <div className="w-7 h-7 rounded-lg bg-white/80 flex items-center justify-center shrink-0">
-      <Comp className="w-3.5 h-3.5 text-gray-400" />
-    </div>
-    <div className="min-w-0">
-      <p className="text-xs text-gray-400 leading-none">{Label}</p>
-      <p className="text-sm font-semibold text-gray-800 mt-0.5 truncate">{Valor}</p>
-    </div>
-  </div>
-);
-
-const FilaHistorial = ({ Item }) => (
-  <div className="px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors">
-    <div className="w-8 h-8 bg-teal-50 rounded-xl flex items-center justify-center shrink-0">
-      <CheckCircle2 className="w-4 h-4 text-teal-600" />
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="font-semibold text-gray-800 text-sm truncate">{Item.Aprendiz}</p>
-      <p className="text-xs text-gray-400 truncate">{Item.Plato}</p>
-    </div>
-    <div className="shrink-0 text-right">
-      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${ESTILOS_TIPO[Item.Tipo] || "bg-gray-100 text-gray-600"}`}>
-        {Item.Tipo}
-      </span>
-      <p className="text-xs text-gray-400 mt-0.5">
-        {new Date(Item.Timestamp).toLocaleTimeString("es-CO", {
-          hour: "2-digit", minute: "2-digit",
-        })}
-      </p>
-    </div>
-  </div>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPONENTE: OverlayCamara
-// ─────────────────────────────────────────────────────────────────────────────
-const OverlayCamara = ({ QRDetectado, Procesando }) => {
-  if (!QRDetectado && !Procesando) return null;
-
-  return (
-    <div
-      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl"
-      style={{ background: "rgba(0,0,0,0.60)", backdropFilter: "blur(2px)" }}
-    >
-      {Procesando ? (
-        <>
-          <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-white animate-spin" />
+      {/* Cuerpo principal del plato y usuario */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+        {/* Foto del plato si existe */}
+        {urlImagen && (
+          <div className="md:col-span-4 flex justify-center">
+            <div className="relative group overflow-hidden rounded-2xl border border-green-200 w-full max-w-[180px] h-36 bg-green-100/50">
+              <img
+                src={urlImagen}
+                alt={resultado.Plato || "Plato servido"}
+                className="w-full h-full object-cover"
+                onError={(e) => { e.target.style.display = "none"; }}
+              />
+            </div>
           </div>
-          <p className="text-white font-bold text-sm tracking-wide">
-            Procesando reserva...
-          </p>
-          <p className="text-white/60 text-xs">
-            Consultando al servidor
-          </p>
-        </>
-      ) : (
-        <>
-          <div className="w-14 h-14 rounded-2xl bg-teal-500/30 border-2 border-teal-400 flex items-center justify-center">
-            <ScanLine className="w-8 h-8 text-teal-300" />
+        )}
+
+        {/* Datos del aprendiz y plato */}
+        <div className={urlImagen ? "md:col-span-8 space-y-3" : "md:col-span-12 space-y-3"}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="flex items-center gap-2.5 bg-white border border-green-100 p-2.5 rounded-xl">
+              <div className="w-8 h-8 rounded-lg bg-green-100 text-green-700 flex items-center justify-center shrink-0">
+                <User className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-gray-400 uppercase leading-none">Aprendiz</p>
+                <p className="text-sm font-bold text-gray-900 truncate mt-0.5">{resultado.Aprendiz || "Sin nombre"}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 bg-white border border-green-100 p-2.5 rounded-xl">
+              <div className="w-8 h-8 rounded-lg bg-green-100 text-green-700 flex items-center justify-center shrink-0">
+                <Hash className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-gray-400 uppercase leading-none">Documento</p>
+                <p className="text-sm font-bold text-gray-900 truncate mt-0.5">{resultado.NumDoc || "--"}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 bg-white border border-green-100 p-2.5 rounded-xl">
+              <div className="w-8 h-8 rounded-lg bg-green-100 text-green-700 flex items-center justify-center shrink-0">
+                <Utensils className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-gray-400 uppercase leading-none">Plato Asignado</p>
+                <p className="text-sm font-bold text-green-950 truncate mt-0.5">{resultado.Plato || "Menú del día"}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 bg-white border border-green-100 p-2.5 rounded-xl">
+              <div className="w-8 h-8 rounded-lg bg-green-100 text-green-700 flex items-center justify-center shrink-0">
+                <TipoIcon className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-gray-400 uppercase leading-none">Tipo de Comida</p>
+                <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-md border mt-0.5 ${configTipo.badge}`}>
+                  {resultado.Tipo || "Almuerzo"}
+                </span>
+              </div>
+            </div>
           </div>
-          <p className="text-teal-300 font-bold text-sm tracking-wide">
-            QR detectado
-          </p>
-        </>
-      )}
+
+          {resultado.DescPlato && (
+            <div className="bg-white/80 rounded-xl p-2.5 text-xs text-green-900 border border-green-200 leading-relaxed">
+              <span className="font-bold">Detalle del menú: </span> {resultado.DescPlato}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPONENTE: ModalCierreTurno
+// COMPONENTE: Modal de Cierre de Turno y Reporte Ejecutivo
 // ─────────────────────────────────────────────────────────────────────────────
-const ModalCierreTurno = ({
-  Datos, OnCerrar, OnExportarPDF, RefReporte, ExportandoPDF,
-}) => {
-  const { HoraInicio, HoraFin, Historial, Metricas } = Datos;
+const ModalCierreTurno = ({ datos, onCerrar, onExportarPDF, refReporte, exportandoPDF }) => {
+  const { horaInicio, horaFin, historial, metricas } = datos;
 
-  const FormatearHora = (Iso) =>
-    new Date(Iso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+  const formatearHora = (iso) =>
+    new Date(iso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-  const FormatearFecha = (Iso) =>
-    new Date(Iso).toLocaleDateString("es-CO", {
+  const formatearFecha = (iso) =>
+    new Date(iso).toLocaleDateString("es-CO", {
       weekday: "long", year: "numeric", month: "long", day: "numeric",
     });
 
-  const DatosColumnas = [
-    ["Categoria", "Cantidad", { role: "style" }, { role: "annotation" }],
-    ["Consumidas", Metricas.Total, "color: #0d9488", String(Metricas.Total)],
-    ["Especiales", Metricas.Especiales, "color: #7c3aed", String(Metricas.Especiales)],
-    ["Canceladas", Metricas.Canceladas, "color: #ef4444", String(Metricas.Canceladas)],
-    ["Vencidas", Metricas.Vencidas, "color: #64748b", String(Metricas.Vencidas)],
+  // Datos para gráficos de Google Charts
+  const datosColumnas = [
+    ["Categoría", "Cantidad", { role: "style" }, { role: "annotation" }],
+    ["Consumidas", metricas.total, "color: #16a34a", String(metricas.total)],
+    ["Especiales", metricas.especiales, "color: #7c3aed", String(metricas.especiales)],
+    ["Canceladas", metricas.canceladas, "color: #dc2626", String(metricas.canceladas)],
+    ["Vencidas", metricas.vencidas, "color: #4b5563", String(metricas.vencidas)],
   ];
 
-  const ContarPorTipo = (Tipo) => Historial.filter((R) => R.Tipo === Tipo).length;
+  const contarTipo = (tipo) => historial.filter((r) => r.Tipo === tipo).length;
 
-  const DatosPastel = [
-    ["Tipo", "Cantidad"],
-    ["Desayuno", ContarPorTipo("Desayuno")],
-    ["Almuerzo", ContarPorTipo("Almuerzo")],
-    ["Cena", ContarPorTipo("Cena")],
-  ].filter((F, I) => I === 0 || F[1] > 0);
+  const datosPastel = [
+    ["Tipo de Servicio", "Cantidad"],
+    ["Desayuno", contarTipo("Desayuno")],
+    ["Almuerzo", contarTipo("Almuerzo")],
+    ["Cena", contarTipo("Cena")],
+  ].filter((f, i) => i === 0 || f[1] > 0);
 
-  if (DatosPastel.length === 1) DatosPastel.push(["Sin datos", 1]);
+  if (datosPastel.length === 1) datosPastel.push(["Sin consumos", 1]);
 
-  const ConsumoPorHora = Historial.reduce((Acc, Item) => {
-    const Hora = new Date(Item.Timestamp).getHours();
-    const Key = `${Hora.toString().padStart(2, "0")}:00`;
-    Acc[Key] = (Acc[Key] || 0) + 1;
-    return Acc;
+  // Evolución por franjas horarias
+  const agrupadoHora = historial.reduce((acc, item) => {
+    const hora = new Date(item.Timestamp).getHours();
+    const key = `${hora.toString().padStart(2, "0")}:00`;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
   }, {});
 
-  const DatosLinea = [
+  const datosLinea = [
     ["Hora", "Consumos"],
-    ...Object.entries(ConsumoPorHora)
-      .sort(([A], [B]) => A.localeCompare(B))
-      .map(([H, C]) => [H, C]),
+    ...Object.entries(agrupadoHora)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([h, c]) => [h, c]),
   ];
 
-  if (DatosLinea.length < 3) {
-    DatosLinea.push(["00:00", 0]);
+  if (datosLinea.length < 3) {
+    datosLinea.push(["00:00", 0]);
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-5xl max-h-[95vh] sm:max-h-[92vh] overflow-y-auto shadow-2xl">
-        <div className="sticky top-0 bg-white/95 backdrop-blur-sm rounded-t-3xl border-b border-gray-100 px-5 sm:px-8 py-4 sm:py-5 flex items-start sm:items-center justify-between z-10 gap-3">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-7 h-7 bg-teal-600 rounded-lg flex items-center justify-center">
-                <Square className="w-3.5 h-3.5 text-white" />
-              </div>
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                Resumen del Turno
-              </h2>
+    <div className="fixed inset-0 bg-slate-900/75 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-5xl max-h-[96vh] overflow-y-auto shadow-2xl border border-gray-200 flex flex-col">
+        {/* Barra superior del modal */}
+        <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-200 flex items-center justify-between z-20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-green-600 text-white flex items-center justify-center shadow-xs">
+              <FileText className="w-5 h-5" />
             </div>
-            <p className="text-xs sm:text-sm text-gray-400 ml-9">
-              {FormatearFecha(HoraInicio)} &middot; {FormatearHora(HoraInicio)} - {FormatearHora(HoraFin)}
-            </p>
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
+                Reporte de Cierre de Turno
+              </h2>
+              <p className="text-xs text-gray-500">
+                {formatearFecha(horaInicio)} &middot; {formatearHora(horaInicio)} a {formatearHora(horaFin)}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+
+          <div className="flex items-center gap-2">
             <button
-              onClick={OnExportarPDF}
-              disabled={ExportandoPDF}
-              className="flex items-center gap-1.5 sm:gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors shadow-sm"
+              onClick={onExportarPDF}
+              disabled={exportandoPDF}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 active:scale-95 disabled:bg-green-400 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer"
             >
-              {ExportandoPDF
-                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                : <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              }
-              <span className="hidden xs:inline sm:inline">
-                {ExportandoPDF ? "Generando..." : "Exportar PDF"}
-              </span>
+              {exportandoPDF ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Exportando PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>Exportar Reporte PDF</span>
+                </>
+              )}
             </button>
             <button
-              onClick={OnCerrar}
-              className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors shrink-0"
+              onClick={onCerrar}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors cursor-pointer"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        <div ref={RefReporte} className="px-5 sm:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 bg-white">
-          <div className="border-b border-gray-100 pb-4 sm:pb-6">
-            <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-1">
-              Reporte de turno — Foodsys
-            </p>
-            <p className="text-gray-600 text-sm">
-              Supervisor &middot; {FormatearFecha(HoraInicio)}
-            </p>
+        {/* Contenedor exportable */}
+        <div ref={refReporte} className="p-6 sm:p-8 space-y-6 sm:space-y-8 bg-white flex-1">
+          {/* Membrete del reporte */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-200 pb-5">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-widest text-green-800 bg-green-100 px-2.5 py-0.5 rounded-full">
+                  FOODSYS &middot; SENA
+                </span>
+                <span className="text-xs text-gray-500 font-medium">Regional Tolima</span>
+              </div>
+              <h1 className="text-2xl font-black text-gray-900 tracking-tight mt-1">
+                Control y Auditoría de Comedor
+              </h1>
+              <p className="text-xs text-gray-500">
+                Generado por Supervisor &middot; Fecha: {formatearFecha(horaInicio)}
+              </p>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-3 text-right text-xs text-gray-600">
+              <p><strong className="text-gray-800">Apertura:</strong> {formatearHora(horaInicio)}</p>
+              <p><strong className="text-gray-800">Cierre:</strong> {formatearHora(horaFin)}</p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-            <TarjetaMetrica Label="Total Consumidas" Valor={Metricas.Total} Icono={CheckCircle2} ColorFondo="bg-teal-50" ColorTexto="text-teal-700" ColorIcono="text-teal-600" />
-            <TarjetaMetrica Label="Flujo Especial" Valor={Metricas.Especiales} Icono={Shield} ColorFondo="bg-purple-50" ColorTexto="text-purple-700" ColorIcono="text-purple-600" />
-            <TarjetaMetrica Label="Canceladas (dia)" Valor={Metricas.Canceladas} Icono={XCircle} ColorFondo="bg-red-50" ColorTexto="text-red-700" ColorIcono="text-red-600" />
-            <TarjetaMetrica Label="Vencidas al cierre" Valor={Metricas.Vencidas} Icono={Clock} ColorFondo="bg-slate-50" ColorTexto="text-slate-700" ColorIcono="text-slate-600" />
+          {/* Tarjetas de resumen métrico */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+            <div className="p-4 rounded-2xl bg-green-50 border border-green-200">
+              <p className="text-xs font-bold text-green-800 uppercase">Consumidas</p>
+              <p className="text-3xl font-black text-green-950 mt-1">{metricas.total}</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200">
+              <p className="text-xs font-bold text-purple-800 uppercase">Especiales</p>
+              <p className="text-3xl font-black text-purple-950 mt-1">{metricas.especiales}</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-red-50 border border-red-200">
+              <p className="text-xs font-bold text-red-800 uppercase">Canceladas (Día)</p>
+              <p className="text-3xl font-black text-red-950 mt-1">{metricas.canceladas}</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-300">
+              <p className="text-xs font-bold text-gray-800 uppercase">Vencidas al Cierre</p>
+              <p className="text-3xl font-black text-gray-950 mt-1">{metricas.vencidas}</p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <BarChart3 className="w-4 h-4 text-teal-500" />
-                <p className="font-semibold text-gray-700 text-sm">Totales por categoria</p>
+          {/* Gráficos de análisis */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 className="w-4 h-4 text-green-600" />
+                <h3 className="font-bold text-gray-800 text-sm">Distribución por Estado</h3>
               </div>
               <Chart
                 chartType="ColumnChart"
-                data={DatosColumnas}
+                data={datosColumnas}
                 options={{
-                  chartArea: { width: "75%", height: "62%" },
+                  chartArea: { width: "80%", height: "65%" },
                   legend: { position: "none" },
-                  hAxis: { textStyle: { fontSize: 11, color: "#64748b" } },
+                  hAxis: { textStyle: { fontSize: 11, color: "#475569" } },
                   vAxis: { minValue: 0, textStyle: { fontSize: 11 } },
-                  animation: { startup: true, duration: 600, easing: "out" },
-                  bar: { groupWidth: "55%" },
-                  annotations: { alwaysOutside: true, textStyle: { fontSize: 12, bold: true } },
+                  annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true } },
                 }}
                 width="100%"
-                height="280px"
+                height="240px"
               />
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <PieChart className="w-4 h-4 text-amber-500" />
-                <p className="font-semibold text-gray-700 text-sm">Distribucion por tipo de comida</p>
+            <div className="bg-white rounded-2xl border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <PieChart className="w-4 h-4 text-green-700" />
+                <h3 className="font-bold text-gray-800 text-sm">Distribución por Tipo de Comida</h3>
               </div>
               <Chart
                 chartType="PieChart"
-                data={DatosPastel}
+                data={datosPastel}
                 options={{
-                  colors: ["#f97316", "#0d9488", "#6366f1"],
+                  colors: ["#f59e0b", "#16a34a", "#2563eb"],
                   chartArea: { width: "85%", height: "80%" },
-                  legend: { position: "right", textStyle: { fontSize: 12 } },
-                  pieHole: 0.42,
-                  animation: { startup: true, duration: 600 },
-                  pieSliceTextStyle: { fontSize: 13, bold: true },
+                  legend: { position: "right", textStyle: { fontSize: 11 } },
+                  pieHole: 0.45,
+                  pieSliceTextStyle: { fontSize: 12, bold: true },
                 }}
                 width="100%"
-                height="280px"
+                height="240px"
               />
             </div>
           </div>
 
-          {DatosLinea.length > 2 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <TrendingUp className="w-4 h-4 text-indigo-500" />
-                <p className="font-semibold text-gray-700 text-sm">Evolucion de consumos por hora</p>
+          {/* Evolución por hora si hay registros suficientes */}
+          {datosLinea.length > 2 && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-4 h-4 text-green-700" />
+                <h3 className="font-bold text-gray-800 text-sm">Consumos por Franja Horaria</h3>
               </div>
               <Chart
                 chartType="LineChart"
-                data={DatosLinea}
+                data={datosLinea}
                 options={{
-                  chartArea: { width: "80%", height: "65%" },
-                  colors: ["#0d9488"],
+                  chartArea: { width: "85%", height: "65%" },
+                  colors: ["#16a34a"],
                   legend: { position: "none" },
                   curveType: "function",
-                  pointSize: 6,
+                  pointSize: 5,
                   lineWidth: 3,
                   hAxis: { textStyle: { fontSize: 11, color: "#64748b" } },
                   vAxis: { minValue: 0, textStyle: { fontSize: 11 }, format: "0" },
-                  animation: { startup: true, duration: 800, easing: "out" },
                 }}
                 width="100%"
-                height="260px"
+                height="220px"
               />
             </div>
           )}
 
-          {Historial.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <ClipboardList className="w-4 h-4 text-gray-400" />
-                <p className="font-semibold text-gray-700 text-sm">Detalle completo del turno</p>
-                <span className="ml-auto bg-teal-100 text-teal-700 text-xs font-bold px-2.5 py-0.5 rounded-full">
-                  {Historial.length} registros
-                </span>
+          {/* Tabla de auditoría detallada */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-gray-500" />
+                <h3 className="font-bold text-gray-800 text-sm">Detalle de Aprendices Atendidos</h3>
               </div>
-              <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 text-left border-b border-gray-100">
-                      <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Hora</th>
-                      <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Aprendiz</th>
-                      <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">Documento</th>
-                      <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden lg:table-cell">Plato</th>
-                      <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Tipo</th>
-                      <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden md:table-cell">Perfil</th>
+              <span className="text-xs font-bold bg-green-100 text-green-800 px-2.5 py-0.5 rounded-full">
+                {historial.length} registros
+              </span>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-gray-200">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase">
+                    <th className="px-4 py-3">Hora</th>
+                    <th className="px-4 py-3">Aprendiz</th>
+                    <th className="px-4 py-3">Documento</th>
+                    <th className="px-4 py-3">Plato</th>
+                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3">Flujo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {historial.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                        No se registraron consumos en este turno
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {Historial.map((Item, Idx) => (
-                      <tr key={Idx} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-4 py-3 text-gray-500 text-xs font-medium whitespace-nowrap">
-                          {new Date(Item.Timestamp).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
+                  ) : (
+                    historial.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap">
+                          {new Date(item.Timestamp).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
                         </td>
-                        <td className="px-4 py-3 font-semibold text-gray-800">{Item.Aprendiz}</td>
-                        <td className="px-4 py-3 text-gray-500 hidden sm:table-cell text-sm">{Item.NumDoc}</td>
-                        <td className="px-4 py-3 text-gray-600 hidden lg:table-cell text-xs leading-relaxed max-w-xs truncate">{Item.Plato}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${ESTILOS_TIPO[Item.Tipo] || "bg-gray-100 text-gray-600"}`}>
-                            {Item.Tipo}
-                          </span>
+                        <td className="px-4 py-2.5 font-bold text-gray-900">{item.Aprendiz}</td>
+                        <td className="px-4 py-2.5 text-gray-600">{item.NumDoc}</td>
+                        <td className="px-4 py-2.5 text-gray-700 truncate max-w-xs">{item.Plato}</td>
+                        <td className="px-4 py-2.5">
+                          <span className="font-bold text-gray-800">{item.Tipo}</span>
                         </td>
-                        <td className="px-4 py-3 hidden md:table-cell">
-                          {Item.FlujoEspecial && <span className="text-xs font-semibold text-purple-600">Especial</span>}
-                          {Item.FlujoInterno && <span className="text-xs font-semibold text-teal-600">Interno</span>}
-                          {!Item.FlujoEspecial && !Item.FlujoInterno && <span className="text-xs text-gray-400">Externo</span>}
+                        <td className="px-4 py-2.5">
+                          {item.FlujoEspecial && <span className="font-semibold text-purple-600">Especial</span>}
+                          {item.FlujoInterno && !item.FlujoEspecial && <span className="font-semibold text-green-600">Interno</span>}
+                          {!item.FlujoEspecial && !item.FlujoInterno && <span className="font-semibold text-gray-500">Externo</span>}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
 
-          <div className="border-t border-gray-100 pt-4 text-xs text-gray-400 flex flex-wrap gap-2 justify-between">
-            <span>Inicio: {new Date(HoraInicio).toLocaleString("es-CO")}</span>
-            <span>Cierre: {new Date(HoraFin).toLocaleString("es-CO")}</span>
+          {/* Pie de página con firmas */}
+          <div className="pt-6 border-t border-gray-200 grid grid-cols-2 gap-8 text-xs text-gray-500">
+            <div>
+              <p className="font-bold text-gray-800">Firma del Supervisor:</p>
+              <div className="mt-8 border-b border-gray-300 w-48" />
+              <p className="mt-1 text-gray-400">Supervisor de Turno Foodsys</p>
+            </div>
+            <div className="text-right">
+              <p className="font-bold text-gray-800">Centro Agropecuario La Granja</p>
+              <p className="text-gray-400">SENA Regional Tolima</p>
+            </div>
           </div>
         </div>
       </div>
@@ -619,572 +662,674 @@ const ModalCierreTurno = ({
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPONENTE PRINCIPAL: Registro
+// COMPONENTE PRINCIPAL: Registro (Supervisor)
 // ─────────────────────────────────────────────────────────────────────────────
 const Registro = () => {
+  // ── ESTADOS PRINCIPALES ───────────────────────────────────────────────────
+  const [turnoActivo, setTurnoActivo] = useState(false);
+  const [horaInicioTurno, setHoraInicioTurno] = useState(null);
+  const [horaFinTurno, setHoraFinTurno] = useState(null);
+  const [historialTurno, setHistorialTurno] = useState([]);
+  const [contCanceladas, setContCanceladas] = useState(0);
+  const [contVencidas, setContVencidas] = useState(0);
+  const [cargandoMetricas, setCargandoMetricas] = useState(false);
 
-  // ── ESTADOS ───────────────────────────────────────────────────────────────
-  const [TurnoActivo, SetTurnoActivo] = useState(false);
-  const [HoraInicioTurno, SetHoraInicioTurno] = useState(null);
-  const [HoraFinTurno, SetHoraFinTurno] = useState(null);
-  const [HistorialTurno, SetHistorialTurno] = useState([]);
-  const [ContCanceladas, SetContCanceladas] = useState(0);
-  const [ContVencidas, SetContVencidas] = useState(0);
-  const [ScannerListo, SetScannerListo] = useState(false);
-  const [QRDetectado, SetQRDetectado] = useState(false);
-  const [Procesando, SetProcesando] = useState(false);
-  const [TabActiva, SetTabActiva] = useState("qr");
-  const [TerminoBusqueda, SetTerminoBusqueda] = useState("");
-  const [CargandoManual, SetCargandoManual] = useState(false);
-  const [UltimoResultado, SetUltimoResultado] = useState(null);
-  const [MostrarModalCierre, SetMostrarModalCierre] = useState(false);
-  const [ExportandoPDF, SetExportandoPDF] = useState(false);
-  const [HoraActual, SetHoraActual] = useState(
-    () => new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
-  );
+  // Estados del Escáner y Cámara
+  const [tabActiva, setTabActiva] = useState("qr"); // "qr" | "manual"
+  const [scannerListo, setScannerListo] = useState(false);
+  const [qrDetectado, setQrDetectado] = useState(false);
+  const [procesando, setProcesando] = useState(false);
+
+  // Búsqueda Manual
+  const [terminoBusqueda, setTerminoBusqueda] = useState("");
+  const [cargandoManual, setCargandoManual] = useState(false);
+
+  // Resultados & Modales
+  const [ultimoResultado, setUltimoResultado] = useState(null);
+  const [mostrarModalCierre, setMostrarModalCierre] = useState(false);
+  const [exportandoPDF, setExportandoPDF] = useState(false);
+  const [filtroHistorial, setFiltroHistorial] = useState("");
+  const [tipoFiltroHistorial, setTipoFiltroHistorial] = useState("Todos");
+
+  // Reloj y turnos
+  const [horaActual, setHoraActual] = useState(new Date());
 
   // ── REFS ──────────────────────────────────────────────────────────────────
-  const InstanciaQR = useRef(null);
-  const ProcesandoRef = useRef(false);
-  const RefReportePDF = useRef(null);
-  const UltimoQRTexto = useRef('');  // contenido del ultimo QR procesado
-  const UltimoQRTiempo = useRef(0);   // timestamp del ultimo escaneo
-  // Refs pistola — declarados aqui para que esten disponibles en el useEffect de pistola
-  const BufferPistola = useRef('');
-  const TimerPistola = useRef(null);
+  const instanciaQRRef = useRef(null);
+  const procesandoRef = useRef(false);
+  const refReportePDF = useRef(null);
+  const ultimoQRTextoRef = useRef("");
+  const ultimoQRTiempoRef = useRef(0);
+  const bufferPistolaRef = useRef("");
+  const timerPistolaRef = useRef(null);
 
-  // ── EFECTO: reloj en header ───────────────────────────────────────────────
+  // ── EFECTO: Reloj en vivo ─────────────────────────────────────────────────
   useEffect(() => {
-    const I = setInterval(() => {
-      SetHoraActual(
-        new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
-      );
-    }, 30_000);
-    return () => clearInterval(I);
+    const timer = setInterval(() => setHoraActual(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  // ── UTILIDAD: obtener token ───────────────────────────────────────────────
-  const ObtenerToken = () => localStorage.getItem("token") ?? "";
+  // Identificar el turno de comida actual según la hora
+  const turnoComidaActual = useMemo(() => {
+    const minutosDia = horaActual.getHours() * 60 + horaActual.getMinutes();
+    return HORARIOS_SERVICIO.find(
+      (h) => minutosDia >= h.inicioMin && minutosDia <= h.finMin
+    ) || null;
+  }, [horaActual]);
 
-  // ── ObtenerContadoresExternos ─────────────────────────────────────────────
-  const ObtenerContadoresExternos = async () => {
-    const FechaHoy = new Date().toISOString().split("T")[0];
-    try {
-      const R = await fetch(`${API_URL}/api/Reservas/canceladas/count?fecha=${FechaHoy}`, {
-        headers: { Authorization: `Bearer ${ObtenerToken()}` },
-      });
-      if (R.ok) SetContCanceladas((await R.json()).total ?? 0);
-    } catch { }
-    try {
-      const R = await fetch(`${API_URL}/api/Reservas/vencidas/count?fecha=${FechaHoy}`, {
-        headers: { Authorization: `Bearer ${ObtenerToken()}` },
-      });
-      if (R.ok) SetContVencidas((await R.json()).total ?? 0);
-    } catch { }
-  };
+  // ── OBTENER TOKEN ─────────────────────────────────────────────────────────
+  const obtenerToken = () => localStorage.getItem("token") || "";
 
-  // ── LlamarAPIConsumo ──────────────────────────────────────────────────────
-  const LlamarAPIConsumo = async (Variante, Body) => {
+  // ── OBTENER CONTADORES EXTERNOS ───────────────────────────────────────────
+  const obtenerContadoresExternos = useCallback(async () => {
+    const fechaHoy = new Date().toISOString().split("T")[0];
+    setCargandoMetricas(true);
     try {
-      const Resp = await fetch(`${API_URL}/api/Reservas/consumir/${Variante}`, {
+      const [resCanc, resVenc] = await Promise.all([
+        fetch(`${API_URL}/api/Reservas/canceladas/count?fecha=${fechaHoy}`, {
+          headers: { Authorization: `Bearer ${obtenerToken()}` },
+        }),
+        fetch(`${API_URL}/api/Reservas/vencidas/count?fecha=${fechaHoy}`, {
+          headers: { Authorization: `Bearer ${obtenerToken()}` },
+        }),
+      ]);
+      if (resCanc.ok) {
+        const dataCanc = await resCanc.json();
+        setContCanceladas(dataCanc.total ?? 0);
+      }
+      if (resVenc.ok) {
+        const dataVenc = await resVenc.json();
+        setContVencidas(dataVenc.total ?? 0);
+      }
+    } catch {
+      // Manejo silencioso en background
+    } finally {
+      setCargandoMetricas(false);
+    }
+  }, []);
+
+  // ── LLAMAR API DE CONSUMO ─────────────────────────────────────────────────
+  const llamarAPIConsumo = async (variante, body) => {
+    try {
+      const resp = await fetch(`${API_URL}/api/Reservas/consumir/${variante}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${ObtenerToken()}`,
+          Authorization: `Bearer ${obtenerToken()}`,
         },
-        body: JSON.stringify(Body),
+        body: JSON.stringify(body),
       });
 
-      const Datos = await Resp.json();
+      const datos = await resp.json();
 
-      if (!Resp.ok) {
-        SetUltimoResultado({ Error: Datos.message || "Error al procesar la reserva" });
+      if (!resp.ok) {
+        setUltimoResultado({ Error: datos.message || "Error al validar la reserva" });
         return;
       }
 
-      SetUltimoResultado(Datos);
-      SetHistorialTurno((Prev) => [
+      setUltimoResultado(datos);
+      setHistorialTurno((prev) => [
         {
-          Aprendiz: Datos.Aprendiz ?? "Sin nombre",
-          NumDoc: Datos.NumDoc ?? "--",
-          Tipo: Datos.Tipo ?? "Almuerzo",
-          Plato: Datos.Plato ?? "Sin informacion",
-          // DescPlato e ImgPlato se almacenan para que el PDF del cierre de turno
-          // pueda mostrarlos en la tabla de detalle si en el futuro se requiere
-          DescPlato: Datos.DescPlato ?? "",
-          ImgPlato: Datos.ImgPlato ?? null,
-          FlujoEspecial: Boolean(Datos.flujoEspecial),
-          FlujoInterno: Boolean(Datos.flujoInterno),
-          Id_Reserva: Datos.Id_Reserva,
+          Aprendiz: datos.Aprendiz || "Sin nombre",
+          NumDoc: datos.NumDoc || "--",
+          Tipo: datos.Tipo || "Almuerzo",
+          Plato: datos.Plato || "Sin información",
+          DescPlato: datos.DescPlato || "",
+          ImgPlato: datos.ImgPlato || null,
+          FlujoEspecial: Boolean(datos.flujoEspecial),
+          FlujoInterno: Boolean(datos.flujoInterno),
+          Id_Reserva: datos.Id_Reserva,
           Timestamp: new Date().toISOString(),
         },
-        ...Prev,
+        ...prev,
       ]);
     } catch {
-      SetUltimoResultado({ Error: "Error de conexion. Verifica que el servidor este disponible." });
+      setUltimoResultado({ Error: "Error de conexión con el servidor Foodsys" });
     }
   };
 
-  // ── ProcesarTextoQR ───────────────────────────────────────────────────────
-  // DEBE declararse ANTES del useEffect de la pistola que lo referencia.
-  // Deduplicacion inteligente: mismo QR dentro de 1 segundo = ignorar.
-  // Sin delay global de 3 segundos: el scanner queda libre al instante.
-  const ProcesarTextoQR = useCallback(async (TextoQR) => {
-    const Ahora = Date.now();
+  // ── PROCESAR TEXTO QR (Cámara o Pistola) ──────────────────────────────────
+  const procesarTextoQR = useCallback(async (textoQR) => {
+    const ahora = Date.now();
 
-    // Si es el mismo QR escaneado hace menos de 1 segundo, ignorar (evita doble registro)
-    if (
-      TextoQR === UltimoQRTexto.current &&
-      Ahora - UltimoQRTiempo.current < 1000
-    ) {
+    // Deduplicación rápida: mismo QR leído hace menos de 1 segundo se ignora
+    if (textoQR === ultimoQRTextoRef.current && ahora - ultimoQRTiempoRef.current < 1000) {
       return;
     }
 
-    // Si ya hay una llamada al API en curso, ignorar nuevo escaneo
-    if (ProcesandoRef.current) return;
+    if (procesandoRef.current) return;
 
-    UltimoQRTexto.current = TextoQR;
-    UltimoQRTiempo.current = Ahora;
-    ProcesandoRef.current = true;
+    ultimoQRTextoRef.current = textoQR;
+    ultimoQRTiempoRef.current = ahora;
+    procesandoRef.current = true;
 
-    SetQRDetectado(true);
-    SetProcesando(true);
-    SetUltimoResultado(null);
+    setQrDetectado(true);
+    setProcesando(true);
+    setUltimoResultado(null);
 
-    // Extraer el token encriptado si viene como parametro de URL
-    let EncriptadoQR = TextoQR.trim();
+    let encriptadoQR = textoQR.trim();
     try {
-      const Url = new URL(TextoQR);
-      const Param = Url.searchParams.get("data");
-      if (Param) EncriptadoQR = decodeURIComponent(Param);
-    } catch { }
+      const url = new URL(textoQR);
+      const param = url.searchParams.get("data");
+      if (param) encriptadoQR = decodeURIComponent(param);
+    } catch {}
 
-    await LlamarAPIConsumo("supervisor", { encriptadoQR: EncriptadoQR });
+    await llamarAPIConsumo("supervisor", { encriptadoQR });
 
-    SetProcesando(false);
-    SetQRDetectado(false);
-    ProcesandoRef.current = false;
-    // Sin setTimeout de bloqueo. El siguiente aprendiz puede escanear de inmediato.
+    setProcesando(false);
+    setQrDetectado(false);
+    procesandoRef.current = false;
   }, []);
 
-  // ── SOPORTE PISTOLA DE CODIGOS (USB / Bluetooth keyboard wedge) ───────────
-  // La pistola "escribe" el contenido del QR caracter a caracter y envia Enter.
-  // Este efecto captura esa secuencia cuando el foco NO esta en un input manual.
-  // IMPORTANTE: debe estar despues de ProcesarTextoQR para evitar ReferenceError.
+  // ── SOPORTE PARA PISTOLA LECTORA (USB / Bluetooth Keyboard Wedge) ──────────
   useEffect(() => {
-    if (!TurnoActivo) return;
+    if (!turnoActivo) return;
 
-    const ManejarTecla = (E) => {
-      // Si el foco esta en un input o textarea del formulario, no interferir
-      const Tag = E.target?.tagName?.toUpperCase();
-      if (Tag === 'INPUT' || Tag === 'TEXTAREA') return;
+    const manejarTecla = (e) => {
+      const tag = e.target?.tagName?.toUpperCase();
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
 
-      if (E.key === 'Enter') {
-        const Contenido = BufferPistola.current.trim();
-        BufferPistola.current = '';
-        clearTimeout(TimerPistola.current);
-        // Minimo 10 caracteres para ignorar pulsaciones accidentales de Enter
-        if (Contenido.length > 10) {
-          ProcesarTextoQR(Contenido);
+      if (e.key === "Enter") {
+        const contenido = bufferPistolaRef.current.trim();
+        bufferPistolaRef.current = "";
+        clearTimeout(timerPistolaRef.current);
+        if (contenido.length > 10) {
+          procesarTextoQR(contenido);
         }
         return;
       }
 
-      if (E.key.length === 1) {
-        BufferPistola.current += E.key;
-        // Resetear buffer si pasan mas de 500 ms sin nueva tecla (tecleo humano normal)
-        clearTimeout(TimerPistola.current);
-        TimerPistola.current = setTimeout(() => {
-          BufferPistola.current = '';
+      if (e.key.length === 1) {
+        bufferPistolaRef.current += e.key;
+        clearTimeout(timerPistolaRef.current);
+        timerPistolaRef.current = setTimeout(() => {
+          bufferPistolaRef.current = "";
         }, 500);
       }
     };
 
-    window.addEventListener('keydown', ManejarTecla);
+    window.addEventListener("keydown", manejarTecla);
     return () => {
-      window.removeEventListener('keydown', ManejarTecla);
-      clearTimeout(TimerPistola.current);
+      window.removeEventListener("keydown", manejarTecla);
+      clearTimeout(timerPistolaRef.current);
     };
-  }, [TurnoActivo, ProcesarTextoQR]);
+  }, [turnoActivo, procesarTextoQR]);
 
-  // ── EFECTO: iniciar / detener el scanner QR ───────────────────────────────
+  // ── INICIALIZAR Y CONTROLAR CÁMARA QR ─────────────────────────────────────
   useEffect(() => {
-    if (!ScannerListo || TabActiva !== "qr") return;
+    if (!scannerListo || tabActiva !== "qr" || !turnoActivo) return;
 
-    const IdDiv = "visor-qr-principal";
+    const idDiv = "visor-qr-moderno";
+    let isCancelled = false;
 
-    const IniciarScanner = async () => {
+    const iniciarCamara = async () => {
       try {
-        const Scanner = new Html5Qrcode(IdDiv);
-        InstanciaQR.current = Scanner;
-        console.log("isSecureContext:", window.isSecureContext);
+        const elem = document.getElementById(idDiv);
+        if (!elem || isCancelled) return;
 
-        const dispositivos = await navigator.mediaDevices.enumerateDevices();
-        console.log("Dispositivos:", dispositivos);
-        await Scanner.start(
+        const scanner = new Html5Qrcode(idDiv);
+        instanciaQRRef.current = scanner;
+
+        await scanner.start(
           { facingMode: "environment" },
           CONFIG_QR,
-          (TextoQR) => {
-            // El callback no puede leer estado React por closure stale.
-            // Usamos ref para saber si ya hay un procesamiento en curso.
-            if (!ProcesandoRef.current) {
-              ProcesarTextoQR(TextoQR);
+          (textoQR) => {
+            if (!procesandoRef.current) {
+              procesarTextoQR(textoQR);
             }
           },
-          () => {
-            // Frame sin QR: comportamiento normal.
-          }
+          () => {}
         );
-      } catch (Err) {
-  console.error("ERROR COMPLETO:", Err);
-  console.error("NAME:", Err?.name);
-  console.error("MESSAGE:", Err?.message);
-
-  SetUltimoResultado({
-    Error: `Camara: ${Err?.name} - ${Err?.message}`,
-  });
-}
-    };
-
-    // Delay para asegurar que el div ya esta en el DOM antes de llamar start()
-    const Timer = setTimeout(IniciarScanner, 150);
-
-    return () => {
-      clearTimeout(Timer);
-      if (InstanciaQR.current) {
-        InstanciaQR.current
-          .stop()
-          .then(() => { InstanciaQR.current = null; })
-          .catch(() => { InstanciaQR.current = null; });
-      }
-    };
-  }, [ScannerListo, TabActiva, ProcesarTextoQR]);
-
-  // ── EFECTO: detener scanner al cambiar de tab ─────────────────────────────
-  useEffect(() => {
-    if (TabActiva !== "qr" && InstanciaQR.current) {
-      InstanciaQR.current
-        .stop()
-        .then(() => { InstanciaQR.current = null; })
-        .catch(() => { InstanciaQR.current = null; });
-    }
-  }, [TabActiva]);
-
-  // ── EFECTO: obtener contadores al activar el turno ────────────────────────
-  useEffect(() => {
-    if (TurnoActivo) ObtenerContadoresExternos();
-  }, [TurnoActivo]);
-
-  // ── ManejarBusquedaManual ─────────────────────────────────────────────────
-  const ManejarBusquedaManual = async () => {
-    const Termino = TerminoBusqueda.trim();
-    if (!Termino || CargandoManual) return;
-
-    SetCargandoManual(true);
-    SetUltimoResultado(null);
-
-    // Detectar automaticamente si es documento (>= 6 digitos) o ID reserva
-    const EsDocumento = !isNaN(Number(Termino)) && Termino.length >= 6;
-    const EsID       = !isNaN(Number(Termino)) && Termino.length < 6;
-
-    if (TabActiva === 'manual') {
-      if (EsID) {
-        await LlamarAPIConsumo('id', { Id_Reserva: Number(Termino) });
-      } else if (EsDocumento) {
-        await LlamarAPIConsumo('documento', { NumDoc: Termino });
-      } else {
-        // Texto no numerico: buscar por documento de todas formas
-        await LlamarAPIConsumo('documento', { NumDoc: Termino });
-      }
-    } else if (TabActiva === 'doc') {
-      await LlamarAPIConsumo('documento', { NumDoc: Termino });
-    } else if (TabActiva === 'id') {
-      await LlamarAPIConsumo('id', { Id_Reserva: Number(Termino) });
-    }
-
-    SetCargandoManual(false);
-    SetTerminoBusqueda('');
-  };
-
-  // ── Handlers de turno ─────────────────────────────────────────────────────
-  const ManejarIniciarTurno = () => {
-    SetTurnoActivo(true);
-    SetHoraInicioTurno(new Date().toISOString());
-    SetHoraFinTurno(null);
-    SetHistorialTurno([]);
-    SetContCanceladas(0);
-    SetContVencidas(0);
-    SetUltimoResultado(null);
-    SetTabActiva("qr");
-    SetScannerListo(true);
-  };
-
-  const ManejarCerrarTurno = async () => {
-    SetTurnoActivo(false);
-    SetScannerListo(false);
-    SetHoraFinTurno(new Date().toISOString());
-    await ObtenerContadoresExternos();
-    SetMostrarModalCierre(true);
-  };
-
-  // ── ManejarExportarPDF ────────────────────────────────────────────────────
-  const ManejarExportarPDF = async () => {
-    if (!RefReportePDF.current || ExportandoPDF) return;
-    SetExportandoPDF(true);
-    try {
-      const Canvas = await html2canvas(RefReportePDF.current, {
-        scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false,
-      });
-      const ImgData = Canvas.toDataURL("image/png");
-      const Doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const PageW = Doc.internal.pageSize.getWidth();
-      const PageH = Doc.internal.pageSize.getHeight();
-      const Margin = 10;
-      const ImgW = PageW - Margin * 2;
-      const ImgH = (Canvas.height * ImgW) / Canvas.width;
-
-      let OffsetY = Margin;
-      let Restante = ImgH;
-      while (Restante > 0) {
-        Doc.addImage(ImgData, "PNG", Margin, OffsetY, ImgW, ImgH);
-        Restante -= PageH - Margin * 2;
-        if (Restante > 0) {
-          Doc.addPage();
-          OffsetY = -(ImgH - Restante) - Margin;
+      } catch (err) {
+        if (!isCancelled) {
+          console.error("Error al iniciar cámara:", err);
+          setUltimoResultado({
+            Error: `Error de cámara: ${err?.message || "No se pudo acceder al dispositivo de video"}. Verifica los permisos del navegador.`,
+          });
         }
       }
-      Doc.save(`reporte-turno-${new Date().toISOString().split("T")[0]}.pdf`);
-    } catch (Err) {
-      console.error("[Registro] Error al generar PDF:", Err.message);
+    };
+
+    const timer = setTimeout(iniciarCamara, 200);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+      if (instanciaQRRef.current) {
+        instanciaQRRef.current
+          .stop()
+          .then(() => { instanciaQRRef.current = null; })
+          .catch(() => { instanciaQRRef.current = null; });
+      }
+    };
+  }, [scannerListo, tabActiva, turnoActivo, procesarTextoQR]);
+
+  // ── DETECCIÓN INTELIGENTE DE BÚSQUEDA MANUAL ──────────────────────────────
+  const tipoBusquedaDetectada = useMemo(() => {
+    const val = terminoBusqueda.trim();
+    if (!val) return "doc";
+    if (isNaN(Number(val))) return "doc";
+    return val.length >= 6 ? "doc" : "id";
+  }, [terminoBusqueda]);
+
+  const manejarBusquedaManual = async () => {
+    const termino = terminoBusqueda.trim();
+    if (!termino || cargandoManual || !turnoActivo) return;
+
+    setCargandoManual(true);
+    setUltimoResultado(null);
+
+    const esID = !isNaN(Number(termino)) && termino.length < 6;
+
+    if (esID) {
+      await llamarAPIConsumo("id", { Id_Reserva: Number(termino) });
+    } else {
+      await llamarAPIConsumo("documento", { NumDoc: termino });
+    }
+
+    setCargandoManual(false);
+    setTerminoBusqueda("");
+  };
+
+  // ── GESTIÓN DE INICIO / CIERRE DE TURNO ───────────────────────────────────
+  const manejarIniciarTurno = () => {
+    setTurnoActivo(true);
+    setHoraInicioTurno(new Date().toISOString());
+    setHoraFinTurno(null);
+    setHistorialTurno([]);
+    setContCanceladas(0);
+    setContVencidas(0);
+    setUltimoResultado(null);
+    setTabActiva("qr");
+    setScannerListo(true);
+    obtenerContadoresExternos();
+  };
+
+  const manejarCerrarTurno = async () => {
+    setTurnoActivo(false);
+    setScannerListo(false);
+    const fin = new Date().toISOString();
+    setHoraFinTurno(fin);
+    await obtenerContadoresExternos();
+    setMostrarModalCierre(true);
+  };
+
+  // ── EXPORTAR REPORTE A PDF ────────────────────────────────────────────────
+  const manejarExportarPDF = async () => {
+    if (!refReportePDF.current || exportandoPDF) return;
+    setExportandoPDF(true);
+    try {
+      const canvas = await html2canvas(refReportePDF.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 10;
+      const imgW = pageW - margin * 2;
+      const imgH = (canvas.height * imgW) / canvas.width;
+
+      let offsetY = margin;
+      let restante = imgH;
+      while (restante > 0) {
+        doc.addImage(imgData, "PNG", margin, offsetY, imgW, imgH);
+        restante -= pageH - margin * 2;
+        if (restante > 0) {
+          doc.addPage();
+          offsetY = -(imgH - restante) - margin;
+        }
+      }
+      doc.save(`reporte-turno-foodsys-${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (err) {
+      console.error("Error al exportar PDF:", err);
     } finally {
-      SetExportandoPDF(false);
+      setExportandoPDF(false);
     }
   };
 
-  // ── Metricas del turno ────────────────────────────────────────────────────
-  const Metricas = {
-    Total: HistorialTurno.length,
-    Especiales: HistorialTurno.filter((R) => R.FlujoEspecial).length,
-    Canceladas: ContCanceladas,
-    Vencidas: ContVencidas,
+  // ── FILTRADO DEL HISTORIAL EN TIEMPO REAL ─────────────────────────────────
+  const historialFiltrado = useMemo(() => {
+    return historialTurno.filter((item) => {
+      const coincideTexto =
+        item.Aprendiz?.toLowerCase().includes(filtroHistorial.toLowerCase()) ||
+        item.NumDoc?.toString().includes(filtroHistorial) ||
+        item.Plato?.toLowerCase().includes(filtroHistorial.toLowerCase());
+
+      const coincideTipo =
+        tipoFiltroHistorial === "Todos" || item.Tipo === tipoFiltroHistorial;
+
+      return coincideTexto && coincideTipo;
+    });
+  }, [historialTurno, filtroHistorial, tipoFiltroHistorial]);
+
+  // Métricas calculadas del turno
+  const metricas = {
+    total: historialTurno.length,
+    especiales: historialTurno.filter((r) => r.FlujoEspecial).length,
+    canceladas: contCanceladas,
+    vencidas: contVencidas,
   };
-
-  // Las tabs ya no incluyen busqueda separada por doc/id.
-  // Se mantiene solo la tab de camara. La busqueda manual usa una barra unificada.
-  const Tabs = [
-    { Id: "qr", Label: "Camara QR", Icono: Camera },
-    { Id: "manual", Label: "Busqueda Manual", Icono: Search },
-  ];
-
-  // Determina si la busqueda es por documento o por ID segun la longitud.
-  // >= 6 digitos numericos = documento de cedula | < 6 = ID de reserva
-  const DetectarTipoBusqueda = (valor) => {
-    const v = valor.trim();
-    if (!v || isNaN(Number(v))) return 'doc'; // texto = documento
-    return v.length >= 6 ? 'doc' : 'id';
-  };
-
-  // Horarios de consumo y cierre de turnos (informacion para el Supervisor)
-  const HORARIOS_INFO = [
-    { turno: 'Desayuno', consumo: '06:00 – 07:00', cierre: '07:00', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
-    { turno: 'Almuerzo', consumo: '11:30 – 13:30', cierre: '13:30', color: 'text-teal-600',   bg: 'bg-teal-50',   border: 'border-teal-200'   },
-    { turno: 'Cena',     consumo: '18:00 – 19:00', cierre: '19:00', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
-  ];
 
   // ─────────────────────────────────────────────────────────────────────────
-  // RENDER
+  // RENDERIZADO PRINCIPAL
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-gray-50 text-gray-800 font-sans pb-12">
+      {/* Estilos CSS para el visor de cámara y rayo láser HUD */}
+      <style>{`
+        /* Ocultar el recuadro blanco/sombreado nativo que inyecta la librería html5-qrcode */
+        #visor-qr-moderno #qr-shaded-region {
+          display: none !important;
+        }
+        #visor-qr-moderno video {
+          object-fit: cover !important;
+          width: 100% !important;
+          height: 100% !important;
+          border-radius: 1.5rem !important;
+        }
+        @keyframes scanLaser {
+          0% { top: 6%; opacity: 0.85; }
+          50% { top: 90%; opacity: 1; }
+          100% { top: 6%; opacity: 0.85; }
+        }
+        .animate-laser {
+          animation: scanLaser 2.2s ease-in-out infinite;
+        }
+      `}</style>
 
-      {/* Barra superior */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-3 sm:py-4">
+      {/* ── CABECERA PRINCIPAL ─────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+          <div className="flex items-center justify-between gap-3">
+            {/* Título e identidad */}
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-teal-600 rounded-xl flex items-center justify-center shadow-sm">
-                <QrCode className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-green-600 text-white flex items-center justify-center shadow-xs">
+                <QrCode className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-base sm:text-lg font-extrabold text-gray-900 leading-tight tracking-tight">
-                  Registro de Consumo
-                </h1>
-                <p className="text-xs text-gray-400 leading-none mt-0.5">
-                  Supervisor &middot; {HoraActual}
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
+                    Registro de Consumo
+                  </h1>
+                  <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-green-100 text-green-800">
+                    SUPERVISOR
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                  Centro Agropecuario La Granja
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              {TurnoActivo && (
-                <div className="hidden sm:flex items-center gap-1.5 bg-teal-50 border border-teal-200 text-teal-700 px-3 py-1.5 rounded-full text-xs font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-                  Turno activo
+
+            {/* Acciones del header: SOLO cuando el turno está ACTIVO se muestra Cerrar Turno */}
+            {turnoActivo && (
+              <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                <div className="hidden sm:flex items-center gap-2 bg-green-50 border border-green-300 text-green-800 px-3 py-1.5 rounded-full text-xs font-bold">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-600" />
+                  </span>
+                  <span>Turno en progreso</span>
                 </div>
-              )}
-              {!TurnoActivo ? (
+
                 <button
-                  onClick={ManejarIniciarTurno}
-                  className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm"
+                  onClick={manejarCerrarTurno}
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 active:scale-95 text-white px-4 sm:px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
                 >
-                  <Play className="w-4 h-4" />
-                  <span>Iniciar Turno</span>
-                </button>
-              ) : (
-                <button
-                  onClick={ManejarCerrarTurno}
-                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 active:scale-95 text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm"
-                >
-                  <Square className="w-4 h-4" />
+                  <Square className="w-3.5 h-3.5 fill-white" />
                   <span>Cerrar Turno</span>
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-
-          {TurnoActivo && (
-            <div className="sm:hidden pb-2 flex items-center gap-2 text-xs text-teal-700">
-              <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-              <span className="font-semibold">
-                Turno activo desde{" "}
-                {new Date(HoraInicioTurno).toLocaleTimeString("es-CO", {
-                  hour: "2-digit", minute: "2-digit",
-                })}
-              </span>
-            </div>
-          )}
         </div>
       </header>
 
-      {/* Pantalla de espera */}
-      {!TurnoActivo && HistorialTurno.length === 0 && (
-        <div className="flex flex-col items-center justify-center px-4 py-20 sm:py-32 text-center">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-teal-50 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
-            <QrCode className="w-10 h-10 sm:w-12 sm:h-12 text-teal-400" />
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800 mb-3">
-            Listo para iniciar
-          </h2>
-          <p className="text-gray-400 text-sm sm:text-base max-w-sm leading-relaxed">
-            Presiona{" "}
-            <span className="text-teal-600 font-bold">Iniciar Turno</span> para
-            activar el scanner y comenzar a registrar el consumo de los aprendices.
-          </p>
-          <div className="mt-8 grid grid-cols-3 gap-4 sm:gap-6 text-center text-xs text-gray-400 max-w-xs">
-            {[
-              { Icono: Camera, Label: "Escaneo QR" },
-              { Icono: Hash, Label: "Por documento" },
-              { Icono: BarChart3, Label: "Reporte PDF" },
-            ].map(({ Icono: Ico, Label }) => (
-              <div key={Label} className="flex flex-col items-center gap-2">
-                <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-                  <Ico className="w-5 h-5 text-gray-400" />
+      {/* ── CONTENIDO PRINCIPAL ────────────────────────────────────────────── */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-5 sm:mt-6">
+        {/* Banner de Horarios de Comida */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+          {HORARIOS_SERVICIO.map((item) => {
+            const esActivo = turnoComidaActual?.tipo === item.tipo;
+            const ItemIcon = item.icon;
+            return (
+              <div
+                key={item.tipo}
+                className={`rounded-2xl p-3.5 border transition-all duration-200 flex items-center justify-between ${
+                  esActivo
+                    ? `${item.bg} ${item.border} shadow-xs ring-2 ring-green-600/30`
+                    : "bg-white border-gray-200 opacity-75 hover:opacity-100"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center bg-white shadow-2xs ${item.color}`}>
+                    <ItemIcon className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-gray-900 text-sm">{item.tipo}</p>
+                      {esActivo && (
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-green-600 text-white px-1.5 py-0.2 rounded-md">
+                          En horario
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 font-medium mt-0.5">{item.horario}</p>
+                  </div>
                 </div>
-                <span>{Label}</span>
+                {esActivo && <Check className="w-4 h-4 text-green-700 font-black" />}
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      )}
 
-      {/* Contenido del turno */}
-      {(TurnoActivo || HistorialTurno.length > 0) && (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 lg:py-8">
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 sm:gap-6">
+        {/* ── ESTADO INACTIVO (Antes de iniciar turno) ─────────────────────── */}
+        {!turnoActivo && historialTurno.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-gray-200 shadow-xs p-8 sm:p-14 text-center max-w-2xl mx-auto my-8">
+            <div className="w-18 h-18 sm:w-20 sm:h-20 bg-green-100 rounded-3xl flex items-center justify-center mx-auto mb-6 text-green-700 shadow-2xs">
+              <QrCode className="w-9 h-9 sm:w-10 sm:h-10" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+              Módulo de Registro Listo
+            </h2>
+            <p className="text-gray-500 text-sm sm:text-base max-w-md mx-auto mt-2 leading-relaxed">
+              Presiona el botón de abajo para activar la cámara del escáner QR, habilitar la búsqueda por documento y registrar los consumos de los aprendices.
+            </p>
 
-            {/* Columna principal */}
-            <div className="xl:col-span-2 space-y-5">
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={manejarIniciarTurno}
+                className="flex items-center gap-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white px-8 py-3.5 rounded-2xl font-bold text-base transition-all shadow-md shadow-green-600/20 cursor-pointer"
+              >
+                <Play className="w-5 h-5 fill-white" />
+                <span>Iniciar Turno</span>
+              </button>
+            </div>
 
-              {/* Panel de tabs */}
-              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="flex border-b border-gray-100">
-                  {Tabs.map(({ Id, Label, Icono: Ico }) => (
-                    <button
-                      key={Id}
-                      onClick={() => {
-                        SetTabActiva(Id);
-                        SetTerminoBusqueda("");
-                        SetUltimoResultado(null);
-                        if (Id === "qr" && TurnoActivo) {
-                          SetScannerListo(false);
-                          setTimeout(() => SetScannerListo(true), 100);
-                        }
-                      }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-3.5 sm:py-4 text-xs sm:text-sm font-semibold transition-colors border-b-2 ${TabActiva === Id
-                          ? "border-teal-600 text-teal-700 bg-teal-50/60"
-                          : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                        }`}
-                    >
-                      <Ico className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                      <span>{Label}</span>
-                    </button>
-                  ))}
+            <div className="grid grid-cols-3 gap-3 max-w-md mx-auto mt-10 pt-8 border-t border-gray-100 text-xs text-gray-500">
+              <div className="flex flex-col items-center gap-1.5">
+                <Camera className="w-5 h-5 text-green-600" />
+                <span className="font-semibold">Cámara QR</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <Hash className="w-5 h-5 text-green-700" />
+                <span className="font-semibold">Por Documento</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <FileText className="w-5 h-5 text-gray-600" />
+                <span className="font-semibold">Reporte PDF</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ── LAYOUT ACTIVO DEL TURNO ─────────────────────────────────────── */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+            {/* ── COLUMNA IZQUIERDA: Escáner & Búsqueda (7 cols en desktop) ── */}
+            <div className="lg:col-span-7 space-y-5">
+              {/* Tarjeta de pestañas y modos */}
+              <div className="bg-white rounded-3xl shadow-xs border border-gray-200 overflow-hidden">
+                {/* Switcher de Pestañas */}
+                <div className="flex border-b border-gray-100 bg-gray-50 p-1.5 gap-1.5">
+                  <button
+                    onClick={() => {
+                      setTabActiva("qr");
+                      setTerminoBusqueda("");
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      tabActiva === "qr"
+                        ? "bg-white text-green-700 shadow-2xs border border-gray-200"
+                        : "text-gray-500 hover:text-gray-800 hover:bg-white/50"
+                    }`}
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Escáner de Cámara QR</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setTabActiva("manual");
+                      setTerminoBusqueda("");
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      tabActiva === "manual"
+                        ? "bg-white text-green-700 shadow-2xs border border-gray-200"
+                        : "text-gray-500 hover:text-gray-800 hover:bg-white/50"
+                    }`}
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>Búsqueda Manual / Doc</span>
+                  </button>
                 </div>
 
                 <div className="p-4 sm:p-6">
-
-                                  {/* Tab: Camara QR */}
-                  {TabActiva === "qr" && (
+                  {/* ── TAB: ESCÁNER DE CÁMARA QR ─────────────────────────── */}
+                  {tabActiva === "qr" && (
                     <div className="space-y-4">
-                      {TurnoActivo ? (
+                      {turnoActivo ? (
                         <>
-                          <div className="relative rounded-2xl overflow-hidden bg-black" style={{ minHeight: "300px", maxHeight: "420px" }}>
-                            <div id="visor-qr-principal" className="w-full h-full" />
-                            <OverlayCamara QRDetectado={QRDetectado} Procesando={Procesando} />
+                          {/* Visor de Cámara con HUD de Escaneo */}
+                          <div className="relative rounded-3xl overflow-hidden bg-black border-4 border-gray-900 shadow-sm" style={{ minHeight: "330px", maxHeight: "430px" }}>
+                            {/* Div donde Html5Qrcode inyecta el stream de video */}
+                            <div id="visor-qr-moderno" className="w-full h-full min-h-[330px]" />
+
+                            {/* HUD Frame ÚNICO & Retícula de Escaneo alineada */}
+                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                              <div className="relative w-64 h-64 border-2 border-green-500/60 rounded-3xl">
+                                {/* Esquinas decorativas verdes */}
+                                <span className="absolute -top-2 -left-2 w-7 h-7 border-t-4 border-l-4 border-green-500 rounded-tl-2xl" />
+                                <span className="absolute -top-2 -right-2 w-7 h-7 border-t-4 border-r-4 border-green-500 rounded-tr-2xl" />
+                                <span className="absolute -bottom-2 -left-2 w-7 h-7 border-b-4 border-l-4 border-green-500 rounded-bl-2xl" />
+                                <span className="absolute -bottom-2 -right-2 w-7 h-7 border-b-4 border-r-4 border-green-500 rounded-br-2xl" />
+
+                                {/* Rayo láser animado */}
+                                <div className="absolute inset-x-2 h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent shadow-md shadow-green-400 animate-laser" />
+                              </div>
+                            </div>
+
+                            {/* Overlay de Procesamiento */}
+                            {(qrDetectado || procesando) && (
+                              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/75">
+                                {procesando ? (
+                                  <>
+                                    <div className="w-16 h-16 rounded-2xl bg-green-500/20 border-2 border-green-400 flex items-center justify-center mb-3">
+                                      <Loader2 className="w-8 h-8 text-green-400 animate-spin" />
+                                    </div>
+                                    <p className="text-white font-extrabold text-base tracking-wide">
+                                      Validando Reserva...
+                                    </p>
+                                    <p className="text-green-300 text-xs mt-1">
+                                      Consultando autorización en el servidor
+                                    </p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="w-16 h-16 rounded-2xl bg-green-500/30 border-2 border-green-400 flex items-center justify-center mb-3 animate-pulse">
+                                      <ScanLine className="w-8 h-8 text-green-300" />
+                                    </div>
+                                    <p className="text-green-300 font-extrabold text-base">
+                                      QR Detectado
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <p className="text-center text-xs text-gray-400">
-                            La camara detecta y procesa el QR automaticamente. No es necesario presionar ningun boton.
-                          </p>
+
+                          <div className="flex items-center justify-between text-[11px] text-gray-500 px-1">
+                            <span>Alinea el código QR dentro del recuadro central</span>
+                            <span className="font-semibold text-green-700">Auto-detección activa</span>
+                          </div>
                         </>
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-center">
-                          <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
-                            <Camera className="w-8 h-8 text-slate-400" />
+                        <div className="py-14 text-center space-y-3">
+                          <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto text-gray-400">
+                            <Camera className="w-7 h-7" />
                           </div>
-                          <p className="text-gray-500 font-medium text-sm">Scanner inactivo</p>
-                          <p className="text-gray-400 text-xs mt-1">El turno ha finalizado</p>
+                          <p className="text-gray-600 font-bold text-sm">Escáner inactivo</p>
+                          <p className="text-gray-400 text-xs max-w-xs mx-auto">
+                            Inicia el turno para encender la cámara y habilitar la lectura continua
+                          </p>
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* Tab: Busqueda Manual Unificada (Documento o ID en una sola barra) */}
-                  {TabActiva === "manual" && (
+                  {/* ── TAB: BÚSQUEDA MANUAL UNIFICADA ─────────────────────── */}
+                  {tabActiva === "manual" && (
                     <div className="space-y-4">
-                      <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-blue-700 leading-relaxed">
-                        <strong>Busqueda inteligente:</strong> escribe el documento del aprendiz (6+ digitos)
-                        o el ID de reserva (numero corto) — el sistema detecta el tipo automaticamente.
+                      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-xs text-green-900 leading-relaxed flex items-start gap-3">
+                        <Sparkles className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
+                        <div>
+                          <strong>Búsqueda Inteligente:</strong> Escribe el número de documento del aprendiz (&ge; 6 dígitos) o el ID de reserva. El sistema detecta el tipo automáticamente.
+                        </div>
                       </div>
-                      <div className="flex gap-2 sm:gap-3">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="Documento (ej: 1023456789) o ID reserva (ej: 342)"
-                          value={TerminoBusqueda}
-                          onChange={(E) => SetTerminoBusqueda(E.target.value)}
-                          onKeyDown={(E) => E.key === "Enter" && ManejarBusquedaManual()}
-                          disabled={!TurnoActivo}
-                          className="flex-1 px-4 py-3 sm:py-3.5 rounded-xl border border-gray-200 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400 transition-all"
-                        />
+
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="Ej: 1023456789 (Documento) o 452 (ID)"
+                            value={terminoBusqueda}
+                            onChange={(e) => setTerminoBusqueda(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && manejarBusquedaManual()}
+                            disabled={!turnoActivo || cargandoManual}
+                            className="w-full pl-11 pr-4 py-3 rounded-2xl border border-gray-300 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400 transition-all"
+                          />
+                          <Search className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          {terminoBusqueda && (
+                            <button
+                              onClick={() => setTerminoBusqueda("")}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+
                         <button
-                          onClick={ManejarBusquedaManual}
-                          disabled={!TurnoActivo || CargandoManual || !TerminoBusqueda.trim()}
-                          className="px-4 sm:px-5 py-3 sm:py-3.5 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-200 disabled:cursor-not-allowed text-white rounded-xl transition-colors flex items-center gap-2 font-semibold"
+                          onClick={manejarBusquedaManual}
+                          disabled={!turnoActivo || cargandoManual || !terminoBusqueda.trim()}
+                          className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-sm transition-all flex items-center gap-2 shrink-0 shadow-xs cursor-pointer"
                         >
-                          {CargandoManual
-                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : <Search className="w-4 h-4" />
-                          }
-                          <span className="hidden sm:inline text-sm">Buscar</span>
+                          {cargandoManual ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ArrowRight className="w-4 h-4" />
+                          )}
+                          <span className="hidden sm:inline">Validar</span>
                         </button>
                       </div>
-                      {/* Indicador del tipo detectado */}
-                      {TerminoBusqueda.trim() && (
-                        <p className="text-xs text-center text-gray-400">
-                          Se buscara por:{' '}
-                          <span className="font-semibold text-teal-600">
-                            {DetectarTipoBusqueda(TerminoBusqueda) === 'doc'
-                              ? 'Numero de documento'
-                              : 'ID de reserva'}
+
+                      {terminoBusqueda.trim() && (
+                        <p className="text-xs text-gray-500 text-center font-medium">
+                          Modo detectado:{" "}
+                          <span className="font-bold text-green-700 uppercase">
+                            {tipoBusquedaDetectada === "doc" ? "Documento de Identidad" : "ID de Reserva"}
                           </span>
                         </p>
                       )}
@@ -1193,80 +1338,155 @@ const Registro = () => {
                 </div>
               </div>
 
-              {/* Resultado del ultimo procesamiento */}
-              {UltimoResultado && (
-                <TarjetaResultado Resultado={UltimoResultado} />
+              {/* ── TARJETA DEL ÚLTIMO RESULTADO (Éxito o Error) ───────────── */}
+              {ultimoResultado && (
+                <TarjetaResultado resultado={ultimoResultado} />
               )}
-
-              {/* Historial del turno (solo en desktop) */}
-              <div className="hidden xl:block bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100">
-                <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2.5">
-                  <ClipboardList className="w-4 h-4 text-gray-400" />
-                  <h3 className="font-bold text-gray-700 text-sm">Historial del turno</h3>
-                  <span className="ml-auto bg-teal-100 text-teal-700 text-xs font-bold px-2.5 py-0.5 rounded-full">
-                    {HistorialTurno.length}
-                  </span>
-                </div>
-                <div className="divide-y divide-gray-50 overflow-y-auto" style={{ maxHeight: "320px" }}>
-                  {HistorialTurno.length === 0 ? (
-                    <div className="py-10 text-center text-gray-400 text-sm">
-                      Sin registros en este turno aun
-                    </div>
-                  ) : (
-                    HistorialTurno.map((Item, Idx) => <FilaHistorial key={Idx} Item={Item} />)
-                  )}
-                </div>
-              </div>
             </div>
 
-            {/* Columna lateral: metricas + historial movil */}
-            <div className="space-y-4 sm:space-y-5">
-              <div className="grid grid-cols-2 xl:grid-cols-1 gap-3 sm:gap-4">
-                <TarjetaMetrica Label="Consumidas" Valor={Metricas.Total} Icono={CheckCircle2} ColorFondo="bg-teal-50" ColorTexto="text-teal-700" ColorIcono="text-teal-600" />
-                <TarjetaMetrica Label="Flujo Especial" Valor={Metricas.Especiales} Icono={Shield} ColorFondo="bg-purple-50" ColorTexto="text-purple-700" ColorIcono="text-purple-600" />
-                <div className="relative">
-                  <TarjetaMetrica Label="Canceladas (dia)" Valor={Metricas.Canceladas} Icono={XCircle} ColorFondo="bg-red-50" ColorTexto="text-red-700" ColorIcono="text-red-600" />
-                  <button
-                    onClick={ObtenerContadoresExternos}
-                    title="Actualizar contadores"
-                    className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-lg hover:bg-red-100 transition-colors"
-                  >
-                    <RefreshCw className="w-3 h-3 text-red-400" />
-                  </button>
-                </div>
-                <TarjetaMetrica Label="Vencidas al cierre" Valor={Metricas.Vencidas} Icono={Clock} ColorFondo="bg-slate-50" ColorTexto="text-slate-700" ColorIcono="text-slate-600" />
+            {/* ── COLUMNA DERECHA: Métricas & Historial (5 cols en desktop) ── */}
+            <div className="lg:col-span-5 space-y-5">
+              {/* Tarjetas de Métricas de Turno (Reestructuradas compactas) */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <TarjetaMetrica
+                  label="Consumidas"
+                  valor={metricas.total}
+                  icon={CheckCircle2}
+                  colorTheme="green"
+                />
+                <TarjetaMetrica
+                  label="Especiales"
+                  valor={metricas.especiales}
+                  icon={Shield}
+                  colorTheme="purple"
+                />
+                <TarjetaMetrica
+                  label="Canceladas"
+                  valor={metricas.canceladas}
+                  icon={XCircle}
+                  colorTheme="rose"
+                  onRefresh={obtenerContadoresExternos}
+                  loading={cargandoMetricas}
+                />
+                <TarjetaMetrica
+                  label="Vencidas"
+                  valor={metricas.vencidas}
+                  icon={Clock}
+                  colorTheme="slate"
+                  onRefresh={obtenerContadoresExternos}
+                  loading={cargandoMetricas}
+                />
               </div>
 
-              {/* Historial en movil/tablet */}
-              <div className="xl:hidden bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100">
-                <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-gray-50 flex items-center gap-2">
-                  <ClipboardList className="w-4 h-4 text-gray-400" />
-                  <h3 className="font-bold text-gray-700 text-sm">Historial</h3>
-                  <span className="ml-auto bg-teal-100 text-teal-700 text-xs font-bold px-2.5 py-0.5 rounded-full">
-                    {HistorialTurno.length}
-                  </span>
+              {/* Historial en Vivo del Turno */}
+              <div className="bg-white rounded-3xl shadow-xs border border-gray-200 overflow-hidden flex flex-col">
+                {/* Cabecera del Historial */}
+                <div className="p-4 border-b border-gray-100 space-y-3 bg-gray-50/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ClipboardList className="w-4 h-4 text-green-600" />
+                      <h3 className="font-bold text-gray-900 text-sm">Historial del Turno</h3>
+                    </div>
+                    <span className="text-xs font-bold bg-green-100 text-green-800 px-2.5 py-0.5 rounded-full">
+                      {historialTurno.length} {historialTurno.length === 1 ? "consumo" : "consumos"}
+                    </span>
+                  </div>
+
+                  {/* Filtro y Búsqueda en el Historial */}
+                  {historialTurno.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Buscar por aprendiz, doc o plato..."
+                          value={filtroHistorial}
+                          onChange={(e) => setFiltroHistorial(e.target.value)}
+                          className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
+                        />
+                        <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      </div>
+
+                      <div className="flex gap-1.5 overflow-x-auto text-[11px] pb-1">
+                        {["Todos", "Desayuno", "Almuerzo", "Cena"].map((tipo) => (
+                          <button
+                            key={tipo}
+                            onClick={() => setTipoFiltroHistorial(tipo)}
+                            className={`px-2.5 py-1 rounded-lg font-semibold transition-colors shrink-0 cursor-pointer ${
+                              tipoFiltroHistorial === tipo
+                                ? "bg-green-600 text-white"
+                                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
+                            }`}
+                          >
+                            {tipo}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="divide-y divide-gray-50 overflow-y-auto" style={{ maxHeight: "280px" }}>
-                  {HistorialTurno.length === 0 ? (
-                    <div className="py-8 text-center text-gray-400 text-sm">Sin registros aun</div>
+
+                {/* Lista de Registros */}
+                <div className="divide-y divide-gray-100 overflow-y-auto max-h-[380px]">
+                  {historialTurno.length === 0 ? (
+                    <div className="py-12 text-center text-gray-400 text-xs">
+                      <p>Sin registros en este turno aún</p>
+                      <p className="text-[11px] text-gray-400 mt-1">Los aprendices escaneados aparecerán aquí</p>
+                    </div>
+                  ) : historialFiltrado.length === 0 ? (
+                    <div className="py-8 text-center text-gray-400 text-xs">
+                      No se encontraron resultados con el filtro actual
+                    </div>
                   ) : (
-                    HistorialTurno.map((Item, Idx) => <FilaHistorial key={Idx} Item={Item} />)
+                    historialFiltrado.map((item, idx) => {
+                      const cfgTipo = ESTILOS_TIPO[item.Tipo] || ESTILOS_TIPO.Almuerzo;
+                      return (
+                        <div key={idx} className="p-3.5 flex items-center justify-between gap-3 hover:bg-green-50/40 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-green-100 text-green-800 font-extrabold text-xs flex items-center justify-center shrink-0">
+                              {item.Aprendiz?.charAt(0)?.toUpperCase() || "A"}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-gray-900 text-xs truncate leading-tight">
+                                {item.Aprendiz}
+                              </p>
+                              <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                                Doc: {item.NumDoc} &middot; {item.Plato}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ${cfgTipo.badge}`}>
+                              {item.Tipo}
+                            </span>
+                            <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                              {new Date(item.Timestamp).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>
             </div>
           </div>
-        </main>
-      )}
+        )}
+      </main>
 
-      {/* Modal de cierre de turno */}
-      {MostrarModalCierre && (
+      {/* ── MODAL DE CIERRE DE TURNO Y REPORTE ─────────────────────────────── */}
+      {mostrarModalCierre && (
         <ModalCierreTurno
-          Datos={{ HoraInicio: HoraInicioTurno, HoraFin: HoraFinTurno, Historial: HistorialTurno, Metricas }}
-          OnCerrar={() => SetMostrarModalCierre(false)}
-          OnExportarPDF={ManejarExportarPDF}
-          RefReporte={RefReportePDF}
-          ExportandoPDF={ExportandoPDF}
+          datos={{
+            horaInicio: horaInicioTurno,
+            horaFin: horaFinTurno,
+            historial: historialTurno,
+            metricas,
+          }}
+          onCerrar={() => setMostrarModalCierre(false)}
+          onExportarPDF={manejarExportarPDF}
+          refReporte={refReportePDF}
+          exportandoPDF={exportandoPDF}
         />
       )}
     </div>
