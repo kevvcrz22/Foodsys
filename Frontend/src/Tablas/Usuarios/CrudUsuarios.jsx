@@ -720,8 +720,6 @@ const CrudUsuarios = () => {
                   {btnFiltro("coordinador", "Coordinador", "#fce7f3", "#9d174d", "rol")}
                   {btnFiltro("administrador", "Administrador", "#ede9fe", "#6d28d9", "rol")}
                   {btnFiltro("supervisor", "Supervisor", "#e0f2fe", "#0369a1", "rol")}
-                  {btnFiltro("cocina", "Cocina", "#fef9c3", "#854d0e", "rol")}
-                  {btnFiltro("bienestar", "Bienestar", "#ecfdf5", "#065f46", "rol")}
                 </div>
               </div>
             </div>

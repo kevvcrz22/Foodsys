@@ -2,9 +2,11 @@
   "name": "node",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node App.js",
+    "dev": "nodemon App.js",
+    "preinstall": "npx only-allow pnpm"
   },
   "keywords": [],
   "author": "",
@@ -35,10 +37,5 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "bcrypt"
-    ]
   }
 }

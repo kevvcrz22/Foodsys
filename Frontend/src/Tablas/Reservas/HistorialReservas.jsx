@@ -568,6 +568,8 @@ export default function HistorialReservas() {
             if (ReservaQR?.Id_Reserva === Id_Reserva) {
                 SetReservaQR((prev) => ({ ...prev, Est_Reserva: "Cancelado" }));
             }
+            // Disparar evento para que cualquier componente sincronice al instante
+            window.dispatchEvent(new Event("reservasActualizadas"));
             SetMensajeOk("Reserva cancelada correctamente.");
             setTimeout(() => SetMensajeOk(null), 4000);
         } catch (err) {
@@ -578,7 +580,16 @@ export default function HistorialReservas() {
         }
     };
 
-    useEffect(() => { CargarHistorial(); }, [CargarHistorial]);
+    useEffect(() => {
+        CargarHistorial();
+        const alActualizarReservas = () => {
+            CargarHistorial();
+        };
+        window.addEventListener("reservasActualizadas", alActualizarReservas);
+        return () => {
+            window.removeEventListener("reservasActualizadas", alActualizarReservas);
+        };
+    }, [CargarHistorial]);
 
     return (
         <>
