@@ -116,16 +116,15 @@ const Novedades = () => {
       const Respuesta = await apiAxios.post("/api/Novedades/tipos-comida", {
         roles: RolesAprendiz,
       });
-      // Filtrar Desayuno (no aplica en novedades)
-      const TiposRecibidos = (Respuesta.data.tipos || []).filter((t) => t !== "Desayuno");
+      // Filtrar solo Almuerzo (único tipo habilitado en novedades)
+      const TiposRecibidos = (Respuesta.data.tipos || []).filter((t) => t === "Almuerzo");
       Set_TiposDisp(TiposRecibidos);
 
-      // Auto-seleccionar el primer tipo que aún se encuentre en horario válido
+      // Auto-seleccionar si aún se encuentra en horario válido
       const ahora = new Date();
       const minutos = ahora.getHours() * 60 + ahora.getMinutes();
       const disponible = TiposRecibidos.find((t) => {
         if (t === "Almuerzo") return minutos <= 9 * 60;
-        if (t === "Cena") return minutos <= 15 * 60;
         return false;
       });
 
@@ -161,25 +160,18 @@ const Novedades = () => {
       Set_Mensaje({ tipo: "error", texto: "Selecciona un aprendiz primero" });
       return;
     }
-    if (!Tipo || Tipo === "Desayuno") {
-      Set_Mensaje({ tipo: "error", texto: "El Desayuno no está habilitado para novedades. Solo aplican Almuerzo y Cena." });
+    if (!Tipo || Tipo !== "Almuerzo") {
+      Set_Mensaje({ tipo: "error", texto: "Solo se permite registrar novedades para Almuerzo." });
       return;
     }
 
-    // Validar horarios límites de novedad
+    // Validar horario límite de novedad
     const ahora = new Date();
     const minutos = ahora.getHours() * 60 + ahora.getMinutes();
     if (Tipo === "Almuerzo" && minutos > 9 * 60) {
       Set_Mensaje({
         tipo: "error",
         texto: "La hora límite para registrar novedades de Almuerzo son las 09:00 AM. El plazo para hoy ya venció.",
-      });
-      return;
-    }
-    if (Tipo === "Cena" && minutos > 15 * 60) {
-      Set_Mensaje({
-        tipo: "error",
-        texto: "La hora límite para registrar novedades de Cena son las 03:00 PM (15:00). El plazo para hoy ya venció.",
       });
       return;
     }

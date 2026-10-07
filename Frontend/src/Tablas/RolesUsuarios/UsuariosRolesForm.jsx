@@ -119,6 +119,27 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
             return;
         }
 
+        const rolSeleccionadoObj = roles.find((r) => String(r.Id_Rol) === String(Id_Rol));
+        const nombreRolNuevo = rolSeleccionadoObj?.Nom_Rol;
+        const rolesActuales = usuarioSeleccionado?.roles || [];
+
+        if (nombreRolNuevo === "Aprendiz Interno" && rolesActuales.includes("Aprendiz Externo")) {
+            toast.error("El usuario ya tiene el rol 'Aprendiz Externo'. No puede tener ambos.");
+            return;
+        }
+        if (nombreRolNuevo === "Aprendiz Externo" && rolesActuales.includes("Aprendiz Interno")) {
+            toast.error("El usuario ya tiene el rol 'Aprendiz Interno'. No puede tener ambos.");
+            return;
+        }
+        if (nombreRolNuevo === "Pasante Interno" && rolesActuales.includes("Pasante Externo")) {
+            toast.error("El usuario ya tiene el rol 'Pasante Externo'. No puede tener ambos.");
+            return;
+        }
+        if (nombreRolNuevo === "Pasante Externo" && rolesActuales.includes("Pasante Interno")) {
+            toast.error("El usuario ya tiene el rol 'Pasante Interno'. No puede tener ambos.");
+            return;
+        }
+
         setEnviando(true);
         const payload = {
             Id_Usuario: Number(Id_Usuario),

@@ -1,6 +1,6 @@
 import apiAxios from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
-import { Plus, X, Search, ChefHat, Pencil, Calendar, Coffee, Sun, Moon } from "lucide-react";
+import { Plus, X, Search, ChefHat, Pencil, Trash2, Calendar, Coffee, Sun, Moon, Undo2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
@@ -43,7 +43,7 @@ const tipoConfig = {
 const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles }) => {
   const [Fec_Menu, setFec_Menu] = useState("");
   const [Tip_Menu, setTip_Menu] = useState("Almuerzo");
-  const [platosSeleccionados, setPlatosSeleccionados] = useState([]); // max 2
+  const [platosSeleccionados, setPlatosSeleccionados] = useState([]); // máximo 2
   const [enviando, setEnviando] = useState(false);
 
   /* Filtrar platos por tipo */
@@ -53,9 +53,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
     if (isEdit && selectedMenu) {
       setFec_Menu(selectedMenu.Fec_Menu?.slice(0, 10) || "");
       setTip_Menu(selectedMenu.Tip_Menu || "Almuerzo");
-      setPlatosSeleccionados(
-        selectedMenu.Id_Plato ? [selectedMenu.Id_Plato] : []
-      );
+      setPlatosSeleccionados(selectedMenu.Id_Plato ? [selectedMenu.Id_Plato] : []);
     } else {
       setFec_Menu("");
       setTip_Menu("Almuerzo");
@@ -79,28 +77,42 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
   const gestionarForm = async (e) => {
     e.preventDefault();
 
-    if (platosSeleccionados.length === 0) {
-      toast.error("Selecciona al menos un plato");
+    if (!Fec_Menu) {
+      toast.error("Selecciona una fecha para el menú");
       return;
     }
-    if (!Fec_Menu) {
-      toast.error("Selecciona una fecha");
+
+    const fechaHoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+
+    if (Fec_Menu < fechaHoy) {
+      toast.error("No se pueden crear menús para fechas pasadas");
+      return;
+    }
+
+    if (Tip_Menu === 'Almuerzo' && Fec_Menu <= fechaHoy) {
+      toast.error("No se permite programar ni crear menú de Almuerzo para el mismo día");
+      return;
+    }
+
+    if (!isEdit && platosSeleccionados.length < 2) {
+      toast.error("Debes seleccionar 2 platos para este menú");
+      return;
+    }
+
+    if (isEdit && platosSeleccionados.length === 0) {
+      toast.error("Selecciona un plato para actualizar el menú");
       return;
     }
 
     setEnviando(true);
     try {
       if (!isEdit) {
-        // Crear un registro por cada plato seleccionado
-        const promises = platosSeleccionados.map((Id_Plato) =>
-          apiAxios.post("/api/Menus", { Fec_Menu, Tip_Menu, Id_Plato })
-        );
-        await Promise.all(promises);
-        toast.success(
-          platosSeleccionados.length === 2
-            ? "Menú creado con 2 platos correctamente"
-            : "Menú creado correctamente"
-        );
+        await apiAxios.post("/api/Menus", {
+          Fec_Menu,
+          Tip_Menu,
+          platos: platosSeleccionados,
+        });
+        toast.success("Menú creado con 2 platos correctamente");
       } else {
         await apiAxios.put(`/api/Menus/${selectedMenu.Id_Menu}`, {
           Fec_Menu,
@@ -131,6 +143,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
           type="date"
           value={Fec_Menu}
           onChange={(e) => setFec_Menu(e.target.value)}
+          min={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })}
           required
           className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
         />
@@ -165,7 +178,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            Platos — {Tip_Menu}
+            Platos — {Tip_Menu} (2 platos por menú)
           </label>
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cfg.badge}`}>
             {platosSeleccionados.length}/2 seleccionados
@@ -191,12 +204,13 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
                   type="button"
                   disabled={lleno}
                   onClick={() => togglePlato(p.Id_Plato)}
-                  className={`flex items-center gap-3 p-2.5 rounded-xl border-2 text-left transition-all ${lleno
+                  className={`flex items-center gap-3 p-2.5 rounded-xl border-2 text-left transition-all ${
+                    lleno
                       ? "opacity-40 cursor-not-allowed border-gray-200 bg-gray-50"
                       : sel
-                        ? `border-green-500 ${cfg.bg} shadow-sm`
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
+                      ? `border-green-500 ${cfg.bg} shadow-sm ring-2 ring-green-500/20`
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
                 >
                   {imgSrc ? (
                     <img
@@ -228,7 +242,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
 
         {platosSeleccionados.length === 2 && (
           <p className="text-xs text-green-600 font-medium mt-1.5">
-            ✓ Máximo de 2 platos seleccionados para este menú
+            ✓ 2 platos seleccionados para este menú
           </p>
         )}
       </div>
@@ -238,19 +252,19 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
         <button
           type="button"
           onClick={hideModal}
-          className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-sm"
+          className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-sm cursor-pointer"
         >
           Cancelar
         </button>
         <button
           type="submit"
-          disabled={enviando || platosSeleccionados.length === 0}
-          className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-2 transition-colors"
+          disabled={enviando || (!isEdit && platosSeleccionados.length < 2) || (isEdit && platosSeleccionados.length === 0)}
+          className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
         >
           {enviando ? (
             <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
           ) : null}
-          {isEdit ? "Actualizar" : "Crear Menú"}
+          {isEdit ? "Actualizar" : "Crear Menú (2 platos)"}
         </button>
       </div>
     </form>
@@ -260,7 +274,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
 /* ─────────────────────────────────────────
    Card de menú (agrupado por tipo)
 ───────────────────────────────────────── */
-const MenuCard = ({ menu, onEdit }) => {
+const MenuCard = ({ menu, onEdit, onDelete, ocultarEditar, ocultarEliminar }) => {
   const cfg = tipoConfig[menu.Tip_Menu] || tipoConfig.Almuerzo;
   const Icon = cfg.icon;
   const imgSrc = menu.plato?.Img_Plato
@@ -268,18 +282,32 @@ const MenuCard = ({ menu, onEdit }) => {
     : null;
 
   return (
-    <div className={`rounded-2xl border ${cfg.border} overflow-hidden`}>
+    <div className={`rounded-2xl border ${cfg.border} overflow-hidden shadow-xs hover:shadow-md transition-shadow`}>
       <div className={`${cfg.bg} px-4 py-2 flex items-center justify-between`}>
         <div className="flex items-center gap-2">
           <Icon className={`w-4 h-4 ${cfg.color}`} />
           <span className={`text-sm font-semibold ${cfg.color}`}>{menu.Tip_Menu}</span>
         </div>
-        <button
-          onClick={() => onEdit(menu)}
-          className="text-xs bg-white/60 hover:bg-white text-gray-600 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors"
-        >
-          <Pencil className="w-3 h-3" /> Editar
-        </button>
+        <div className="flex items-center gap-1.5">
+          {!ocultarEditar && (
+            <button
+              onClick={() => onEdit(menu)}
+              title="Editar menú"
+              className="text-xs bg-white/70 hover:bg-white text-gray-700 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors font-medium cursor-pointer shadow-xs"
+            >
+              <Pencil className="w-3 h-3 text-blue-600" /> Editar
+            </button>
+          )}
+          {!ocultarEliminar && (
+            <button
+              onClick={() => onDelete(menu)}
+              title="Eliminar menú (si nadie ha realizado solicitudes)"
+              className="text-xs bg-white/70 hover:bg-rose-50 text-rose-600 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors font-medium cursor-pointer shadow-xs border border-transparent hover:border-rose-200"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+            </button>
+          )}
+        </div>
       </div>
       <div className="bg-white p-3 flex items-center gap-3">
         {imgSrc ? (
@@ -350,6 +378,97 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
     setSelectedMenu(row);
     setIsEdit(true);
     setIsModalOpen(true);
+  };
+
+  const deleteMenuHandler = (menu) => {
+    const nombrePlato = menu.plato?.Nom_Plato || "este plato";
+
+    toast(
+      (t) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 320, padding: "4px 2px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: "#fee2e2",
+                color: "#dc2626",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Trash2 size={18} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: 700, color: "#1e293b", fontSize: 14, margin: 0 }}>
+                ¿Eliminar menú?
+              </p>
+              <p style={{ fontSize: 12, color: "#64748b", margin: "3px 0 0 0", lineHeight: 1.3 }}>
+                <strong>{nombrePlato}</strong> &middot; {menu.Tip_Menu} ({menu.Fec_Menu})
+              </p>
+              <p style={{ fontSize: 11, color: "#94a3b8", margin: "4px 0 0 0" }}>
+                Solo se eliminará si nadie ha hecho reservas.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                toast("Eliminación cancelada", {
+                  icon: <Undo2 size={16} className="text-slate-500" />,
+                  duration: 1500,
+                });
+              }}
+              style={{
+                background: "#f1f5f9",
+                color: "#475569",
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+                padding: "6px 14px",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "background 0.15s",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={async () => {
+                toast.dismiss(t.id);
+                const toastId = toast.loading("Eliminando menú...");
+                try {
+                  await apiAxios.delete(`/api/Menus/${menu.Id_Menu}`);
+                  toast.success("Menú eliminado correctamente", { id: toastId });
+                  getAllMenus();
+                } catch (err) {
+                  toast.error(err?.response?.data?.message || "No se pudo eliminar el menú", { id: toastId });
+                }
+              }}
+              style={{
+                background: "#dc2626",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                padding: "6px 16px",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                transition: "background 0.15s",
+              }}
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: 8000 }
+    );
   };
 
   const hideModal = () => {
@@ -483,14 +602,16 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                         {menosTipo.map((menu) => (
-                          // Se pasa ocultarEditar al MenuCard:
-                          // soloLectura: ni crear ni editar
-                          // soloCrear: puede crear pero no editar cards existentes
+                          // Se pasa ocultarEditar y ocultarEliminar al MenuCard:
+                          // soloLectura: ni crear ni editar ni eliminar
+                          // soloCrear: puede crear y eliminar si no hay reservas, pero no editar cards existentes
                           <MenuCard
                             key={menu.Id_Menu}
                             menu={menu}
                             onEdit={editMenu}
+                            onDelete={deleteMenuHandler}
                             ocultarEditar={soloLectura || soloCrear}
+                            ocultarEliminar={soloLectura}
                           />
                         ))}
                       </div>

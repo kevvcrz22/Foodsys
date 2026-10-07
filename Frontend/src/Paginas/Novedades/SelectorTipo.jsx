@@ -1,21 +1,17 @@
 // Paginas/Novedades/SelectorTipo.jsx
-// Muestra botones de seleccion para el tipo de comida en novedades (Almuerzo y Cena)
-// e informa sobre los limites horarios (Almuerzo hasta 09:00 AM, Cena hasta 03:00 PM).
+// Muestra la seleccion para el tipo de comida en novedades (solo Almuerzo)
+// e informa sobre el limite horario (Almuerzo hasta 09:00 AM).
 
 const HORARIOS_NOVEDAD = {
   Almuerzo: {
     limite: "Hasta 09:00 AM",
     limiteMinutos: 9 * 60, // 09:00 AM
   },
-  Cena: {
-    limite: "Hasta 03:00 PM",
-    limiteMinutos: 15 * 60, // 15:00 PM
-  },
 };
 
 const SelectorTipo = ({ Tipos_Disponibles = [], Tipo, Set_Tipo }) => {
-  // Filtrar Desayuno (no aplica en novedades)
-  const tiposFiltrados = Tipos_Disponibles.filter((t) => t !== "Desayuno");
+  // Filtrar solo Almuerzo (es el único tipo permitido en novedades)
+  const tiposFiltrados = Tipos_Disponibles.filter((t) => t === "Almuerzo");
 
   const ahora = new Date();
   const minutosActual = ahora.getHours() * 60 + ahora.getMinutes();
@@ -27,7 +23,7 @@ const SelectorTipo = ({ Tipos_Disponibles = [], Tipo, Set_Tipo }) => {
           Tipo de comida
         </label>
         <span className="text-[11px] text-gray-500 font-medium">
-          Límites: Almuerzo (09:00 AM) &middot; Cena (03:00 PM)
+          Límite: Almuerzo (09:00 AM)
         </span>
       </div>
 
@@ -36,7 +32,7 @@ const SelectorTipo = ({ Tipos_Disponibles = [], Tipo, Set_Tipo }) => {
           No hay tipos de comida habilitados para novedades con este rol.
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5">
           {tiposFiltrados.map((T) => {
             const config = HORARIOS_NOVEDAD[T];
             const estaExpirado = config ? minutosActual > config.limiteMinutos : false;

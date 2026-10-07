@@ -440,6 +440,7 @@ export const importarSeleccionados = async (req, res) => {
         Id_Ficha: Fila.Id_Ficha || null,
         Est_Usuario: "En Formacion",
         San_Usuario: "No",
+        Pol_Usuario: "No",
         password: HashPwd,
         uuid: uuidv4(),
         createdat: new Date(),

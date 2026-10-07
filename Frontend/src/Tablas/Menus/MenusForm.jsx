@@ -51,17 +51,29 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload }) => {
       return;
     }
 
+    const fechaHoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+
+    if (Fec_Menu < fechaHoy) {
+      toast.error("No se pueden crear menús para fechas pasadas");
+      return;
+    }
+
+    if (Tip_Menu === 'Almuerzo' && Fec_Menu <= fechaHoy) {
+      toast.error("No se permite programar ni crear menú de Almuerzo para el mismo día");
+      return;
+    }
+
     setLoading(true);
     try {
       if (!isEdit) {
-        await apiAxios.post("/api/menu", {
+        await apiAxios.post("/api/Menus", {
           Fec_Menu,
           Tip_Menu,
           Id_Plato
         });
         toast.success("Menú creado correctamente");
       } else {
-        await apiAxios.put(`/api/menu/${Id_Menu}`, {
+        await apiAxios.put(`/api/Menus/${Id_Menu}`, {
           Fec_Menu,
           Tip_Menu,
           Id_Plato

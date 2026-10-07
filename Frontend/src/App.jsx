@@ -233,16 +233,19 @@ function App() {
 
   // Registra el login exitoso: guarda token, usuario y roles en localStorage
   const Manejar_Login = (Usr, Roles_Recibidos, Rol_Recibido, Token_JWT) => {
+    const Rol_Final = Rol_Recibido || (Roles_Recibidos && Roles_Recibidos[0]) || null;
     localStorage.setItem("token", Token_JWT);
     localStorage.setItem("usuario", JSON.stringify(Usr));
-    localStorage.setItem("roles", JSON.stringify(Roles_Recibidos));
-    localStorage.setItem("rolActivo", Rol_Recibido);
+    localStorage.setItem("roles", JSON.stringify(Roles_Recibidos || []));
+    if (Rol_Final) {
+      localStorage.setItem("rolActivo", Rol_Final);
+    }
 
     Set_UsuarioLogeado(Usr);
     Set_EsAuth(true);
-    Set_Roles(Roles_Recibidos);
-    Set_RolActivo(Rol_Recibido);
-    Navegar(RUTAS_POR_ROL[Rol_Recibido] || "/");
+    Set_Roles(Roles_Recibidos || []);
+    Set_RolActivo(Rol_Final);
+    Navegar((Rol_Final && RUTAS_POR_ROL[Rol_Final]) || "/");
   };
 
   // El chatbot no aparece en la vista del coordinador por diseno
@@ -291,7 +294,7 @@ function App() {
           <Route
             path="/"
             element={
-              Es_Auth
+              Es_Auth && Rol_Activo && RUTAS_POR_ROL[Rol_Activo]
                 ? <Navigate to={RUTAS_POR_ROL[Rol_Activo]} replace />
                 : <InicioLanding />
             }
@@ -301,7 +304,7 @@ function App() {
           <Route
             path="/login"
             element={
-              Es_Auth
+              Es_Auth && Rol_Activo && RUTAS_POR_ROL[Rol_Activo]
                 ? <Navigate to={RUTAS_POR_ROL[Rol_Activo]} replace />
                 : <Login onLogin={Manejar_Login} />
             }
