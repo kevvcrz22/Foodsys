@@ -96,6 +96,7 @@ class UsuariosService {
       TipDoc_Usuario, NumDoc_Usuario, Nom_Usuario, Ape_Usuario,
       Gen_Usuario, Cor_Usuario, Tel_Usuario, CenCon_Usuario,
       Est_Usuario, San_Usuario,
+      Pol_Usuario: 'No',
       Id_Ficha: Id_Ficha || null,
       password: hashedPassword,
       uuid: usuariosUuid,

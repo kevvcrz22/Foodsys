@@ -50,7 +50,7 @@ export const obtenerTiposPorRol = async (req, res) => {
 // Body esperado:
 //   {
 //     Id_UsuarioAprendiz : number  -> ID del aprendiz que recibe la novedad
-//     Tip_Reserva        : string  -> "Almuerzo" o "Cena"
+//     Tip_Reserva        : string  -> "Almuerzo"
 //     platoElegido       : number  -> ID del plato seleccionado
 //     justificacion      : string  -> Motivo de la novedad (obligatorio)
 //   }

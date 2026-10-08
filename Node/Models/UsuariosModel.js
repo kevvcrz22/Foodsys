@@ -12,7 +12,7 @@ const UsuariosModel = db.define('usuarios', {
   Tel_Usuario: { type: DataTypes.STRING, allowNull: true },
   CenCon_Usuario: { type: DataTypes.STRING, allowNull: true },
   Est_Usuario: { type: DataTypes.STRING, allowNull: true},
-  Pol_Usuario: {type: DataTypes.STRING, allowNull: true},
+  Pol_Usuario: { type: DataTypes.STRING, allowNull: true, defaultValue: 'No' },
   San_Usuario: {type: DataTypes.STRING, allowNull: true},
   Fec_Desancion: { type: DataTypes.DATE, allowNull: true },
   Id_Ficha: {type: DataTypes.INTEGER,references: { model: "fichas", key: "Id_Ficha" }},

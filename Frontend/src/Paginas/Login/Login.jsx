@@ -76,17 +76,21 @@ const Login = ({ onLogin }) => {
         throw new Error('El servidor no devolvió un token válido');
       }
 
-      setUser(Res_Data.usuario);
-
-      const Lis_Roles = Res_Data.roles;
+      const Lis_Roles = Res_Data.roles || [];
+      if (!Array.isArray(Lis_Roles) || Lis_Roles.length === 0) {
+        throw new Error('Tu cuenta no tiene asignado ningún rol en el sistema. Contacta al administrador.');
+      }
       const Txt_RolActivo = Lis_Roles.includes('Administrador') ? 'Administrador' : Lis_Roles[0];
 
-      if (Res_Data.usuario.Pol_Usuario !== 'Si') {
+      const polAceptada = String(Res_Data.usuario?.Pol_Usuario || '').trim().toLowerCase() === 'si';
+
+      if (!polAceptada) {
         Set_PenLogin({ Res_Data, Lis_Roles, Txt_RolActivo });
         Set_MstPolitica(true);
         return;
       }
 
+      setUser(Res_Data.usuario);
       Fn_FinalizarLogin(Res_Data, Lis_Roles, Txt_RolActivo);
 
     } catch (Err_Excepcion) {
@@ -100,11 +104,13 @@ const Login = ({ onLogin }) => {
     try {
       const { Res_Data, Lis_Roles, Txt_RolActivo } = Pen_Login;
       await apiNode.patch(`/api/Usuarios/${Res_Data.usuario.Id_Usuario}/politica`);
+      Res_Data.usuario.Pol_Usuario = 'Si';
       Set_MstPolitica(false);
       Set_PenLogin(null);
+      setUser(Res_Data.usuario);
       Fn_FinalizarLogin(Res_Data, Lis_Roles, Txt_RolActivo);
-    } catch {
-      Set_TexErrorGeneral('Error al registrar la aceptación de política. Intenta de nuevo.');
+    } catch (Err) {
+      Set_TexErrorGeneral(Err.response?.data?.message || Err.message || 'Error al registrar la aceptación de política. Intenta de nuevo.');
       Set_MstPolitica(false);
     }
   };
