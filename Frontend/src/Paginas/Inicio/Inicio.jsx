@@ -10,6 +10,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import TurnoSupervisorCard from "../../Components/TurnoSupervisorCard.jsx";
 
 // Prefijo de ruta segun el rol activo.
 // ⚠️ MODIFICABLE: si cambias el nombre de un rol en la BD, actualiza aqui.
@@ -295,6 +296,9 @@ const Inicio = () => {
           )}
         </p>
       </div>
+
+      {/* Panel de Turno Exclusivo para Supervisor */}
+      {Rol_Activo === "Supervisor" && <TurnoSupervisorCard usuario={Usuario} />}
 
       {/* Manual de instrucciones */}
       {Manual ? (

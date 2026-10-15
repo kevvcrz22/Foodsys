@@ -21,12 +21,12 @@ export const Generar_OTP = async (peticion, respuesta) => {
 
   try {
     const usuario = await UsuariosModel.findOne({ where: { NumDoc_Usuario: documento } });
-    if (!usuario) {
-      return respuesta.status(404).json({ mensaje: "Usuario no encontrado." });
-    }
-
-    if (!usuario.Cor_Usuario) {
-      return respuesta.status(400).json({ mensaje: "El usuario no tiene un correo registrado." });
+    if (!usuario || !usuario.Cor_Usuario) {
+      // Prevención de enumeración de usuarios
+      return respuesta.status(200).json({
+        mensaje: "Si el documento está registrado, recibirás un código de seguridad en tu correo.",
+        correoOculto: "******@***.com"
+      });
     }
 
     // Generar código numérico de 6 dígitos
@@ -159,8 +159,8 @@ export const Enviar_Contacto = async (peticion, respuesta) => {
 
     const adjuntos = adjunto ? [adjunto] : []; // Si hay archivo, lo mandamos como array
 
-    // Enviar a la cuenta de soporte configurada en Servicio_Correo
-    const correoSoporte = process.env.SMTP_USER || 'soportefootsies@cena.edu.co';
+    // Enviar a la cuenta de soporte institucional
+    const correoSoporte = process.env.CONTACT_EMAIL || process.env.SMTP_USER || 'fierrokkevin@gmail.com';
     await Servicio_Correo.Enviar_Correo(correoSoporte, `Contacto de ${nombre}`, cuerpoHtml, adjuntos);
 
     return respuesta.status(200).json({ mensaje: "Tu mensaje ha sido enviado exitosamente al equipo de soporte." });

@@ -29,6 +29,8 @@ import InicioRoute from './Routes/InicioRoute.js';
 import NovedadesRoute from './Routes/NovedadesRoute.js';
 import CocinaRoute from './Routes/CocinaRoute.js';
 import RutasAutenticacion from './Routes/Rutas_Autenticacion.js';
+import TurnosRoute from './Routes/TurnosRoute.js';
+import NotificacionesRoute from './Routes/NotificacionesRoute.js';
 
 // ---------- 3. IMPORTACIÓN DE MODELOS ----------
 import FichasModel from './Models/FichasModel.js';
@@ -39,6 +41,8 @@ import RolesModel from './Models/RolesModel.js';
 import UsuariosRolModel from './Models/UsuariosRolModel.js';
 import PlatosModel from './Models/PlatosModels.js';
 import MenuModel from './Models/MenusModels.js';
+import TurnosModel from './Models/TurnosModel.js';
+import NotificacionesModel from './Models/NotificacionesModel.js';
 import NovedadesService from './Services/NovedadesService.js';
 
 // ---------- 4. CONFIGURACIÓN INICIAL ----------
@@ -94,6 +98,8 @@ aplicacion.use('/api/Inicio', InicioRoute);
 aplicacion.use('/api/Novedades', NovedadesRoute);
 aplicacion.use('/api/Cocina', CocinaRoute);
 aplicacion.use('/api/Auth', RutasAutenticacion);
+aplicacion.use('/api/Turnos', TurnosRoute);
+aplicacion.use('/api/Notificaciones', NotificacionesRoute);
 
 // ---------- 7. ARCHIVOS ESTÁTICOS ----------
 const rutaArchivo = fileURLToPath(import.meta.url);
@@ -129,6 +135,26 @@ try {
   } catch (errCol) {
     console.warn('Nota sobre columna Est_Programa:', errCol.message);
   }
+
+  // Asegurar existencia de columna tokenVersion en usuarios (Sesión única)
+  try {
+    const [colsToken] = await db.query("SHOW COLUMNS FROM usuarios LIKE 'tokenVersion'");
+    if (colsToken.length === 0) {
+      await db.query("ALTER TABLE usuarios ADD COLUMN tokenVersion INT NOT NULL DEFAULT 1");
+      console.log('Columna tokenVersion creada exitosamente en tabla usuarios');
+    }
+  } catch (errCol) {
+    console.warn('Nota sobre columna tokenVersion:', errCol.message);
+  }
+
+  // Asegurar existencia de tablas turnos y notificaciones
+  try {
+    await TurnosModel.sync({ alter: false });
+    await NotificacionesModel.sync({ alter: false });
+    console.log('✅ Tablas turnos y notificaciones sincronizadas');
+  } catch (errSync) {
+    console.warn('Nota sobre sincronización de tablas turnos/notificaciones:', errSync.message);
+  }
 } catch (errorDb) {
   console.error('Error al conectar a la Base de Datos: ', errorDb);
   process.exit(1);
@@ -155,6 +181,12 @@ MenuModel.belongsTo(PlatosModel, { foreignKey: "Id_Plato", as: "plato" });
 
 ReservasModel.belongsTo(PlatosModel, { foreignKey: "Id_Plato", as: "plato" });
 PlatosModel.hasMany(ReservasModel, { foreignKey: "Id_Plato", as: "reservas" });
+
+UsuariosModel.hasMany(TurnosModel, { foreignKey: "Id_Usuario", as: "turnos" });
+TurnosModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario", as: "supervisor" });
+
+UsuariosModel.hasMany(NotificacionesModel, { foreignKey: "Id_Usuario", as: "notificaciones" });
+NotificacionesModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario", as: "usuario" });
 
 // ========== 10. TAREA DE MANTENIMIENTO: ESTADOS ESPECIALES EXPIRADOS ==========
 try {

@@ -26,23 +26,30 @@ const Footer = () => {
             <h4 className="text-acento text-xs font-bold uppercase tracking-wider">Enlaces Rápidos</h4>
             <nav className="flex flex-col gap-2">
               <Link to="/about" className="text-texto-secundario hover:text-primario text-sm font-medium transition-colors">¿Qué es Foodsys?</Link>
+              <Link to="/manuales" className="text-texto-secundario hover:text-primario text-sm font-medium transition-colors">Manuales de Usuario</Link>
               <Link to="/contacto" className="text-texto-secundario hover:text-primario text-sm font-medium transition-colors">Centro de Soporte (PQRS)</Link>
+              <a
+                href="https://bienesoftlagranja.com/user/login"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-texto-secundario hover:text-primario text-sm font-medium transition-colors flex items-center gap-1"
+              >
+                Portal BIENESOFT ↗
+              </a>
             </nav>
           </div>
 
           {/* Contact & Social */}
           <div className="space-y-3">
             <h4 className="text-acento text-xs font-bold uppercase tracking-wider">Conéctate</h4>
-            <div className="flex gap-3">
-              <a href="#" aria-label="Facebook" className="w-10 h-10 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md hover:border-primario/30 flex items-center justify-center transition-all text-texto-secundario hover:text-primario">
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a href="#" aria-label="Instagram" className="w-10 h-10 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md hover:border-primario/30 flex items-center justify-center transition-all text-texto-secundario hover:text-primario">
+            <div className="flex gap-3 items-center">
+              <div
+                title="Instagram (Próximamente)"
+                className="w-10 h-10 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center justify-center text-texto-secundario/60 opacity-80 cursor-default"
+              >
                 <Instagram className="w-5 h-5" />
-              </a>
-              <a href="#" aria-label="WhatsApp" className="w-10 h-10 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md hover:border-primario/30 flex items-center justify-center transition-all text-texto-secundario hover:text-primario">
-                <MessageCircle className="w-5 h-5" />
-              </a>
+              </div>
+              <span className="text-xs text-texto-secundario font-medium">SENA Regional Tolima</span>
             </div>
           </div>
           

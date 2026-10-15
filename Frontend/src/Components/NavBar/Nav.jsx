@@ -4,6 +4,8 @@ import NavLink from "./NavLink";
 import NavRolSelector from "./NavRolSelector";
 import { useNavBar } from "../CerrarSesion";
 import NavAcciones from "./NavAcciones";
+import NavNotificaciones from "./NavNotificaciones";
+
 const NavBar = ({ usuario, roles = [], rolActivo, onCambioRol, onCerrarSesion }) => {
   const { handleCambioRol, handleCerrarSesion } = useNavBar({
     onCambioRol,
@@ -22,6 +24,7 @@ const NavBar = ({ usuario, roles = [], rolActivo, onCambioRol, onCerrarSesion })
             rolActivo={rolActivo}
             onCambioRol={handleCambioRol}
           />
+          {usuario && <NavNotificaciones usuario={usuario} />}
           <NavAcciones
             usuario={usuario}
             roles={roles}

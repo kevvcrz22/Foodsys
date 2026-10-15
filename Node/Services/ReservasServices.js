@@ -31,6 +31,7 @@ import RolesModel from "../Models/RolesModel.js";
 import PlatosModels from "../Models/PlatosModels.js";
 import MenusModel from "../Models/MenusModels.js";
 import VencimientoService from "./VencimientoService.js";
+import TurnosService from "./TurnosService.js";
 
 // Roles que requieren pasar por cocina si no tienen estado Especial.
 // Los internos (Aprendiz Interno, Pasante Interno) nunca pasan por este paso.
@@ -42,9 +43,9 @@ const DIAS_DURACION_ESPECIAL = 30;
 
 class ReservasServices {
 
-  // Retorna la fecha de hoy en formato YYYY-MM-DD
+  // Retorna la fecha de hoy en formato YYYY-MM-DD en la zona horaria de Colombia (America/Bogota, UTC-5)
   ObtenerFechaHoy() {
-    return new Date().toISOString().split('T')[0];
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
   }
 
   // Calcula la fecha y hora de vencimiento segun la fecha de reserva.
@@ -458,6 +459,9 @@ class ReservasServices {
 
       // Marcar la reserva como consumida
       await reserva.update({ Est_Reserva: 'Consumido' }, { transaction });
+
+      // Incrementar contador de consumos del turno de supervisor activo en tiempo real
+      TurnosService.incrementarConsumoTurnoActivo().catch(err => console.warn("[TurnosService]", err.message));
 
       // Retornar la informacion completa del consumo.
       // El frontend la usa para la ventana flotante que el supervisor lee en voz alta:

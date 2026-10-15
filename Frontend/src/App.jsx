@@ -32,8 +32,8 @@ import {
   useNavigate, useLocation,
 } from "react-router-dom";
 import { Toaster, toast } from "react-hot-toast";
-import ResetPassword from "./Paginas/Recuperar/resetPassword.jsx";
-import ForgotPassword from "./Paginas/Recuperar/forgotPassword.jsx";
+import LoadingFoodsys from "./Components/LoadingFoodsys.jsx";
+import InactividadModal from "./Components/InactividadModal.jsx";
 
 // ── Paginas de autenticacion y publicas ──────────────────────────────────────
 const Login = lazy(() => import("./Paginas/Login/Login.jsx"));
@@ -41,10 +41,12 @@ const Perfil = lazy(() => import("./Paginas/Perfil/Perfil.jsx"));
 const Inicio = lazy(() => import("./Paginas/Inicio/Inicio.jsx"));
 const Contacto = lazy(() => import("./Paginas/Contacto/Contacto.jsx"));
 const QueEsFoodsys = lazy(() => import("./Paginas/About/QueEsFoodsys.jsx"));
-const Recuperar = lazy(() => import("./Paginas/Recuperar/forgotPassword.jsx"));
+const ForgotPassword = lazy(() => import("./Paginas/Recuperar/forgotPassword.jsx"));
+const ResetPassword = lazy(() => import("./Paginas/Recuperar/resetPassword.jsx"));
 const InicioInterno = lazy(() => import("./Paginas/Inicio/InicioInterno.jsx"));
 const InicioExterno = lazy(() => import("./Paginas/Inicio/InicioExterno.jsx"));
 const InicioLanding = lazy(() => import("./Paginas/Inicio/InicioLanding.jsx"));
+const ManualesUsuario = lazy(() => import("./Paginas/Manuales/ManualesUsuario.jsx"));
 
 // ── Componentes de layout ────────────────────────────────────────────────────
 import Chatbot from "./Components/Chatbot.jsx";
@@ -228,7 +230,7 @@ function App() {
   };
 
   if (Cargando) {
-    return <div className="text-center mt-20">Cargando...</div>;
+    return <LoadingFoodsys texto="Cargando sesión Foodsys..." />;
   }
 
   // Registra el login exitoso: guarda token, usuario y roles en localStorage
@@ -287,7 +289,19 @@ function App() {
         />
       )}
 
-      <Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="w-10 h-10 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin"></div></div>}>
+      {Es_Auth && (
+        <InactividadModal
+          rolActivo={Rol_Activo}
+          onCerrarSesion={(porInactividad) => {
+            if (porInactividad) {
+              toast.error("Sesión cerrada automáticamente por inactividad (5 min)");
+            }
+            Manejar_CerrarSesion();
+          }}
+        />
+      )}
+
+      <Suspense fallback={<LoadingFoodsys />}>
         <Routes>
 
           {/* ── PANTALLA DE INICIO (LANDING PAGE) ─────────────────────────── */}
@@ -313,7 +327,7 @@ function App() {
           {/* ── RUTAS PUBLICAS ─────────────────────────────────────────────── */}
           <Route path="/contacto" element={<Contacto />} />
           <Route path="/about" element={<QueEsFoodsys />} />
-          <Route path="/recuperar" element={<Recuperar />} />
+          <Route path="/recuperar" element={<ForgotPassword />} />
 
           {/* ── ADMINISTRADOR ──────────────────────────────────────────────── */}
           {/* El Administrador tiene acceso a todos los CRUD y modulos          */}
@@ -557,11 +571,27 @@ function App() {
             }
           />
 
+          {/* ── RECUPERACIÓN DE CONTRASEÑA ─────────────────────────────────── */}
+          <Route path="/forgotPassword" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+          {/* ── MANUALES DE USUARIO ────────────────────────────────────────── */}
+          <Route
+            path="/manuales"
+            element={
+              Es_Auth ? (
+                <LayoutConSidebar {...Props_Layout}>
+                  <ManualesUsuario />
+                </LayoutConSidebar>
+              ) : (
+                <ManualesUsuario />
+              )
+            }
+          />
+
           {/* ── FALLBACK ──────────────────────────────────────────────────── */}
           {/* Cualquier ruta que no coincida redirige al login o al dashboard   */}
-          <Route path="*" element={<Navigate to="/" />} />
-          <Route path='/forgotPassword' element={<ForgotPassword />}></Route>
-          <Route path='/reset-password/:token' element={<ResetPassword />}></Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
       </Suspense>

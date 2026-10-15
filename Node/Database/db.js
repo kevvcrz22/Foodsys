@@ -13,9 +13,16 @@ const db = new Sequelize(
   process.env.DB_PASS || '',
   {
     host: process.env.DB_HOST || 'localhost',
+    port: Number(process.env.DB_PORT) || 3306,
     dialect: 'mysql',
     timezone: '-05:00',
     logging: false,
+    pool: {
+      max: 25,
+      min: 5,
+      acquire: 60000,
+      idle: 10000,
+    },
   }
 );
 

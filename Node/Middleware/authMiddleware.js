@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
+import UsuariosModel from "../Models/UsuariosModel.js";
 
 // Verifica el token JWT enviado en la cabecera Authorization
-// Si el token es valido, adjunta el payload decodificado a req.user y continua
+// Valida sesión única verificando tokenVersion en base de datos
 export default async function authMiddleware(req, res, next) {
   try {
     const authHeader = req.get("Authorization");
@@ -17,6 +18,24 @@ export default async function authMiddleware(req, res, next) {
 
     const token = parts[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Validación de sesión única: verificar si el tokenVersion sigue siendo vigente
+    if (decoded.id && decoded.tokenVersion !== undefined) {
+      const usuario = await UsuariosModel.findByPk(decoded.id, {
+        attributes: ['Id_Usuario', 'tokenVersion', 'San_Usuario', 'Est_Usuario']
+      });
+
+      if (!usuario) {
+        return res.status(401).json({ message: "Usuario no encontrado", code: "USER_NOT_FOUND" });
+      }
+
+      if (usuario.tokenVersion && usuario.tokenVersion !== decoded.tokenVersion) {
+        return res.status(401).json({
+          message: "Sesión cerrada: iniciaste sesión en otro dispositivo o tu sesión expiró.",
+          code: "SESSION_EXPIRED"
+        });
+      }
+    }
 
     // req.user queda disponible para todos los middlewares y controladores siguientes
     req.user = decoded;

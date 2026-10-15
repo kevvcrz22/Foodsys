@@ -1,18 +1,22 @@
 // Servicio_Correo.js
-// Servicio centralizado para el envío de correos utilizando Nodemailer.
+// Servicio centralizado y unificado para el envío de correos utilizando Nodemailer.
+// Maneja restablecimiento de contraseñas, notificaciones de turnos y formulario de soporte.
 
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
+const port = Number(process.env.SMTP_PORT) || 587;
+const isSecure = port === 465;
+
 const transportador = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com', // Ajustar según el proveedor real de SENA
-  port: process.env.SMTP_PORT || 465,
-  secure: true,
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: port,
+  secure: isSecure,
   auth: {
-    user: process.env.SMTP_USER || 'soportefootsies@cena.edu.co',
-    pass: process.env.SMTP_PASS || 'password_segura',
+    user: process.env.SMTP_USER || 'fierrokkevin@gmail.com',
+    pass: process.env.SMTP_PASS || process.env.EMAIL_PASS || '',
   },
 });
 
@@ -21,18 +25,18 @@ const transportador = nodemailer.createTransport({
  * @param {string} destinatario - Correo del usuario destino.
  * @param {string} asunto - Asunto del correo.
  * @param {string} htmlCuerpo - Contenido del correo en formato HTML.
- * @param {Array} adjuntos - Arreglo opcional de archivos adjuntos (Multer format).
+ * @param {Array} adjuntos - Arreglo opcional de archivos adjuntos (Multer o buffers).
  */
-const Enviar_Correo = async (destinatario, asunto, htmlCuerpo, adjuntos = []) => {
+export const Enviar_Correo = async (destinatario, asunto, htmlCuerpo, adjuntos = []) => {
   try {
     const opcionesCorreo = {
-      from: `"Soporte Foodsys" <${process.env.SMTP_USER || 'soportefootsies@cena.edu.co'}>`,
+      from: `"Soporte Foodsys" <${process.env.SMTP_USER || 'fierrokkevin@gmail.com'}>`,
       to: destinatario,
       subject: asunto,
       html: htmlCuerpo,
       attachments: adjuntos.map(archivo => ({
-        filename: archivo.originalname,
-        content: archivo.buffer
+        filename: archivo.originalname || archivo.filename || 'adjunto',
+        content: archivo.buffer || archivo.content,
       })),
     };
 
@@ -41,8 +45,93 @@ const Enviar_Correo = async (destinatario, asunto, htmlCuerpo, adjuntos = []) =>
     return resultado;
   } catch (errorCorreo) {
     console.error(`❌ Error al enviar correo a ${destinatario}:`, errorCorreo.message);
-    throw new Error('No se pudo enviar el correo electrónico. Intente más tarde.');
+    // Retornar objeto de error amigable para no tumbar flujos si SMTP no está configurado en desarrollo
+    return { error: errorCorreo.message };
   }
 };
 
-export default { Enviar_Correo };
+/**
+ * Envío de enlace para recuperación de contraseña.
+ */
+export const sendPasswordResetEmail = async (email, tokenForPassword) => {
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${tokenForPassword}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #1a1a2e; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+      <div style="background-color: #2E5792; padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 24px;">Foodsys SENA</h1>
+      </div>
+      <div style="padding: 30px; background-color: #f4f7fb;">
+        <h2 style="color: #2E5792;">Recuperación de contraseña</h2>
+        <p>Recibimos una solicitud para restablecer tu contraseña en el sistema Foodsys.</p>
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${resetUrl}" style="background-color: #2E5792; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Restablecer contraseña</a>
+        </div>
+        <p style="font-size: 13px; color: #64748b;">Este enlace vence en 15 minutos. Si no solicitaste este cambio, puedes ignorar este correo con total tranquilidad.</p>
+      </div>
+    </div>
+  `;
+  return await Enviar_Correo(email, "Restablecer contraseña - Foodsys", html);
+};
+
+/**
+ * Notificación de inicio de turno de supervisor al correo institucional.
+ */
+export const notificarInicioTurno = async (supervisor, turno) => {
+  const correoAdmin = process.env.CONTACT_EMAIL || process.env.SMTP_USER || 'fierrokkevin@gmail.com';
+  const nombre = `${supervisor.Nom_Usuario || ''} ${supervisor.Ape_Usuario || ''}`.trim() || 'Supervisor';
+  const fechaStr = new Date(turno.Fecha_Inicio || Date.now()).toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+      <div style="background-color: #2E5792; padding: 18px; text-align: center; color: white;">
+        <h2 style="margin: 0; font-size: 20px;">Foodsys - Inicio de Turno</h2>
+      </div>
+      <div style="padding: 24px; background: #ffffff;">
+        <p style="font-size: 15px;">Se ha registrado el inicio de un turno de supervisión en el comedor:</p>
+        <ul style="line-height: 1.8; font-size: 14px; color: #334155;">
+          <li><strong>Supervisor:</strong> ${nombre} (Doc: ${supervisor.NumDoc_Usuario || 'N/A'})</li>
+          <li><strong>Fecha y hora de inicio:</strong> ${fechaStr}</li>
+          <li><strong>ID Turno:</strong> #${turno.Id_Turno || 'En curso'}</li>
+          ${turno.Observaciones ? `<li><strong>Observaciones iniciales:</strong> ${turno.Observaciones}</li>` : ''}
+        </ul>
+        <p style="color: #64748b; font-size: 12px; margin-top: 20px;">Notificación automática del sistema Foodsys.</p>
+      </div>
+    </div>
+  `;
+  return await Enviar_Correo(correoAdmin, `[Foodsys] Turno Iniciado por ${nombre}`, html);
+};
+
+/**
+ * Notificación de fin de turno de supervisor al correo institucional.
+ */
+export const notificarFinTurno = async (supervisor, turno) => {
+  const correoAdmin = process.env.CONTACT_EMAIL || process.env.SMTP_USER || 'fierrokkevin@gmail.com';
+  const nombre = `${supervisor.Nom_Usuario || ''} ${supervisor.Ape_Usuario || ''}`.trim() || 'Supervisor';
+  const fechaInicioStr = new Date(turno.Fecha_Inicio).toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+  const fechaFinStr = new Date(turno.Fecha_Fin || Date.now()).toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+      <div style="background-color: #10b981; padding: 18px; text-align: center; color: white;">
+        <h2 style="margin: 0; font-size: 20px;">Foodsys - Cierre de Turno</h2>
+      </div>
+      <div style="padding: 24px; background: #ffffff;">
+        <p style="font-size: 15px;">El turno de supervisión ha finalizado exitosamente:</p>
+        <ul style="line-height: 1.8; font-size: 14px; color: #334155;">
+          <li><strong>Supervisor:</strong> ${nombre}</li>
+          <li><strong>Inicio:</strong> ${fechaInicioStr}</li>
+          <li><strong>Fin:</strong> ${fechaFinStr}</li>
+          <li><strong>Total Consumos Registrados:</strong> ${turno.Total_Consumos_Registrados || 0}</li>
+          ${turno.Observaciones ? `<li><strong>Observaciones:</strong> ${turno.Observaciones}</li>` : ''}
+        </ul>
+        <p style="color: #64748b; font-size: 12px; margin-top: 20px;">Notificación automática del sistema Foodsys.</p>
+      </div>
+    </div>
+  `;
+  return await Enviar_Correo(correoAdmin, `[Foodsys] Turno Finalizado por ${nombre}`, html);
+};
+
+export default {
+  Enviar_Correo,
+  sendPasswordResetEmail,
+  notificarInicioTurno,
+  notificarFinTurno,
+};

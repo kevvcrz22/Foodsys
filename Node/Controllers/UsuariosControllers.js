@@ -4,7 +4,6 @@
 // Nomenclatura: PascalCase en espanol sin tildes
 
 import UsuariosService from "../Services/UsuariosService.js";
-import EmailService from "../Services/EmailService.js";
 import CsvService from "../Services/CsvService.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
 import bcrypt from "bcrypt";

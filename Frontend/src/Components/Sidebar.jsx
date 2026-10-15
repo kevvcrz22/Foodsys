@@ -7,7 +7,7 @@ import {
   Home, User, Edit, BarChart3, LogOut, Menu, X,
   CalendarCheck, Users, FileText, GraduationCap,
   Database, ShieldCheck, Utensils, ClipboardList,
-  Phone, Info, ChefHat,
+  Phone, Info, ChefHat, BookOpen, ExternalLink,
 } from 'lucide-react';
 import { useNavBar } from "./CerrarSesion";
 import NavRolSelector from "./NavBar/NavRolSelector";
@@ -202,6 +202,32 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
             {Renderizar_Links(Tablas)}
           </>
         )}
+
+        <div className="separador-glass my-6" />
+        <p className="text-texto-secundario/60 text-[10px] font-bold px-2 mb-3 uppercase tracking-widest">
+          Recursos & Ayuda
+        </p>
+        <NavLink
+          to="/manuales"
+          className={Obtener_Clase_Link}
+          onClick={() => Set_SidebarAbierto(false)}
+        >
+          <BookOpen className="w-[18px] h-[18px] flex-shrink-0" />
+          <span>Manuales</span>
+        </NavLink>
+        <a
+          href="https://bienesoftlagranja.com/user/login"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-300 text-sm font-bold tracking-wide text-texto-secundario hover:bg-emerald-50 hover:text-emerald-700 group"
+          title="Abrir portal BIENESOFT en nueva pestaña"
+        >
+          <div className="flex items-center gap-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+            <span>BIENESOFT</span>
+          </div>
+          <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-opacity" />
+        </a>
       </nav>
 
       {/* ── Pie (Móvil) ── */}

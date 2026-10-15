@@ -19,7 +19,8 @@ const UsuariosModel = db.define('usuarios', {
   password: { type: DataTypes.STRING, allowNull: true },
  
   uuid: { type: DataTypes.STRING, allowNull: true },
-  token: { type: DataTypes.STRING, allowNull: true }
+  token: { type: DataTypes.STRING, allowNull: true },
+  tokenVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 }
 },
 {
   freezeTableName: true

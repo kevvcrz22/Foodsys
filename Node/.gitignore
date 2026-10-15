@@ -1,2 +1,5 @@
+.env
+.env.*
 .Env
 node_modules/
+*.log

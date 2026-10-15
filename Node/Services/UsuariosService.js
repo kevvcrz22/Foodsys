@@ -4,7 +4,7 @@ import FichasModel from "../Models/FichasModel.js";
 import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import RolesModel from "../Models/RolesModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
-import EmailService from "./EmailService.js";
+import Servicio_Correo from "./Servicio_Correo.js";
 import VencimientoService from "./VencimientoService.js";
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -15,7 +15,10 @@ class UsuariosService {
   // Metodo para solicitar restablecimiento de contraseña
   async resetPassword(email) {
     const usuario = await UsuariosModel.findOne({ where: { Cor_Usuario: email } });
-    if (!usuario) throw new Error("Ups, algo paso.");
+    if (!usuario) {
+      // Por seguridad y evitar enumeracion de usuarios retornamos silenciosamente
+      return;
+    }
 
     const tokenForPassword = jwt.sign(
       { usuario: { id: usuario.Id_Usuario } },
@@ -23,7 +26,7 @@ class UsuariosService {
       { expiresIn: '15m' }
     );
 
-    await EmailService.sendPasswordResetEmail(email, tokenForPassword);
+    await Servicio_Correo.sendPasswordResetEmail(email, tokenForPassword);
     return;
   }
 
@@ -67,13 +70,18 @@ class UsuariosService {
     const usuarioJson = usuarios.toJSON();
     const roles = usuarioJson.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
 
+    // Sesión única: incrementar tokenVersion en BD para invalidar cualquier sesión anterior
+    const nuevoTokenVersion = (usuarios.tokenVersion || 1) + 1;
+    await UsuariosModel.update({ tokenVersion: nuevoTokenVersion }, { where: { Id_Usuario: usuarios.Id_Usuario } });
+
     const token = jwt.sign(
-      { id: usuarios.Id_Usuario, uuid: usuarios.uuid, roles },
+      { id: usuarios.Id_Usuario, uuid: usuarios.uuid, roles, tokenVersion: nuevoTokenVersion },
       process.env.JWT_SECRET,
       { expiresIn: "6h" }
     );
 
     const { password: _, ...usuarioSinPassword } = usuarioJson;
+    usuarioSinPassword.tokenVersion = nuevoTokenVersion;
     return { usuario: usuarioSinPassword, roles, token };
   }
 
@@ -106,12 +114,6 @@ class UsuariosService {
   }
 
   async getAll() {
-    try {
-      await VencimientoService.procesarVencimientosGlobales();
-    } catch (err) {
-      console.error("Error al procesar vencimientos en getAll:", err.message);
-    }
-
     const todos = await UsuariosModel.findAll({
       include: [
         {
@@ -174,13 +176,23 @@ class UsuariosService {
   }
 
   async update(Id_Usuario, data) {
-    if (data.password && data.password.trim()) {
-      data.password = await bcrypt.hash(data.password, 10);
-    } else {
-      delete data.password; // No cambiar contraseña si viene vacía
+    const camposPermitidos = [
+      'TipDoc_Usuario', 'NumDoc_Usuario', 'Nom_Usuario', 'Ape_Usuario',
+      'Gen_Usuario', 'Cor_Usuario', 'Tel_Usuario', 'CenCon_Usuario',
+      'Est_Usuario', 'San_Usuario', 'Fec_Desancion', 'Id_Ficha', 'Pol_Usuario'
+    ];
+    const dataFiltrada = {};
+    for (const campo of camposPermitidos) {
+      if (data[campo] !== undefined) {
+        dataFiltrada[campo] = data[campo];
+      }
     }
 
-    const result = await UsuariosModel.update(data, { where: { Id_Usuario } });
+    if (data.password && data.password.trim()) {
+      dataFiltrada.password = await bcrypt.hash(data.password, 10);
+    }
+
+    const result = await UsuariosModel.update(dataFiltrada, { where: { Id_Usuario } });
     if (result[0] === 0) throw new Error("Usuario No Encontrado o Sin Cambios");
     return true;
   }

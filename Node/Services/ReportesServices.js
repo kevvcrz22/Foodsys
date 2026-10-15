@@ -61,7 +61,8 @@ class ReportesService {
          SUM(Tip_Reserva = 'Almuerzo') AS almuerzo,
          SUM(Tip_Reserva = 'Cena')     AS cena
        FROM reservas
-       WHERE Fec_Reserva >= CURDATE() - INTERVAL 7 DAY
+       WHERE Est_Reserva = 'Consumido'
+         AND Fec_Reserva >= CURDATE() - INTERVAL 7 DAY
        GROUP BY DATE(Fec_Reserva)
        ORDER BY periodo ASC`,
       { type: QueryTypes.SELECT }
@@ -82,7 +83,8 @@ class ReportesService {
          SUM(Tip_Reserva = 'Almuerzo')                                AS almuerzo,
          SUM(Tip_Reserva = 'Cena')                                    AS cena
        FROM reservas
-       WHERE Fec_Reserva >= CURDATE() - INTERVAL 8 WEEK
+       WHERE Est_Reserva = 'Consumido'
+         AND Fec_Reserva >= CURDATE() - INTERVAL 8 WEEK
        GROUP BY anio, semana
        ORDER BY anio ASC, semana ASC`,
       { type: QueryTypes.SELECT }
@@ -102,7 +104,8 @@ class ReportesService {
          SUM(Tip_Reserva = 'Almuerzo')     AS almuerzo,
          SUM(Tip_Reserva = 'Cena')         AS cena
        FROM reservas
-       WHERE Fec_Reserva >= CURDATE() - INTERVAL 12 MONTH
+       WHERE Est_Reserva = 'Consumido'
+         AND Fec_Reserva >= CURDATE() - INTERVAL 12 MONTH
        GROUP BY periodo
        ORDER BY periodo ASC`,
       { type: QueryTypes.SELECT }
@@ -121,7 +124,8 @@ class ReportesService {
          SUM(Tip_Reserva = 'Almuerzo') AS almuerzo,
          SUM(Tip_Reserva = 'Cena')     AS cena
        FROM reservas
-       WHERE YEAR(Fec_Reserva) >= YEAR(CURDATE()) - 4
+       WHERE Est_Reserva = 'Consumido'
+         AND YEAR(Fec_Reserva) >= YEAR(CURDATE()) - 4
        GROUP BY YEAR(Fec_Reserva)
        ORDER BY periodo ASC`,
       { type: QueryTypes.SELECT }
@@ -132,7 +136,7 @@ class ReportesService {
   // Retorna las reservas en un rango de fechas libre con filtro opcional de tipo de alimento.
   // El WHERE se construye dinamicamente para no agregar condicion innecesaria cuando tipoAlimento es Todos.
   async getPersonalizado(fechaInicio, fechaFin, tipoAlimento) {
-    let whereClause = `WHERE Fec_Reserva BETWEEN :fechaInicio AND :fechaFin`;
+    let whereClause = `WHERE Est_Reserva = 'Consumido' AND Fec_Reserva BETWEEN :fechaInicio AND :fechaFin`;
     let replacements = { fechaInicio, fechaFin };
 
     // Solo agregar el filtro de tipo si no es "Todos" o indefinido
