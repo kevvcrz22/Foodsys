@@ -219,14 +219,18 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
           href="https://bienesoftlagranja.com/user/login"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-300 text-sm font-bold tracking-wide text-texto-secundario hover:bg-emerald-50 hover:text-emerald-700 group"
-          title="Abrir portal BIENESOFT en nueva pestaña"
+          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-300 text-sm font-bold tracking-wide text-slate-700 hover:bg-sky-50 hover:text-sky-700 border border-sky-100/60 bg-sky-50/40 group shadow-xs"
+          title="Abrir portal oficial BIENESOFT en nueva pestaña"
         >
-          <div className="flex items-center gap-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
-            <span>BIENESOFT</span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img
+              src="/LogoBienesoft.png"
+              alt="Logo BIENESOFT"
+              className="w-5 h-5 object-contain rounded-md shadow-xs bg-white p-0.5 border border-sky-200 flex-shrink-0 group-hover:scale-105 transition-transform"
+            />
+            <span className="font-bold text-xs uppercase tracking-wider text-sky-900 group-hover:text-sky-700">BIENESOFT</span>
           </div>
-          <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-opacity" />
+          <ExternalLink className="w-3.5 h-3.5 text-sky-600 opacity-70 group-hover:opacity-100 transition-opacity" />
         </a>
       </nav>
 

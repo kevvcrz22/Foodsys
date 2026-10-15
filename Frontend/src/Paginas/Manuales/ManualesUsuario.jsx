@@ -217,8 +217,9 @@ export default function ManualesUsuario() {
             href="https://bienesoftlagranja.com/user/login"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-[#2E5792] font-black text-xs uppercase tracking-wider shadow-lg hover:bg-blue-50 transition-all shrink-0 active:scale-95"
+            className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-white text-[#2E5792] font-black text-xs uppercase tracking-wider shadow-lg hover:bg-blue-50 transition-all shrink-0 active:scale-95"
           >
+            <img src="/LogoBienesoft.png" alt="BIENESOFT" className="w-5 h-5 object-contain" />
             Portal BIENESOFT <ExternalLink className="w-4 h-4" />
           </a>
         </div>

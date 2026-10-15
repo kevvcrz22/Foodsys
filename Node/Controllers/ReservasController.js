@@ -131,6 +131,25 @@ export const verificarCocina = async (req, res) => {
   }
 };
 
+// Verifica una reserva en Cocina leyendo el código QR con la cámara.
+// Cambia Est_Reserva de 'Generado' a 'Verificado' permitiendo luego el consumo con el supervisor.
+export const verificarQRCocina = async (req, res) => {
+  try {
+    const { encriptadoQR } = req.body;
+
+    if (!encriptadoQR) {
+      return res.status(400).json({ message: "El contenido del código QR es obligatorio" });
+    }
+
+    const resultado = await ReservasServices.procesarVerificacionQRCocina(encriptadoQR);
+    notificarCambioReservas({ accion: "verificada", Id_Reserva: resultado.Id_Reserva });
+    return res.status(200).json(resultado);
+  } catch (err) {
+    console.error("[ReservasController] verificarQRCocina:", err.message);
+    return res.status(400).json({ message: err.message });
+  }
+};
+
 // Procesa el escaneo del QR por parte del supervisor para registrar el consumo.
 // Cambia Est_Reserva a Consumido aplicando el flujo correcto segun el perfil del usuario:
 //   - Internos y Externos con estado Especial: pueden consumir desde Generado

@@ -46,6 +46,7 @@ import {
   obtenerHistorialCompleto,
   cancelarReserva,
   verificarCocina,
+  verificarQRCocina,
   consumirQRSupervisor,
   ObtenerTiposPermitidos,
   ObtenerMenuPorFechaYTipo,
@@ -106,6 +107,16 @@ router.patch(
   authMiddleware,
   CocinaMiddleware,
   verificarCocina
+);
+
+// Verifica en Cocina escaneando el código QR con la cámara.
+// Cambia el estado de Generado a Verificado para habilitar el consumo posterior con el supervisor.
+// Ruta: POST /api/Reservas/verificar/qr-cocina
+router.post(
+  '/verificar/qr-cocina',
+  authMiddleware,
+  CocinaMiddleware,
+  verificarQRCocina
 );
 
 router.get('/canceladas/count', authMiddleware, ContarCanceladas);

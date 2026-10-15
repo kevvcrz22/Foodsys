@@ -614,6 +614,77 @@ class ReservasServices {
       order: [["createdAt", "DESC"]],
     });
   }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // VERIFICACION EN COCINA (PRESENCIAL / QR)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Verifica la presencia física del aprendiz externo o pasante externo en Cocina
+  // y actualiza el estado de la reserva de 'Generado' a 'Verificado'.
+  // Con este estado, el aprendiz ya puede pasar al puesto del supervisor para
+  // escanear su código QR y quedar registrado como 'Consumido'.
+  async procesarVerificacionCocina(Id_Reserva) {
+    return await db.transaction(async (transaction) => {
+      const reserva = await ReservaModel.findByPk(Id_Reserva, {
+        include: [
+          {
+            model: UsuariosModel,
+            as: "usuario",
+            attributes: ["Id_Usuario", "Nom_Usuario", "Ape_Usuario", "NumDoc_Usuario", "Est_Usuario"]
+          },
+          {
+            model: PlatosModels,
+            as: "plato",
+            attributes: ["Nom_Plato", "Des_Plato", "Img_Plato"]
+          }
+        ],
+        transaction
+      });
+
+      if (!reserva) {
+        throw new Error("La reserva indicada no existe en la base de datos");
+      }
+
+      if (reserva.Est_Reserva === 'Verificado') {
+        return {
+          message: "Esta reserva ya fue verificada previamente en Cocina",
+          Id_Reserva: reserva.Id_Reserva,
+          Aprendiz: `${reserva.usuario?.Nom_Usuario ?? ''} ${reserva.usuario?.Ape_Usuario ?? ''}`.trim(),
+          NumDoc: reserva.usuario?.NumDoc_Usuario,
+          Tipo: reserva.Tip_Reserva,
+          Plato: reserva.plato?.Nom_Plato ?? 'Sin plato asignado',
+          ImgPlato: reserva.plato?.Img_Plato ?? null,
+          nuevoEstado: 'Verificado'
+        };
+      }
+
+      if (reserva.Est_Reserva !== 'Generado') {
+        throw new Error(`No se puede verificar una reserva con estado '${reserva.Est_Reserva}'`);
+      }
+
+      await reserva.update({ Est_Reserva: 'Verificado' }, { transaction });
+
+      return {
+        message: "Reserva verificada exitosamente en Cocina. El aprendiz ya puede presentar su QR ante el supervisor.",
+        Id_Reserva: reserva.Id_Reserva,
+        Aprendiz: `${reserva.usuario?.Nom_Usuario ?? ''} ${reserva.usuario?.Ape_Usuario ?? ''}`.trim(),
+        NumDoc: reserva.usuario?.NumDoc_Usuario,
+        Tipo: reserva.Tip_Reserva,
+        Plato: reserva.plato?.Nom_Plato ?? 'Sin plato asignado',
+        ImgPlato: reserva.plato?.Img_Plato ?? null,
+        nuevoEstado: 'Verificado'
+      };
+    });
+  }
+
+  // Verifica la reserva en Cocina leyendo directamente el código QR mediante la cámara.
+  async procesarVerificacionQRCocina(encriptadoQR) {
+    if (!encriptadoQR) {
+      throw new Error("El contenido del código QR es obligatorio");
+    }
+
+    const Id_Reserva = this.DesencriptarQR(encriptadoQR);
+    return await this.procesarVerificacionCocina(Id_Reserva);
+  }
 }
 
 export default new ReservasServices();

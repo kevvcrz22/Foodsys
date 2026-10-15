@@ -32,9 +32,10 @@ const Footer = () => {
                 href="https://bienesoftlagranja.com/user/login"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-texto-secundario hover:text-primario text-sm font-medium transition-colors flex items-center gap-1"
+                className="text-texto-secundario hover:text-sky-600 text-sm font-medium transition-colors flex items-center gap-1.5"
               >
-                Portal BIENESOFT ↗
+                <img src="/LogoBienesoft.png" alt="BIENESOFT" className="w-3.5 h-3.5 object-contain" />
+                <span>Portal BIENESOFT ↗</span>
               </a>
             </nav>
           </div>

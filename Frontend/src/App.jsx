@@ -139,6 +139,8 @@ function App() {
   const [Cargando, Set_Cargando] = useState(true);
   const [Roles, Set_Roles] = useState([]);
   const [Rol_Activo, Set_RolActivo] = useState(null);
+  const [CargandoTransicion, Set_CargandoTransicion] = useState(false);
+  const [TextoTransicion, Set_TextoTransicion] = useState("Cargando Foodsys...");
 
   // Rehidrata la sesion al recargar la pagina o cuando cambian los roles en vivo.
   // Lee el token y el usuario de localStorage para no pedir el login de nuevo.
@@ -200,9 +202,16 @@ function App() {
     };
   }, [setUser]);
 
-  // Limpia cualquier notificación de confirmación activa al cambiar de módulo o ruta
+  // Limpia cualquier notificación activa y muestra loader intermedio al cambiar de módulo o ruta
   useEffect(() => {
     toast.dismiss();
+    if (Cargando) return;
+    Set_TextoTransicion("Cargando módulo...");
+    Set_CargandoTransicion(true);
+    const timer = setTimeout(() => {
+      Set_CargandoTransicion(false);
+    }, 350);
+    return () => clearTimeout(timer);
   }, [Ubicacion.pathname]);
 
   const Props_Auth = { isAuth: Es_Auth, rolActivo: Rol_Activo };
@@ -218,14 +227,24 @@ function App() {
     Navegar("/");
   };
 
+  const Manejar_CambioRolGlobal = (Nuevo_Rol) => {
+    Set_TextoTransicion(`Cambiando al rol ${Nuevo_Rol}...`);
+    Set_CargandoTransicion(true);
+    localStorage.setItem("rolActivo", Nuevo_Rol);
+    Set_RolActivo(Nuevo_Rol);
+    setTimeout(() => {
+      Navegar(RUTAS_POR_ROL[Nuevo_Rol] || "/");
+      setTimeout(() => {
+        Set_CargandoTransicion(false);
+      }, 300);
+    }, 350);
+  };
+
   // Props del layout compartidos entre todas las rutas protegidas
   const Props_Layout = {
     roles: Roles,
     rolActivo: Rol_Activo,
-    onCambioRol: (Nuevo_Rol) => {
-      localStorage.setItem("rolActivo", Nuevo_Rol);
-      Set_RolActivo(Nuevo_Rol);
-    },
+    onCambioRol: Manejar_CambioRolGlobal,
     onCerrarSesion: Manejar_CerrarSesion,
   };
 
@@ -280,11 +299,7 @@ function App() {
           usuario={Usuario_Logeado}
           roles={Roles}
           rolActivo={Rol_Activo}
-          onCambioRol={(Nuevo_Rol) => {
-            localStorage.setItem("rolActivo", Nuevo_Rol);
-            Set_RolActivo(Nuevo_Rol);
-            Navegar(RUTAS_POR_ROL[Nuevo_Rol] || "/");
-          }}
+          onCambioRol={Manejar_CambioRolGlobal}
           onCerrarSesion={Manejar_CerrarSesion}
         />
       )}
@@ -300,6 +315,9 @@ function App() {
           }}
         />
       )}
+
+      {/* Indicador de carga premium para transiciones entre modulos, rutas y cambios de rol */}
+      {CargandoTransicion && <LoadingFoodsys texto={TextoTransicion} />}
 
       <Suspense fallback={<LoadingFoodsys />}>
         <Routes>
