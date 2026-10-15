@@ -46,13 +46,13 @@ CALL CrearIndiceSiNoExiste('usuarios', 'idx_usuarios_numdoc', 'NumDoc_Usuario');
 CALL CrearIndiceSiNoExiste('usuarios', 'idx_usuarios_estado', 'Est_Usuario');
 
 -- 3. Índices para la tabla `menus` (Consulta instantánea de menú del día)
-CALL CrearIndiceSiNoExiste('menus', 'idx_menus_fecha_tipo', 'Fec_Menu, Tip_Comida');
+CALL CrearIndiceSiNoExiste('menus', 'idx_menus_fecha_tipo', 'Fec_Menu, Tip_Menu');
 
 -- 4. Índices para la tabla `turnos` (Verificación rápida de turno activo de Supervisor)
-CALL CrearIndiceSiNoExiste('turnos', 'idx_turnos_estado', 'estado, fecha_inicio');
+CALL CrearIndiceSiNoExiste('turnos', 'idx_turnos_estado', 'Estado, Fecha_Inicio');
 
 -- 5. Índices para la tabla `notificaciones` (Campana de avisos en tiempo real)
-CALL CrearIndiceSiNoExiste('notificaciones', 'idx_notificaciones_usuario_leido', 'id_usuario, leido');
+CALL CrearIndiceSiNoExiste('notificaciones', 'idx_notificaciones_usuario_leido', 'Id_Usuario, Leido');
 
 -- Limpiar procedimiento auxiliar
 DROP PROCEDURE IF EXISTS CrearIndiceSiNoExiste;
