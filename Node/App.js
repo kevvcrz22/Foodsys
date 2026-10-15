@@ -49,28 +49,41 @@ import NovedadesService from './Services/NovedadesService.js';
 dotenv.config();
 const aplicacion = Express();
 
+// Configuración de Proxy Inverso (Nginx en Hetzner)
+// Permite a Express reconocer la IP pública real del cliente a través de X-Forwarded-For
+aplicacion.set('trust proxy', 1);
+
 // ---------- 5. SEGURIDAD Y MIDDLEWARES GLOBALES ----------
 // Seguridad: Cabeceras HTTP seguras
 aplicacion.use(helmet());
 
-// Seguridad: Rate Limiting global permisivo para navegación y consumo normal de la API
+// Seguridad: Rate Limiting global de alta concurrencia
+// Diseñado para soportar más de 5.000 peticiones concurrentes y redes compartidas (Wi-Fi SENA)
 const limitadorGlobal = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: process.env.NODE_ENV === 'production' ? 2000 : 10000, // Límite amplio para evitar bloqueos en la SPA
-  standardHeaders: true, // Devuelve cabeceras estándar `RateLimit-*`
-  legacyHeaders: false, // Desactiva cabeceras `X-RateLimit-*`
+  max: 50000, // Capacidad para miles de peticiones concurrentes sin bloquear a aprendices
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
     mensaje: 'Demasiadas peticiones al servidor, por favor intenta nuevamente más tarde.'
   }
 });
 aplicacion.use('/api', limitadorGlobal);
 
-// Seguridad: Rate Limiting estricto para rutas sensibles (prevención de fuerza bruta en Login y OTP)
+// Seguridad: Rate Limiting para Login y Recuperación (Anti Fuerza Bruta)
+// Agrupa por IP + Documento para evitar que el fallo de un aprendiz bloquee a toda la sede en el Wi-Fi
 const limitadorSensible = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 20, // Máximo 20 intentos en 15 minutos
+  max: 30, // Máximo 30 intentos por documento/cuenta en 15 minutos
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const doc = req.body?.NumDoc_Usuario || req.body?.email || req.body?.documento || req.body?.correo || 'anon';
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    return `${clientIp}_${doc}`;
+  },
   message: {
-    mensaje: 'Demasiados intentos. Por motivos de seguridad, por favor intenta nuevamente en 15 minutos.'
+    mensaje: 'Demasiados intentos para esta cuenta. Por motivos de seguridad, por favor intenta nuevamente en 15 minutos.'
   }
 });
 aplicacion.use('/api/Usuarios/login', limitadorSensible);

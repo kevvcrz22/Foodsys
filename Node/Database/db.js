@@ -18,10 +18,14 @@ const db = new Sequelize(
     timezone: '-05:00',
     logging: false,
     pool: {
-      max: 25,
-      min: 5,
-      acquire: 60000,
+      max: Number(process.env.DB_POOL_MAX) || 75,
+      min: Number(process.env.DB_POOL_MIN) || 10,
+      acquire: 45000,
       idle: 10000,
+    },
+    dialectOptions: {
+      decimalNumbers: true,
+      connectTimeout: 20000,
     },
   }
 );
