@@ -78,8 +78,39 @@ aplicacion.use('/api/Auth/recuperar', limitadorSensible);
 
 // Middlewares estándar
 aplicacion.use(Express.json());
+
+const origenesPermitidos = [
+  'https://foodsyslagranja.com',
+  'https://www.foodsyslagranja.com',
+  'http://localhost:5173',
+  'http://localhost:8000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:8000'
+];
+
+if (process.env.CORS_ORIGIN) {
+  process.env.CORS_ORIGIN.split(',').forEach(o => {
+    const lim = o.trim();
+    if (lim && !origenesPermitidos.includes(lim)) origenesPermitidos.push(lim);
+  });
+}
+
 const opcionesCors = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Permitir llamadas sin origin (same-origin, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    if (origenesPermitidos.includes(origin)) {
+      return callback(null, true);
+    }
+    // Permitir cualquier subdominio o variante de foodsyslagranja.com
+    if (/^https?:\/\/(www\.)?foodsyslagranja\.com(:[0-9]+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Bloqueado por CORS: origen ${origin} no permitido`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   optionsSuccessStatus: 200
 };
 aplicacion.use(cors(opcionesCors));
