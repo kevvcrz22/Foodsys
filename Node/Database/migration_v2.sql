@@ -1,10 +1,11 @@
 -- ==============================================================================
 -- Migración de Base de Datos para Actualización Foodsys v2
--- Ejecutar en la base de datos de producción 'foodsys' en Hetzner:
--- mysql -u foodsys_user -p foodsys < migration_v2.sql
+-- Ejecutar en la base de datos de producción en Hetzner:
+-- mysql -u root -p foodsys_db < migration_v2.sql
 -- ==============================================================================
 
-USE foodsys;
+-- Aplica directamente sobre la base de datos seleccionada en el comando mysql
+-- (ejemplo: foodsys_db)
 
 -- 1. Columna de fecha de desanción en usuarios (si no existe)
 ALTER TABLE usuarios 
