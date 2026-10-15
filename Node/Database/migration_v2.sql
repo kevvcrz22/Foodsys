@@ -1,27 +1,45 @@
 -- ==============================================================================
 -- Migración de Base de Datos para Actualización Foodsys v2
--- Ejecutar en la base de datos de producción en Hetzner:
--- mysql -u root -p foodsys_db < migration_v2.sql
+-- Compatible con MySQL 8.0, 8.4 y MariaDB
+-- Ejecutar: mysql -u root -p foodsys_db < Node/Database/migration_v2.sql
 -- ==============================================================================
 
--- Aplica directamente sobre la base de datos seleccionada en el comando mysql
--- (ejemplo: foodsys_db)
+DROP PROCEDURE IF EXISTS upgrade_foodsys_v2;
 
--- 1. Columna de fecha de desanción en usuarios (si no existe)
-ALTER TABLE usuarios 
-ADD COLUMN IF NOT EXISTS Fec_Desancion DATETIME NULL;
+DELIMITER $$
+CREATE PROCEDURE upgrade_foodsys_v2()
+BEGIN
+  -- 1. Columna Fec_Desancion en usuarios
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'Fec_Desancion'
+  ) THEN
+    ALTER TABLE usuarios ADD COLUMN Fec_Desancion DATETIME NULL;
+  END IF;
 
--- 2. Columna de sesión única en usuarios (si no existe)
-ALTER TABLE usuarios 
-ADD COLUMN IF NOT EXISTS tokenVersion INT NOT NULL DEFAULT 1;
+  -- 2. Columna tokenVersion en usuarios
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'tokenVersion'
+  ) THEN
+    ALTER TABLE usuarios ADD COLUMN tokenVersion INT NOT NULL DEFAULT 1;
+  END IF;
 
--- 3. Columna de estado en programas (si no existe)
-ALTER TABLE programas 
-ADD COLUMN IF NOT EXISTS Est_Programa VARCHAR(20) DEFAULT 'Activo';
+  -- 3. Columna Est_Programa en programas
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programas' AND COLUMN_NAME = 'Est_Programa'
+  ) THEN
+    ALTER TABLE programas ADD COLUMN Est_Programa VARCHAR(20) DEFAULT 'Activo';
+  END IF;
 
-UPDATE programas 
-SET Est_Programa = 'Activo' 
-WHERE Est_Programa IS NULL;
+  UPDATE programas SET Est_Programa = 'Activo' WHERE Est_Programa IS NULL;
+END$$
+DELIMITER ;
+
+-- Ejecutar la verificación e inserción de columnas
+CALL upgrade_foodsys_v2();
+DROP PROCEDURE IF EXISTS upgrade_foodsys_v2;
 
 -- 4. Tabla de turnos de supervisor
 CREATE TABLE IF NOT EXISTS turnos (
