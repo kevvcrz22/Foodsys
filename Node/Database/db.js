@@ -4,11 +4,15 @@
 
 import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+import Path from "path";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = Path.dirname(__filename);
+dotenv.config({ path: Path.resolve(__dirname, '../.env') });
 
 const db = new Sequelize(
-  process.env.DB_NAME || 'foodsys',
+  process.env.DB_NAME || 'foodsys_db',
   process.env.DB_USER || 'root',
   process.env.DB_PASS || '',
   {

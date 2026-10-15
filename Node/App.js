@@ -46,7 +46,9 @@ import NotificacionesModel from './Models/NotificacionesModel.js';
 import NovedadesService from './Services/NovedadesService.js';
 
 // ---------- 4. CONFIGURACIÓN INICIAL ----------
-dotenv.config();
+const __rutaApp = fileURLToPath(import.meta.url);
+const __directorioApp = Path.dirname(__rutaApp);
+dotenv.config({ path: Path.join(__directorioApp, '.env') });
 const aplicacion = Express();
 
 // Configuración de Proxy Inverso (Nginx en Hetzner)
