@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Chart } from "react-google-charts";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
 import {
   QrCode, Search, Play, Square, ClipboardList,
@@ -1132,35 +1133,116 @@ const Registro = () => {
     });
   };
 
-  // ── EXPORTAR REPORTE A PDF ────────────────────────────────────────────────
+  // ── EXPORTAR REPORTE A PDF VECTORIAL ─────────────────────────────────────
   const manejarExportarPDF = async () => {
-    if (!refReportePDF.current || exportandoPDF) return;
+    if (exportandoPDF) return;
     setExportandoPDF(true);
     try {
-      const canvas = await html2canvas(refReportePDF.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-      });
-      const imgData = canvas.toDataURL("image/png");
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageW = doc.internal.pageSize.getWidth();
-      const pageH = doc.internal.pageSize.getHeight();
-      const margin = 10;
-      const imgW = pageW - margin * 2;
-      const imgH = (canvas.height * imgW) / canvas.width;
+      const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
+      const fechaHoy = new Intl.DateTimeFormat("es-CO", {
+        timeZone: "America/Bogota",
+        dateStyle: "full",
+        timeStyle: "medium"
+      }).format(new Date());
 
-      let offsetY = margin;
-      let restante = imgH;
-      while (restante > 0) {
-        doc.addImage(imgData, "PNG", margin, offsetY, imgW, imgH);
-        restante -= pageH - margin * 2;
-        if (restante > 0) {
-          doc.addPage();
-          offsetY = -(imgH - restante) - margin;
+      // Encabezado institucional Verde SENA
+      doc.setFillColor(34, 139, 34);
+      doc.rect(0, 0, doc.internal.pageSize.getWidth(), 65, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(255, 255, 255);
+      doc.text("FOODSYS - CENTRO AGROPECUARIO LA GRANJA", 40, 32);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text("Reporte Ejecutivo de Cierre de Turno de Supervision", 40, 50);
+
+      // Metadatos de turno
+      doc.setTextColor(30, 41, 59);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text("Resumen de Operacion de Turno", 40, 90);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      const strHoras = `Inicio: ${horaInicioTurno ? new Date(horaInicioTurno).toLocaleTimeString("es-CO") : "N/A"} | Fin: ${horaFinTurno ? new Date(horaFinTurno).toLocaleTimeString("es-CO") : "N/A"}`;
+      doc.text(`Generado: ${fechaHoy} | ${strHoras}`, 40, 105);
+
+      // Tarjetas de metricas
+      const posYMetricas = 120;
+      const kpis = [
+        { label: "Consumidas", val: metricas.total, color: [22, 163, 74] },
+        { label: "Especiales", val: metricas.especiales, color: [124, 58, 237] },
+        { label: "Canceladas", val: metricas.canceladas, color: [220, 38, 38] },
+        { label: "Vencidas", val: metricas.vencidas, color: [75, 85, 99] }
+      ];
+
+      kpis.forEach((kpi, idx) => {
+        const posX = 40 + idx * 135;
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(posX, posYMetricas, 125, 45, 6, 6, "F");
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(posX, posYMetricas, 125, 45, 6, 6, "S");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(kpi.color[0], kpi.color[1], kpi.color[2]);
+        doc.text(String(kpi.val), posX + 12, posYMetricas + 22);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(kpi.label, posX + 12, posYMetricas + 36);
+      });
+
+      // Tabla de consumos del turno
+      const filasConsumos = historialTurno.map((item, idx) => [
+        String(idx + 1),
+        item.NumDoc || "N/A",
+        item.Aprendiz || "Sin nombre",
+        item.Plato || "Menu Regular",
+        item.Tipo || "N/A",
+        item.Timestamp ? new Date(item.Timestamp).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "N/A"
+      ]);
+
+      autoTable(doc, {
+        startY: 180,
+        head: [["#", "Documento", "Aprendiz", "Plato Asignado", "Servicio", "Hora"]],
+        body: filasConsumos.length > 0 ? filasConsumos : [["-", "-", "Sin consumos registrados en este turno", "-", "-", "-"]],
+        theme: "striped",
+        headStyles: {
+          fillColor: [34, 139, 34],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          fontSize: 8.5,
+          halign: "center"
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 4,
+          overflow: "linebreak",
+          valign: "middle"
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        margin: { top: 180, left: 40, right: 40, bottom: 40 },
+        didDrawPage: (data) => {
+          const str = `Pagina ${doc.internal.getNumberOfPages()}`;
+          doc.setFontSize(8);
+          doc.setTextColor(148, 163, 184);
+          doc.text(str, data.settings.margin.left, doc.internal.pageSize.getHeight() - 15);
+          doc.text(
+            'Centro Agropecuario La Granja - Espinal Tolima | Foodsys SENA',
+            doc.internal.pageSize.getWidth() - data.settings.margin.right,
+            doc.internal.pageSize.getHeight() - 15,
+            { align: "right" }
+          );
         }
-      }
+      });
+
       doc.save(`reporte-turno-foodsys-${new Date().toISOString().split("T")[0]}.pdf`);
     } catch (err) {
       console.error("Error al exportar PDF:", err);

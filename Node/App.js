@@ -136,20 +136,33 @@ aplicacion.use(cors(opcionesCors));
 
 // ---------- 6. REGISTRO DE RUTAS DE LA API ----------
 aplicacion.use('/api/Usuarios', UsuariosRoute);
+aplicacion.use('/api/usuarios', UsuariosRoute);
 aplicacion.use('/api/Fichas', FichasRoute);
+aplicacion.use('/api/fichas', FichasRoute);
 aplicacion.use('/api/Reservas', ReservasRoute);
+aplicacion.use('/api/reservas', ReservasRoute);
 aplicacion.use('/api/Programa', ProgramaRoute);
+aplicacion.use('/api/programa', ProgramaRoute);
 aplicacion.use('/api/Roles', RolesRoute);
+aplicacion.use('/api/roles', RolesRoute);
 aplicacion.use('/api/UsuariosRoles', UsuariosRolRoutes);
 aplicacion.use('/api/Platos', PlatosRoutes);
+aplicacion.use('/api/platos', PlatosRoutes);
 aplicacion.use('/api/Menus', MenusRoutes);
+aplicacion.use('/api/menus', MenusRoutes);
 aplicacion.use('/api/Reportes', ReportesRoute);
+aplicacion.use('/api/reportes', ReportesRoute);
 aplicacion.use('/api/Inicio', InicioRoute);
 aplicacion.use('/api/Novedades', NovedadesRoute);
+aplicacion.use('/api/novedades', NovedadesRoute);
 aplicacion.use('/api/Cocina', CocinaRoute);
+aplicacion.use('/api/cocina', CocinaRoute);
 aplicacion.use('/api/Auth', RutasAutenticacion);
+aplicacion.use('/api/auth', RutasAutenticacion);
 aplicacion.use('/api/Turnos', TurnosRoute);
+aplicacion.use('/api/turnos', TurnosRoute);
 aplicacion.use('/api/Notificaciones', NotificacionesRoute);
+aplicacion.use('/api/notificaciones', NotificacionesRoute);
 
 // ---------- 7. ARCHIVOS ESTÁTICOS ----------
 const rutaArchivo = fileURLToPath(import.meta.url);

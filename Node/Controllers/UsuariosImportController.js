@@ -120,7 +120,8 @@ export const previewImport = async (req, res) => {
         normalizado.Est_Usuario = "Inactivo";
         normalizado.Estado_Ficha = "Lectiva Vencida";
       } else {
-        normalizado.Est_Usuario = normalizarEstado(normalizado.Est_Usuario);
+        // Obligatorio: todo usuario cargado por Excel queda con estado 'En Formacion'
+        normalizado.Est_Usuario = "En Formacion";
         normalizado.Estado_Ficha = "Activa";
       }
 
@@ -221,8 +222,8 @@ export const importarSeleccionados = async (req, res) => {
           }
         }
 
-        // Verificar si la etapa lectiva de la ficha vencio
-        let estadoUsuario = normalizarEstado(u.Est_Usuario);
+        // Verificar si la etapa lectiva de la ficha vencio (obligatoriamente 'En Formacion')
+        let estadoUsuario = "En Formacion";
         if (fichaAsociada?.FecFinLec_Ficha && fichaAsociada.FecFinLec_Ficha < hoyBogota) {
           estadoUsuario = "Inactivo";
         }

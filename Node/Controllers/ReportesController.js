@@ -40,7 +40,7 @@ import ExportService from "../Services/ExportService.js";
 // Retorna el resumen de los ultimos 7 dias para el grafico de barras principal.
 export const getReporteDiario = async (req, res) => {
   try {
-    const data = await ReportesService.getDiario();
+    const data = await ReportesService.getDiario(req.query);
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -51,7 +51,7 @@ export const getReporteDiario = async (req, res) => {
 // Retorna el resumen de las ultimas 8 semanas ISO.
 export const getReporteSemanal = async (req, res) => {
   try {
-    const data = await ReportesService.getSemanal();
+    const data = await ReportesService.getSemanal(req.query);
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -62,7 +62,7 @@ export const getReporteSemanal = async (req, res) => {
 // Retorna el resumen de los ultimos 12 meses.
 export const getReporteMensual = async (req, res) => {
   try {
-    const data = await ReportesService.getMensual();
+    const data = await ReportesService.getMensual(req.query);
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -73,7 +73,7 @@ export const getReporteMensual = async (req, res) => {
 // Retorna el resumen de los ultimos 5 anios.
 export const getReporteAnual = async (req, res) => {
   try {
-    const data = await ReportesService.getAnual();
+    const data = await ReportesService.getAnual(req.query);
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ message: error.message });

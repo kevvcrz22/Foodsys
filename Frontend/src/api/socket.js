@@ -16,7 +16,7 @@ export const getSocket = () => {
       (window.location.hostname === "localhost" ? "http://localhost:8000" : window.location.origin);
 
     socketInstance = io(SOCKET_URL, {
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,

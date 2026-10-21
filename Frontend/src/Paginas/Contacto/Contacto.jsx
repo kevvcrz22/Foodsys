@@ -68,7 +68,7 @@ const Contacto = () => {
         formData.append('adjunto', archivo);
       }
 
-      await apiNode.post("/Auth/contacto", formData);
+      await apiNode.post("/api/Auth/contacto", formData);
 
       setEstadoCarga('exito');
       setDatosFormulario({ nombre: '', correo: '', tipoPqrs: 'Peticion', mensaje: '' });

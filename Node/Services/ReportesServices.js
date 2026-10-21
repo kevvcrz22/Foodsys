@@ -52,7 +52,21 @@ class ReportesService {
 
   // Retorna las reservas de los ultimos 7 dias agrupadas por dia.
   // Usado por el tab Diario del grafico general (no el tab de detalle diario).
-  async getDiario() {
+  async getDiario(params = {}) {
+    let whereClause = "WHERE Est_Reserva = 'Consumido'";
+    const replacements = {};
+    if (params.tipoAlimento && params.tipoAlimento !== "Todos") {
+      whereClause += " AND Tip_Reserva = :tipoAlimento";
+      replacements.tipoAlimento = params.tipoAlimento;
+    }
+    if (params.fechaInicio && params.fechaFin) {
+      whereClause += " AND Fec_Reserva BETWEEN :fechaInicio AND :fechaFin";
+      replacements.fechaInicio = params.fechaInicio;
+      replacements.fechaFin = params.fechaFin;
+    } else {
+      whereClause += " AND Fec_Reserva >= CURDATE() - INTERVAL 7 DAY";
+    }
+
     const rows = await db.query(
       `SELECT
          DATE(Fec_Reserva)             AS periodo,
@@ -61,18 +75,31 @@ class ReportesService {
          SUM(Tip_Reserva = 'Almuerzo') AS almuerzo,
          SUM(Tip_Reserva = 'Cena')     AS cena
        FROM reservas
-       WHERE Est_Reserva = 'Consumido'
-         AND Fec_Reserva >= CURDATE() - INTERVAL 7 DAY
+       ${whereClause}
        GROUP BY DATE(Fec_Reserva)
        ORDER BY periodo ASC`,
-      { type: QueryTypes.SELECT }
+      { replacements, type: QueryTypes.SELECT }
     );
     return rows;
   }
 
   // Retorna las reservas de las ultimas 8 semanas ISO agrupadas por numero de semana.
   // El modo 1 de WEEK() hace que la semana comience el lunes (estandar ISO).
-  async getSemanal() {
+  async getSemanal(params = {}) {
+    let whereClause = "WHERE Est_Reserva = 'Consumido'";
+    const replacements = {};
+    if (params.tipoAlimento && params.tipoAlimento !== "Todos") {
+      whereClause += " AND Tip_Reserva = :tipoAlimento";
+      replacements.tipoAlimento = params.tipoAlimento;
+    }
+    if (params.fechaInicio && params.fechaFin) {
+      whereClause += " AND Fec_Reserva BETWEEN :fechaInicio AND :fechaFin";
+      replacements.fechaInicio = params.fechaInicio;
+      replacements.fechaFin = params.fechaFin;
+    } else {
+      whereClause += " AND Fec_Reserva >= CURDATE() - INTERVAL 8 WEEK";
+    }
+
     const rows = await db.query(
       `SELECT
          YEAR(Fec_Reserva)                                            AS anio,
@@ -83,18 +110,31 @@ class ReportesService {
          SUM(Tip_Reserva = 'Almuerzo')                                AS almuerzo,
          SUM(Tip_Reserva = 'Cena')                                    AS cena
        FROM reservas
-       WHERE Est_Reserva = 'Consumido'
-         AND Fec_Reserva >= CURDATE() - INTERVAL 8 WEEK
-       GROUP BY anio, semana
+       ${whereClause}
+       GROUP BY YEAR(Fec_Reserva), WEEK(Fec_Reserva, 1)
        ORDER BY anio ASC, semana ASC`,
-      { type: QueryTypes.SELECT }
+      { replacements, type: QueryTypes.SELECT }
     );
     return rows;
   }
 
   // Retorna las reservas de los ultimos 12 meses agrupadas por mes.
   // DATE_FORMAT genera el label legible 'Ene 2026' para mostrarlo en los graficos.
-  async getMensual() {
+  async getMensual(params = {}) {
+    let whereClause = "WHERE Est_Reserva = 'Consumido'";
+    const replacements = {};
+    if (params.tipoAlimento && params.tipoAlimento !== "Todos") {
+      whereClause += " AND Tip_Reserva = :tipoAlimento";
+      replacements.tipoAlimento = params.tipoAlimento;
+    }
+    if (params.fechaInicio && params.fechaFin) {
+      whereClause += " AND Fec_Reserva BETWEEN :fechaInicio AND :fechaFin";
+      replacements.fechaInicio = params.fechaInicio;
+      replacements.fechaFin = params.fechaFin;
+    } else {
+      whereClause += " AND Fec_Reserva >= CURDATE() - INTERVAL 12 MONTH";
+    }
+
     const rows = await db.query(
       `SELECT
          DATE_FORMAT(Fec_Reserva, '%Y-%m') AS periodo,
@@ -104,18 +144,31 @@ class ReportesService {
          SUM(Tip_Reserva = 'Almuerzo')     AS almuerzo,
          SUM(Tip_Reserva = 'Cena')         AS cena
        FROM reservas
-       WHERE Est_Reserva = 'Consumido'
-         AND Fec_Reserva >= CURDATE() - INTERVAL 12 MONTH
-       GROUP BY periodo
+       ${whereClause}
+       GROUP BY DATE_FORMAT(Fec_Reserva, '%Y-%m'), DATE_FORMAT(Fec_Reserva, '%b %Y')
        ORDER BY periodo ASC`,
-      { type: QueryTypes.SELECT }
+      { replacements, type: QueryTypes.SELECT }
     );
     return rows;
   }
 
   // Retorna las reservas de los ultimos 5 anios agrupadas por anio.
   // YEAR(CURDATE()) - 4 garantiza incluir el anio actual mas los 4 anteriores.
-  async getAnual() {
+  async getAnual(params = {}) {
+    let whereClause = "WHERE Est_Reserva = 'Consumido'";
+    const replacements = {};
+    if (params.tipoAlimento && params.tipoAlimento !== "Todos") {
+      whereClause += " AND Tip_Reserva = :tipoAlimento";
+      replacements.tipoAlimento = params.tipoAlimento;
+    }
+    if (params.fechaInicio && params.fechaFin) {
+      whereClause += " AND Fec_Reserva BETWEEN :fechaInicio AND :fechaFin";
+      replacements.fechaInicio = params.fechaInicio;
+      replacements.fechaFin = params.fechaFin;
+    } else {
+      whereClause += " AND YEAR(Fec_Reserva) >= YEAR(CURDATE()) - 4";
+    }
+
     const rows = await db.query(
       `SELECT
          YEAR(Fec_Reserva)             AS periodo,
@@ -124,11 +177,10 @@ class ReportesService {
          SUM(Tip_Reserva = 'Almuerzo') AS almuerzo,
          SUM(Tip_Reserva = 'Cena')     AS cena
        FROM reservas
-       WHERE Est_Reserva = 'Consumido'
-         AND YEAR(Fec_Reserva) >= YEAR(CURDATE()) - 4
+       ${whereClause}
        GROUP BY YEAR(Fec_Reserva)
        ORDER BY periodo ASC`,
-      { type: QueryTypes.SELECT }
+      { replacements, type: QueryTypes.SELECT }
     );
     return rows;
   }
@@ -165,11 +217,11 @@ class ReportesService {
   // Lo usan internamente exportarPDF y exportarExcel del controlador para obtener datos.
   async getPorPeriodo(periodo, params = {}) {
     switch (periodo) {
-      case "diario": return this.getDiario();
-      case "semanal": return this.getSemanal();
-      case "anual": return this.getAnual();
+      case "diario": return this.getDiario(params);
+      case "semanal": return this.getSemanal(params);
+      case "anual": return this.getAnual(params);
       case "personalizado": return this.getPersonalizado(params.fechaInicio, params.fechaFin, params.tipoAlimento);
-      default: return this.getMensual();
+      default: return this.getMensual(params);
     }
   }
 

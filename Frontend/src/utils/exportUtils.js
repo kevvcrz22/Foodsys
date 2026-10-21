@@ -95,8 +95,10 @@ export const confirmarExportacion = async ({
  */
 export const exportarAExcel = ({
   datos,
+  columnas = null,
   nombreArchivo = "Reporte_Foodsys",
-  nombreHoja = "Datos"
+  nombreHoja = "Datos",
+  tituloHoja = "Datos"
 }) => {
   if (!datos || datos.length === 0) {
     Swal.fire({
@@ -108,15 +110,32 @@ export const exportarAExcel = ({
     return;
   }
 
+  const nombreFinalHoja = (tituloHoja || nombreHoja || "Datos").substring(0, 31);
+
+  // Mapear datos a encabezados legibles si se proporciono la definicion de columnas
+  let datosExportar = datos;
+  if (Array.isArray(columnas) && columnas.length > 0 && typeof datos[0] === "object" && !Array.isArray(datos[0])) {
+    datosExportar = datos.map((fila) => {
+      const filaMapeada = {};
+      columnas.forEach((col) => {
+        const key = typeof col === "object" && col !== null ? col.key : col;
+        const header = typeof col === "object" && col !== null ? (col.header || col.title || col.key) : col;
+        const valor = fila[key];
+        filaMapeada[header] = valor !== null && valor !== undefined ? valor : "";
+      });
+      return filaMapeada;
+    });
+  }
+
   // Crear libro y hoja con los datos
-  const hoja = XLSX.utils.json_to_sheet(datos);
+  const hoja = XLSX.utils.json_to_sheet(datosExportar);
   const libro = XLSX.utils.book_new();
 
   // Calcular ancho automatico de columnas basado en el contenido
-  const encabezados = Object.keys(datos[0] || {});
+  const encabezados = Object.keys(datosExportar[0] || {});
   const anchos = encabezados.map((col) => {
     let maxLongitud = col.length;
-    datos.forEach((fila) => {
+    datosExportar.forEach((fila) => {
       const val = fila[col] !== null && fila[col] !== undefined ? String(fila[col]) : "";
       if (val.length > maxLongitud) {
         maxLongitud = val.length;
@@ -126,7 +145,7 @@ export const exportarAExcel = ({
   });
 
   hoja["!cols"] = anchos;
-  XLSX.utils.book_append_sheet(libro, hoja, nombreHoja.substring(0, 31));
+  XLSX.utils.book_append_sheet(libro, hoja, nombreFinalHoja);
 
   // Generar buffer en formato ArrayBuffer
   const excelBuffer = XLSX.write(libro, { bookType: "xlsx", type: "array" });
@@ -144,8 +163,8 @@ export const exportarAExcel = ({
 export const exportarAPDF = ({
   titulo = "Reporte del Sistema Foodsys",
   subtitulo = "Centro Agropecuario La Granja - Espinal Tolima",
-  columnas = [], // Array de encabezados visibles: ['N° Doc', 'Nombre', 'Ficha', 'Estado']
-  datos = [],    // Matriz de filas: [['1003810', 'Carlos Perez', '255481', 'Activo']]
+  columnas = [], // Array de encabezados visibles: ['N° Doc', 'Nombre'] o [{ header: 'Doc', key: 'NumDoc' }]
+  datos = [],    // Matriz de filas [['1003810', 'Carlos']] o array de objetos [{ NumDoc: '1003810' }]
   nombreArchivo = "Reporte_Foodsys",
   orientacion = "landscape" // 'portrait' o 'landscape'
 }) => {
@@ -157,6 +176,33 @@ export const exportarAPDF = ({
       confirmButtonColor: "#2E5792"
     });
     return;
+  }
+
+  // Normalizar encabezados de columna para evitar [object Object]
+  const encabezadosTexto = (columnas || []).map((col) => {
+    if (typeof col === "object" && col !== null) {
+      return col.header || col.title || col.key || "";
+    }
+    return String(col);
+  });
+
+  // Normalizar filas para autoTable
+  let filasNormalizadas = [];
+  if (datos.length > 0) {
+    if (Array.isArray(datos[0])) {
+      // Ya viene como matriz de arrays [[val1, val2]]
+      filasNormalizadas = datos;
+    } else {
+      // Viene como array de objetos [{ key: val }]
+      filasNormalizadas = datos.map((fila) => {
+        return (columnas || []).map((col) => {
+          const key = typeof col === "object" && col !== null ? col.key : col;
+          const valor = fila[key];
+          if (valor === null || valor === undefined) return "";
+          return String(valor);
+        });
+      });
+    }
   }
 
   const doc = new jsPDF({
@@ -198,8 +244,8 @@ export const exportarAPDF = ({
   // Tabla con AutoTable
   autoTable(doc, {
     startY: 110,
-    head: [columnas],
-    body: datos,
+    head: [encabezadosTexto],
+    body: filasNormalizadas,
     theme: "striped",
     headStyles: {
       fillColor: [46, 87, 146],

@@ -415,8 +415,8 @@ export const previewImport = async (req, res) => {
         normalizado.Est_Usuario = "Inactivo";
         normalizado.Estado_Etapa_Lectiva = "Vencida";
       } else {
-        const estRaw = String(normalizado.Est_Usuario || "").toLowerCase().trim();
-        normalizado.Est_Usuario = ["no", "inactivo"].includes(estRaw) ? "Inactivo" : "En Formacion";
+        // Obligatorio por directiva institucional: todos los usuarios cargados por Excel quedan 'En Formacion'
+        normalizado.Est_Usuario = "En Formacion";
         normalizado.Estado_Etapa_Lectiva = "Vigente";
       }
 
@@ -524,8 +524,8 @@ export const importarSeleccionados = async (req, res) => {
         }
       }
 
-      // Verificar vencimiento de etapa lectiva
-      let estUsuarioFinal = Fila.Est_Usuario || "En Formacion";
+      // Verificar vencimiento de etapa lectiva (obligatoriamente 'En Formacion' salvo vencida)
+      let estUsuarioFinal = "En Formacion";
       if (fichaAsociada?.FecFinLec_Ficha && fichaAsociada.FecFinLec_Ficha < hoyBogota) {
         estUsuarioFinal = "Inactivo";
       }
