@@ -1250,6 +1250,307 @@ class ReportesService {
     };
   }
 
+  // Metodo auxiliar para resolver rango de fechas [inicioStr, finStr] segun el periodo y filtros
+  resolverRangoFechas({ periodo = "diario", fecha, anio, semana, mes, fechaInicio, fechaFin }) {
+    const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
+
+    if (periodo === "diario") {
+      const f = fecha || hoy;
+      return { inicioStr: f, finStr: f };
+    }
+
+    if (periodo === "semanal") {
+      if (fechaInicio && fechaFin) {
+        return { inicioStr: fechaInicio, finStr: fechaFin };
+      }
+      const anioNum = parseInt(anio) || new Date().getFullYear();
+      const semNum = parseInt(semana) || 1;
+      const primerEnero = new Date(anioNum, 0, 1);
+      const diaSemana = primerEnero.getDay() || 7;
+      const primerLunes = new Date(primerEnero);
+      if (diaSemana <= 4) {
+        primerLunes.setDate(primerEnero.getDate() - diaSemana + 1);
+      } else {
+        primerLunes.setDate(primerEnero.getDate() + 8 - diaSemana);
+      }
+      const inicioSemana = new Date(primerLunes);
+      inicioSemana.setDate(primerLunes.getDate() + (semNum - 1) * 7);
+      const finSemana = new Date(inicioSemana);
+      finSemana.setDate(inicioSemana.getDate() + 6);
+
+      const pad = (n) => String(n).padStart(2, "0");
+      const iStr = `${inicioSemana.getFullYear()}-${pad(inicioSemana.getMonth() + 1)}-${pad(inicioSemana.getDate())}`;
+      const fStr = `${finSemana.getFullYear()}-${pad(finSemana.getMonth() + 1)}-${pad(finSemana.getDate())}`;
+      return { inicioStr: iStr, finStr: fStr };
+    }
+
+    if (periodo === "mensual") {
+      const anioNum = parseInt(anio) || new Date().getFullYear();
+      const mesNum = parseInt(mes) || (new Date().getMonth() + 1);
+      const pad = (n) => String(n).padStart(2, "0");
+      const primerDia = `${anioNum}-${pad(mesNum)}-01`;
+      const fechaTemp = new Date(anioNum, mesNum, 0);
+      const ultimoDia = `${anioNum}-${pad(mesNum)}-${pad(fechaTemp.getDate())}`;
+      return { inicioStr: primerDia, finStr: ultimoDia };
+    }
+
+    if (periodo === "anual") {
+      const anioNum = parseInt(anio) || new Date().getFullYear();
+      return { inicioStr: `${anioNum}-01-01`, finStr: `${anioNum}-12-31` };
+    }
+
+    if (periodo === "personalizado") {
+      return {
+        inicioStr: fechaInicio || hoy,
+        finStr: fechaFin || hoy
+      };
+    }
+
+    return { inicioStr: hoy, finStr: hoy };
+  }
+
+  /**
+   * Obtiene la tabla nominal de consumidores que efectivamente consumieron alimentos en el periodo filtrado
+   */
+  async getConsumidoresNominales(filtros = {}) {
+    const { periodo = "diario", fecha, anio, semana, mes, fechaInicio, fechaFin, tipoAlimento, plato, busqueda } = filtros;
+    const { inicioStr, finStr } = this.resolverRangoFechas({ periodo, fecha, anio, semana, mes, fechaInicio, fechaFin });
+
+    const whereClause = {
+      Est_Reserva: "Consumido",
+      Fec_Reserva: { [Op.between]: [inicioStr, finStr] }
+    };
+
+    if (tipoAlimento && tipoAlimento !== "Todos") {
+      whereClause.Tip_Reserva = tipoAlimento;
+    }
+
+    if (plato && plato !== "Todos") {
+      whereClause.Id_Plato = plato;
+    }
+
+    const reservas = await ReservaModel.findAll({
+      where: whereClause,
+      include: [
+        {
+          model: UsuariosModel,
+          as: "usuario",
+          attributes: [
+            "Id_Usuario",
+            "Nom_Usuario",
+            "Ape_Usuario",
+            "TipDoc_Usuario",
+            "NumDoc_Usuario",
+            "Tel_Usuario",
+            "Cor_Usuario",
+            "CenCon_Usuario",
+            "San_Usuario",
+            "Est_Usuario"
+          ],
+          include: [
+            {
+              model: FichasModel,
+              as: "ficha",
+              attributes: ["Num_Ficha"],
+              include: [{
+                model: ProgramaModel,
+                as: "programas",
+                attributes: ["Nom_Programa"]
+              }]
+            },
+            {
+              model: UsuariosRolModel,
+              as: "rolesUsuario",
+              include: [{
+                model: RolesModel,
+                as: "rolUsuario",
+                attributes: ["Nom_Rol"]
+              }]
+            }
+          ]
+        },
+        {
+          model: PlatosModel,
+          as: "plato",
+          attributes: ["Id_Plato", "Nom_Plato", "Img_Plato", "Tip_Plato"]
+        }
+      ],
+      order: [["Fec_Reserva", "DESC"], ["updatedAt", "DESC"]]
+    });
+
+    let nominales = reservas.map((r) => {
+      const roles = r.usuario?.rolesUsuario?.map((ru) => ru.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+      const rolStr = roles.join(", ") || (r.usuario?.CenCon_Usuario === "Si" ? "Aprendiz Interno" : "Aprendiz Externo");
+      return {
+        Id_Reserva: r.Id_Reserva,
+        Fecha: r.Fec_Reserva,
+        Hora_Consumo: r.updatedAt,
+        TipDoc: r.usuario?.TipDoc_Usuario || "CC",
+        NumDoc: r.usuario?.NumDoc_Usuario || "N/A",
+        NombreCompleto: `${r.usuario?.Nom_Usuario || ""} ${r.usuario?.Ape_Usuario || ""}`.trim(),
+        Id_Usuario: r.usuario?.Id_Usuario,
+        Rol: rolStr,
+        CenCon_Usuario: r.usuario?.CenCon_Usuario || "No",
+        Num_Ficha: r.usuario?.ficha?.Num_Ficha || "Sin ficha",
+        Programa: r.usuario?.ficha?.programas?.Nom_Programa || "Sin programa",
+        Tipo_Comida: r.Tip_Reserva,
+        Plato: r.plato?.Nom_Plato || "Plato del Dia",
+        Id_Plato: r.plato?.Id_Plato,
+        Estado: r.Est_Reserva
+      };
+    });
+
+    if (busqueda && busqueda.trim()) {
+      const q = busqueda.trim().toLowerCase();
+      nominales = nominales.filter((item) =>
+        item.NombreCompleto.toLowerCase().includes(q) ||
+        String(item.NumDoc).includes(q) ||
+        String(item.Num_Ficha).includes(q) ||
+        item.Plato.toLowerCase().includes(q)
+      );
+    }
+
+    return {
+      periodo,
+      rango: { inicio: inicioStr, fin: finStr },
+      total: nominales.length,
+      registros: nominales
+    };
+  }
+
+  /**
+   * Tab 3 Bienestar: Aprendices activos que NO han reservado ni consumido en el periodo
+   */
+  async getSeguimientoBienestar(filtros = {}) {
+    const { periodo = "semanal", fecha, anio, semana, mes, fechaInicio, fechaFin, busqueda } = filtros;
+    const { inicioStr, finStr } = this.resolverRangoFechas({ periodo, fecha, anio, semana, mes, fechaInicio, fechaFin });
+
+    // 1. Obtener todos los aprendices y pasantes activos
+    const usuariosActivos = await UsuariosModel.findAll({
+      where: {
+        Est_Usuario: "En Formacion"
+      },
+      include: [
+        {
+          model: FichasModel,
+          as: "ficha",
+          attributes: ["Num_Ficha"],
+          include: [{
+            model: ProgramaModel,
+            as: "programas",
+            attributes: ["Nom_Programa"]
+          }]
+        },
+        {
+          model: UsuariosRolModel,
+          as: "rolesUsuario",
+          include: [{
+            model: RolesModel,
+            as: "rolUsuario",
+            attributes: ["Nom_Rol"]
+          }]
+        }
+      ]
+    });
+
+    // Filtrar solo aprendices y pasantes
+    const aprendicesYPasantes = usuariosActivos.filter((u) => {
+      const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+      return roles.some(r => ["Aprendiz Interno", "Aprendiz Externo", "Pasante Interno", "Pasante Externo"].includes(r));
+    });
+
+    // 2. Obtener reservas en el periodo para estos usuarios
+    const reservasEnPeriodo = await ReservaModel.findAll({
+      attributes: ["Id_Usuario", "Est_Reserva", "Fec_Reserva"],
+      where: {
+        Fec_Reserva: { [Op.between]: [inicioStr, finStr] }
+      }
+    });
+
+    // Conteo por usuario
+    const mapaReservasPeriodo = new Map();
+    const mapaConsumosPeriodo = new Map();
+
+    for (const r of reservasEnPeriodo) {
+      const id = r.Id_Usuario;
+      mapaReservasPeriodo.set(id, (mapaReservasPeriodo.get(id) || 0) + 1);
+      if (r.Est_Reserva === "Consumido") {
+        mapaConsumosPeriodo.set(id, (mapaConsumosPeriodo.get(id) || 0) + 1);
+      }
+    }
+
+    // 3. Obtener ultima fecha de consumo de cada usuario (en todo el historico)
+    const ultimosConsumos = await db.query(
+      `SELECT Id_Usuario, MAX(Fec_Reserva) AS ultimaFecha
+       FROM reservas
+       WHERE Est_Reserva = 'Consumido'
+       GROUP BY Id_Usuario`,
+      { type: QueryTypes.SELECT }
+    );
+
+    const mapaUltimaFecha = new Map();
+    for (const item of ultimosConsumos) {
+      mapaUltimaFecha.set(item.Id_Usuario, item.ultimaFecha);
+    }
+
+    // 4. Filtrar los que tienen 0 reservas o 0 consumos en el periodo
+    let alertas = [];
+    for (const u of aprendicesYPasantes) {
+      const totalReservas = mapaReservasPeriodo.get(u.Id_Usuario) || 0;
+      const totalConsumos = mapaConsumosPeriodo.get(u.Id_Usuario) || 0;
+
+      if (totalConsumos === 0) {
+        const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+        const rolStr = roles.join(", ") || (u.CenCon_Usuario === "Si" ? "Aprendiz Interno" : "Aprendiz Externo");
+
+        alertas.push({
+          Id_Usuario: u.Id_Usuario,
+          TipDoc: u.TipDoc_Usuario || "CC",
+          NumDoc: u.NumDoc_Usuario || "N/A",
+          NombreCompleto: `${u.Nom_Usuario || ""} ${u.Ape_Usuario || ""}`.trim(),
+          Tel_Usuario: u.Tel_Usuario || "Sin telefono",
+          Cor_Usuario: u.Cor_Usuario || "Sin correo",
+          CenCon_Usuario: u.CenCon_Usuario || "No",
+          Rol: rolStr,
+          Num_Ficha: u.ficha?.Num_Ficha || "Sin ficha",
+          Nom_Programa: u.ficha?.programas?.Nom_Programa || "Sin programa",
+          San_Usuario: u.San_Usuario || "No",
+          Est_Usuario: u.Est_Usuario || "En Formacion",
+          totalReservasPeriodo: totalReservas,
+          totalConsumosPeriodo: totalConsumos,
+          ultimaFechaConsumo: mapaUltimaFecha.get(u.Id_Usuario) || "Nunca ha consumido",
+          prioridad: u.CenCon_Usuario === "Si" ? "Alta (Interno)" : "Media (Externo)"
+        });
+      }
+    }
+
+    if (busqueda && busqueda.trim()) {
+      const q = busqueda.trim().toLowerCase();
+      alertas = alertas.filter((item) =>
+        item.NombreCompleto.toLowerCase().includes(q) ||
+        String(item.NumDoc).includes(q) ||
+        String(item.Num_Ficha).includes(q) ||
+        item.Nom_Programa.toLowerCase().includes(q)
+      );
+    }
+
+    // Ordenar: primero internos con prioridad alta
+    alertas.sort((a, b) => {
+      if (a.CenCon_Usuario === "Si" && b.CenCon_Usuario !== "Si") return -1;
+      if (a.CenCon_Usuario !== "Si" && b.CenCon_Usuario === "Si") return 1;
+      return a.NombreCompleto.localeCompare(b.NombreCompleto);
+    });
+
+    return {
+      periodo,
+      rango: { inicio: inicioStr, fin: finStr },
+      totalSinConsumo: alertas.length,
+      totalInternosAfectados: alertas.filter(a => a.CenCon_Usuario === "Si").length,
+      totalExternosAfectados: alertas.filter(a => a.CenCon_Usuario !== "Si").length,
+      registros: alertas
+    };
+  }
+
 }
 
 export default new ReportesService();

@@ -1,4 +1,7 @@
 // Node/Controllers/TurnosController.js
+// Controlador para inicio, cierre, historial y detalle nominal de turnos
+// Codigo comentado didacticamente sin tildes ni emojis para aprendices de primer semestre
+
 import TurnosService from "../Services/TurnosService.js";
 
 export const obtenerTurnoActivo = async (req, res) => {
@@ -46,9 +49,21 @@ export const obtenerHistorial = async (req, res) => {
   }
 };
 
+export const obtenerConsumosDeTurno = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const resultado = await TurnosService.obtenerConsumosDeTurno(id);
+    return res.status(200).json(resultado);
+  } catch (error) {
+    console.error("Error al obtener consumos de turno:", error.message);
+    return res.status(404).json({ mensaje: error.message });
+  }
+};
+
 export default {
   obtenerTurnoActivo,
   iniciarTurno,
   finalizarTurno,
-  obtenerHistorial
+  obtenerHistorial,
+  obtenerConsumosDeTurno
 };

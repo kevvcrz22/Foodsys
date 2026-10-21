@@ -59,10 +59,11 @@ const NAV_POR_ROL = {
     { to: '/Cocina/Reportes',        label: 'Reportes',        icon: BarChart3    },
   ],
   Bienestar: [
-    { to: "/Bienestar",              label: "Inicio",     icon: Home         },
-    { to: "/Bienestar/Perfil",       label: "Mi Perfil",  icon: User         },
-    { to: "/Bienestar/Reportes",     label: "Reportes",   icon: BarChart3    },
-    { to: "/Bienestar/Novedades",    label: "Novedades",  icon: ClipboardList },
+    { to: "/Bienestar",              label: "Inicio",       icon: Home          },
+    { to: "/Bienestar/Perfil",       label: "Mi Perfil",    icon: User          },
+    { to: "/Bienestar/Plan",         label: "Plan del Día", icon: ChefHat       },
+    { to: "/Bienestar/Reportes",     label: "Reportes",     icon: BarChart3     },
+    { to: "/Bienestar/Novedades",    label: "Novedades",    icon: ClipboardList },
   ],
 };
 
@@ -70,6 +71,7 @@ const TABLAS_POR_ROL = {
   Administrador: [
     { to: "/usuarios", label: "Usuarios", icon: Users },
     { to: "/aprendices", label: "Aprendices", icon: User },
+    { to: "/pasantes", label: "Pasantes", icon: Users },
     { to: "/UsuariosRoles", label: "Usuarios Roles", icon: ShieldCheck },
     { to: "/roles", label: "Roles", icon: ShieldCheck },
     { to: "/fichas", label: "Fichas", icon: FileText },
@@ -80,9 +82,11 @@ const TABLAS_POR_ROL = {
   ],
   Coordinador: [
     { to: '/aprendices', label: 'Aprendices', icon: User },
+    { to: '/pasantes', label: 'Pasantes', icon: Users },
   ],
   Bienestar: [
     { to: '/aprendices', label: 'Aprendices', icon: User },
+    { to: '/pasantes', label: 'Pasantes', icon: Users },
   ],
   Cocina: [
     { to: '/menus',  label: 'Menús',  icon: ClipboardList },

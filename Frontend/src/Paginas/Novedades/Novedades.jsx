@@ -155,24 +155,47 @@ const Novedades = () => {
     Set_PlatosDisp([]);
   };
 
+  // Obtener hora actual en zona horaria America/Bogota
+  const obtenerHoraBogota = () => {
+    try {
+      const ahora = new Date();
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Bogota",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+        hour12: false
+      });
+      const partes = formatter.formatToParts(ahora);
+      const hora = parseInt(partes.find(p => p.type === "hour")?.value || "0", 10);
+      const minuto = parseInt(partes.find(p => p.type === "minute")?.value || "0", 10);
+      const segundo = parseInt(partes.find(p => p.type === "second")?.value || "0", 10);
+      return { hora, minuto, segundo, texto: `${String(hora).padStart(2, "0")}:${String(minuto).padStart(2, "0")}` };
+    } catch {
+      const ahora = new Date();
+      return { hora: ahora.getHours(), minuto: ahora.getMinutes(), segundo: ahora.getSeconds(), texto: `${ahora.getHours()}:${ahora.getMinutes()}` };
+    }
+  };
+
+  const tiempoBogota = obtenerHoraBogota();
+  // Bloquear estrictamente desde las 09:00:00 AM en adelante
+  const ventanaCerrada = tiempoBogota.hora >= 9;
+
   const Manejar_Registrar = async () => {
+    if (ventanaCerrada) {
+      Set_Mensaje({
+        tipo: "error",
+        texto: `La hora limite para registrar reservas excepcionales de Almuerzo es hasta las 09:00 AM del mismo dia (Hora actual: ${tiempoBogota.texto}). El plazo de hoy ya cerro.`
+      });
+      return;
+    }
+
     if (!UsuarioSel) {
       Set_Mensaje({ tipo: "error", texto: "Selecciona un aprendiz primero" });
       return;
     }
     if (!Tipo || Tipo !== "Almuerzo") {
       Set_Mensaje({ tipo: "error", texto: "Solo se permite registrar novedades para Almuerzo." });
-      return;
-    }
-
-    // Validar horario límite de novedad
-    const ahora = new Date();
-    const minutos = ahora.getHours() * 60 + ahora.getMinutes();
-    if (Tipo === "Almuerzo" && minutos > 9 * 60) {
-      Set_Mensaje({
-        tipo: "error",
-        texto: "La hora límite para registrar novedades de Almuerzo son las 09:00 AM. El plazo para hoy ya venció.",
-      });
       return;
     }
 
@@ -322,6 +345,32 @@ const Novedades = () => {
               Registrar Reserva Excepcional
             </h2>
 
+            {/* Banner de bloqueo estricto cuando ya pasaron las 9:00 AM */}
+            {ventanaCerrada ? (
+              <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 text-xs text-amber-900 flex items-start gap-3">
+                <i className="fas fa-lock text-amber-600 text-lg mt-0.5"></i>
+                <div>
+                  <p className="font-bold text-sm text-amber-950">
+                    Ventana de Novedades de Almuerzo Finalizada
+                  </p>
+                  <p className="mt-1 leading-relaxed">
+                    Hora actual en Colombia: <strong>{tiempoBogota.texto}</strong>.
+                    Por normativa estricta del comedor, el plazo maximo para registrar novedades de Almuerzo es unicamente hasta las <strong>09:00:00 AM</strong> del mismo dia.
+                    El formulario se encuentra bloqueado para recepcion de nuevas excepciones hoy.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 flex items-center justify-between">
+                <span>
+                  Plazo maximo para Almuerzo: <strong>09:00 AM</strong>
+                </span>
+                <span className="font-semibold text-blue-900">
+                  Hora Colombia: {tiempoBogota.texto}
+                </span>
+              </div>
+            )}
+
             <BuscadorAprendiz
               Busqueda={Busqueda}
               Set_Busqueda={Set_Busqueda}
@@ -351,8 +400,6 @@ const Novedades = () => {
                       Set_Tipo={(NuevoTipo) => {
                         Set_Tipo(NuevoTipo);
                         Set_Plato("");
-                        // El cambio de Tipo dispara el useEffect que recarga los platos.
-                        // No hace falta llamar a Cargar_Platos aqui manualmente.
                       }}
                     />
 
@@ -369,11 +416,12 @@ const Novedades = () => {
                               <button
                                 key={M.Id_Menu}
                                 type="button"
+                                disabled={ventanaCerrada}
                                 onClick={() => Set_Plato(String(platoData?.Id_Plato))}
                                 className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${isSelected
                                   ? "border-[#1861c1] bg-blue-50 ring-2 ring-[#1861c1]/30"
                                   : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                                  }`}
+                                  } ${ventanaCerrada ? "opacity-50 cursor-not-allowed" : ""}`}
                               >
                                 {platoData?.Img_Plato ? (
                                   <img
@@ -424,20 +472,23 @@ const Novedades = () => {
                       </label>
                       <textarea
                         value={Jus_Reserva}
+                        disabled={ventanaCerrada}
                         onChange={(E) => Set_Jus_Reserva(E.target.value)}
                         placeholder="Explique el motivo de esta novedad (minimo 5 caracteres)..."
                         rows="2"
-                        className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                        className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                     </div>
 
                     <button
                       onClick={Manejar_Registrar}
-                      disabled={Cargando || !Plato || !Jus_Reserva.trim()}
-                      className="w-full py-3 rounded-xl font-semibold bg-[#42b72a] text-white hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                      disabled={Cargando || !Plato || !Jus_Reserva.trim() || ventanaCerrada}
+                      className="w-full py-3 rounded-xl font-semibold bg-[#42b72a] text-white hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {Cargando ? (
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      ) : ventanaCerrada ? (
+                        "Plazo Cerrado (09:00 AM)"
                       ) : (
                         "Registrar Novedad"
                       )}

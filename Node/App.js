@@ -12,7 +12,7 @@ import rateLimit from 'express-rate-limit'; // Seguridad: Prevención de fuerza 
 import db from './Database/db.js';
 import { fileURLToPath } from 'url';
 import Path from 'path';
-import './Jobs/VencimientoJob.js';
+import { sincronizarFichasAlInicio } from './Jobs/VencimientoJob.js';
 import { initSocket } from './Services/SocketService.js';
 
 // ---------- 2. IMPORTACIÓN DE RUTAS ----------
@@ -79,6 +79,7 @@ const limitadorSensible = rateLimit({
   max: 30, // Máximo 30 intentos por documento/cuenta en 15 minutos
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { keyGeneratorIpFallback: false },
   keyGenerator: (req) => {
     const doc = req.body?.NumDoc_Usuario || req.body?.email || req.body?.documento || req.body?.correo || 'anon';
     const clientIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
@@ -98,8 +99,10 @@ const origenesPermitidos = [
   'https://foodsyslagranja.com',
   'https://www.foodsyslagranja.com',
   'http://localhost:5173',
+  'http://localhost:5174',
   'http://localhost:8000',
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   'http://127.0.0.1:8000'
 ];
 
@@ -114,7 +117,8 @@ const opcionesCors = {
   origin: function (origin, callback) {
     // Permitir llamadas sin origin (same-origin, curl, server-to-server)
     if (!origin) return callback(null, true);
-    if (origenesPermitidos.includes(origin)) {
+    // Permitir origenes declarados o cualquier puerto local en desarrollo
+    if (origenesPermitidos.includes(origin) || (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost(:\d+)?$/.test(origin))) {
       return callback(null, true);
     }
     // Permitir cualquier subdominio o variante de foodsyslagranja.com
@@ -182,6 +186,18 @@ try {
     console.warn('Nota sobre columna Est_Programa:', errCol.message);
   }
 
+  // Asegurar existencia de columna NivFor_Programa en programas
+  try {
+    const [colsNiv] = await db.query("SHOW COLUMNS FROM programas LIKE 'NivFor_Programa'");
+    if (colsNiv.length === 0) {
+      await db.query("ALTER TABLE programas ADD COLUMN NivFor_Programa VARCHAR(100) NULL");
+      console.log('Columna NivFor_Programa creada exitosamente en tabla programas');
+    }
+  } catch (errCol) {
+    console.warn('Nota sobre columna NivFor_Programa:', errCol.message);
+  }
+
+
   // Asegurar existencia de columna tokenVersion en usuarios (Sesión única)
   try {
     const [colsToken] = await db.query("SHOW COLUMNS FROM usuarios LIKE 'tokenVersion'");
@@ -191,6 +207,19 @@ try {
     }
   } catch (errCol) {
     console.warn('Nota sobre columna tokenVersion:', errCol.message);
+  }
+
+  // Asegurar compatibilidad de Est_Usuario para aceptar 'Inactivo' y nuevos estados sin truncamiento
+  try {
+    const [colsEst] = await db.query("SHOW COLUMNS FROM usuarios LIKE 'Est_Usuario'");
+    if (colsEst.length > 0 && String(colsEst[0].Type).startsWith('enum')) {
+      if (!String(colsEst[0].Type).includes("'Inactivo'")) {
+        await db.query("ALTER TABLE usuarios MODIFY COLUMN Est_Usuario VARCHAR(50) DEFAULT 'En Formacion'");
+        console.log('✅ Columna Est_Usuario ampliada a VARCHAR(50) de forma retrocompatible');
+      }
+    }
+  } catch (errEst) {
+    console.warn('Nota sobre columna Est_Usuario:', errEst.message);
   }
 
   // Asegurar existencia de tablas turnos y notificaciones
@@ -248,6 +277,9 @@ try {
 } catch (errorMantenimiento) {
   console.error('[Mantenimiento] Error al revertir estados Especiales:', errorMantenimiento.message);
 }
+
+// Sincronizar fichas vencidas despues de que las asociaciones de Sequelize esten listas
+await sincronizarFichasAlInicio();
 
 setInterval(async () => {
   try {

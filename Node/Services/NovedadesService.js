@@ -44,25 +44,29 @@ const ROLES_ELEGIBLES_ESPECIAL = ['Aprendiz Externo', 'Pasante Externo'];
 
 class NovedadesService {
 
-  // Retorna la fecha de hoy en formato YYYY-MM-DD.
+  // Retorna la fecha de hoy en formato YYYY-MM-DD en zona horaria America/Bogota
   // Las novedades siempre son para el dia actual, no para dias futuros.
   ObtenerFechaHoy() {
-    return new Date().toISOString().split('T')[0];
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
   }
 
-  // Calcula la fecha de referencia segun la hora actual.
-  // Antes de las 18:00 la referencia es el dia de hoy.
-  // A partir de las 18:00 la referencia es el dia siguiente, porque
-  // el servicio de cena ya esta por terminar y el coordinador ya piensa en manana.
-  // Este metodo es util para la vista del historial de novedades del dia.
+  // Calcula la fecha de referencia segun la hora actual en Bogota.
   Obtener_Fecha_Referencia() {
-    const Ahora = new Date();
-    if (Ahora.getHours() >= 18) {
-      Ahora.setDate(Ahora.getDate() + 1);
+    const ahoraStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
+    const partesHora = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Bogota',
+      hour: 'numeric',
+      hour12: false
+    }).format(new Date());
+    const horaActual = parseInt(partesHora) || 0;
+
+    const fechaObj = new Date(`${ahoraStr}T12:00:00`);
+    if (horaActual >= 18) {
+      fechaObj.setDate(fechaObj.getDate() + 1);
     }
-    const Anio = Ahora.getFullYear();
-    const Mes = String(Ahora.getMonth() + 1).padStart(2, "0");
-    const Dia = String(Ahora.getDate()).padStart(2, "0");
+    const Anio = fechaObj.getFullYear();
+    const Mes = String(fechaObj.getMonth() + 1).padStart(2, "0");
+    const Dia = String(fechaObj.getDate()).padStart(2, "0");
     return `${Anio}-${Mes}-${Dia}`;
   }
 
@@ -82,7 +86,7 @@ class NovedadesService {
   }
 
   // Valida que el tipo de novedad se encuentre dentro de la franja horaria permitida:
-  //   - Almuerzo : maximo hasta las 09:00 AM (09:00)
+  //   - Almuerzo : maximo hasta las 09:00:00 AM (9 de la manana en punto, hora de Colombia)
   ValidarHorarioLimiteNovedad(TipoNormalizado) {
     if (TipoNormalizado !== "Almuerzo") {
       throw new Error(
@@ -90,18 +94,29 @@ class NovedadesService {
       );
     }
 
-    // Hora en zona horaria de Colombia (America/Bogota)
-    const fechaHoraColombia = new Date(
-      new Date().toLocaleString("en-US", { timeZone: "America/Bogota" })
-    );
-    const hora = fechaHoraColombia.getHours();
-    const minutos = fechaHoraColombia.getMinutes();
-    const minutosTotales = hora * 60 + minutos;
+    // Obtener hora, minutos y segundos exactos en zona horaria de Colombia
+    const partesTiempo = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Bogota',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    }).formatToParts(new Date());
 
-    // Límite Almuerzo: 09:00 AM (9 * 60 = 540 min)
-    if (minutosTotales > 9 * 60) {
+    let hora = 0;
+    let minutos = 0;
+    let segundos = 0;
+
+    for (const p of partesTiempo) {
+      if (p.type === 'hour') hora = parseInt(p.value, 10);
+      if (p.type === 'minute') minutos = parseInt(p.value, 10);
+      if (p.type === 'second') segundos = parseInt(p.value, 10);
+    }
+
+    // Regla estricta: Limite 09:00:00 AM en punto. Si hora >= 9 (o minuto > 0 o segundo > 0 con hora 9), rechazar inmediatamente.
+    if (hora > 9 || (hora === 9 && (minutos > 0 || segundos > 0))) {
       throw new Error(
-        "La hora límite para registrar novedades de Almuerzo son las 09:00 AM. El plazo para el día de hoy ya venció."
+        "La hora limite para registrar reservas excepcionales de Almuerzo es hasta las 09:00 AM del mismo dia. El plazo de hoy ya cerro."
       );
     }
   }

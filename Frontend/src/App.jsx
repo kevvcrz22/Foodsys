@@ -78,6 +78,7 @@ const CrudPlatos = lazy(() => import("./Tablas/Platos/CrudPlatos.jsx"));
 const CrudMenus = lazy(() => import("./Tablas/Menus/CrudMenus.jsx"));
 const CrudReservas = lazy(() => import("./Tablas/Reservas/CrudReservas.jsx"));
 const Aprendices = lazy(() => import("./Tablas/Usuarios/Aprendices.jsx"));
+const Pasantes = lazy(() => import("./Tablas/Usuarios/Pasantes.jsx"));
 const ReservaForm = lazy(() => import("./Tablas/Reservas/ReservaForm.jsx"));
 
 // ── Mapa de redireccion despues del login por rol ────────────────────────────
@@ -529,6 +530,8 @@ function App() {
                     <Route index element={<Inicio />} />
                     <Route path="Inicio" element={<Inicio />} />
                     <Route path="Perfil" element={<Perfil />} />
+                    {/* Plan del dia: Bienestar puede ver consolidado y lista nominal por plato */}
+                    <Route path="Plan" element={<PlanCocina />} />
                     <Route path="Reportes" element={<Reportes />} />
                     <Route path="Novedades" element={<Novedades />} />
                     <Route path="*" element={<Navigate to="/Bienestar" replace />} />
@@ -584,6 +587,21 @@ function App() {
               >
                 <LayoutConSidebar {...Props_Layout}>
                   <Aprendices />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Pasantes: modulo dedicado accesible para Administrador, Coordinador y Bienestar */}
+          <Route
+            path="/pasantes"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={["Administrador", "Coordinador", "Bienestar"]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <Pasantes />
                 </LayoutConSidebar>
               </ProtectedRoute>
             }

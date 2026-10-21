@@ -504,3 +504,27 @@ export const exportarNoConsumidosExcel = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// GET /api/Reportes/consumidores-nominales
+// Retorna la tabla nominal de aprendices que consumieron alimentos con filtros de periodo, tipo, plato y busqueda
+export const getConsumidoresNominales = async (req, res) => {
+  try {
+    const data = await ReportesService.getConsumidoresNominales(req.query);
+    res.status(200).json(data);
+  } catch (error) {
+    console.error("[ReportesController] getConsumidoresNominales:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/Reportes/seguimiento-bienestar
+// Retorna la lista de aprendices activos que tienen 0 reservas o 0 consumos en el periodo seleccionado
+export const getSeguimientoBienestar = async (req, res) => {
+  try {
+    const data = await ReportesService.getSeguimientoBienestar(req.query);
+    res.status(200).json(data);
+  } catch (error) {
+    console.error("[ReportesController] getSeguimientoBienestar:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};

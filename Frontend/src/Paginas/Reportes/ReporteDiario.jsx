@@ -21,11 +21,13 @@
 //   - Constantes y estados en PascalCase con prefijo Set_ para setters (convencion del proyecto).
 //   - Funciones auxiliares con mayuscula inicial.
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import apiAxios from "../../api/axiosConfig";
 import { Chart } from "react-google-charts";
-import { FileText, FileSpreadsheet } from "lucide-react";
+import { FileText, FileSpreadsheet, Search } from "lucide-react";
 import { useSocketListener } from "../../api/socket";
+import ModalHistorialAprendiz from "./ModalHistorialAprendiz";
+import { descargarBlobUniversal, confirmarExportacion } from "../../utils/exportUtils";
 
 // ---------------------------------------------------------------------------
 // UTILIDADES DE PRESENTACION
@@ -83,6 +85,10 @@ const ReporteDiario = () => {
   // Se usa para mostrar el spinner en el boton correspondiente.
   const [Exportando, Set_Exportando] = useState(null);
 
+  // Aprendiz seleccionado para ver historial individual en modal
+  const [AprendizSeleccionado, Set_AprendizSeleccionado] = useState(null);
+  const [Busqueda, Set_Busqueda] = useState("");
+
   // ---------------------------------------------------------------------------
   // FUNCION: Consultar
   // Construye la URL con los filtros activos y llama al backend.
@@ -107,12 +113,12 @@ const ReporteDiario = () => {
     }
   }, [Fecha, Tipo]);
 
-  // Carga automática inicial y al cambiar fecha o tipo
+  // Carga automatica inicial y al cambiar fecha o tipo
   useEffect(() => {
     Consultar();
   }, [Consultar]);
 
-  // Socket.IO: Sincronización en tiempo real silenciosa sin recargar la página
+  // Socket.IO: Sincronizacion en tiempo real silenciosa sin recargar la pagina
   useSocketListener("reservas:actualizadas", () => {
     const hoy = new Date().toISOString().split("T")[0];
     if (Fecha === hoy) {
@@ -123,46 +129,60 @@ const ReporteDiario = () => {
   // ---------------------------------------------------------------------------
   // FUNCION: Exportar
   // Solicita al backend un archivo PDF o Excel con los datos actuales.
-  // El backend genera el archivo y lo envia como blob descargable.
+  // Utiliza confirmacion inteligente y descarga universal para todas las plataformas.
   // ---------------------------------------------------------------------------
   const Exportar = async (Formato) => {
-    // Marcar cual boton esta en proceso para mostrar el spinner correcto
+    const totalRegistros = Datos?.reservas?.length || 0;
+    if (totalRegistros === 0) {
+      alert("No hay reservas registradas para exportar en esta fecha.");
+      return;
+    }
+
+    const tieneFiltros = Tipo !== "Todos" || Busqueda.trim() !== "";
+    const confirmado = await confirmarExportacion({
+      tieneFiltros,
+      totalFiltrados: totalRegistros,
+      totalRegistros: totalRegistros,
+      formato: Formato.toUpperCase()
+    });
+    if (!confirmado) return;
+
     Set_Exportando(Formato);
     try {
-      // Construir los parametros de la peticion con los filtros activos
       const Params = { periodo: "diario", fechaInicio: Fecha, fechaFin: Fecha };
       if (Tipo !== "Todos") Params.tipoAlimento = Tipo;
 
-      // Pedir el archivo al backend indicando que la respuesta es un blob binario
       const Res = await apiAxios.get(`/api/Reportes/exportar/${Formato}`, {
         params: Params,
         responseType: "blob",
       });
 
-      // Determinar extension y tipo MIME segun el formato solicitado
       const Ext = Formato === "pdf" ? "pdf" : "xlsx";
       const Mime = Formato === "pdf"
         ? "application/pdf"
         : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-      // Crear un objeto URL temporal para disparar la descarga en el navegador
-      const Blob_Arch = new Blob([Res.data], { type: Mime });
-      const Url_Temp = URL.createObjectURL(Blob_Arch);
-      const Enlace = document.createElement("a");
-      Enlace.href = Url_Temp;
-      Enlace.download = `Reporte_Diario_${Fecha}.${Ext}`;
-      Enlace.click();
-
-      // Liberar la URL temporal de memoria del navegador
-      URL.revokeObjectURL(Url_Temp);
+      descargarBlobUniversal(Res.data, `Reporte_Diario_${Fecha}.${Ext}`, Mime);
     } catch (Err) {
       console.error("Error exportando reporte diario:", Err);
       alert("Error al exportar. Verifica la conexion con el servidor.");
     } finally {
-      // Quitar el spinner del boton al finalizar
       Set_Exportando(null);
     }
   };
+
+  // Filtrado reactivo en memoria para el buscador de la tabla diaria
+  const Reservas_Filtradas = useMemo(() => {
+    if (!Datos?.reservas) return [];
+    if (!Busqueda.trim()) return Datos.reservas;
+    const q = Busqueda.trim().toLowerCase();
+    return Datos.reservas.filter((R) => {
+      const nombre = `${R.usuario?.Nom_Usuario || ""} ${R.usuario?.Ape_Usuario || ""}`.toLowerCase();
+      const doc = String(R.usuario?.NumDoc_Usuario || "").toLowerCase();
+      const plato = String(R.plato?.Nom_Plato || "").toLowerCase();
+      return nombre.includes(q) || doc.includes(q) || plato.includes(q);
+    });
+  }, [Datos, Busqueda]);
 
   // ---------------------------------------------------------------------------
   // PREPARACION DE DATOS PARA GRAFICAS
@@ -451,19 +471,35 @@ const ReporteDiario = () => {
               TABLA DE DETALLE DE RESERVAS
               Muestra cada reserva del dia con: nombre, documento, tipo,
               plato, estado, telefono y correo del aprendiz.
+              Al hacer clic en cualquier aprendiz, abre su historial individual.
           --------------------------------------------------------------- */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
 
-            {/* Encabezado de la tabla con contador de registros */}
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center justify-between">
-              <span>Detalle de reservas — {Formatear_Fecha(Datos.resumen.fecha)}</span>
-              <span className="text-xs font-normal text-gray-400">
-                {Datos.reservas.length} registro{Datos.reservas.length !== 1 ? "s" : ""}
-              </span>
-            </h3>
+            {/* Encabezado de la tabla con buscador y contador de registros */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700">
+                  Detalle de reservas — {Formatear_Fecha(Datos.resumen.fecha)}
+                </h3>
+                <span className="text-xs font-normal text-gray-400">
+                  Mostrando {Reservas_Filtradas.length} de {Datos.reservas.length} registros — Haz clic en un aprendiz para ver su historial
+                </span>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Buscar aprendiz, documento o plato..."
+                  value={Busqueda}
+                  onChange={(e) => Set_Busqueda(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+            </div>
 
             {/* Estado vacio: no hay reservas para los filtros seleccionados */}
-            {Datos.reservas.length === 0 ? (
+            {Reservas_Filtradas.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 text-gray-300">
                 <i className="fas fa-inbox text-3xl mb-2"></i>
                 <p className="text-sm">No hay reservas para los filtros seleccionados</p>
@@ -487,7 +523,7 @@ const ReporteDiario = () => {
                   </thead>
 
                   <tbody>
-                    {Datos.reservas.map((R) => {
+                    {Reservas_Filtradas.map((R) => {
                       // Extraer los nombres de roles del aprendiz para saber si es externo
                       const Roles_Usuario = R.usuario?.rolesUsuario
                         ?.map((UR) => UR.rolUsuario?.Nom_Rol)
@@ -502,7 +538,6 @@ const ReporteDiario = () => {
                       );
 
                       // Extraer la hora de creacion de la reserva del campo createdAt
-                      // Se muestra en formato HH:MM para mayor legibilidad
                       const Hora_Reserva = R.createdAt
                         ? new Date(R.createdAt).toLocaleTimeString("es-CO", {
                           hour: "2-digit",
@@ -511,31 +546,40 @@ const ReporteDiario = () => {
                         : "--";
 
                       return (
-                        <tr key={R.Id_Reserva} className="border-t border-gray-50 hover:bg-gray-50">
+                        <tr
+                          key={R.Id_Reserva}
+                          onClick={() => {
+                            if (R.usuario?.Id_Usuario) {
+                              Set_AprendizSeleccionado({
+                                id: R.usuario.Id_Usuario,
+                                nombre: `${R.usuario.Nom_Usuario || ""} ${R.usuario.Ape_Usuario || ""}`.trim()
+                              });
+                            }
+                          }}
+                          className="border-t border-gray-50 hover:bg-indigo-50/50 cursor-pointer transition"
+                          title="Clic para ver historial completo del aprendiz"
+                        >
 
                           {/* Columna: nombre del aprendiz con badges de estado */}
                           <td className="px-3 py-2.5">
                             <div>
-                              <p className="font-medium text-gray-700">
+                              <p className="font-medium text-indigo-600 hover:underline">
                                 {R.usuario
                                   ? `${R.usuario.Nom_Usuario} ${R.usuario.Ape_Usuario}`
                                   : `Usuario #${R.Id_Usuario}`
                                 }
                               </p>
                               <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                                {/* Badge de tipo externo */}
                                 {Es_Externo && (
                                   <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600">
                                     Externo
                                   </span>
                                 )}
-                                {/* Badge de estado Especial */}
                                 {Es_Especial && (
                                   <span className="text-xs px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
                                     Especial
                                   </span>
                                 )}
-                                {/* Badge de reserva excepcional (novedad) */}
                                 {R.Exc_Reserva === "Si" && (
                                   <span className="text-xs px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
                                     Novedad
@@ -551,10 +595,10 @@ const ReporteDiario = () => {
                           </td>
 
                           {/* Columna: tipo de comida de la reserva */}
-                          <td className="px-3 py-2.5 text-gray-600">{R.Tip_Reserva}</td>
+                          <td className="px-3 py-2.5 text-gray-600 font-medium">{R.Tip_Reserva}</td>
 
                           {/* Columna: nombre del plato elegido */}
-                          <td className="px-3 py-2.5 text-gray-600">
+                          <td className="px-3 py-2.5 text-gray-600 font-medium">
                             {R.plato?.Nom_Plato || "--"}
                           </td>
 
@@ -585,6 +629,15 @@ const ReporteDiario = () => {
               </div>
             )}
           </div>
+
+          {/* Modal interactivo de Historial Completo del Aprendiz */}
+          {AprendizSeleccionado && (
+            <ModalHistorialAprendiz
+              aprendizId={AprendizSeleccionado.id}
+              nombreAprendiz={AprendizSeleccionado.nombre}
+              onClose={() => Set_AprendizSeleccionado(null)}
+            />
+          )}
         </div>
       )}
     </div>

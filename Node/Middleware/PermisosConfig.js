@@ -82,6 +82,11 @@ const Permisos_Vista = {
     "Administrador", "Coordinador", "Bienestar",
   ],
 
+  // Vista de pasantes: Admin, Coordinador y Bienestar
+  Pasantes: [
+    "Administrador", "Coordinador", "Bienestar",
+  ],
+
   // Historial de reservas personales: aprendices y pasantes
   Historial: [
     "Administrador",
@@ -92,9 +97,9 @@ const Permisos_Vista = {
   // Verificacion de cocina: solo el personal de cocina puede verificar presencia
   Verificar: ["Cocina"],
 
-  // Modulo de planificacion de cantidades por turno: exclusivo de Cocina.
+  // Modulo de planificacion de cantidades por turno: Cocina, Bienestar y Administrador.
   // Permite ver cuantas reservas hay por tipo y plato para preparar la produccion.
-  PlanCocina: ["Cocina"],
+  PlanCocina: ["Cocina", "Bienestar", "Administrador"],
 };
 
 export default Permisos_Vista;

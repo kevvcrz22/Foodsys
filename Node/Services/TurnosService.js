@@ -1,10 +1,15 @@
 // Node/Services/TurnosService.js
-// Servicio de gestión de turnos de supervisores en Foodsys.
-// Regla de negocio estricta: Solo puede existir UN turno activo a la vez.
+// Servicio de gestion de turnos de supervisores en Foodsys
+// Regla de negocio estricta: Solo puede existir UN turno activo a la vez
+// Codigo comentado didacticamente sin tildes ni emojis para aprendices de primer semestre
 
 import TurnosModel from "../Models/TurnosModel.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
 import ReservasModel from "../Models/ReservasModel.js";
+import FichasModel from "../Models/FichasModel.js";
+import UsuariosRolModel from "../Models/UsuariosRolModel.js";
+import RolesModel from "../Models/RolesModel.js";
+import PlatosModels from "../Models/PlatosModels.js";
 import Servicio_Correo from "./Servicio_Correo.js";
 import NotificacionesService from "./NotificacionesService.js";
 import { getIO } from "./SocketService.js";
@@ -29,7 +34,7 @@ class TurnosService {
 
   /**
    * Inicia un nuevo turno para el supervisor.
-   * Valida que no exista ningún otro turno activo en el sistema.
+   * Valida que no exista ningun otro turno activo en el sistema.
    */
   async iniciarTurno(idUsuario, observaciones = '') {
     const turnoActivoExistente = await this.obtenerTurnoActivo();
@@ -72,23 +77,34 @@ class TurnosService {
 
     const nombreSup = `${supervisor.Nom_Usuario || ''} ${supervisor.Ape_Usuario || ''}`.trim() || 'Supervisor';
 
-    // 1. Notificación por correo al administrador institucional
+    // 1. Notificacion por correo a fierrokkevin@gmail.com
     try {
       await Servicio_Correo.notificarInicioTurno(supervisor, turnoCompleto);
     } catch (errCorreo) {
       console.warn("[TurnosService] Nota sobre correo de inicio de turno:", errCorreo.message);
     }
 
-    // 2. Notificación in-app (Campanita)
-    await NotificacionesService.crearNotificacion({
-      Id_Usuario: null,
-      Rol_Destino: 'Todos',
-      Titulo: 'Turno de Supervisor Iniciado',
-      Mensaje: `${nombreSup} ha iniciado turno de supervisión en el comedor.`,
-      Tipo: 'info'
-    });
+    // 2. Notificaciones in-app (Campanita) para Administrador y Bienestar
+    try {
+      await NotificacionesService.crearNotificacion({
+        Id_Usuario: null,
+        Rol_Destino: 'Administrador',
+        Titulo: 'Turno de Supervisor Iniciado',
+        Mensaje: `${nombreSup} ha iniciado turno de supervision en el comedor.`,
+        Tipo: 'info'
+      });
+      await NotificacionesService.crearNotificacion({
+        Id_Usuario: null,
+        Rol_Destino: 'Bienestar',
+        Titulo: 'Turno de Supervisor Iniciado',
+        Mensaje: `${nombreSup} ha iniciado turno de supervision en el comedor.`,
+        Tipo: 'info'
+      });
+    } catch (errNotif) {
+      console.warn("[TurnosService] Nota sobre notificacion in-app de inicio:", errNotif.message);
+    }
 
-    // 3. Emisión por WebSockets en tiempo real
+    // 3. Emision por WebSockets en tiempo real
     const io = getIO();
     if (io) {
       io.emit('turno:iniciado', turnoCompleto);
@@ -108,7 +124,7 @@ class TurnosService {
     const turnoActivo = await this.obtenerTurnoActivo();
 
     if (!turnoActivo) {
-      throw new Error("No hay ningún turno activo para finalizar.");
+      throw new Error("No hay ningun turno activo para finalizar.");
     }
 
     // Calcular cantidad de consumos registrados durante este turno
@@ -150,23 +166,34 @@ class TurnosService {
     const supervisor = turnoFinalizado.supervisor || await UsuariosModel.findByPk(turnoActivo.Id_Usuario);
     const nombreSup = supervisor ? `${supervisor.Nom_Usuario} ${supervisor.Ape_Usuario}` : 'Supervisor';
 
-    // 1. Notificación por correo con resumen del turno
+    // 1. Notificacion por correo a fierrokkevin@gmail.com
     try {
       await Servicio_Correo.notificarFinTurno(supervisor, turnoFinalizado);
     } catch (errCorreo) {
       console.warn("[TurnosService] Nota sobre correo de cierre de turno:", errCorreo.message);
     }
 
-    // 2. Notificación in-app (Campanita)
-    await NotificacionesService.crearNotificacion({
-      Id_Usuario: null,
-      Rol_Destino: 'Todos',
-      Titulo: 'Turno de Supervisor Finalizado',
-      Mensaje: `${nombreSup} ha finalizado su turno con ${totalFinal} consumos registrados.`,
-      Tipo: 'exito'
-    });
+    // 2. Notificaciones in-app (Campanita) para Administrador y Bienestar
+    try {
+      await NotificacionesService.crearNotificacion({
+        Id_Usuario: null,
+        Rol_Destino: 'Administrador',
+        Titulo: 'Turno de Supervisor Finalizado',
+        Mensaje: `${nombreSup} ha finalizado su turno con ${totalFinal} consumos registrados.`,
+        Tipo: 'exito'
+      });
+      await NotificacionesService.crearNotificacion({
+        Id_Usuario: null,
+        Rol_Destino: 'Bienestar',
+        Titulo: 'Turno de Supervisor Finalizado',
+        Mensaje: `${nombreSup} ha finalizado su turno con ${totalFinal} consumos registrados.`,
+        Tipo: 'exito'
+      });
+    } catch (errNotif) {
+      console.warn("[TurnosService] Nota sobre notificacion in-app de cierre:", errNotif.message);
+    }
 
-    // 3. Emisión por WebSockets
+    // 3. Emision por WebSockets
     const io = getIO();
     if (io) {
       io.emit('turno:finalizado', turnoFinalizado);
@@ -175,6 +202,75 @@ class TurnosService {
     return {
       mensaje: "Turno finalizado exitosamente.",
       turno: turnoFinalizado
+    };
+  }
+
+  /**
+   * Obtiene el listado nominal de consumos registrados durante un turno especifico
+   */
+  async obtenerConsumosDeTurno(idTurno) {
+    const turno = await TurnosModel.findByPk(idTurno, {
+      include: [
+        {
+          model: UsuariosModel,
+          as: 'supervisor',
+          attributes: ['Id_Usuario', 'Nom_Usuario', 'Ape_Usuario', 'NumDoc_Usuario', 'Cor_Usuario']
+        }
+      ]
+    });
+    if (!turno) throw new Error("Turno no encontrado");
+
+    const fechaInicio = turno.Fecha_Inicio;
+    const fechaFin = turno.Fecha_Fin || new Date();
+
+    const consumos = await ReservasModel.findAll({
+      where: {
+        Est_Reserva: 'Consumido',
+        updatedAt: {
+          [Op.between]: [fechaInicio, fechaFin]
+        }
+      },
+      include: [
+        {
+          model: UsuariosModel,
+          as: 'usuario',
+          attributes: ['Id_Usuario', 'Nom_Usuario', 'Ape_Usuario', 'NumDoc_Usuario'],
+          include: [
+            {
+              model: FichasModel,
+              as: 'ficha',
+              attributes: ['Num_Ficha']
+            },
+            {
+              model: UsuariosRolModel,
+              as: 'rolesUsuario',
+              include: [{ model: RolesModel, as: 'rolUsuario', attributes: ['Nom_Rol'] }]
+            }
+          ]
+        },
+        {
+          model: PlatosModels,
+          as: 'plato',
+          attributes: ['Nom_Plato']
+        }
+      ],
+      order: [['updatedAt', 'ASC']]
+    });
+
+    return {
+      turno,
+      consumos: consumos.map(c => ({
+        Id_Reserva: c.Id_Reserva,
+        Fecha: c.Fec_Reserva,
+        Hora_Consumo: c.updatedAt,
+        NumDoc: c.usuario?.NumDoc_Usuario || 'N/A',
+        Aprendiz: c.usuario ? `${c.usuario.Nom_Usuario} ${c.usuario.Ape_Usuario}` : 'N/A',
+        Num_Ficha: c.usuario?.ficha?.Num_Ficha || 'N/A',
+        Rol: c.usuario?.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean).join(', ') || 'N/A',
+        Tipo_Comida: c.Tip_Reserva,
+        Plato: c.plato?.Nom_Plato || 'Plato del Dia',
+        Estado: c.Est_Reserva
+      }))
     };
   }
 
@@ -196,7 +292,7 @@ class TurnosService {
   }
 
   /**
-   * Obtiene el historial de turnos con paginación
+   * Obtiene el historial de turnos con paginacion
    */
   async obtenerHistorial(limit = 20, offset = 0) {
     const { count, rows } = await TurnosModel.findAndCountAll({

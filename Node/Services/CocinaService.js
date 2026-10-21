@@ -17,12 +17,14 @@ import ReservaModel from '../Models/ReservasModel.js';
 import UsuariosModel from '../Models/UsuariosModel.js';
 import PlatosModels from '../Models/PlatosModels.js';
 import MenusModel from '../Models/MenusModels.js';
+import FichasModel from '../Models/FichasModel.js';
+import ProgramaModel from '../Models/ProgramaModel.js';
 
 class CocinaService {
 
-  // Retorna la fecha de hoy en formato YYYY-MM-DD
+  // Retorna la fecha de hoy en formato YYYY-MM-DD en America/Bogota
   ObtenerFechaHoy() {
-    return new Date().toISOString().split('T')[0];
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -30,11 +32,10 @@ class CocinaService {
   // Retorna el resumen completo de reservas para una fecha dada:
   //   - Total por tipo de comida (Desayuno, Almuerzo, Cena)
   //   - Total por plato (cuantos eligieron cada opcion)
+  //   - Lista nominal de aprendices que solicitaron cada plato (para Bienestar y Cocina)
   //   - Totales por estado (Generado, Verificado, Consumido, Cancelado, Vencido)
   //   - Lista de reservas excepcionales del dia (Exc_Reserva = 'Si')
   //   - Lista detallada de reservas para cada turno
-  //
-  // Este es el endpoint principal del modulo de planificacion de Cocina.
   // ─────────────────────────────────────────────────────────────────────────────
   async ResumenPorFecha(fecha) {
     const reservas = await ReservaModel.findAll({
@@ -43,7 +44,15 @@ class CocinaService {
         {
           model: UsuariosModel,
           as: 'usuario',
-          attributes: ['Id_Usuario', 'Nom_Usuario', 'Ape_Usuario', 'NumDoc_Usuario', 'Est_Usuario']
+          attributes: ['Id_Usuario', 'Nom_Usuario', 'Ape_Usuario', 'NumDoc_Usuario', 'Est_Usuario'],
+          include: [
+            {
+              model: FichasModel,
+              as: 'ficha',
+              attributes: ['Num_Ficha'],
+              include: [{ model: ProgramaModel, as: 'programas', attributes: ['Nom_Programa'] }]
+            }
+          ]
         },
         {
           model: PlatosModels,
@@ -60,7 +69,7 @@ class CocinaService {
     // Contadores por estado
     const porEstado = { Generado: 0, Verificado: 0, Consumido: 0, Cancelado: 0, Vencido: 0 };
 
-    // Contadores por plato: { "Pollo a la plancha": { total: 40, plato: {...} } }
+    // Contadores por plato con lista nominal de aprendices
     const porPlato = {};
 
     // Reservas excepcionales del dia
@@ -92,10 +101,22 @@ class CocinaService {
             Nom_Plato: nomPlato,
             Des_Plato: r.plato.Des_Plato,
             Img_Plato: r.plato.Img_Plato,
-            tipo: r.Tip_Reserva
+            tipo: r.Tip_Reserva,
+            aprendices: []
           };
         }
         porPlato[nomPlato].total++;
+
+        if (r.usuario) {
+          porPlato[nomPlato].aprendices.push({
+            Id_Usuario: r.usuario.Id_Usuario,
+            NombreCompleto: `${r.usuario.Nom_Usuario || ''} ${r.usuario.Ape_Usuario || ''}`.trim(),
+            NumDoc: r.usuario.NumDoc_Usuario || '--',
+            Num_Ficha: r.usuario.ficha?.Num_Ficha || 'Sin ficha',
+            Programa: r.usuario.ficha?.programas?.Nom_Programa || 'Sin programa',
+            Estado: r.Est_Reserva
+          });
+        }
       }
 
       // Reservas excepcionales del dia

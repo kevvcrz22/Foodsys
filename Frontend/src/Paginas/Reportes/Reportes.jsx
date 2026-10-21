@@ -1,29 +1,17 @@
-// Paginas/Reportes/Reportes.jsx
+// Frontend/src/Paginas/Reportes/Reportes.jsx
 //
-// Pagina principal del modulo de reportes estadisticos de Foodsys.
-// Orquesta los tabs: Diario, Semanal, Mensual, Anual y Personalizado.
+// Pagina principal del modulo de reportes estadisticos y seguimiento de Foodsys.
+// Orquesta tres grandes apartados para administradores, coordinadores y Bienestar al Aprendiz:
+//   1. Tab 1 - Consumos Reales (Estadisticas y Tabla Nominal de Aprendices)
+//   2. Tab 2 - Inasistencias / No Consumieron (ReporteNoConsumidos.jsx)
+//   3. Tab 3 - Alerta de Seguimiento Bienestar (ReporteSeguimientoBienestar.jsx - Deteccion temprana)
 //
-// Comportamiento clave:
-//   - Al ingresar al modulo, el tab DIARIO se muestra activo por defecto.
-//   - El tab Diario (ReporteDiario.jsx) tiene su propio selector de fecha,
-//     filtro de tipo, tabla y graficas. No depende de los estados de este componente.
-//   - Los tabs Semanal, Mensual, Anual y Personalizado mantienen la logica
-//     existente (graficas de Google Charts, tarjetas estadisticas, exportacion).
-//
-// Cambios respecto a la version anterior:
-//   1. Se agrego el tab "Diario" como primer elemento del selector de periodo.
-//   2. El estado inicial de Periodo cambio a "diario".
-//   3. Cuando Periodo === "diario" se renderiza el componente ReporteDiario
-//      en lugar del panel de graficas general.
-//   4. Cuando el periodo es distinto de "diario" el comportamiento es identico
-//      al archivo Reportes.jsx original sin ninguna modificacion de logica.
-//
-// La transformacion de datos para graficas y todos los calculos de totales
-// se realizan en este componente, no en el backend, porque son operaciones
-// de presentacion sobre datos ya recibidos (sumas de arrays).
+// Soporta norma ISO-8601 (semanas 1 a 52/53, de lunes a domingo), mensual, anual y personalizado.
+// En todos los periodos incluye la Tabla Nominal de Consumidores con modal interactivo al hacer clic
+// sobre cualquier aprendiz para revisar su historial individual y exportar a Excel y PDF.
 
-import { useState, useEffect, useCallback } from "react";
-import { BarChart3, TrendingUp, PieChart, UserX } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { BarChart3, TrendingUp, PieChart, UserX, HeartHandshake } from "lucide-react";
 import apiAxios from "../../api/axiosConfig";
 import { useSocketListener } from "../../api/socket";
 
@@ -35,22 +23,19 @@ import { GraficoBarras, GraficoLineas, GraficoPastel } from "./GraficosReportes"
 import TablaReportes from "./TablaReportes";
 import ReporteDiario from "./ReporteDiario";
 import ReporteNoConsumidos from "./ReporteNoConsumidos";
-
-// ---------------------------------------------------------------------------
-// COMPONENTE PRINCIPAL
-// ---------------------------------------------------------------------------
+import TablaConsumidoresNominales from "./TablaConsumidoresNominales";
+import ReporteSeguimientoBienestar from "./ReporteSeguimientoBienestar";
+import { descargarBlobUniversal, confirmarExportacion } from "../../utils/exportUtils";
 
 const Reportes = () => {
-
-  // Vista activa principal: "estadisticas" | "no_consumidos"
+  // Vista activa principal: "estadisticas" | "no_consumidos" | "seguimiento_bienestar"
   const [VistaActiva, Set_VistaActiva] = useState("estadisticas");
 
   // Periodo activo del modulo estadistico.
-  // Se inicializa en "diario" para que el tab Diario sea lo primero que ve el Coordinador.
+  // Se inicializa en "diario" para que el tab Diario sea lo primero que ve el usuario.
   const [Periodo, Set_Periodo] = useState("diario");
 
   // Datos recibidos del backend para los tabs no-diarios.
-  // Estructura de cada elemento: { label, periodo, total, desayunos, almuerzos, cenas }
   const [Datos, Set_Datos] = useState([]);
 
   // Indicador de carga para los tabs no-diarios
@@ -59,71 +44,70 @@ const Reportes = () => {
   // Estado del proceso de exportacion: "pdf" | "excel" | null
   const [Exportando, Set_Exportando] = useState(null);
 
-  // Fechas para el periodo personalizado
-  const [FechaInicio, Set_FechaInicio] = useState(new Date().toISOString().split("T")[0]);
-  const [FechaFin, Set_FechaFin] = useState(new Date().toISOString().split("T")[0]);
+  // Filtros de fecha y tiempo
+  const fechaHoyStr = new Date().toISOString().split("T")[0];
+  const [FechaInicio, Set_FechaInicio] = useState(
+    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+  );
+  const [FechaFin, Set_FechaFin] = useState(fechaHoyStr);
 
-  // Tipo de alimento para el filtro del periodo personalizado
+  // Selector ISO de semana y fecha
+  const [Anio, Set_Anio] = useState(String(new Date().getFullYear()));
+  const [SemanaISO, Set_SemanaISO] = useState("1");
+  const [Mes, Set_Mes] = useState(String(new Date().getMonth() + 1));
+  const [ModoSemana, Set_ModoSemana] = useState("iso");
+
+  // Tipo de alimento para el filtro
   const [TipoAlimento, Set_TipoAlimento] = useState("Todos");
 
-  // ---------------------------------------------------------------------------
-  // FUNCION: Cargar_Datos
-  // Solo se ejecuta para periodos distintos de "diario".
-  // El tab Diario gestiona sus propias peticiones internamente.
-  // ---------------------------------------------------------------------------
+  // Cargar datos estadisticos de graficas para periodos no-diarios
   const Cargar_Datos = useCallback(async () => {
-    // Si el tab activo es Diario, no hacer ninguna peticion desde aqui.
-    // El componente ReporteDiario se encarga de sus propios datos.
-    if (Periodo === "diario") return;
+    if (Periodo === "diario" || VistaActiva !== "estadisticas") return;
 
     Set_Cargando(true);
     try {
-      // Determinar el endpoint segun el periodo seleccionado
       const Endpoint =
         Periodo === "personalizado"
           ? "/api/Reportes/personalizado"
           : `/api/Reportes/${Periodo}`;
 
-      // Los parametros extra solo aplican para el periodo personalizado
-      const Params =
-        Periodo === "personalizado"
-          ? { fechaInicio: FechaInicio, fechaFin: FechaFin, tipoAlimento: TipoAlimento }
-          : {};
+      const Params = {
+        periodo: Periodo,
+        fechaInicio: FechaInicio,
+        fechaFin: FechaFin,
+        tipoAlimento: TipoAlimento !== "Todos" ? TipoAlimento : undefined,
+        anio: Anio,
+        semana: SemanaISO,
+        mes: Mes
+      };
 
       const Res = await apiAxios.get(Endpoint, { params: Params });
       Set_Datos(Array.isArray(Res.data) ? Res.data : []);
     } catch (Err) {
-      console.error("Error cargando reporte:", Err);
+      console.error("Error cargando reporte estadistico:", Err);
       Set_Datos([]);
     } finally {
       Set_Cargando(false);
     }
-  }, [Periodo, FechaInicio, FechaFin, TipoAlimento]);
+  }, [Periodo, VistaActiva, FechaInicio, FechaFin, TipoAlimento, Anio, SemanaISO, Mes]);
 
-  // Ejecutar la carga de datos cada vez que cambia el periodo o los filtros
-  useEffect(() => { Cargar_Datos(); }, [Cargar_Datos]);
+  useEffect(() => {
+    Cargar_Datos();
+  }, [Cargar_Datos]);
 
-  // Socket.IO: Sincronización en tiempo real sin recargar página
+  // Sockets para actualizacion en tiempo real
   useSocketListener("reservas:actualizadas", () => {
     Cargar_Datos();
   });
 
-  // ---------------------------------------------------------------------------
-  // CALCULOS DE TOTALES PARA TARJETAS DE ESTADISTICAS
-  // Se calculan sumando los campos del array Datos recibido del backend.
-  // El operador Number() evita errores si el backend retorna strings numericos.
-  // ---------------------------------------------------------------------------
+  // Calculos de totales
   const Datos_Array = Array.isArray(Datos) ? Datos : [];
   const Total_Reservas = Datos_Array.reduce((A, R) => A + Number(R.total || 0), 0);
   const Total_Desayunos = Datos_Array.reduce((A, R) => A + Number(R.desayuno || R.desayunos || 0), 0);
   const Total_Almuerzos = Datos_Array.reduce((A, R) => A + Number(R.almuerzo || R.almuerzos || 0), 0);
   const Total_Cenas = Datos_Array.reduce((A, R) => A + Number(R.cena || R.cenas || 0), 0);
 
-  // ---------------------------------------------------------------------------
-  // PREPARACION DE DATOS PARA GRAFICAS DE GOOGLE CHARTS
-  // Cada grafica requiere un array donde la primera fila es el encabezado.
-  // String() asegura que el eje X sea texto (algunos periodos llegan como numeros).
-  // ---------------------------------------------------------------------------
+  // Preparacion de datos para Google Charts
   const Datos_Barras = [
     [
       "Periodo",
@@ -149,75 +133,73 @@ const Reportes = () => {
     ["Cenas", Total_Cenas],
   ];
 
-  // ---------------------------------------------------------------------------
-  // FUNCION: Exportar
-  // Solicita al backend el archivo en el formato indicado y lo descarga.
-  // Se reutiliza para todos los periodos incluyendo el personalizado.
-  // ---------------------------------------------------------------------------
+  // Exportar estadisticas globales con confirmacion y descarga universal
   const Exportar = async (Formato) => {
+    const totalRegistros = Datos_Array.length;
+    if (totalRegistros === 0) {
+      alert("No hay datos estadisticos para exportar en este periodo.");
+      return;
+    }
+
+    const tieneFiltros = TipoAlimento !== "Todos" || Periodo === "personalizado";
+    const confirmado = await confirmarExportacion({
+      tieneFiltros,
+      totalFiltrados: totalRegistros,
+      totalRegistros: totalRegistros,
+      formato: Formato.toUpperCase()
+    });
+    if (!confirmado) return;
+
     Set_Exportando(Formato);
     try {
-      // Construir los parametros de la peticion con el periodo activo
-      const Params = { periodo: Periodo };
-      if (Periodo === "personalizado") {
-        Params.fechaInicio = FechaInicio;
-        Params.fechaFin = FechaFin;
-        Params.tipoAlimento = TipoAlimento;
-      }
+      const Params = {
+        periodo: Periodo,
+        fechaInicio: FechaInicio,
+        fechaFin: FechaFin,
+        tipoAlimento: TipoAlimento !== "Todos" ? TipoAlimento : undefined,
+        anio: Anio,
+        semana: SemanaISO,
+        mes: Mes
+      };
 
       const Res = await apiAxios.get(`/api/Reportes/exportar/${Formato}`, {
         params: Params,
         responseType: "blob",
       });
 
-      // Determinar la extension y el MIME type segun el formato solicitado
       const Ext = Formato === "pdf" ? "pdf" : "xlsx";
       const Mime =
         Formato === "pdf"
           ? "application/pdf"
           : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-      // Crear una URL temporal para el blob y simular un clic de descarga
-      const Blob_Arch = new Blob([Res.data], { type: Mime });
-      const Url = URL.createObjectURL(Blob_Arch);
-      const Enlace = document.createElement("a");
-      Enlace.href = Url;
-      Enlace.download = `Reporte_${Periodo}_${new Date().toISOString().split("T")[0]}.${Ext}`;
-      Enlace.click();
-
-      // Liberar la URL temporal para evitar fugas de memoria en el navegador
-      URL.revokeObjectURL(Url);
+      descargarBlobUniversal(
+        Res.data,
+        `Reporte_${Periodo}_${new Date().toISOString().split("T")[0]}.${Ext}`,
+        Mime
+      );
     } catch (Err) {
-      console.error("Error exportando:", Err);
-      alert("Error al exportar. Verifica la conexion con el servidor.");
+      console.error("Error exportando reporte:", Err);
+      alert("Error al exportar reporte. Verifica la conexion.");
     } finally {
       Set_Exportando(null);
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // RENDER
-  // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-gray-50 p-4 lg:p-8 space-y-6">
-
-      {/* ===================================================================
-          CABECERA DEL MODULO
-          Titulo principal + botones de actualizar, PDF y Excel.
-          Los botones de exportacion solo son relevantes para tabs no-diarios;
-          en el tab Diario los botones de exportacion estan dentro del propio
-          componente ReporteDiario con los filtros de fecha correctos.
-      ==================================================================== */}
+      {/* Cabecera del modulo */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
-            Reportes Estadisticos
+            Reportes y Seguimiento Nutricional
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Analisis de reservas por periodo</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            Control de reservas, inasistencias y seguimiento psicosocial para Bienestar
+          </p>
         </div>
 
-        {/* Mostrar botones globales solo cuando estamos en estadisticas y NO es diario */}
         {VistaActiva === "estadisticas" && Periodo !== "diario" && (
           <BotonesExportar
             Exportando={Exportando}
@@ -228,45 +210,53 @@ const Reportes = () => {
         )}
       </div>
 
-      {/* ===================================================================
-          CONMUTADOR DE VISTAS PRINCIPALES
-          - Reportes Estadísticos
-          - Inasistencias / No Consumieron (nuevo apartado solicitado)
-      ==================================================================== */}
-      <div className="flex gap-2 border-b border-gray-200 pb-2">
+      {/* Triple Conmutador de Enfoque para Administracion, Cocina y Bienestar */}
+      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
         <button
           onClick={() => Set_VistaActiva("estadisticas")}
-          className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${VistaActiva === "estadisticas"
-            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
-            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"
-            }`}
+          className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
+            VistaActiva === "estadisticas"
+              ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
+              : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"
+          }`}
         >
           <BarChart3 className="w-4 h-4" />
-          Reportes Estadísticos
+          <span>Tab 1 — Consumos Reales</span>
         </button>
+
         <button
           onClick={() => Set_VistaActiva("no_consumidos")}
-          className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${VistaActiva === "no_consumidos"
-            ? "bg-indigo-600 text-white border-blue-700 shadow-sm shadow-red-200"
-            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"
-            }`}
+          className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
+            VistaActiva === "no_consumidos"
+              ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
+              : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"
+          }`}
         >
-          <UserX className="w-4 h-4 text-white-500" />
-          Inasistencias / No Consumieron
+          <UserX className="w-4 h-4 text-rose-300" />
+          <span>Tab 2 — Inasistencias / No Consumieron</span>
+        </button>
+
+        <button
+          onClick={() => Set_VistaActiva("seguimiento_bienestar")}
+          className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
+            VistaActiva === "seguimiento_bienestar"
+              ? "bg-purple-700 text-white border-purple-700 shadow-sm shadow-purple-200"
+              : "bg-white text-purple-700 border-purple-200 hover:bg-purple-50"
+          }`}
+        >
+          <HeartHandshake className="w-4 h-4 text-purple-300" />
+          <span>Tab 3 — Alerta Seguimiento Bienestar</span>
         </button>
       </div>
 
+      {/* Renderizado segun el enfoque activo */}
       {VistaActiva === "no_consumidos" ? (
-        /* ===================================================================
-            NUEVO APARTADO: INASISTENCIAS / NO CONSUMIERON
-        ==================================================================== */
         <ReporteNoConsumidos />
+      ) : VistaActiva === "seguimiento_bienestar" ? (
+        <ReporteSeguimientoBienestar />
       ) : (
-        /* ===================================================================
-            VISTA DE REPORTES ESTADISTICOS GENERALES
-        ==================================================================== */
         <>
-          {/* Selector de Periodo */}
+          {/* Selector de periodo ISO / fechas */}
           <SelectorPeriodo
             Periodo={Periodo}
             Set_Periodo={Set_Periodo}
@@ -276,30 +266,21 @@ const Reportes = () => {
             Set_FechaFin={Set_FechaFin}
             TipoAlimento={TipoAlimento}
             Set_TipoAlimento={Set_TipoAlimento}
+            Anio={Anio}
+            Set_Anio={Set_Anio}
+            SemanaISO={SemanaISO}
+            Set_SemanaISO={Set_SemanaISO}
+            Mes={Mes}
+            Set_Mes={Set_Mes}
+            ModoSemana={ModoSemana}
+            Set_ModoSemana={Set_ModoSemana}
           />
 
-          {/* ===================================================================
-          CONTENIDO PRINCIPAL SEGUN EL TAB ACTIVO
-      ==================================================================== */}
-
           {Periodo === "diario" ? (
-            /* ---------------------------------------------------------------
-               TAB DIARIO
-               Se delega completamente al componente ReporteDiario que tiene
-               su propio selector de fecha, filtros, tabla y graficas.
-               No necesita Datos ni ningun estado de este componente.
-            --------------------------------------------------------------- */
             <ReporteDiario />
-
           ) : (
-            /* ---------------------------------------------------------------
-               TABS: SEMANAL, MENSUAL, ANUAL, PERSONALIZADO
-               Logica identica al Reportes.jsx original.
-               Las tarjetas de estadisticas y graficas usan el array Datos
-               cargado por Cargar_Datos.
-            --------------------------------------------------------------- */
-            <>
-              {/* Tarjetas de estadisticas numericas del periodo */}
+            <div className="space-y-6">
+              {/* Tarjetas de Estadisticas */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <TarjetaEstadistica
                   Etiqueta="Total Reservas"
@@ -327,36 +308,37 @@ const Reportes = () => {
                 />
               </div>
 
-              {/* Estado de carga: spinner centrado mientras el backend responde */}
               {Cargando ? (
-                <div className="flex items-center justify-center py-24">
+                <div className="flex items-center justify-center py-20">
                   <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
                 </div>
-
-                /* Estado vacio: no hay datos para el periodo seleccionado */
               ) : Datos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+                <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-2xl border border-gray-200">
                   <BarChart3 className="w-12 h-12 mb-3 opacity-30" />
-                  <p className="text-base font-medium">No hay datos para este periodo</p>
+                  <p className="text-base font-medium">No hay datos estadisticos para este periodo</p>
                 </div>
-
-                /* Estado con datos: renderizar graficas y tabla */
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                  {/* Grafica de barras agrupadas por tipo de comida */}
                   <GraficoBarras Datos={Datos_Barras} Periodo={Periodo} />
-
-                  {/* Grafica de linea con la evolucion total del periodo */}
                   <GraficoLineas Datos={Datos_Lineas} />
-
-                  {/* Grafica de pastel con distribucion de tipos de comida */}
                   <GraficoPastel Datos={Datos_Pastel} />
-
-                  {/* Tabla de datos con columnas: Periodo, Total, Desayuno, Almuerzo, Cena */}
                   <TablaReportes Datos={Datos} />
                 </div>
               )}
-            </>
+
+              {/* TABLA NOMINAL DE CONSUMIDORES DEBAJO DE LOS GRAFICOS */}
+              <TablaConsumidoresNominales
+                periodo={Periodo}
+                fecha={FechaInicio}
+                anio={Anio}
+                semana={SemanaISO}
+                mes={Mes}
+                fechaInicio={FechaInicio}
+                fechaFin={FechaFin}
+                tipoAlimento={TipoAlimento}
+                estado="Consumido"
+              />
+            </div>
           )}
         </>
       )}

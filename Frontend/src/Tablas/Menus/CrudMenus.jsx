@@ -1,12 +1,24 @@
+// Frontend/src/Tablas/Menus/CrudMenus.jsx
+// Modulo de gestion y programacion de Menus diarios en Foodsys.
+// Incluye botones de exportacion universal a Excel y PDF con confirmacion inteligente,
+// agrupacion por fecha y tipo de comida, guia interactiva y diseno responsivo.
+// Codigo comentado didacticamente sin tildes ni emojis para aprendices de primer semestre.
+
 import apiAxios from "../../api/axiosConfig";
 import { useState, useEffect } from "react";
-import { Plus, X, Search, ChefHat, Pencil, Trash2, Calendar, Coffee, Sun, Moon, Undo2 } from "lucide-react";
+import {
+  Plus, X, Search, ChefHat, Pencil, Trash2, Calendar,
+  Coffee, Sun, Moon, Undo2, Upload, FileText, HelpCircle,
+  ChevronDown, ChevronUp
+} from "lucide-react";
 import toast from "react-hot-toast";
+import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
+import GlobalLoader from "../../Components/GlobalLoader";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
 /* ─────────────────────────────────────────
-   Helpers
+   Configuracion visual por tipo de comida
 ───────────────────────────────────────── */
 const TIPOS = ["Desayuno", "Almuerzo", "Cena"];
 
@@ -38,12 +50,12 @@ const tipoConfig = {
 };
 
 /* ─────────────────────────────────────────
-   Formulario de nuevo/editar menú
+   Formulario de nuevo / editar menu
 ───────────────────────────────────────── */
 const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles }) => {
   const [Fec_Menu, setFec_Menu] = useState("");
   const [Tip_Menu, setTip_Menu] = useState("Almuerzo");
-  const [platosSeleccionados, setPlatosSeleccionados] = useState([]); // máximo 2
+  const [platosSeleccionados, setPlatosSeleccionados] = useState([]);
   const [enviando, setEnviando] = useState(false);
 
   /* Filtrar platos por tipo */
@@ -61,7 +73,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
     }
   }, [selectedMenu, isEdit]);
 
-  /* Limpiar selección cuando cambia el tipo */
+  /* Limpiar seleccion cuando cambia el tipo */
   useEffect(() => {
     setPlatosSeleccionados([]);
   }, [Tip_Menu]);
@@ -69,7 +81,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
   const togglePlato = (id) => {
     setPlatosSeleccionados((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 2) return prev; // máx 2
+      if (prev.length >= 2) return prev;
       return [...prev, id];
     });
   };
@@ -78,29 +90,29 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
     e.preventDefault();
 
     if (!Fec_Menu) {
-      toast.error("Selecciona una fecha para el menú");
+      toast.error("Selecciona una fecha para el menu");
       return;
     }
 
     const fechaHoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
 
     if (Fec_Menu < fechaHoy) {
-      toast.error("No se pueden crear menús para fechas pasadas");
+      toast.error("No se pueden crear menus para fechas pasadas");
       return;
     }
 
     if (Tip_Menu === 'Almuerzo' && Fec_Menu <= fechaHoy) {
-      toast.error("No se permite programar ni crear menú de Almuerzo para el mismo día");
+      toast.error("No se permite programar ni crear menu de Almuerzo para el mismo dia");
       return;
     }
 
     if (!isEdit && platosSeleccionados.length < 2) {
-      toast.error("Debes seleccionar 2 platos para este menú");
+      toast.error("Debes seleccionar 2 platos para este menu");
       return;
     }
 
     if (isEdit && platosSeleccionados.length === 0) {
-      toast.error("Selecciona un plato para actualizar el menú");
+      toast.error("Selecciona un plato para actualizar el menu");
       return;
     }
 
@@ -112,32 +124,32 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
           Tip_Menu,
           platos: platosSeleccionados,
         });
-        toast.success("Menú creado con 2 platos correctamente");
+        toast.success("Menu creado con 2 opciones de plato correctamente");
       } else {
         await apiAxios.put(`/api/Menus/${selectedMenu.Id_Menu}`, {
           Fec_Menu,
           Tip_Menu,
           Id_Plato: platosSeleccionados[0],
         });
-        toast.success("Menú actualizado correctamente");
+        toast.success("Menu actualizado correctamente");
       }
       reload();
       hideModal();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Error al guardar el menú");
+      toast.error(err?.response?.data?.message || "Error al guardar el menu");
     } finally {
       setEnviando(false);
     }
   };
+
   const cfg = tipoConfig[Tip_Menu];
 
   return (
     <form onSubmit={gestionarForm} className="space-y-4">
-
       {/* Fecha */}
       <div>
         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-          Fecha del menú
+          Fecha del menu
         </label>
         <input
           type="date"
@@ -162,10 +174,11 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
                 key={t}
                 type="button"
                 onClick={() => setTip_Menu(t)}
-                className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${Tip_Menu === t
-                    ? `${c.headerBg} text-white border-transparent`
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                  Tip_Menu === t
+                    ? `${c.headerBg} text-white border-transparent shadow-sm`
                     : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
-                  }`}
+                }`}
               >
                 {t}
               </button>
@@ -174,11 +187,11 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
         </div>
       </div>
 
-      {/* Selección de platos */}
+      {/* Seleccion de platos */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            Platos — {Tip_Menu} (2 platos por menú)
+            Platos — {Tip_Menu} (2 opciones requeridas)
           </label>
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cfg.badge}`}>
             {platosSeleccionados.length}/2 seleccionados
@@ -188,7 +201,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
         {platosFiltrados.length === 0 ? (
           <div className={`rounded-xl p-4 text-center ${cfg.bg} border ${cfg.border}`}>
             <p className={`text-sm ${cfg.color}`}>
-              No hay platos de {Tip_Menu} disponibles
+              No hay platos de {Tip_Menu} registrados en el catalogo
             </p>
           </div>
         ) : (
@@ -209,7 +222,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
                       ? "opacity-40 cursor-not-allowed border-gray-200 bg-gray-50"
                       : sel
                       ? `border-green-500 ${cfg.bg} shadow-sm ring-2 ring-green-500/20`
-                      : "border-gray-200 bg-white hover:border-gray-300"
+                      : "border-gray-200 bg-white hover:border-gray-300 cursor-pointer"
                   }`}
                 >
                   {imgSrc ? (
@@ -224,9 +237,9 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{p.Nom_Plato}</p>
+                    <p className="text-sm font-semibold text-gray-800 truncate m-0">{p.Nom_Plato}</p>
                     {p.Des_Plato && (
-                      <p className="text-xs text-gray-400 truncate">{p.Des_Plato}</p>
+                      <p className="text-xs text-gray-400 truncate m-0">{p.Des_Plato}</p>
                     )}
                   </div>
                   {sel && (
@@ -241,8 +254,8 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
         )}
 
         {platosSeleccionados.length === 2 && (
-          <p className="text-xs text-green-600 font-medium mt-1.5">
-            ✓ 2 platos seleccionados para este menú
+          <p className="text-xs text-green-600 font-medium mt-1.5 m-0">
+            ✓ 2 opciones seleccionadas para este menu
           </p>
         )}
       </div>
@@ -252,19 +265,19 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
         <button
           type="button"
           onClick={hideModal}
-          className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-sm cursor-pointer"
+          className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-sm cursor-pointer border-0"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={enviando || (!isEdit && platosSeleccionados.length < 2) || (isEdit && platosSeleccionados.length === 0)}
-          className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
+          className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer border-0"
         >
           {enviando ? (
             <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
           ) : null}
-          {isEdit ? "Actualizar" : "Crear Menú (2 platos)"}
+          {isEdit ? "Actualizar" : "Crear Menu (2 platos)"}
         </button>
       </div>
     </form>
@@ -272,7 +285,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
 };
 
 /* ─────────────────────────────────────────
-   Card de menú (agrupado por tipo)
+   Card de menu (agrupado por tipo)
 ───────────────────────────────────────── */
 const MenuCard = ({ menu, onEdit, onDelete, ocultarEditar, ocultarEliminar }) => {
   const cfg = tipoConfig[menu.Tip_Menu] || tipoConfig.Almuerzo;
@@ -292,8 +305,8 @@ const MenuCard = ({ menu, onEdit, onDelete, ocultarEditar, ocultarEliminar }) =>
           {!ocultarEditar && (
             <button
               onClick={() => onEdit(menu)}
-              title="Editar menú"
-              className="text-xs bg-white/70 hover:bg-white text-gray-700 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors font-medium cursor-pointer shadow-xs"
+              title="Editar menu"
+              className="text-xs bg-white/70 hover:bg-white text-gray-700 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors font-medium cursor-pointer shadow-xs border-0"
             >
               <Pencil className="w-3 h-3 text-blue-600" /> Editar
             </button>
@@ -301,7 +314,7 @@ const MenuCard = ({ menu, onEdit, onDelete, ocultarEditar, ocultarEliminar }) =>
           {!ocultarEliminar && (
             <button
               onClick={() => onDelete(menu)}
-              title="Eliminar menú (si nadie ha realizado solicitudes)"
+              title="Eliminar menu (si nadie ha realizado reservas)"
               className="text-xs bg-white/70 hover:bg-rose-50 text-rose-600 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors font-medium cursor-pointer shadow-xs border border-transparent hover:border-rose-200"
             >
               <Trash2 className="w-3.5 h-3.5 text-rose-600" />
@@ -314,7 +327,7 @@ const MenuCard = ({ menu, onEdit, onDelete, ocultarEditar, ocultarEliminar }) =>
           <img
             src={imgSrc}
             alt={menu.plato?.Nom_Plato}
-            className="w-14 h-14 object-cover rounded-xl shrink-0"
+            className="w-14 h-14 object-cover rounded-xl shrink-0 border border-slate-100"
           />
         ) : (
           <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
@@ -322,13 +335,13 @@ const MenuCard = ({ menu, onEdit, onDelete, ocultarEditar, ocultarEliminar }) =>
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-800 text-sm truncate">
+          <p className="font-semibold text-gray-800 text-sm truncate m-0">
             {menu.plato?.Nom_Plato || "Sin plato"}
           </p>
           {menu.plato?.Des_Plato && (
-            <p className="text-xs text-gray-400 truncate">{menu.plato.Des_Plato}</p>
+            <p className="text-xs text-gray-400 truncate m-0 mt-0.5">{menu.plato.Des_Plato}</p>
           )}
-          <p className="text-xs text-gray-400 mt-0.5">ID #{menu.Id_Menu}</p>
+          <p className="text-xs text-gray-400 mt-1 m-0">ID #{menu.Id_Menu}</p>
         </div>
       </div>
     </div>
@@ -336,41 +349,43 @@ const MenuCard = ({ menu, onEdit, onDelete, ocultarEditar, ocultarEliminar }) =>
 };
 
 /* ───────────────────────────────────────────
-   Componente principal
+   Componente principal: CrudMenus
 ─────────────────────────────────────────── */
-// soloLectura: Coordinador y Bienestar solo pueden ver (sin crear ni editar)
-// soloCrear:   Cocina puede crear nuevos menus pero no editar los existentes
 const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
   const [menus, setMenus] = useState([]);
   const [platos, setPlatos] = useState([]);
   const [filterText, setFilterText] = useState("");
+  const [cargando, setCargando] = useState(true);
   const [selectedMenu, setSelectedMenu] = useState(null);
   const [isEdit, setIsEdit] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState("Todos");
+  const [exportando, setExportando] = useState(false);
+  const [mostrarGuia, setMostrarGuia] = useState(false);
 
   useEffect(() => {
-    getAllMenus();
-    getPlatos();
+    cargarDatos();
   }, []);
 
-  const getAllMenus = async () => {
+  const cargarDatos = async () => {
+    setCargando(true);
     try {
-      const res = await apiAxios.get("/api/Menus");
-      setMenus(res.data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Error al cargar los menús");
-    }
-  };
+      const [resMenus, resPlatos] = await Promise.allSettled([
+        apiAxios.get("/api/Menus"),
+        apiAxios.get("/api/platos"),
+      ]);
 
-  const getPlatos = async () => {
-    try {
-      const res = await apiAxios.get("/api/platos");
-      setPlatos(res.data);
+      if (resMenus.status === "fulfilled") {
+        setMenus(Array.isArray(resMenus.value.data) ? resMenus.value.data : []);
+      }
+      if (resPlatos.status === "fulfilled") {
+        setPlatos(Array.isArray(resPlatos.value.data) ? resPlatos.value.data : []);
+      }
     } catch (err) {
       console.error(err);
-      toast.error("Error al cargar la lista de platos");
+      toast.error("Error al cargar los menus");
+    } finally {
+      setCargando(false);
     }
   };
 
@@ -404,13 +419,13 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ fontWeight: 700, color: "#1e293b", fontSize: 14, margin: 0 }}>
-                ¿Eliminar menú?
+                ¿Eliminar menu?
               </p>
               <p style={{ fontSize: 12, color: "#64748b", margin: "3px 0 0 0", lineHeight: 1.3 }}>
                 <strong>{nombrePlato}</strong> &middot; {menu.Tip_Menu} ({menu.Fec_Menu})
               </p>
               <p style={{ fontSize: 11, color: "#94a3b8", margin: "4px 0 0 0" }}>
-                Solo se eliminará si nadie ha hecho reservas.
+                Solo se eliminara si ningun aprendiz ha realizado reservas para esta opcion.
               </p>
             </div>
           </div>
@@ -418,7 +433,7 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
             <button
               onClick={() => {
                 toast.dismiss(t.id);
-                toast("Eliminación cancelada", {
+                toast("Eliminacion cancelada", {
                   icon: <Undo2 size={16} className="text-slate-500" />,
                   duration: 1500,
                 });
@@ -440,13 +455,13 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
             <button
               onClick={async () => {
                 toast.dismiss(t.id);
-                const toastId = toast.loading("Eliminando menú...");
+                const toastId = toast.loading("Eliminando menu...");
                 try {
                   await apiAxios.delete(`/api/Menus/${menu.Id_Menu}`);
-                  toast.success("Menú eliminado correctamente", { id: toastId });
-                  getAllMenus();
+                  toast.success("Menu eliminado correctamente", { id: toastId });
+                  cargarDatos();
                 } catch (err) {
-                  toast.error(err?.response?.data?.message || "No se pudo eliminar el menú", { id: toastId });
+                  toast.error(err?.response?.data?.message || "No se pudo eliminar el menu", { id: toastId });
                 }
               }}
               style={{
@@ -488,6 +503,110 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
     return matchText && matchTipo;
   });
 
+  const tieneFiltrosActivos = Boolean(filterText || filtroTipo !== "Todos");
+
+  // Exportar a Excel con confirmacion inteligente
+  const handleExportarExcel = async () => {
+    if (menus.length === 0) {
+      toast.error("No hay menus para exportar.");
+      return;
+    }
+
+    const decision = await confirmarExportacion({
+      totalOriginal: menus.length,
+      totalFiltrado: menusFiltrados.length,
+      tieneFiltrosActivos,
+      formato: "Excel",
+      nombreModulo: "menus"
+    });
+
+    if (!decision) return;
+
+    setExportando(true);
+    try {
+      const registros = decision === "filtrados" ? menusFiltrados : menus;
+
+      const datosFormateados = registros.map((m) => ({
+        "ID Menu": m.Id_Menu,
+        "Fecha del Menu": m.Fec_Menu || "",
+        "Tipo de Comida": m.Tip_Menu || "",
+        "ID Plato": m.Id_Plato || "",
+        "Plato Asignado": m.plato?.Nom_Plato || "Sin plato",
+        "Descripcion Plato": m.plato?.Des_Plato || "",
+        "Fecha Creacion": m.createdat ? new Date(m.createdat).toLocaleString("es-CO") : "",
+        "Ultima Actualizacion": m.updatedat ? new Date(m.updatedat).toLocaleString("es-CO") : ""
+      }));
+
+      const fecha = new Date().toISOString().split("T")[0];
+      exportarAExcel({
+        datos: datosFormateados,
+        nombreArchivo: `Foodsys_Menus_${decision}_${fecha}.xlsx`,
+        nombreHoja: "Menus"
+      });
+
+      toast.success(`Archivo Excel exportado con ${registros.length} menus.`);
+    } catch (err) {
+      console.error("Error al exportar Excel:", err);
+      toast.error("Error al generar el archivo Excel.");
+    } finally {
+      setExportando(false);
+    }
+  };
+
+  // Exportar a PDF con confirmacion inteligente
+  const handleExportarPDF = async () => {
+    if (menus.length === 0) {
+      toast.error("No hay menus para exportar.");
+      return;
+    }
+
+    const decision = await confirmarExportacion({
+      totalOriginal: menus.length,
+      totalFiltrado: menusFiltrados.length,
+      tieneFiltrosActivos,
+      formato: "PDF",
+      nombreModulo: "menus"
+    });
+
+    if (!decision) return;
+
+    setExportando(true);
+    try {
+      const registros = decision === "filtrados" ? menusFiltrados : menus;
+
+      const columnasPDF = [
+        { header: "Fecha", dataKey: "fecha" },
+        { header: "Tipo", dataKey: "tipo" },
+        { header: "Plato Asignado", dataKey: "plato" },
+        { header: "ID Menu", dataKey: "id" }
+      ];
+
+      const filasPDF = registros.map((m) => ({
+        fecha: m.Fec_Menu || "—",
+        tipo: m.Tip_Menu || "—",
+        plato: m.plato?.Nom_Plato || "Sin plato",
+        id: m.Id_Menu
+      }));
+
+      const fecha = new Date().toISOString().split("T")[0];
+      exportarAPDF({
+        titulo: "Programacion Institucional de Menus",
+        subtitulo: `Centro Agropecuario "La Granja" - Registros: ${registros.length} (${decision})`,
+        columnas: columnasPDF,
+        datos: filasPDF,
+        nombreArchivo: `Foodsys_Menus_${decision}_${fecha}.pdf`,
+        orientacion: "portrait"
+      });
+
+      toast.success(`Archivo PDF generado con ${registros.length} menus.`);
+    } catch (err) {
+      console.error("Error al exportar PDF:", err);
+      toast.error("Error al generar el documento PDF.");
+    } finally {
+      setExportando(false);
+    }
+  };
+
   /* Agrupar por fecha */
   const menusPorFecha = menusFiltrados.reduce((acc, m) => {
     if (!acc[m.Fec_Menu]) acc[m.Fec_Menu] = [];
@@ -497,57 +616,113 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
   const fechasOrdenadas = Object.keys(menusPorFecha).sort((a, b) => b.localeCompare(a));
 
   return (
-    <>
-      <div className="w-full h-full flex flex-col bg-slate-50 min-h-0">
+    <div className="w-full flex flex-col gap-4 p-3 sm:p-5 bg-slate-50 min-h-screen">
+      {/* Guia Didactica */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+        <button
+          onClick={() => setMostrarGuia(!mostrarGuia)}
+          className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-green-50 border-0 cursor-pointer text-left transition-colors hover:from-emerald-100 hover:to-green-100"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-green-600 text-white flex items-center justify-center">
+              <HelpCircle size={18} />
+            </div>
+            <div>
+              <p className="font-bold text-slate-800 text-sm m-0">¿Como programar los Menus? (Guia paso a paso)</p>
+              <p className="text-xs text-slate-500 m-0">Aprende a programar opciones de comidas diarias y exportar la minuta</p>
+            </div>
+          </div>
+          {mostrarGuia ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
+        </button>
 
-        {/* Header */}
-        <div className="bg-white border-b border-slate-100 px-5 py-4 shrink-0">
+        {mostrarGuia && (
+          <div className="p-4 bg-white border-t border-slate-100 text-xs text-slate-600 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <p className="font-bold text-green-700 uppercase tracking-wide">1. Regla de 2 Platos</p>
+              <p>Cada menu debe contar con exactamente 2 opciones de platos diferentes para que los aprendices elijan su preferencia.</p>
+            </div>
+            <div className="space-y-1">
+              <p className="font-bold text-teal-700 uppercase tracking-wide">2. Anticipacion</p>
+              <p>Programa los menus con anticipacion. Los aprendices tienen plazo hasta las 6:30 PM del dia anterior para reservar.</p>
+            </div>
+            <div className="space-y-1">
+              <p className="font-bold text-blue-700 uppercase tracking-wide">3. Exportar Minuta</p>
+              <p>Descarga la minuta en Excel o PDF para control del supervisor del contrato y el equipo de cocina.</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Panel Principal */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+        {/* Cabecera */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center shrink-0">
-                <ChefHat size={18} className="text-white" />
+              <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center text-white shadow-sm shrink-0">
+                <ChefHat size={18} />
               </div>
               <div>
-                <h1 className="font-semibold text-slate-800 text-base m-0">Menús</h1>
-                <p className="text-xs text-slate-400 m-0">{menus.length} registros</p>
+                <h1 className="font-bold text-slate-900 text-base sm:text-lg m-0">Programacion de Menus</h1>
+                <p className="text-xs text-slate-500 m-0">{menus.length} opciones programadas</p>
               </div>
             </div>
-            {/* Solo muestra el boton Nuevo Menu si no es modo solo lectura */}
-            {!soloLectura && (
+
+            {/* Botones de Accion */}
+            <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={() => { setSelectedMenu(null); setIsEdit(false); setIsModalOpen(true); }}
-                className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white border-0 rounded-xl px-4 py-2 text-[13px] font-semibold cursor-pointer transition-colors shadow-sm"
+                onClick={handleExportarExcel}
+                disabled={exportando || menus.length === 0}
+                className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl px-3.5 py-2 text-xs font-semibold cursor-pointer hover:bg-blue-100 transition-colors disabled:opacity-50"
+                title="Exportar menus a Excel"
               >
-                <Plus size={14} />
-                <span className="hidden sm:inline">Nuevo Menú</span>
+                <Upload size={14} /> {exportando ? "Exportando..." : "Exportar Excel"}
               </button>
-            )}
+
+              <button
+                onClick={handleExportarPDF}
+                disabled={exportando || menus.length === 0}
+                className="inline-flex items-center gap-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl px-3.5 py-2 text-xs font-semibold cursor-pointer hover:bg-rose-100 transition-colors disabled:opacity-50"
+                title="Exportar minuta a PDF"
+              >
+                <FileText size={14} /> Exportar PDF
+              </button>
+
+              {!soloLectura && (
+                <button
+                  onClick={() => { setSelectedMenu(null); setIsEdit(false); setIsModalOpen(true); }}
+                  className="inline-flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white border-0 rounded-xl px-4 py-2 text-xs font-semibold cursor-pointer transition-colors shadow-sm"
+                >
+                  <Plus size={14} /> Nuevo Menu
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Búsqueda y Filtros */}
-          <div className="flex gap-2 flex-col sm:flex-row mt-3">
+          {/* Busqueda y Filtros */}
+          <div className="flex gap-2 flex-col sm:flex-row">
             <div className="relative flex-1">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Buscar por fecha, tipo o plato..."
-                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-[13px] bg-slate-50 text-slate-700 outline-none focus:border-green-400 focus:ring-2 focus:ring-green-400/10 transition-all"
+                placeholder="Buscar por fecha (YYYY-MM-DD), tipo o nombre de plato..."
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm bg-slate-50 focus:bg-white focus:border-green-400 focus:outline-none transition-all"
               />
             </div>
-            {/* Filtro tipo */}
-            <div className="flex gap-1.5 items-center">
+            <div className="flex gap-1.5 items-center flex-wrap">
               {["Todos", ...TIPOS].map((t) => (
                 <button
                   key={t}
                   onClick={() => setFiltroTipo(t)}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${filtroTipo === t
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    filtroTipo === t
                       ? "bg-green-600 text-white border-transparent shadow-sm"
                       : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-                    }`}
+                  }`}
                 >
-                  {t === "Todos" ? "Todos" : t}
+                  {t}
                 </button>
               ))}
             </div>
@@ -555,20 +730,24 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
         </div>
 
         {/* Contenido agrupado por fecha */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
-          {fechasOrdenadas.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-300">
-              <ChefHat className="w-10 h-10 mb-2" />
-              <p className="text-sm">No hay menús registrados</p>
+        <div className="p-4 sm:p-6 space-y-6">
+          {cargando ? (
+            <div className="p-12 flex justify-center">
+              <GlobalLoader mensaje="Cargando programacion de menus..." />
+            </div>
+          ) : fechasOrdenadas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <ChefHat size={36} className="opacity-20 mb-2" />
+              <p className="text-xs">No hay menus registrados para los criterios seleccionados.</p>
             </div>
           ) : (
             fechasOrdenadas.map((fecha) => (
-              <div key={fecha}>
-                {/* Encabezado fecha */}
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 px-3 py-1.5 shadow-sm">
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm font-semibold text-gray-700">
+              <div key={fecha} className="space-y-3">
+                {/* Encabezado Fecha */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 shadow-xs">
+                    <Calendar size={14} className="text-slate-500" />
+                    <span className="text-xs font-bold text-slate-700 capitalize">
                       {new Date(fecha + "T12:00:00").toLocaleDateString("es-CO", {
                         weekday: "long",
                         day: "numeric",
@@ -577,13 +756,13 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
                       })}
                     </span>
                   </div>
-                  <div className="flex-1 h-px bg-gray-200" />
-                  <span className="text-xs text-gray-400 shrink-0">
-                    {menusPorFecha[fecha].length} plato{menusPorFecha[fecha].length !== 1 ? "s" : ""}
+                  <div className="flex-1 h-px bg-slate-200" />
+                  <span className="text-xs text-slate-400">
+                    {menusPorFecha[fecha].length} opcion{menusPorFecha[fecha].length !== 1 ? "es" : ""}
                   </span>
                 </div>
 
-                {/* Grid de menús del día agrupados por tipo */}
+                {/* Grid por Tipo */}
                 {TIPOS.map((tipo) => {
                   const menosTipo = menusPorFecha[fecha].filter((m) => m.Tip_Menu === tipo);
                   if (menosTipo.length === 0) return null;
@@ -595,16 +774,13 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
                     <div key={tipo} className="mb-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Icon className={`w-4 h-4 ${cfg.color}`} />
-                        <span className={`text-sm font-bold ${cfg.color}`}>{tipo}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${cfg.badge}`}>
+                        <span className={`text-xs font-bold ${cfg.color}`}>{tipo}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.badge}`}>
                           {menosTipo.length} plato{menosTipo.length !== 1 ? "s" : ""}
                         </span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                         {menosTipo.map((menu) => (
-                          // Se pasa ocultarEditar y ocultarEliminar al MenuCard:
-                          // soloLectura: ni crear ni editar ni eliminar
-                          // soloCrear: puede crear y eliminar si no hay reservas, pero no editar cards existentes
                           <MenuCard
                             key={menu.Id_Menu}
                             menu={menu}
@@ -624,20 +800,20 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
         </div>
       </div>
 
-      {/* Modal crear/editar: se bloquea en modo solo lectura */}
+      {/* Modal crear / editar */}
       {isModalOpen && !soloLectura && (
-        <div className="fixed inset-0 z-9999 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={hideModal} />
-          <div className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 max-h-[95vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={hideModal} />
+          <div className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 max-h-[95vh] overflow-hidden flex flex-col animate-in fade-in">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 shrink-0">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <h2 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2 m-0">
                 <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center">
                   {isEdit ? <Pencil className="w-3.5 h-3.5 text-green-600" /> : <Plus className="w-3.5 h-3.5 text-green-600" />}
                 </div>
-                {isEdit ? "Editar Menú" : "Nuevo Menú"}
+                {isEdit ? "Editar Menu" : "Programar Nuevo Menu"}
               </h2>
-              <button onClick={hideModal} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
-                <X className="w-4 h-4 text-gray-500" />
+              <button onClick={hideModal} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors border-0 cursor-pointer text-gray-500">
+                <X className="w-4 h-4" />
               </button>
             </div>
             <div className="px-5 py-4 overflow-y-auto flex-1">
@@ -645,14 +821,14 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
                 hideModal={hideModal}
                 selectedMenu={selectedMenu}
                 isEdit={isEdit}
-                reload={getAllMenus}
+                reload={cargarDatos}
                 platosDisponibles={platos}
               />
             </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

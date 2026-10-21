@@ -1,18 +1,24 @@
-// Node/Services/UsuariosService.js — VERSIÓN CORREGIDA
+// Node/Services/UsuariosService.js
+// Servicio principal del modulo de usuarios para el sistema Foodsys
+// Maneja registro, autenticacion, roles, sesion unica, pasantes e inasistencias semanales
+// Codigo comentado didacticamente sin tildes ni emojis para aprendices de primer semestre
+
 import UsuariosModel from "../Models/UsuariosModel.js";
 import FichasModel from "../Models/FichasModel.js";
 import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import RolesModel from "../Models/RolesModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
+import ReservaModel from "../Models/ReservasModel.js";
 import Servicio_Correo from "./Servicio_Correo.js";
 import VencimientoService from "./VencimientoService.js";
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
+import { Op } from "sequelize";
 
 class UsuariosService {
 
-  // Metodo para solicitar restablecimiento de contraseña
+  // Solicita enlace para restablecer contrasena por correo
   async resetPassword(email) {
     const usuario = await UsuariosModel.findOne({ where: { Cor_Usuario: email } });
     if (!usuario) {
@@ -23,18 +29,16 @@ class UsuariosService {
     const tokenForPassword = jwt.sign(
       { usuario: { id: usuario.Id_Usuario } },
       process.env.JWT_SECRET,
-      { expiresIn: '15m' }
+      { expiresIn: "15m" }
     );
 
     await Servicio_Correo.sendPasswordResetEmail(email, tokenForPassword);
     return;
   }
 
-  // Metodo que recibe la nueva contraseña
+  // Establece una nueva contrasena usando el token JWT recibido
   async setNewPassword(data) {
     const { tokenForPassword, newPassword } = data;
-
-    // Extrae los datos que se enviaron en el token (payload)
     const decodificado = jwt.verify(tokenForPassword, process.env.JWT_SECRET);
 
     const usuario = await UsuariosModel.findByPk(decodificado.usuario.id);
@@ -50,6 +54,7 @@ class UsuariosService {
     return;
   }
 
+  // Inicia sesion y genera token con control de sesion unica (tokenVersion)
   async Login(data) {
     const { TipDoc_Usuario, NumDoc_Usuario, password } = data;
 
@@ -58,19 +63,19 @@ class UsuariosService {
       include: [{
         model: UsuariosRolModel,
         as: "rolesUsuario",
-        include: [{ model: RolesModel, as: "rolUsuario" }]  // usa alias correcto "rolUsuario"
+        include: [{ model: RolesModel, as: "rolUsuario" }]
       }]
     });
 
-    if (!usuarios) throw new Error("Documento o contraseña incorrectos");
+    if (!usuarios) throw new Error("Documento o contrasena incorrectos");
 
     const isValid = await bcrypt.compare(password, usuarios.password);
-    if (!isValid) throw new Error("Documento o contraseña incorrectos");
+    if (!isValid) throw new Error("Documento o contrasena incorrectos");
 
     const usuarioJson = usuarios.toJSON();
     const roles = usuarioJson.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
 
-    // Sesión única: incrementar tokenVersion en BD para invalidar cualquier sesión anterior
+    // Sesion unica: incrementar tokenVersion en BD para invalidar cualquier sesion anterior en otros dispositivos
     const nuevoTokenVersion = (usuarios.tokenVersion || 1) + 1;
     await UsuariosModel.update({ tokenVersion: nuevoTokenVersion }, { where: { Id_Usuario: usuarios.Id_Usuario } });
 
@@ -85,6 +90,7 @@ class UsuariosService {
     return { usuario: usuarioSinPassword, roles, token };
   }
 
+  // Registra un nuevo usuario con validacion de documento, etapa lectiva y asignacion de rol
   async register(data) {
     const {
       TipDoc_Usuario, NumDoc_Usuario, Nom_Usuario, Ape_Usuario,
@@ -95,41 +101,100 @@ class UsuariosService {
     const userExist = await UsuariosModel.findOne({ where: { TipDoc_Usuario, NumDoc_Usuario } });
     if (userExist) throw new Error("El usuario ya existe con ese documento");
 
-    // Contraseña: usar la enviada, o el número de documento como fallback
+    const cenCon = String(CenCon_Usuario || "").toLowerCase().trim();
+    const esInterno = ["si", "sí", "1", "true"].includes(cenCon);
+
+    // Verificar si la ficha asociada ya vencio su etapa lectiva
+    let estUsuarioFinal = Est_Usuario || "En Formacion";
+    if (Id_Ficha) {
+      const ficha = await FichasModel.findByPk(Id_Ficha);
+      const hoyBogota = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+      if (ficha?.FecFinLec_Ficha && ficha.FecFinLec_Ficha < hoyBogota) {
+        estUsuarioFinal = "Inactivo";
+      }
+    }
+
     const pwd = password || String(NumDoc_Usuario);
     const hashedPassword = await bcrypt.hash(pwd, 10);
 
     const usuariosUuid = uuidv4();
     const usuarios = await UsuariosModel.create({
-      TipDoc_Usuario, NumDoc_Usuario, Nom_Usuario, Ape_Usuario,
-      Gen_Usuario, Cor_Usuario, Tel_Usuario, CenCon_Usuario,
-      Est_Usuario, San_Usuario,
-      Pol_Usuario: 'No',
+      TipDoc_Usuario,
+      NumDoc_Usuario,
+      Nom_Usuario,
+      Ape_Usuario,
+      Gen_Usuario,
+      Cor_Usuario,
+      Tel_Usuario,
+      CenCon_Usuario: esInterno ? "Si" : "No",
+      Est_Usuario: estUsuarioFinal,
+      San_Usuario: San_Usuario || "No",
+      Pol_Usuario: "No",
       Id_Ficha: Id_Ficha || null,
       password: hashedPassword,
       uuid: usuariosUuid,
     });
 
+    // Asignar roles: si se enviaron roles especificos se asignan, de lo contrario se asigna por CenCon_Usuario
+    if (Array.isArray(Roles) && Roles.length > 0) {
+      for (const idRol of Roles) {
+        await UsuariosRolModel.create({ Id_Usuario: usuarios.Id_Usuario, Id_Rol: idRol });
+      }
+    } else {
+      const nombreRol = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
+      const rolEncontrado = await RolesModel.findOne({ where: { Nom_Rol: nombreRol } });
+      if (rolEncontrado) {
+        await UsuariosRolModel.create({ Id_Usuario: usuarios.Id_Usuario, Id_Rol: rolEncontrado.Id_Rol });
+      }
+    }
+
     return usuarios;
   }
 
+  // Obtiene el mapa en memoria de inasistencias en la semana ISO actual para semaforo de riesgo
+  async obtenerMapaInasistenciasSemana() {
+    try {
+      const { inicioSemanaStr, finSemanaStr } = VencimientoService.getRangoSemana();
+      const inasistencias = await ReservaModel.findAll({
+        attributes: ["Id_Usuario", "Fec_Reserva"],
+        where: {
+          Est_Reserva: "Vencido",
+          Fec_Reserva: { [Op.between]: [inicioSemanaStr, finSemanaStr] }
+        }
+      });
+
+      const mapa = new Map();
+      for (const res of inasistencias) {
+        const id = res.Id_Usuario;
+        mapa.set(id, (mapa.get(id) || 0) + 1);
+      }
+      return mapa;
+    } catch (err) {
+      console.warn("Error al calcular mapa de inasistencias semanales:", err.message);
+      return new Map();
+    }
+  }
+
+  // Lista todos los usuarios con sus roles, fichas e indicador de inasistencias
   async getAll() {
+    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana();
+
     const todos = await UsuariosModel.findAll({
       include: [
         {
           model: UsuariosRolModel,
-          as: 'rolesUsuario',
-          include: [{ model: RolesModel, as: 'rolUsuario' }]
+          as: "rolesUsuario",
+          include: [{ model: RolesModel, as: "rolUsuario" }]
         },
         {
           model: FichasModel,
-          as: 'ficha',
-          attributes: ['Id_Ficha', 'Num_Ficha'],
+          as: "ficha",
+          attributes: ["Id_Ficha", "Num_Ficha"],
           include: [
             {
               model: ProgramaModel,
-              as: 'programas',  // alias definido en App.js
-              attributes: ['Id_Programa', 'Nom_Programa']
+              as: "programas",
+              attributes: ["Id_Programa", "Nom_Programa"]
             }
           ]
         }
@@ -139,27 +204,29 @@ class UsuariosService {
     return todos.map((u) => {
       const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
       const userObj = u.toJSON ? u.toJSON() : u;
-      return { ...userObj, roles };
+      const inasistenciasSemana = mapaInasistencias.get(u.Id_Usuario) || 0;
+      return { ...userObj, roles, inasistenciasSemana };
     });
   }
 
+  // Obtiene el detalle de un unico usuario por su ID
   async getById(Id) {
     const usuario = await UsuariosModel.findByPk(Id, {
       include: [
         {
           model: UsuariosRolModel,
-          as: 'rolesUsuario',
-          include: [{ model: RolesModel, as: 'rolUsuario' }]
+          as: "rolesUsuario",
+          include: [{ model: RolesModel, as: "rolUsuario" }]
         },
         {
           model: FichasModel,
-          as: 'ficha',
-          attributes: ['Id_Ficha', 'Num_Ficha'],
+          as: "ficha",
+          attributes: ["Id_Ficha", "Num_Ficha"],
           include: [
             {
               model: ProgramaModel,
-              as: 'programas',
-              attributes: ['Nom_Programa']
+              as: "programas",
+              attributes: ["Nom_Programa"]
             }
           ]
         }
@@ -177,9 +244,9 @@ class UsuariosService {
 
   async update(Id_Usuario, data) {
     const camposPermitidos = [
-      'TipDoc_Usuario', 'NumDoc_Usuario', 'Nom_Usuario', 'Ape_Usuario',
-      'Gen_Usuario', 'Cor_Usuario', 'Tel_Usuario', 'CenCon_Usuario',
-      'Est_Usuario', 'San_Usuario', 'Fec_Desancion', 'Id_Ficha', 'Pol_Usuario'
+      "TipDoc_Usuario", "NumDoc_Usuario", "Nom_Usuario", "Ape_Usuario",
+      "Gen_Usuario", "Cor_Usuario", "Tel_Usuario", "CenCon_Usuario",
+      "Est_Usuario", "San_Usuario", "Fec_Desancion", "Id_Ficha", "Pol_Usuario"
     ];
     const dataFiltrada = {};
     for (const campo of camposPermitidos) {
@@ -205,35 +272,36 @@ class UsuariosService {
 
   async aceptarPolitica(Id_Usuario) {
     const result = await UsuariosModel.update(
-      { Pol_Usuario: 'Si' },
+      { Pol_Usuario: "Si" },
       { where: { Id_Usuario } }
     );
     if (result[0] === 0) throw new Error("Usuario no encontrado");
     return true;
   }
 
+  // Lista exclusivamente a los usuarios con rol Aprendiz Interno o Aprendiz Externo
   async getAprendices() {
-    // Procesar vencimientos pendientes en tiempo real antes de listar aprendices
     try {
       await VencimientoService.procesarVencimientosGlobales();
     } catch (err) {
       console.error("Error al procesar vencimientos en getAprendices:", err.message);
     }
 
+    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana();
+
     const todos = await UsuariosModel.findAll({
       include: [
         {
           model: UsuariosRolModel,
-          as: 'rolesUsuario',
-          include: [{ model: RolesModel, as: 'rolUsuario' }]
+          as: "rolesUsuario",
+          include: [{ model: RolesModel, as: "rolUsuario" }]
         },
         {
           model: FichasModel,
-          as: 'ficha',
-          attributes: ['Id_Ficha', 'Num_Ficha'],
+          as: "ficha",
+          attributes: ["Id_Ficha", "Num_Ficha"],
           include: [
-            // ✅ Solo un alias — el que esté definido en las asociaciones de FichasModel
-            { model: ProgramaModel, as: 'programas', attributes: ['Nom_Programa'] }
+            { model: ProgramaModel, as: "programas", attributes: ["Nom_Programa"] }
           ]
         }
       ]
@@ -242,12 +310,54 @@ class UsuariosService {
     return todos
       .filter((u) => {
         const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
-        return roles.some(r => ['Aprendiz Interno', 'Aprendiz Externo'].includes(r));
+        return roles.some(r => ["Aprendiz Interno", "Aprendiz Externo"].includes(r));
       })
       .map((u) => {
         const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
         const { password, token, ...rest } = u.toJSON();
-        return { ...rest, roles };
+        const inasistenciasSemana = mapaInasistencias.get(u.Id_Usuario) || 0;
+        return { ...rest, roles, inasistenciasSemana };
+      });
+  }
+
+  // Lista exclusivamente a los usuarios con rol Pasante Interno o Pasante Externo
+  async getPasantes() {
+    try {
+      await VencimientoService.procesarVencimientosGlobales();
+    } catch (err) {
+      console.error("Error al procesar vencimientos en getPasantes:", err.message);
+    }
+
+    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana();
+
+    const todos = await UsuariosModel.findAll({
+      include: [
+        {
+          model: UsuariosRolModel,
+          as: "rolesUsuario",
+          include: [{ model: RolesModel, as: "rolUsuario" }]
+        },
+        {
+          model: FichasModel,
+          as: "ficha",
+          attributes: ["Id_Ficha", "Num_Ficha"],
+          include: [
+            { model: ProgramaModel, as: "programas", attributes: ["Nom_Programa"] }
+          ]
+        }
+      ]
+    });
+
+    return todos
+      .filter((u) => {
+        const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+        return roles.some(r => ["Pasante Interno", "Pasante Externo"].includes(r));
+      })
+      .map((u) => {
+        const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+        const { password, token, ...rest } = u.toJSON();
+        const inasistenciasSemana = mapaInasistencias.get(u.Id_Usuario) || 0;
+        return { ...rest, roles, inasistenciasSemana };
       });
   }
 }

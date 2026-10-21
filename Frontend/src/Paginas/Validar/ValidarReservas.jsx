@@ -12,7 +12,8 @@ import { Html5Qrcode } from 'html5-qrcode';
 import {
   Camera, CameraOff, QrCode, Search, CheckCircle, XCircle,
   Loader2, Hash, FileText, AlertTriangle, User, Clock,
-  Utensils, Info, RefreshCw, ShieldCheck, Sparkles, CheckCircle2
+  Utensils, Info, RefreshCw, ShieldCheck, Sparkles, CheckCircle2,
+  Zap, HelpCircle, ChevronDown, ChevronUp
 } from 'lucide-react';
 import apiAxios from '../../api/axiosConfig';
 
@@ -40,6 +41,11 @@ export default function ValidarReservas() {
   const [procesandoQR, setProcesandoQR] = useState(false);
   const [resultadoExitoQR, setResultadoExitoQR] = useState(null);
   const [errorQR, setErrorQR] = useState(null);
+
+  // ── Modo Fila Rapida y Guia de Usuario ──
+  const [modoFilaRapida, setModoFilaRapida] = useState(true);
+  const [mostrarGuia, setMostrarGuia] = useState(false);
+  const timerAutoContinuarRef = useRef(null);
   
   // ── Estados de Busqueda Manual ──
   const [tipoBusqueda, setTipoBusqueda] = useState('documento');
@@ -54,6 +60,34 @@ export default function ValidarReservas() {
   const procesandoRef = useRef(false);
 
   const hoy = new Date().toISOString().split('T')[0];
+
+  // Feedback auditivo corto mediante Web Audio API
+  const reproducirBeep = (tipo = "exito") => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      if (tipo === "exito") {
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.18);
+      } else {
+        osc.frequency.setValueAtTime(220, ctx.currentTime);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      }
+    } catch {
+      // Ignorar si el navegador bloquea audio
+    }
+  };
 
   // ── Detener Camara de forma segura ──
   const detenerScanner = useCallback(async () => {
@@ -75,6 +109,7 @@ export default function ValidarReservas() {
   // ── Limpieza automatica al desmontar o cambiar de pestaña ──
   useEffect(() => {
     return () => {
+      if (timerAutoContinuarRef.current) clearTimeout(timerAutoContinuarRef.current);
       detenerScanner();
     };
   }, [detenerScanner, pestanaActiva]);
@@ -104,14 +139,28 @@ export default function ValidarReservas() {
         encriptadoQR: encriptado
       });
       setResultadoExitoQR(respuesta.data);
+      reproducirBeep("exito");
+
+      // Si el modo Fila Rapida esta activo, reactivar escaneo automaticamente tras 2.5 segundos
+      if (modoFilaRapida) {
+        if (timerAutoContinuarRef.current) clearTimeout(timerAutoContinuarRef.current);
+        timerAutoContinuarRef.current = setTimeout(() => {
+          setResultadoExitoQR(null);
+          setErrorQR(null);
+          setTimeout(() => {
+            iniciarScanner();
+          }, 150);
+        }, 2500);
+      }
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Error al validar el código QR.';
       setErrorQR(msg);
+      reproducirBeep("alerta");
     } finally {
       setProcesandoQR(false);
       procesandoRef.current = false;
     }
-  }, [detenerScanner]);
+  }, [detenerScanner, modoFilaRapida]);
 
   // ── Iniciar Camara ──
   const iniciarScanner = async () => {
@@ -273,17 +322,55 @@ export default function ValidarReservas() {
           </button>
         </div>
 
+        {/* Guia de usuario paso a paso */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-xs">
+          <button
+            type="button"
+            onClick={() => setMostrarGuia(!mostrarGuia)}
+            className="w-full flex items-center justify-between text-xs font-semibold text-slate-700 hover:text-orange-600 transition"
+          >
+            <span className="flex items-center gap-1.5">
+              <HelpCircle className="w-4 h-4 text-orange-500" />
+              ¿Como funciona la Validacion de Cocina? (Guia paso a paso)
+            </span>
+            {mostrarGuia ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          {mostrarGuia && (
+            <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-1.5 leading-relaxed">
+              <p><strong>Paso 1:</strong> El aprendiz o pasante externo presenta su codigo QR en la camara de Cocina.</p>
+              <p><strong>Paso 2:</strong> El sistema valida que sea Externo y cambia el estado de 'Generado' a 'Verificado en Cocina'.</p>
+              <p><strong>Paso 3:</strong> En modo 'Fila Rapida', suena un pitido y la pantalla vuelve a escanear a los 2.5 segundos.</p>
+              <p><strong>Paso 4:</strong> El aprendiz pasa a la fila del Supervisor, quien confirma la entrega cambiando el estado a 'Consumido'.</p>
+            </div>
+          )}
+        </div>
+
         {/* ── SECCION 1: ESCANER CON CAMARA ── */}
         {pestanaActiva === 'camara' && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-slate-700">
                 <ShieldCheck className="w-5 h-5 text-emerald-500" />
                 <span className="font-bold text-sm">Escáner QR en Vivo</span>
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+                  Cocina
+                </span>
               </div>
-              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
-                Cocina
-              </span>
+
+              {/* Interruptor Modo Fila Rapida */}
+              <div className="flex items-center gap-2 bg-amber-50/80 border border-amber-200 rounded-xl px-2.5 py-1">
+                <Zap className={`w-3.5 h-3.5 ${modoFilaRapida ? "text-amber-600 fill-amber-600" : "text-gray-400"}`} />
+                <span className="text-xs font-semibold text-amber-900">Modo Fila Rápida</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={modoFilaRapida}
+                    onChange={(e) => setModoFilaRapida(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-orange-500"></div>
+                </label>
+              </div>
             </div>
 
             {/* Area de la Camara */}

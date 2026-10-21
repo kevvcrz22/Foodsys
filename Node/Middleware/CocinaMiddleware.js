@@ -25,17 +25,17 @@ export default async function CocinaMiddleware(req, res, next) {
       return res.status(401).json({ message: 'No autenticado' });
     }
 
-    // Solo el personal de Cocina puede verificar la presencia del aprendiz.
-    // El Supervisor NO puede hacer esta accion aunque tenga mas privilegios en otras areas.
-    const rolesPermitidos = ['Cocina'];
+    // Roles permitidos para consultar plan de produccion y verificar cocina:
+    // Cocina para plan y verificacion; Bienestar y Administrador para visualizacion del plan
+    const rolesPermitidos = ['Cocina', 'Bienestar', 'Administrador'];
     const rolesUsuario    = req.user.roles || [];
 
-    // Con some() verificamos que al menos uno de los roles del usuario sea Cocina
+    // Con some() verificamos que al menos uno de los roles del usuario este permitido
     const tienePermiso = rolesUsuario.some(rol => rolesPermitidos.includes(rol));
 
     if (!tienePermiso) {
       return res.status(403).json({
-        message: 'Acceso denegado: solo el personal de Cocina puede verificar reservas'
+        message: 'Acceso denegado: se requieren permisos de Cocina, Bienestar o Administrador'
       });
     }
 

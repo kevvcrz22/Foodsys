@@ -23,6 +23,7 @@ import ReservaModel from "../Models/ReservasModel.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
 import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import RolesModel from "../Models/RolesModel.js";
+import NotificacionesModel from "../Models/NotificacionesModel.js";
 import { notificarCambioReservas } from "./SocketService.js";
 
 class VencimientoService {
@@ -53,11 +54,11 @@ class VencimientoService {
     };
   }
 
-  // Determina si una reserva dada ya expiró según la fecha y hora actual
+  // Determina si una reserva dada ya expiro segun la fecha y hora actual en America/Bogota
   esReservaExpirada(reserva, ahora = new Date()) {
-    const hoyStr = ahora.toISOString().split('T')[0];
+    const hoyStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(ahora);
 
-    // Si la fecha de la reserva es anterior a hoy, está definitivamente vencida
+    // Si la fecha de la reserva es anterior a hoy, esta definitivamente vencida
     if (reserva.Fec_Reserva < hoyStr) return true;
 
     // Si la fecha es hoy, comprobar la hora de cierre del servicio
@@ -65,10 +66,10 @@ class VencimientoService {
       if (reserva.Vec_Reserva) {
         return new Date(reserva.Vec_Reserva) <= ahora;
       }
-      // Horas límite de cada turno (Bogotá UTC-5)
+      // Horas limite de cada turno (Bogota UTC-5)
       const horasCierre = {
         Desayuno: { h: 7, m: 0 },
-        Almuerzo: { h: 14, m: 5 }, // 14:05 fin del servicio
+        Almuerzo: { h: 13, m: 30 }, // 13:30 fin del servicio de almuerzo
         Cena: { h: 19, m: 0 }
       };
       const cierre = horasCierre[reserva.Tip_Reserva];
@@ -82,8 +83,8 @@ class VencimientoService {
     return false;
   }
 
-  // Procesa y marca como Vencido todas las reservas abiertas que ya pasaron su hora límite,
-  // y actualiza las sanciones en tiempo real en la base de datos.
+  // Procesa y marca como Vencido todas las reservas abiertas que ya pasaron su hora limite,
+  // y actualiza las sanciones en tiempo real en la base de datos con notificaciones.
   async procesarVencimientosGlobales(transaction = null) {
     const ahora = new Date();
 
@@ -121,6 +122,35 @@ class VencimientoService {
             Nom_Usuario: estado.Nom_Usuario,
             motivo: estado.motivoSancion
           });
+
+          // Notificaciones automáticas de sanción
+          try {
+            await NotificacionesModel.create({
+              Id_Usuario: idUsuario,
+              Rol_Destino: null,
+              Titulo: 'Sancion por inasistencias acumuladas',
+              Mensaje: `Has sido sancionado automaticamente: ${estado.motivoSancion}`,
+              Tipo: 'urgente'
+            }, { transaction: t });
+
+            await NotificacionesModel.create({
+              Id_Usuario: null,
+              Rol_Destino: 'Bienestar',
+              Titulo: 'Aprendiz sancionado por inasistencias',
+              Mensaje: `${estado.Nom_Usuario} ha sido sancionado: ${estado.motivoSancion}`,
+              Tipo: 'alerta'
+            }, { transaction: t });
+
+            await NotificacionesModel.create({
+              Id_Usuario: null,
+              Rol_Destino: 'Coordinador',
+              Titulo: 'Aprendiz sancionado por inasistencias',
+              Mensaje: `${estado.Nom_Usuario} ha sido sancionado: ${estado.motivoSancion}`,
+              Tipo: 'alerta'
+            }, { transaction: t });
+          } catch (errNotif) {
+            console.warn('[VencimientoService] No se pudo guardar notificacion de sancion:', errNotif.message);
+          }
         }
       }
 
@@ -169,6 +199,26 @@ class VencimientoService {
           { where: { Id_Usuario }, transaction: t }
         );
         console.log(`[VencimientoService] Sanción APLICADA a usuario #${Id_Usuario}: ${estado.motivoSancion}`);
+
+        try {
+          await NotificacionesModel.create({
+            Id_Usuario,
+            Rol_Destino: null,
+            Titulo: 'Sancion por inasistencias acumuladas',
+            Mensaje: `Has sido sancionado automaticamente: ${estado.motivoSancion}`,
+            Tipo: 'urgente'
+          }, { transaction: t });
+
+          await NotificacionesModel.create({
+            Id_Usuario: null,
+            Rol_Destino: 'Bienestar',
+            Titulo: 'Aprendiz sancionado por inasistencias',
+            Mensaje: `${estado.Nom_Usuario} ha sido sancionado: ${estado.motivoSancion}`,
+            Tipo: 'alerta'
+          }, { transaction: t });
+        } catch (errNotif) {
+          console.warn('[VencimientoService] No se pudo crear notificacion:', errNotif.message);
+        }
       }
 
       return estado;
@@ -292,10 +342,10 @@ class VencimientoService {
     if (!estaSancionado) {
       if (esInterno && tripleFallaMismoDia) {
         debeSancionar = true;
-        motivoSancion = `Dejó vencer las 3 comidas (Desayuno, Almuerzo, Cena) en el mismo día (${fechaTripleFalla}).`;
-      } else if (esExterno && totalInasistencias >= 3) {
+        motivoSancion = `Dejo vencer las 3 comidas (Desayuno, Almuerzo, Cena) en el mismo dia (${fechaTripleFalla}).`;
+      } else if (totalInasistencias >= 3) {
         debeSancionar = true;
-        motivoSancion = `Acumuló ${totalInasistencias} inasistencias de almuerzo durante la semana actual.`;
+        motivoSancion = `Acumulo ${totalInasistencias} inasistencias acumuladas durante la semana actual.`;
       }
     }
 

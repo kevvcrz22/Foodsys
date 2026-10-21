@@ -6,6 +6,11 @@
 import UsuariosService from "../Services/UsuariosService.js";
 import CsvService from "../Services/CsvService.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
+import FichasModel from "../Models/FichasModel.js";
+import ProgramaModel from "../Models/ProgramaModel.js";
+import RolesModel from "../Models/RolesModel.js";
+import UsuariosRolModel from "../Models/UsuariosRolModel.js";
+import { sincronizarEstadoAprendices } from "../Services/FichasServices.js";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import XLSX from "xlsx"; // npm install xlsx
@@ -13,9 +18,7 @@ import XLSX from "xlsx"; // npm install xlsx
 /* ============================================================
    COLUMNAS_PLANTILLA
    Define el orden exacto de las columnas del archivo Excel
-   que el administrador debe usar para importar aprendices.
-   Si se agrega un campo nuevo aqui, automaticamente aparece
-   en la plantilla descargable y en el proceso de importacion.
+   que el administrador debe usar para importar aprendices o pasantes.
 ============================================================ */
 const COLUMNAS_PLANTILLA = [
   "TipDoc_Usuario",
@@ -25,7 +28,11 @@ const COLUMNAS_PLANTILLA = [
   "Gen_Usuario",
   "Cor_Usuario",
   "Tel_Usuario",
-  "Id_Ficha",
+  "CenCon_Usuario",
+  "Num_Ficha",
+  "Est_Usuario",
+  "Pol_Usuario",
+  "San_Usuario"
 ];
 //Solicitar restablecer contraseña
 export const getResetPassword = async (req, res) => {
@@ -171,6 +178,21 @@ export const getAprendices = async (req, res) => {
   try {
     const Aprendices = await UsuariosService.getAprendices();
     res.status(200).json(Aprendices);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  getPasantes
+  Filtra y devuelve unicamente los usuarios cuyo rol es
+  "Pasante Interno" o "Pasante Externo".
+  Esta ruta esta protegida con authMiddleware en el router.
+*/
+export const getPasantes = async (req, res) => {
+  try {
+    const Pasantes = await UsuariosService.getPasantes();
+    res.status(200).json(Pasantes);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -362,29 +384,68 @@ export const previewImport = async (req, res) => {
       return res.status(400).json({ message: "El archivo esta vacio o no tiene datos." });
     }
 
-    // Eliminar espacios al inicio/fin de cada nombre de columna
-    const Datos = Filas.map((Fila) =>
-      Object.fromEntries(Object.entries(Fila).map(([K, V]) => [K.trim(), V]))
-    );
+    // Precargar todas las fichas en memoria con sus programas asociados
+    const todasLasFichas = await FichasModel.findAll({
+      include: [{ model: ProgramaModel, as: "programas", attributes: ["Nom_Programa"] }]
+    });
+
+    const mapaFichas = new Map();
+    for (const f of todasLasFichas) {
+      mapaFichas.set(String(f.Num_Ficha).trim(), f);
+      mapaFichas.set(String(f.Id_Ficha).trim(), f);
+    }
+
+    const hoyBogota = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+
+    // Normalizar claves y enriquecer datos con Ficha y Programa
+    const Datos = Filas.map((Fila) => {
+      const normalizado = Object.fromEntries(
+        Object.entries(Fila).map(([K, V]) => [K.trim(), V])
+      );
+
+      const numFichaRaw = String(normalizado.Num_Ficha || normalizado.Id_Ficha || normalizado.IDENTIFICADOR_FICHA || "").trim();
+      const fichaEncontrada = mapaFichas.get(numFichaRaw);
+
+      normalizado.Num_Ficha = fichaEncontrada ? fichaEncontrada.Num_Ficha : numFichaRaw;
+      normalizado.Id_Ficha = fichaEncontrada ? fichaEncontrada.Id_Ficha : null;
+      normalizado.Nom_Programa = fichaEncontrada?.programas?.Nom_Programa || "Por asociar";
+
+      // Validar si la ficha ya vencio su etapa lectiva
+      if (fichaEncontrada?.FecFinLec_Ficha && fichaEncontrada.FecFinLec_Ficha < hoyBogota) {
+        normalizado.Est_Usuario = "Inactivo";
+        normalizado.Estado_Etapa_Lectiva = "Vencida";
+      } else {
+        const estRaw = String(normalizado.Est_Usuario || "").toLowerCase().trim();
+        normalizado.Est_Usuario = ["no", "inactivo"].includes(estRaw) ? "Inactivo" : "En Formacion";
+        normalizado.Estado_Etapa_Lectiva = "Vigente";
+      }
+
+      // Evaluar rol segun Centro de Convivencia (CenCon_Usuario)
+      const cenCon = String(normalizado.CenCon_Usuario || "").toLowerCase().trim();
+      const esInterno = ["si", "sí", "1", "true"].includes(cenCon);
+      const rolRaw = String(normalizado.Rol || normalizado.Tip_Usuario || normalizado.Rol_Usuario || "").toLowerCase();
+      const esPasante = rolRaw.includes("pasante");
+
+      if (esPasante) {
+        normalizado.Rol_Asignado = esInterno ? "Pasante Interno" : "Pasante Externo";
+      } else {
+        normalizado.Rol_Asignado = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
+      }
+
+      return normalizado;
+    });
 
     return res.status(200).json({ total: Datos.length, data: Datos });
   } catch (error) {
+    console.error("Error en previewImport:", error);
     return res.status(500).json({ message: "Error al leer el archivo. Verifica que uses la plantilla oficial." });
   }
 };
 
 /*
   importarSeleccionados  (Paso C)
-  Recibe el array de usuarios que el admin aprobo en la previsualizacion.
-  Por cada fila del array:
-    Paso 1: Validar que existan los campos minimos obligatorios.
-    Paso 2: Buscar duplicado por NumDoc_Usuario; si existe, omitir.
-    Paso 3: Buscar duplicado por Cor_Usuario (si viene informado).
-    Paso 4: La contraseña temporal es el propio numero de documento;
-            se encripta con bcrypt antes de persistir.
-    Paso 5: Crear el registro con uuid unico y timestamps actuales.
-  Al final se responde con el conteo de creados, omitidos y el
-  detalle de los errores para que el admin sepa que filas fallaron.
+  Recibe el array de usuarios aprobados, resuelve fichas,
+  asigna roles en usuarios_rol y desactiva aprendices con fichas vencidas.
 */
 export const importarSeleccionados = async (req, res) => {
   try {
@@ -394,51 +455,110 @@ export const importarSeleccionados = async (req, res) => {
       return res.status(400).json({ message: "No hay datos seleccionados" });
     }
 
+    // Precargar todos los roles en un mapa en memoria
+    const rolesDisponibles = await RolesModel.findAll();
+    const mapaRoles = new Map();
+    for (const r of rolesDisponibles) {
+      mapaRoles.set(r.Nom_Rol.trim().toLowerCase(), r.Id_Rol);
+    }
+
+    // Precargar todas las fichas en un mapa en memoria
+    const todasLasFichas = await FichasModel.findAll();
+    const mapaFichas = new Map();
+    for (const f of todasLasFichas) {
+      mapaFichas.set(String(f.Num_Ficha).trim(), f);
+      mapaFichas.set(String(f.Id_Ficha).trim(), f);
+    }
+
+    const hoyBogota = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+
     let Creados = 0;
     let Omitidos = 0;
     const Errores = [];
 
     for (const Fila of usuarios) {
-      // Paso 1: campos minimos obligatorios
       if (!Fila.NumDoc_Usuario || !Fila.Nom_Usuario) {
         Omitidos++;
         Errores.push(`Fila omitida: falta NumDoc_Usuario o Nom_Usuario (doc: "${Fila.NumDoc_Usuario || "?"}")`);
         continue;
       }
 
-      // Paso 2: duplicado por documento
-      const ExisteDoc = await UsuariosModel.findOne({ where: { NumDoc_Usuario: String(Fila.NumDoc_Usuario) } });
+      const numDocStr = String(Fila.NumDoc_Usuario).trim();
+
+      // Duplicado por documento
+      const ExisteDoc = await UsuariosModel.findOne({ where: { NumDoc_Usuario: numDocStr } });
       if (ExisteDoc) {
         Omitidos++;
-        Errores.push(`Documento ${Fila.NumDoc_Usuario} ya existe en el sistema.`);
+        Errores.push(`Documento ${numDocStr} ya existe en el sistema.`);
         continue;
       }
 
-      // Paso 3: duplicado por correo (solo si viene informado)
-      if (Fila.Cor_Usuario) {
-        const ExisteCorreo = await UsuariosModel.findOne({ where: { Cor_Usuario: Fila.Cor_Usuario } });
+      // Duplicado por correo (si viene informado)
+      if (Fila.Cor_Usuario && String(Fila.Cor_Usuario).trim()) {
+        const corStr = String(Fila.Cor_Usuario).trim();
+        const ExisteCorreo = await UsuariosModel.findOne({ where: { Cor_Usuario: corStr } });
         if (ExisteCorreo) {
           Omitidos++;
-          Errores.push(`Correo ${Fila.Cor_Usuario} ya esta registrado (doc: ${Fila.NumDoc_Usuario}).`);
+          Errores.push(`Correo ${corStr} ya esta registrado (doc: ${numDocStr}).`);
           continue;
         }
       }
 
-      // Paso 4: contraseña temporal = numero de documento encriptado
-      const HashPwd = await bcrypt.hash(String(Fila.NumDoc_Usuario), 10);
+      // Resolver Ficha
+      let idFichaFinal = null;
+      let fichaAsociada = null;
+      const numFichaBuscada = String(Fila.Num_Ficha || Fila.Id_Ficha || Fila.IDENTIFICADOR_FICHA || "").trim();
 
-      // Paso 5: persistir el nuevo usuario con todos los valores seguros
-      await UsuariosModel.create({
-        TipDoc_Usuario: Fila.TipDoc_Usuario || null,
-        NumDoc_Usuario: String(Fila.NumDoc_Usuario),
-        Nom_Usuario: Fila.Nom_Usuario || null,
-        Ape_Usuario: Fila.Ape_Usuario || null,
+      if (numFichaBuscada) {
+        fichaAsociada = mapaFichas.get(numFichaBuscada);
+        if (!fichaAsociada && /^\d+$/.test(numFichaBuscada)) {
+          // Si no existe pero es un numero valido, crear la ficha automaticamente para no rechazar al aprendiz
+          fichaAsociada = await FichasModel.create({
+            Num_Ficha: numFichaBuscada,
+            Est_Ficha: "Activo"
+          });
+          mapaFichas.set(numFichaBuscada, fichaAsociada);
+        }
+        if (fichaAsociada) {
+          idFichaFinal = fichaAsociada.Id_Ficha;
+        }
+      }
+
+      // Verificar vencimiento de etapa lectiva
+      let estUsuarioFinal = Fila.Est_Usuario || "En Formacion";
+      if (fichaAsociada?.FecFinLec_Ficha && fichaAsociada.FecFinLec_Ficha < hoyBogota) {
+        estUsuarioFinal = "Inactivo";
+      }
+
+      // Determinar rol segun CenCon_Usuario
+      const cenConStr = String(Fila.CenCon_Usuario || "").toLowerCase().trim();
+      const esInterno = ["si", "sí", "1", "true"].includes(cenConStr);
+      const rolRaw = String(Fila.Rol_Asignado || Fila.Rol || Fila.Tip_Usuario || "").toLowerCase();
+      const esPasante = rolRaw.includes("pasante");
+
+      let nombreRolAsignar = "Aprendiz Externo";
+      if (esPasante) {
+        nombreRolAsignar = esInterno ? "Pasante Interno" : "Pasante Externo";
+      } else {
+        nombreRolAsignar = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
+      }
+
+      const idRolFinal = mapaRoles.get(nombreRolAsignar.toLowerCase());
+
+      const HashPwd = await bcrypt.hash(numDocStr, 10);
+
+      const nuevoUsuario = await UsuariosModel.create({
+        TipDoc_Usuario: Fila.TipDoc_Usuario || "CC",
+        NumDoc_Usuario: numDocStr,
+        Nom_Usuario: String(Fila.Nom_Usuario).trim(),
+        Ape_Usuario: Fila.Ape_Usuario ? String(Fila.Ape_Usuario).trim() : null,
         Gen_Usuario: Fila.Gen_Usuario || null,
-        Cor_Usuario: Fila.Cor_Usuario || null,
-        Tel_Usuario: Fila.Tel_Usuario || null,
-        Id_Ficha: Fila.Id_Ficha || null,
-        Est_Usuario: "En Formacion",
-        San_Usuario: "No",
+        Cor_Usuario: Fila.Cor_Usuario ? String(Fila.Cor_Usuario).trim() : null,
+        Tel_Usuario: Fila.Tel_Usuario ? String(Fila.Tel_Usuario).trim() : null,
+        CenCon_Usuario: esInterno ? "Si" : "No",
+        Id_Ficha: idFichaFinal,
+        Est_Usuario: estUsuarioFinal,
+        San_Usuario: Fila.San_Usuario || "No",
         Pol_Usuario: "No",
         password: HashPwd,
         uuid: uuidv4(),
@@ -446,11 +566,25 @@ export const importarSeleccionados = async (req, res) => {
         updatedat: new Date(),
       });
 
+      // Asignar rol en usuarios_rol
+      if (idRolFinal) {
+        await UsuariosRolModel.create({
+          Id_Usuario: nuevoUsuario.Id_Usuario,
+          Id_Rol: idRolFinal
+        });
+      }
+
+      // Si la ficha ya vencio, sincronizar para cancelar cualquier reserva previa
+      if (idFichaFinal && estUsuarioFinal === "Inactivo") {
+        await sincronizarEstadoAprendices(idFichaFinal);
+      }
+
       Creados++;
     }
 
     res.json({ creados: Creados, omitidos: Omitidos, errores: Errores });
   } catch (error) {
+    console.error("Error en importarSeleccionados:", error);
     res.status(500).json({ message: error.message });
   }
 };

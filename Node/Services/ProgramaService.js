@@ -1,32 +1,85 @@
 import ProgramaModel from "../Models/ProgramaModel.js";
 
+/**
+ * Normaliza el nombre de un programa de formacion del SENA:
+ * - Convierte a mayusculas y elimina espacios en los extremos.
+ * - Preserva la letra Ñ y elimina tildes/diacriticos.
+ * - Elimina signos de puntuacion basura al inicio o final (puntos, comas, guiones).
+ * - Colapsa multiples espacios internos en un solo espacio.
+ *
+ * @param {string} texto - Nombre original del programa
+ * @returns {string} Nombre normalizado limpio
+ */
+export function normalizarNombrePrograma(texto) {
+  if (!texto) return "";
+  let limpio = String(texto).trim().toUpperCase();
+
+  // Preservamos la letra ENIE mayuscula temporalmente antes de quitar diacriticos
+  limpio = limpio.replace(/Ñ/g, "__LETRA_ENIE__");
+
+  // Descomponemos caracteres acentuados y eliminamos marcas de tildes
+  limpio = limpio.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // Restauramos la letra ENIE original
+  limpio = limpio.replace(/__LETRA_ENIE__/g, "Ñ");
+
+  // Eliminamos signos de puntuacion y caracteres especiales al inicio o al final
+  limpio = limpio.replace(/^[\s.,;:_\-/\\]+|[\s.,;:_\-/\\]+$/g, "");
+
+  // Colapsamos multiples espacios internos en un solo espacio
+  limpio = limpio.replace(/\s+/g, " ");
+
+  return limpio;
+}
+
 class ProgramaService {
+    // Consulta todos los programas ordenados por Id descendente
     async getAll() {
         return await ProgramaModel.findAll({
             order: [['Id_Programa', 'DESC']]
         });
     }
 
+    // Busca un programa por su clave primaria
     async getById(id) {
         const Programa = await ProgramaModel.findByPk(id);
         if (!Programa) throw new Error("Programa no encontrado");
         return Programa;    
     }
 
+    // Crea un nuevo programa con nombre normalizado y estado activo por defecto
     async create(data) {
+        const nombreLimpio = normalizarNombrePrograma(data.Nom_Programa);
+        if (!nombreLimpio) throw new Error("El nombre del programa es obligatorio");
+
+        // Verificamos si ya existe un programa con este nombre normalizado
+        const existente = await ProgramaModel.findOne({
+            where: { Nom_Programa: nombreLimpio }
+        });
+        if (existente) {
+            return existente;
+        }
+
         return await ProgramaModel.create({
             ...data,
+            Nom_Programa: nombreLimpio,
             Est_Programa: data.Est_Programa || 'Activo'
         });
     }
 
+    // Actualiza los datos de un programa existente
     async update(id, data) {
-        const result = await ProgramaModel.update(data, { where: { Id_Programa: id } });
+        const datosActualizar = { ...data };
+        if (datosActualizar.Nom_Programa) {
+            datosActualizar.Nom_Programa = normalizarNombrePrograma(datosActualizar.Nom_Programa);
+        }
+        const result = await ProgramaModel.update(datosActualizar, { where: { Id_Programa: id } });
         const updated = result[0];
         if (updated === 0) throw new Error("Programa no encontrado o sin cambios");
         return true;
     }
 
+    // Cambia el estado de un programa entre Activo e Inactivo
     async cambiarEstado(id, nuevoEstado) {
         const programa = await ProgramaModel.findByPk(id);
         if (!programa) throw new Error("Programa no encontrado");
@@ -35,8 +88,8 @@ class ProgramaService {
         return { estado: estadoFinal };
     }
 
+    // Inactiva logicamente el programa para no romper integridad referencial con fichas
     async delete(id) {
-        // En lugar de borrar físicamente, se inactiva el programa
         const programa = await ProgramaModel.findByPk(id);
         if (!programa) throw new Error("Programa no encontrado");
         await ProgramaModel.update({ Est_Programa: 'Inactivo' }, { where: { Id_Programa: id } });
@@ -44,4 +97,4 @@ class ProgramaService {
     }
 }
 
-export default new ProgramaService();
+export default new ProgramaService();

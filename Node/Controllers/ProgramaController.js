@@ -2,32 +2,25 @@
 // Controladores del modulo de programas para el sistema Foodsys
 // Nomenclatura: PascalCase en espanol sin tildes
 
-import ProgramaService from "../Services/ProgramaService.js";
+import ProgramaService, { normalizarNombrePrograma } from "../Services/ProgramaService.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
 import XLSX from "xlsx";
 
 /* ============================================================
    COLUMNAS_PLANTILLA_PROGRAMA
-   Las tres columnas que el administrador debe llenar en el Excel.
-   Los nombres son exactamente los que el administrador reconoce
-   en el sistema; el controlador se encarga de mapearlos a los
-   campos internos del modelo antes de persistir.
+   Las columnas que el administrador reconoce en la plantilla oficial.
 ============================================================ */
 const COLUMNAS_PLANTILLA_PROGRAMA = [
-  "Id Programa",        // Solo referencia visual; se ignora al crear (autoIncrement)
-  "Nombre del Programa", // Mapeado a Nom_Programa
-  "Nombre del Area",     // Mapeado a Are_Programa (sin tilde para evitar problemas de encoding)
+  "Id Programa",          // Solo referencia visual (autoIncrement)
+  "Nombre del Programa",   // Mapeado a Nom_Programa
+  "Nombre del Area",       // Mapeado a Are_Programa
+  "Nivel de Formacion",    // Mapeado a NivFor_Programa
 ];
 
 // ─────────────────────────────────────────────────────────────
-// CRUD BASICO — no se modifica nada de lo que ya funcionaba
+// CRUD BASICO — preservando metodos existentes
 // ─────────────────────────────────────────────────────────────
 
-/*
-  getAllPrograma
-  Consulta sin filtros; devuelve todos los programas ordenados
-  por Id descendente (los mas recientes primero).
-*/
 export const getAllPrograma = async (req, res) => {
   try {
     const Programa = await ProgramaService.getAll();
@@ -37,12 +30,6 @@ export const getAllPrograma = async (req, res) => {
   }
 };
 
-/*
-  getPrograma
-  Paso 1: Se convierte el parametro de la URL a entero con parseInt.
-  Paso 2: El servicio busca por PK y lanza error si no existe.
-  Paso 3: 404 si no se encontro; 200 con el objeto si se encontro.
-*/
 export const getPrograma = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -53,12 +40,6 @@ export const getPrograma = async (req, res) => {
   }
 };
 
-/*
-  createPrograma
-  El body debe traer al menos Nom_Programa y Are_Programa.
-  El servicio delega la insercion a Sequelize.
-  201 indica que se creo un nuevo recurso en la BD.
-*/
 export const createPrograma = async (req, res) => {
   try {
     const Programa = await ProgramaService.create(req.body);
@@ -68,11 +49,6 @@ export const createPrograma = async (req, res) => {
   }
 };
 
-/*
-  updatePrograma
-  parseInt garantiza que el Id sea un numero antes de enviarlo al servicio.
-  El servicio valida que el registro exista y que haya al menos un cambio real.
-*/
 export const updatePrograma = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -97,10 +73,6 @@ export const cambiarEstadoPrograma = async (req, res) => {
   }
 };
 
-/*
-  deletePrograma
-  Inactiva lógicamente el programa para preservar integridad referencial.
-*/
 export const deletePrograma = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -112,21 +84,9 @@ export const deletePrograma = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// IMPORTACION EXCEL — flujo de tres pasos
-//
-// Paso A — descargarPlantillaPrograma  : descarga el .xlsx vacio
-// Paso B — previewImportPrograma       : lee el archivo y devuelve
-//                                        datos sin persistir
-// Paso C — importarProgramasSeleccionados: persiste los aprobados
+// IMPORTACION EXCEL — soporte para plantilla oficial y PE-04
 // ─────────────────────────────────────────────────────────────
 
-/*
-  descargarPlantillaPrograma  (Paso A)
-  Genera un libro Excel con una sola hoja llamada "Programas"
-  y los tres encabezados definidos en COLUMNAS_PLANTILLA_PROGRAMA.
-  El administrador llena este archivo y lo sube en el Paso B.
-  No requiere autenticacion para que pueda descargarse libremente.
-*/
 export const descargarPlantillaPrograma = (_req, res) => {
   try {
     const Libro = XLSX.utils.book_new();
@@ -144,19 +104,12 @@ export const descargarPlantillaPrograma = (_req, res) => {
   }
 };
 
-/*
-  previewImportPrograma  (Paso B)
-  Paso 1: multer (memoryStorage) entrega el archivo en req.file.buffer.
-          El archivo nunca toca el disco; se procesa completamente en RAM.
-  Paso 2: XLSX.read parsea el buffer y convierte la primera hoja a JSON.
-  Paso 3: Se limpian espacios en los nombres de columna para evitar
-          errores silenciosos por espacios invisibles en los encabezados.
-  Paso 4: Se mapean los nombres del Excel a los campos del modelo:
-          "Nombre del Programa" -> Nom_Programa
-          "Nombre del Area"     -> Are_Programa
-  Paso 5: Se devuelve el conteo y el array para la tabla de preview.
-          Nada se escribe en la base de datos en este paso.
-*/
+/**
+ * Previsualizacion de importacion de programas:
+ * - Detecta columnas de la plantilla propia de Foodsys y del reporte institucional PE-04.
+ * - Normaliza los nombres de programas usando normalizarNombrePrograma.
+ * - Deduplica registros dentro del archivo y contra la base de datos usando Map en memoria.
+ */
 export const previewImportPrograma = async (req, res) => {
   try {
     if (!req.file) {
@@ -165,80 +118,182 @@ export const previewImportPrograma = async (req, res) => {
 
     const Workbook = XLSX.read(req.file.buffer, { type: "buffer" });
     const Hoja = Workbook.Sheets[Workbook.SheetNames[0]];
-    const Filas = XLSX.utils.sheet_to_json(Hoja, { defval: "" });
 
-    if (!Filas.length) {
+    // Convertimos la hoja a filas raw como matriz de arrays para detectar encabezados si es PE-04
+    const matriz = XLSX.utils.sheet_to_json(Hoja, { header: 1, defval: "" });
+    if (!matriz.length) {
       return res.status(400).json({ message: "El archivo esta vacio o no tiene datos." });
     }
 
-    // Limpiar espacios y mapear columnas Excel a campos del modelo
-    const Datos = Filas.map((Fila) => {
-      const Limpio = {};
-      for (const Key of Object.keys(Fila)) {
-        Limpio[Key.trim()] = Fila[Key];
+    // Buscamos en que fila estan los encabezados reales (PE-04 suele tener encabezados en la fila 5, indice 4)
+    let filaEncabezados = 0;
+    for (let i = 0; i < Math.min(15, matriz.length); i++) {
+      const fila = matriz[i].map(c => String(c).trim().toUpperCase());
+      if (
+        fila.includes("NOMBRE DEL PROGRAMA") ||
+        fila.includes("NOM_PROGRAMA") ||
+        fila.includes("NOMBRE_PROGRAMA_FORMACION") ||
+        fila.includes("PROGRAMA") ||
+        fila.includes("IDENTIFICADOR_FICHA") ||
+        fila.includes("NUM_FICHA")
+      ) {
+        filaEncabezados = i;
+        break;
       }
-      return {
-        Nom_Programa: Limpio["Nombre del Programa"] ?? "",
-        Are_Programa: Limpio["Nombre del Área"] ?? "",
-      };
+    }
+
+    const Filas = XLSX.utils.sheet_to_json(Hoja, { range: filaEncabezados, defval: "" });
+
+    if (!Filas.length) {
+      return res.status(400).json({ message: "No se encontraron filas de datos en el archivo." });
+    }
+
+    // Consultamos los programas existentes en la base de datos para comparar
+    const existentesEnBD = await ProgramaModel.findAll({
+      attributes: ["Id_Programa", "Nom_Programa", "Are_Programa", "NivFor_Programa"]
+    });
+    const mapaBD = new Map();
+    existentesEnBD.forEach(p => {
+      mapaBD.set(normalizarNombrePrograma(p.Nom_Programa), p);
     });
 
-    return res.status(200).json({ total: Datos.length, data: Datos });
+    // Diccionario en memoria para deduplicar filas dentro del mismo Excel
+    const mapaExcel = new Map();
+
+    for (const Fila of Filas) {
+      const Limpio = {};
+      for (const Key of Object.keys(Fila)) {
+        Limpio[Key.trim().toUpperCase()] = Fila[Key];
+      }
+
+      // Extraccion flexible de columnas
+      const nombreRaw =
+        Limpio["NOMBRE DEL PROGRAMA"] ||
+        Limpio["NOM_PROGRAMA"] ||
+        Limpio["NOMBRE_PROGRAMA_FORMACION"] ||
+        Limpio["PROGRAMA DE FORMACION"] ||
+        Limpio["PROGRAMA"] ||
+        "";
+
+      const nombreNormalizado = normalizarNombrePrograma(nombreRaw);
+      if (!nombreNormalizado) continue;
+
+      const areaRaw =
+        Limpio["NOMBRE DEL AREA"] ||
+        Limpio["NOMBRE DEL ÁREA"] ||
+        Limpio["ARE_PROGRAMA"] ||
+        Limpio["NOMBRE_NUEVO_SECTOR"] ||
+        Limpio["NOMBRE_SECTOR_PROGRAMA"] ||
+        Limpio["SECTOR"] ||
+        "";
+
+      const nivelRaw =
+        Limpio["NIVEL DE FORMACION"] ||
+        Limpio["NIVEL DE FORMACIÓN"] ||
+        Limpio["NIVEL_FORMACION"] ||
+        Limpio["NIVFOR_PROGRAMA"] ||
+        Limpio["NIVEL"] ||
+        "";
+
+      // Si ya vimos este programa normalizado en este mismo Excel, lo enriquecemos si faltaba area o nivel
+      if (mapaExcel.has(nombreNormalizado)) {
+        const existente = mapaExcel.get(nombreNormalizado);
+        if (!existente.Are_Programa && areaRaw) existente.Are_Programa = String(areaRaw).trim();
+        if (!existente.NivFor_Programa && nivelRaw) existente.NivFor_Programa = String(nivelRaw).trim();
+        continue;
+      }
+
+      const yaExisteEnBD = mapaBD.has(nombreNormalizado);
+
+      mapaExcel.set(nombreNormalizado, {
+        Nom_Programa: nombreNormalizado,
+        Are_Programa: areaRaw ? String(areaRaw).trim() : (yaExisteEnBD ? mapaBD.get(nombreNormalizado).Are_Programa : ""),
+        NivFor_Programa: nivelRaw ? String(nivelRaw).trim() : (yaExisteEnBD ? mapaBD.get(nombreNormalizado).NivFor_Programa : ""),
+        yaExisteEnBD,
+        Id_Programa_Existente: yaExisteEnBD ? mapaBD.get(nombreNormalizado).Id_Programa : null
+      });
+    }
+
+    const Datos = Array.from(mapaExcel.values());
+
+    return res.status(200).json({
+      total: Datos.length,
+      data: Datos,
+      nuevos: Datos.filter(d => !d.yaExisteEnBD).length,
+      repetidosEnBD: Datos.filter(d => d.yaExisteEnBD).length
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Error al leer el archivo. Verifica que uses la plantilla oficial." });
+    console.error("Error en previewImportPrograma:", error);
+    return res.status(500).json({ message: "Error al leer el archivo. Verifica el formato del Excel." });
   }
 };
 
-/*
-  importarProgramasSeleccionados  (Paso C)
-  Recibe el array de programas aprobados por el administrador.
-  Por cada fila:
-    Paso 1: Validar que Nom_Programa no este vacio (campo obligatorio).
-    Paso 2: Buscar duplicado por Nom_Programa para evitar repetidos.
-    Paso 3: Crear el registro con los datos validados.
-  Responde con creados, omitidos y el detalle de cada error.
-*/
+/**
+ * Persiste los programas aprobados por el administrador:
+ * - Evita duplicados comparando en memoria mediante Map.
+ * - Si ya existe, actualiza su area y nivel si venian vacios.
+ * - Si es nuevo, lo crea con estado Activo.
+ */
 export const importarProgramasSeleccionados = async (req, res) => {
   try {
     const { programas } = req.body;
 
-    if (!programas?.length) {
-      return res.status(400).json({ message: "No hay datos seleccionados" });
+    if (!Array.isArray(programas) || !programas.length) {
+      return res.status(400).json({ message: "No hay datos seleccionados para importar" });
     }
+
+    // Precargamos todos los programas existentes en memoria para maxima velocidad
+    const todosEnBD = await ProgramaModel.findAll();
+    const mapaExistentes = new Map();
+    todosEnBD.forEach(p => {
+      mapaExistentes.set(normalizarNombrePrograma(p.Nom_Programa), p);
+    });
 
     let Creados = 0;
     let Omitidos = 0;
     const Errores = [];
 
     for (const Fila of programas) {
-      // Paso 1: campo minimo obligatorio
-      if (!Fila.Nom_Programa) {
+      const nombreLimpio = normalizarNombrePrograma(Fila.Nom_Programa);
+
+      if (!nombreLimpio) {
         Omitidos++;
-        Errores.push(`Fila omitida: falta Nombre del Programa.`);
+        Errores.push("Fila omitida: falta Nombre del Programa.");
         continue;
       }
 
-      // Paso 2: duplicado por nombre de programa
-      const Existe = await ProgramaModel.findOne({
-        where: { Nom_Programa: String(Fila.Nom_Programa).trim() }
-      });
-      if (Existe) {
+      // Verificamos si ya existe en la base de datos o ya fue creado en esta misma peticion
+      if (mapaExistentes.has(nombreLimpio)) {
+        const existente = mapaExistentes.get(nombreLimpio);
+        // Si el existente no tenia area o nivel y ahora si vienen, los actualizamos
+        const cambios = {};
+        if (!existente.Are_Programa && Fila.Are_Programa) cambios.Are_Programa = String(Fila.Are_Programa).trim();
+        if (!existente.NivFor_Programa && Fila.NivFor_Programa) cambios.NivFor_Programa = String(Fila.NivFor_Programa).trim();
+
+        if (Object.keys(cambios).length > 0) {
+          await ProgramaModel.update(cambios, { where: { Id_Programa: existente.Id_Programa } });
+        }
+
         Omitidos++;
-        Errores.push(`Programa "${Fila.Nom_Programa}" ya existe en el sistema.`);
         continue;
       }
 
-      // Paso 3: persistir el nuevo programa
-      await ProgramaModel.create({
-        Nom_Programa: String(Fila.Nom_Programa).trim(),
+      // Crear nuevo programa con nombre normalizado
+      const nuevo = await ProgramaModel.create({
+        Nom_Programa: nombreLimpio,
         Are_Programa: Fila.Are_Programa ? String(Fila.Are_Programa).trim() : null,
+        NivFor_Programa: Fila.NivFor_Programa ? String(Fila.NivFor_Programa).trim() : null,
+        Est_Programa: "Activo"
       });
 
+      // Lo guardamos en el Map para evitar duplicados en filas posteriores
+      mapaExistentes.set(nombreLimpio, nuevo);
       Creados++;
     }
 
-    res.json({ creados: Creados, omitidos: Omitidos, errores: Errores });
+    return res.status(200).json({ creados: Creados, omitidos: Omitidos, errores: Errores });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error en importarProgramasSeleccionados:", error);
+    return res.status(500).json({ message: "Error interno al importar los programas seleccionados." });
   }
-};
+};

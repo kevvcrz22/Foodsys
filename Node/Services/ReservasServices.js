@@ -336,7 +336,21 @@ class ReservasServices {
   // antes de que el supervisor pueda escanear el QR final.
   async procesarVerificacionCocina(Id_Reserva) {
     return await db.transaction(async (transaction) => {
-      const reserva = await ReservaModel.findByPk(Id_Reserva, { transaction });
+      const reserva = await ReservaModel.findByPk(Id_Reserva, {
+        include: [
+          {
+            model: UsuariosModel,
+            as: "usuario",
+            attributes: ["Id_Usuario", "Nom_Usuario", "Ape_Usuario", "NumDoc_Usuario"]
+          },
+          {
+            model: PlatosModels,
+            as: "plato",
+            attributes: ["Nom_Plato", "Img_Plato", "Des_Plato"]
+          }
+        ],
+        transaction
+      });
 
       if (!reserva) throw new Error("Reserva no encontrada");
       if (reserva.Est_Reserva !== 'Generado') {
@@ -345,10 +359,20 @@ class ReservasServices {
 
       await reserva.update({ Est_Reserva: 'Verificado' }, { transaction });
 
+      const nombreAprendiz = reserva.usuario
+        ? `${reserva.usuario.Nom_Usuario} ${reserva.usuario.Ape_Usuario}`.trim()
+        : "Aprendiz";
+
       return {
         message: 'Reserva verificada correctamente por cocina',
         Id_Reserva,
-        nuevoEstado: 'Verificado'
+        nuevoEstado: 'Verificado',
+        Aprendiz: nombreAprendiz,
+        NumDoc: reserva.usuario?.NumDoc_Usuario || '',
+        Tipo: reserva.Tip_Reserva,
+        Plato: reserva.plato?.Nom_Plato || 'Plato del Dia',
+        ImgPlato: reserva.plato?.Img_Plato || null,
+        DescPlato: reserva.plato?.Des_Plato || ''
       };
     });
   }

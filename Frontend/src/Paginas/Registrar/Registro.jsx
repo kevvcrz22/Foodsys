@@ -17,8 +17,11 @@ import {
   PieChart, Shield, Loader2,
   ScanLine, CalendarX, Ban, AlertTriangle,
   Sparkles, Check, Coffee, SunMedium,
-  Moon, CheckCheck, ArrowRight
+  Moon, CheckCheck, ArrowRight,
+  Zap, HelpCircle, ChevronDown, ChevronUp, FileSpreadsheet
 } from "lucide-react";
+import apiAxios from "../../api/axiosConfig";
+import { exportarAExcel, confirmarExportacion } from "../../utils/exportUtils";
 
 // URL base de la API
 const API_URL = import.meta.env.VITE_API_URL || "";
@@ -378,7 +381,7 @@ const TarjetaResultado = ({ resultado }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTE: Modal de Cierre de Turno y Reporte Ejecutivo
 // ─────────────────────────────────────────────────────────────────────────────
-const ModalCierreTurno = ({ datos, onCerrar, onExportarPDF, refReporte, exportandoPDF }) => {
+const ModalCierreTurno = ({ datos, onCerrar, onExportarPDF, onExportarExcel, refReporte, exportandoPDF }) => {
   const { horaInicio, horaFin, historial, metricas } = datos;
 
   const formatearHora = (iso) =>
@@ -449,9 +452,17 @@ const ModalCierreTurno = ({ datos, onCerrar, onExportarPDF, refReporte, exportan
 
           <div className="flex items-center gap-2">
             <button
+              onClick={onExportarExcel}
+              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer"
+              title="Descargar listado nominal de consumos en Excel"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span className="hidden sm:inline">Exportar</span> Excel
+            </button>
+            <button
               onClick={onExportarPDF}
               disabled={exportandoPDF}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 active:scale-95 disabled:bg-green-400 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer"
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 active:scale-95 disabled:bg-green-400 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer"
             >
               {exportandoPDF ? (
                 <>
@@ -461,7 +472,7 @@ const ModalCierreTurno = ({ datos, onCerrar, onExportarPDF, refReporte, exportan
               ) : (
                 <>
                   <Download className="w-4 h-4" />
-                  <span>Exportar Reporte PDF</span>
+                  <span>Reporte PDF</span>
                 </>
               )}
             </button>
@@ -667,6 +678,9 @@ const ModalCierreTurno = ({ datos, onCerrar, onExportarPDF, refReporte, exportan
 const Registro = () => {
   // ── ESTADOS PRINCIPALES ───────────────────────────────────────────────────
   const [turnoActivo, setTurnoActivo] = useState(false);
+  const [idTurnoBD, setIdTurnoBD] = useState(null);
+  const [infoTurnoActivo, setInfoTurnoActivo] = useState(null);
+  const [cargandoIniciarTurno, setCargandoIniciarTurno] = useState(false);
   const [horaInicioTurno, setHoraInicioTurno] = useState(null);
   const [horaFinTurno, setHoraFinTurno] = useState(null);
   const [historialTurno, setHistorialTurno] = useState([]);
@@ -679,6 +693,11 @@ const Registro = () => {
   const [scannerListo, setScannerListo] = useState(false);
   const [qrDetectado, setQrDetectado] = useState(false);
   const [procesando, setProcesando] = useState(false);
+
+  // Modo Fila Rapida y Guia de Usuario
+  const [modoFilaRapida, setModoFilaRapida] = useState(true);
+  const [mostrarGuia, setMostrarGuia] = useState(false);
+  const timerAutoContinuarRef = useRef(null);
 
   // Búsqueda Manual
   const [terminoBusqueda, setTerminoBusqueda] = useState("");
@@ -703,11 +722,63 @@ const Registro = () => {
   const bufferPistolaRef = useRef("");
   const timerPistolaRef = useRef(null);
 
+  // Feedback auditivo mediante Web Audio API
+  const reproducirBeep = (tipo = "exito") => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      if (tipo === "exito") {
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.18);
+      } else {
+        osc.frequency.setValueAtTime(220, ctx.currentTime);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      }
+    } catch {
+      // Ignorar
+    }
+  };
+
   // ── EFECTO: Reloj en vivo ─────────────────────────────────────────────────
   useEffect(() => {
     const timer = setInterval(() => setHoraActual(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Consultar turno activo en backend al cargar
+  const verificarTurnoActivoEnBD = useCallback(async () => {
+    try {
+      const res = await apiAxios.get("/api/Turnos/activo");
+      if (res.data?.turno) {
+        const t = res.data.turno;
+        setIdTurnoBD(t.Id_Turno);
+        setTurnoActivo(true);
+        setHoraInicioTurno(t.Fecha_Inicio);
+        setScannerListo(true);
+        setInfoTurnoActivo(t);
+      } else {
+        setIdTurnoBD(null);
+        setInfoTurnoActivo(null);
+      }
+    } catch (err) {
+      console.error("Error al consultar turno activo:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    verificarTurnoActivoEnBD();
+  }, [verificarTurnoActivoEnBD]);
 
   // Identificar el turno de comida actual según la hora
   const turnoComidaActual = useMemo(() => {
@@ -764,10 +835,26 @@ const Registro = () => {
 
       if (!resp.ok) {
         setUltimoResultado({ Error: datos.message || "Error al validar la reserva" });
+        reproducirBeep("error");
+        if (modoFilaRapida) {
+          if (timerAutoContinuarRef.current) clearTimeout(timerAutoContinuarRef.current);
+          timerAutoContinuarRef.current = setTimeout(() => {
+            setUltimoResultado(null);
+          }, 3500);
+        }
         return;
       }
 
       setUltimoResultado(datos);
+      reproducirBeep("exito");
+
+      if (modoFilaRapida) {
+        if (timerAutoContinuarRef.current) clearTimeout(timerAutoContinuarRef.current);
+        timerAutoContinuarRef.current = setTimeout(() => {
+          setUltimoResultado(null);
+        }, 2500);
+      }
+
       setHistorialTurno((prev) => [
         {
           Aprendiz: datos.Aprendiz || "Sin nombre",
@@ -785,6 +872,7 @@ const Registro = () => {
       ]);
     } catch {
       setUltimoResultado({ Error: "Error de conexión con el servidor Foodsys" });
+      reproducirBeep("error");
     }
   };
 
@@ -931,27 +1019,117 @@ const Registro = () => {
     setTerminoBusqueda("");
   };
 
-  // ── GESTIÓN DE INICIO / CIERRE DE TURNO ───────────────────────────────────
-  const manejarIniciarTurno = () => {
-    setTurnoActivo(true);
-    setHoraInicioTurno(new Date().toISOString());
-    setHoraFinTurno(null);
-    setHistorialTurno([]);
-    setContCanceladas(0);
-    setContVencidas(0);
-    setUltimoResultado(null);
-    setTabActiva("qr");
-    setScannerListo(true);
-    obtenerContadoresExternos();
+  // ── GESTIÓN DE INICIO / CIERRE DE TURNO CON BACKEND ─────────────────────
+  const manejarIniciarTurno = async () => {
+    try {
+      setCargandoIniciarTurno(true);
+      const res = await apiAxios.post("/api/Turnos/iniciar", {
+        observaciones: "Turno iniciado por Supervisor desde panel de registro"
+      });
+      const t = res.data?.turno;
+      if (t) {
+        setIdTurnoBD(t.Id_Turno);
+        setHoraInicioTurno(t.Fecha_Inicio);
+      } else {
+        setHoraInicioTurno(new Date().toISOString());
+      }
+      setTurnoActivo(true);
+      setHoraFinTurno(null);
+      setHistorialTurno([]);
+      setContCanceladas(0);
+      setContVencidas(0);
+      setUltimoResultado(null);
+      setTabActiva("qr");
+      setScannerListo(true);
+      setInfoTurnoActivo(null);
+      obtenerContadoresExternos();
+    } catch (err) {
+      const msg = err.response?.data?.mensaje || err.message || "Error al iniciar turno";
+      alert(msg);
+      verificarTurnoActivoEnBD();
+    } finally {
+      setCargandoIniciarTurno(false);
+    }
   };
 
   const manejarCerrarTurno = async () => {
-    setTurnoActivo(false);
-    setScannerListo(false);
-    const fin = new Date().toISOString();
-    setHoraFinTurno(fin);
-    await obtenerContadoresExternos();
-    setMostrarModalCierre(true);
+    if (!window.confirm("¿Seguro que deseas finalizar el turno actual de Supervisor?")) {
+      return;
+    }
+    try {
+      const fin = new Date().toISOString();
+      setHoraFinTurno(fin);
+      setTurnoActivo(false);
+      setScannerListo(false);
+
+      if (idTurnoBD) {
+        await apiAxios.post("/api/Turnos/finalizar", {
+          observaciones: `Cierre de turno con ${historialTurno.length} consumos registrados`
+        });
+
+        // Cargar consumos nominales consolidados del turno desde el backend
+        try {
+          const resC = await apiAxios.get(`/api/Turnos/${idTurnoBD}/consumos`);
+          if (resC.data?.consumos && Array.isArray(resC.data.consumos)) {
+            const listaMapeada = resC.data.consumos.map((c) => ({
+              Aprendiz: `${c.usuario?.Nom_Usuario || ""} ${c.usuario?.Ape_Usuario || ""}`.trim(),
+              NumDoc: c.usuario?.NumDoc_Usuario || "--",
+              Tipo: c.Tip_Reserva,
+              Plato: c.plato?.Nom_Plato || "Menu del dia",
+              DescPlato: c.plato?.Desc_Plato || "",
+              FlujoEspecial: c.usuario?.Est_Usuario === "Especial",
+              FlujoInterno: c.usuario?.CenCon_Usuario === "Si",
+              Id_Reserva: c.Id_Reserva,
+              Timestamp: c.updatedAt || c.createdAt
+            }));
+            if (listaMapeada.length > 0) {
+              setHistorialTurno(listaMapeada);
+            }
+          }
+        } catch (errC) {
+          console.warn("No se pudo cargar detalle especifico de consumos:", errC);
+        }
+      }
+
+      await obtenerContadoresExternos();
+      setMostrarModalCierre(true);
+    } catch (err) {
+      const msg = err.response?.data?.mensaje || "Error al cerrar turno";
+      alert(msg);
+    }
+  };
+
+  // ── EXPORTAR REPORTE A EXCEL ───────────────────────────────────────────────
+  const manejarExportarExcel = () => {
+    if (!historialTurno || historialTurno.length === 0) {
+      alert("No hay consumos registrados en este turno para exportar a Excel.");
+      return;
+    }
+
+    const columnas = [
+      { header: "Hora Consumo", key: "Hora" },
+      { header: "Aprendiz / Pasante", key: "Aprendiz" },
+      { header: "N° Documento", key: "NumDoc" },
+      { header: "Plato Consumido", key: "Plato" },
+      { header: "Tipo de Comida", key: "Tipo" },
+      { header: "Condicion", key: "Flujo" }
+    ];
+
+    const datosFormateados = historialTurno.map((item) => ({
+      Hora: new Date(item.Timestamp).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
+      Aprendiz: item.Aprendiz,
+      NumDoc: item.NumDoc,
+      Plato: item.Plato,
+      Tipo: item.Tipo,
+      Flujo: item.FlujoEspecial ? "Especial" : item.FlujoInterno ? "Interno" : "Externo"
+    }));
+
+    exportarAExcel({
+      columnas,
+      datos: datosFormateados,
+      nombreArchivo: `Consumos_Turno_Supervisor_${new Date().toISOString().split("T")[0]}`,
+      tituloHoja: "Consumos de Turno"
+    });
   };
 
   // ── EXPORTAR REPORTE A PDF ────────────────────────────────────────────────
@@ -1127,6 +1305,45 @@ const Registro = () => {
           })}
         </div>
 
+        {/* Banner de Advertencia si otro supervisor tiene turno abierto */}
+        {infoTurnoActivo && !turnoActivo && (
+          <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 mb-5 flex items-start gap-3 shadow-xs">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-900">
+              <p className="font-bold text-sm">Turno Activo en el Comedor</p>
+              <p className="mt-0.5">
+                Ya existe un turno iniciado por <strong>{infoTurnoActivo.usuario?.Nom_Usuario || "Otro Supervisor"}</strong> desde las{" "}
+                {new Date(infoTurnoActivo.Fecha_Inicio).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}.
+                Por regla de comedor, solo puede haber 1 supervisor con turno abierto a la vez.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Guia de usuario paso a paso para el Supervisor */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-3.5 shadow-xs mb-5">
+          <button
+            type="button"
+            onClick={() => setMostrarGuia(!mostrarGuia)}
+            className="w-full flex items-center justify-between text-xs font-semibold text-gray-700 hover:text-green-700 transition"
+          >
+            <span className="flex items-center gap-1.5">
+              <HelpCircle className="w-4 h-4 text-green-600" />
+              ¿Como usar el modulo de Registro y Supervisor? (Guia paso a paso)
+            </span>
+            {mostrarGuia ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          {mostrarGuia && (
+            <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600 space-y-1.5 leading-relaxed">
+              <p><strong>1. Inicio de Turno:</strong> Presiona 'Iniciar Turno'. El sistema valida que no haya cruces y notifica a Bienestar y Administracion.</p>
+              <p><strong>2. Escaneo QR:</strong> Enfoca el codigo QR del aprendiz en el visor o utiliza la pistola lectora de codigo de barras.</p>
+              <p><strong>3. Aprendices Externos:</strong> Deben haber sido verificados previamente en Cocina para poder consumir con el Supervisor.</p>
+              <p><strong>4. Modo Fila Rapida:</strong> Si esta encendido, emite un sonido de aprobacion y continua escaneando automaticamente tras 2.5 segundos.</p>
+              <p><strong>5. Cierre de Turno:</strong> Presiona 'Cerrar Turno' para consolidar la informacion, enviar correo de auditoria y exportar a Excel o PDF.</p>
+            </div>
+          )}
+        </div>
+
         {/* ── ESTADO INACTIVO (Antes de iniciar turno) ─────────────────────── */}
         {!turnoActivo && historialTurno.length === 0 ? (
           <div className="bg-white rounded-3xl border border-gray-200 shadow-xs p-8 sm:p-14 text-center max-w-2xl mx-auto my-8">
@@ -1143,10 +1360,11 @@ const Registro = () => {
             <div className="mt-8 flex justify-center">
               <button
                 onClick={manejarIniciarTurno}
-                className="flex items-center gap-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white px-8 py-3.5 rounded-2xl font-bold text-base transition-all shadow-md shadow-green-600/20 cursor-pointer"
+                disabled={cargandoIniciarTurno}
+                className="flex items-center gap-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white px-8 py-3.5 rounded-2xl font-bold text-base transition-all shadow-md shadow-green-600/20 cursor-pointer disabled:opacity-50"
               >
                 <Play className="w-5 h-5 fill-white" />
-                <span>Iniciar Turno</span>
+                <span>{cargandoIniciarTurno ? "Iniciando turno..." : "Iniciar Turno"}</span>
               </button>
             </div>
 
@@ -1161,7 +1379,7 @@ const Registro = () => {
               </div>
               <div className="flex flex-col items-center gap-1.5">
                 <FileText className="w-5 h-5 text-gray-600" />
-                <span className="font-semibold">Reporte PDF</span>
+                <span className="font-semibold">Reporte PDF y Excel</span>
               </div>
             </div>
           </div>
@@ -1172,37 +1390,54 @@ const Registro = () => {
             <div className="lg:col-span-7 space-y-5">
               {/* Tarjeta de pestañas y modos */}
               <div className="bg-white rounded-3xl shadow-xs border border-gray-200 overflow-hidden">
-                {/* Switcher de Pestañas */}
-                <div className="flex border-b border-gray-100 bg-gray-50 p-1.5 gap-1.5">
-                  <button
-                    onClick={() => {
-                      setTabActiva("qr");
-                      setTerminoBusqueda("");
-                    }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                      tabActiva === "qr"
-                        ? "bg-white text-green-700 shadow-2xs border border-gray-200"
-                        : "text-gray-500 hover:text-gray-800 hover:bg-white/50"
-                    }`}
-                  >
-                    <Camera className="w-4 h-4" />
-                    <span>Escáner de Cámara QR</span>
-                  </button>
+                {/* Switcher de Pestañas con Modo Fila Rapida */}
+                <div className="flex flex-col sm:flex-row border-b border-gray-100 bg-gray-50 p-1.5 gap-1.5 justify-between sm:items-center">
+                  <div className="flex flex-1 gap-1.5">
+                    <button
+                      onClick={() => {
+                        setTabActiva("qr");
+                        setTerminoBusqueda("");
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                        tabActiva === "qr"
+                          ? "bg-white text-green-700 shadow-2xs border border-gray-200"
+                          : "text-gray-500 hover:text-gray-800 hover:bg-white/50"
+                      }`}
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>Cámara QR</span>
+                    </button>
 
-                  <button
-                    onClick={() => {
-                      setTabActiva("manual");
-                      setTerminoBusqueda("");
-                    }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                      tabActiva === "manual"
-                        ? "bg-white text-green-700 shadow-2xs border border-gray-200"
-                        : "text-gray-500 hover:text-gray-800 hover:bg-white/50"
-                    }`}
-                  >
-                    <Search className="w-4 h-4" />
-                    <span>Búsqueda Manual / Doc</span>
-                  </button>
+                    <button
+                      onClick={() => {
+                        setTabActiva("manual");
+                        setTerminoBusqueda("");
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                        tabActiva === "manual"
+                          ? "bg-white text-green-700 shadow-2xs border border-gray-200"
+                          : "text-gray-500 hover:text-gray-800 hover:bg-white/50"
+                      }`}
+                    >
+                      <Search className="w-4 h-4" />
+                      <span>Búsqueda Manual</span>
+                    </button>
+                  </div>
+
+                  {/* Interruptor Modo Fila Rapida */}
+                  <div className="flex items-center gap-2 bg-green-50/80 border border-green-200 rounded-xl px-3 py-1.5 self-center sm:self-auto">
+                    <Zap className={`w-3.5 h-3.5 ${modoFilaRapida ? "text-green-600 fill-green-600" : "text-gray-400"}`} />
+                    <span className="text-xs font-semibold text-green-900">Fila Rápida</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={modoFilaRapida}
+                        onChange={(e) => setModoFilaRapida(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-green-600"></div>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="p-4 sm:p-6">
@@ -1485,6 +1720,7 @@ const Registro = () => {
           }}
           onCerrar={() => setMostrarModalCierre(false)}
           onExportarPDF={manejarExportarPDF}
+          onExportarExcel={manejarExportarExcel}
           refReporte={refReportePDF}
           exportandoPDF={exportandoPDF}
         />

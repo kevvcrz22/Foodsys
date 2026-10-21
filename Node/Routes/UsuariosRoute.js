@@ -14,6 +14,7 @@ import {
   deleteUsuarios,
   aceptarPolitica,
   getAprendices,
+  getPasantes,
   importarCSV,
   validarPasswordActual,
   cambiarPassword,
@@ -61,6 +62,9 @@ Router.post('/reset-password', setNewPassword)
 
 // Listado de aprendices
 Router.get('/aprendices', authMiddleware, getAprendices);
+
+// Listado de pasantes (Pasante Interno y Pasante Externo)
+Router.get('/pasantes', authMiddleware, getPasantes);
 
 // Listado de usuarios sancionados (San_Usuario = 'Si')
 // Acceso: Coordinador, Bienestar, Administrador

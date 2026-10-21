@@ -1,9 +1,9 @@
 // Routes/FichasRoute.js
 // Rutas del modulo de fichas del sistema Foodsys
-// Las rutas de escritura estan protegidas con
-// authMiddleware y FichaMiddleware
+// Comentarios didacticos para aprendices de primer semestre sin tildes ni emojis
 
 import express from "express";
+import multer from "multer";
 import authMiddleware from "../Middleware/authMiddleware.js";
 import {
   getAllFichas,
@@ -11,19 +11,33 @@ import {
   createFichas,
   updateFichas,
   deleteFichas,
-  descargarPlantillaFicha
+  descargarPlantillaFicha,
+  previewImportFicha,
+  importarFichasSeleccionadas
 } from "../Controllers/FichasController.js";
 
 const router = express.Router();
 
-// Lectura publica de fichas
+// Configuracion de multer en memoria (RAM) para procesar archivos Excel sin tocar disco
+const Upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // limite de 10 MB suficiente para archivos PE-04 masivos
+});
+
+// Lectura de fichas y descarga de plantilla oficial
 router.get("/", getAllFichas);
-router.get('/plantilla-excel', descargarPlantillaFicha);
+router.get("/plantilla-excel", descargarPlantillaFicha);
+
+// Rutas de importacion masiva de fichas (deben ir ANTES de /:id para no ser interpretadas como parametro)
+router.post("/preview-import", Upload.single("file"), previewImportFicha);
+router.post("/importar-seleccionadas", authMiddleware, importarFichasSeleccionadas);
+
+// Lectura de una ficha especifica por su clave primaria
 router.get("/:id", getFichas);
 
-// Escritura protegida con auth + permiso de vista Ficha
+// Escritura y modificacion protegida con autenticacion
 router.post("/", authMiddleware, createFichas);
 router.put("/:id", authMiddleware, updateFichas);
 router.delete("/:id", authMiddleware, deleteFichas);
 
-export default router;
+export default router;

@@ -62,6 +62,8 @@ import {
   getNoConsumidos,
   exportarNoConsumidosPDF,
   exportarNoConsumidosExcel,
+  getConsumidoresNominales,
+  getSeguimientoBienestar,
 } from "../Controllers/ReportesController.js";
 
 const router = Router();
@@ -155,5 +157,13 @@ router.get("/no-consumidos/exportar/pdf", authMiddleware, exportarNoConsumidosPD
 // Exportar inasistencias a Excel
 // Ejemplo: GET /api/Reportes/no-consumidos/exportar/excel?periodo=diario
 router.get("/no-consumidos/exportar/excel", authMiddleware, exportarNoConsumidosExcel);
+
+// Tabla nominal de consumidores que consumieron alimentos en el periodo filtrado
+// Ejemplo: GET /api/Reportes/consumidores-nominales?periodo=diario&tipoAlimento=Todos
+router.get("/consumidores-nominales", authMiddleware, getConsumidoresNominales);
+
+// Tab 3 Bienestar: Aprendices activos sin consumos o sin reservas en el periodo
+// Ejemplo: GET /api/Reportes/seguimiento-bienestar?periodo=semanal
+router.get("/seguimiento-bienestar", authMiddleware, getSeguimientoBienestar);
 
 export default router;
