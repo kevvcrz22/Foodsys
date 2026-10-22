@@ -5,6 +5,12 @@
 import ProgramaService, { normalizarNombrePrograma } from "../Services/ProgramaService.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
 import XLSX from "xlsx";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /* ============================================================
    COLUMNAS_PLANTILLA_PROGRAMA
@@ -89,6 +95,11 @@ export const deletePrograma = async (req, res) => {
 
 export const descargarPlantillaPrograma = (_req, res) => {
   try {
+    const templatePath = path.resolve(__dirname, "../Templates/Programas_Foodsys_Oficial.xlsx");
+    if (fs.existsSync(templatePath)) {
+      return res.download(templatePath, "Programas_Foodsys_Oficial.xlsx");
+    }
+
     const Libro = XLSX.utils.book_new();
     const Hoja = XLSX.utils.aoa_to_sheet([COLUMNAS_PLANTILLA_PROGRAMA]);
     Hoja["!cols"] = COLUMNAS_PLANTILLA_PROGRAMA.map(() => ({ wch: 26 }));
@@ -96,11 +107,11 @@ export const descargarPlantillaPrograma = (_req, res) => {
 
     const Buffer = XLSX.write(Libro, { type: "buffer", bookType: "xlsx" });
 
-    res.setHeader("Content-Disposition", 'attachment; filename="plantilla_programas.xlsx"');
+    res.setHeader("Content-Disposition", 'attachment; filename="Programas_Foodsys_Oficial.xlsx"');
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.send(Buffer);
+    return res.send(Buffer);
   } catch (error) {
-    res.status(500).json({ message: "Error al generar la plantilla de programas." });
+    return res.status(500).json({ message: "Error al generar la plantilla de programas." });
   }
 };
 

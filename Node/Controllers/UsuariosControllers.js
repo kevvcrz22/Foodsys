@@ -15,6 +15,12 @@ import { normalizarNombrePrograma } from "../Services/ProgramaService.js";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import XLSX from "xlsx"; // npm install xlsx
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /* ============================================================
    COLUMNAS_PLANTILLA
@@ -429,6 +435,11 @@ function detectarHojaAprendices(Workbook) {
 */
 export const descargarPlantilla = (_req, res) => {
   try {
+    const templatePath = path.resolve(__dirname, "../Templates/Aprendices_Foodsys_Oficial.xlsx");
+    if (fs.existsSync(templatePath)) {
+      return res.download(templatePath, "Aprendices_Foodsys_Oficial.xlsx");
+    }
+
     const Libro = XLSX.utils.book_new();
 
     // Hoja 1: Plantilla Institucional Foodsys (Limpia y con ejemplos)
@@ -472,11 +483,11 @@ export const descargarPlantilla = (_req, res) => {
 
     const Buffer = XLSX.write(Libro, { type: "buffer", bookType: "xlsx" });
 
-    res.setHeader("Content-Disposition", 'attachment; filename="Plantilla_Aprendices_Foodsys_SENA.xlsx"');
+    res.setHeader("Content-Disposition", 'attachment; filename="Aprendices_Foodsys_Oficial.xlsx"');
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.send(Buffer);
+    return res.send(Buffer);
   } catch (error) {
-    res.status(500).json({ message: "Error al generar la plantilla de aprendices." });
+    return res.status(500).json({ message: "Error al generar la plantilla de aprendices." });
   }
 };
 

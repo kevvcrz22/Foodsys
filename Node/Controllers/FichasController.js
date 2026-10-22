@@ -7,6 +7,12 @@ import FichasModel from "../Models/FichasModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
 import { normalizarNombrePrograma } from "../Services/ProgramaService.js";
 import XLSX from "xlsx";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /* ============================================================
    COLUMNAS_PLANTILLA_FICHA
@@ -134,6 +140,11 @@ export const deleteFichas = async (req, res) => {
 
 export const descargarPlantillaFicha = (_req, res) => {
   try {
+    const templatePath = path.resolve(__dirname, "../Templates/Fichas_Foodsys_Oficial.xlsx");
+    if (fs.existsSync(templatePath)) {
+      return res.download(templatePath, "Fichas_Foodsys_Oficial.xlsx");
+    }
+
     const Libro = XLSX.utils.book_new();
 
     // Hoja 1: Plantilla Institucional Foodsys (Limpia con ejemplos)
@@ -159,11 +170,11 @@ export const descargarPlantillaFicha = (_req, res) => {
 
     const Buffer = XLSX.write(Libro, { type: "buffer", bookType: "xlsx" });
 
-    res.setHeader("Content-Disposition", 'attachment; filename="Plantilla_Fichas_Foodsys_PE04.xlsx"');
+    res.setHeader("Content-Disposition", 'attachment; filename="Fichas_Foodsys_Oficial.xlsx"');
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.send(Buffer);
+    return res.send(Buffer);
   } catch (error) {
-    res.status(500).json({ message: "Error al generar la plantilla de fichas." });
+    return res.status(500).json({ message: "Error al generar la plantilla de fichas." });
   }
 };
 
