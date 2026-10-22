@@ -605,7 +605,6 @@ export const previewImport = async (req, res) => {
           "FICHA DE CARACTERIZACIÓN", "FICHA DE CARACTERIZACION"
         ]
       );
-      const fichaEncontrada = mapaFichas.get(String(numFichaRaw).trim());
 
       const nomProgExtraido = extractExcelField(
         Fila,
