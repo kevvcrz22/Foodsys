@@ -461,14 +461,20 @@ const ImportarExcel = ({ onClose, reload }) => {
               <p className="text-xs text-slate-500 m-0 mt-1">Los registros fueron sincronizados en la base de datos.</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 w-full">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
-                <p className="text-4xl font-extrabold text-emerald-800 m-0">{resultado.creados ?? 0}</p>
-                <p className="text-xs text-emerald-700 font-bold uppercase tracking-wider m-0 mt-1">Nuevos Aprendices Creados</p>
+            <div className={`grid ${resultado.actualizados > 0 ? "grid-cols-3" : "grid-cols-2"} gap-3 w-full`}>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+                <p className="text-3xl font-extrabold text-emerald-800 m-0">{resultado.creados ?? 0}</p>
+                <p className="text-[11px] text-emerald-700 font-bold uppercase tracking-wider m-0 mt-1">Nuevos Creados</p>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
-                <p className="text-4xl font-extrabold text-amber-800 m-0">{resultado.omitidos ?? 0}</p>
-                <p className="text-xs text-amber-700 font-bold uppercase tracking-wider m-0 mt-1">Omitidos / Ya Existían</p>
+              {resultado.actualizados > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-center">
+                  <p className="text-3xl font-extrabold text-blue-800 m-0">{resultado.actualizados}</p>
+                  <p className="text-[11px] text-blue-700 font-bold uppercase tracking-wider m-0 mt-1">Fichas Vinculadas</p>
+                </div>
+              )}
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+                <p className="text-3xl font-extrabold text-amber-800 m-0">{resultado.omitidos ?? 0}</p>
+                <p className="text-[11px] text-amber-700 font-bold uppercase tracking-wider m-0 mt-1">Omitidos / Existían</p>
               </div>
             </div>
 

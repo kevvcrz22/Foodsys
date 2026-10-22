@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import apiAxios from "../../api/axiosConfig.js";
 import toast from "react-hot-toast";
 
-const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
+const ProgramaForm = ({ hideModal, programa, ProgramaSeleccionado, actualizarLista, reload }) => {
+  const progActual = programa || ProgramaSeleccionado;
+  const fnRecargar = typeof actualizarLista === "function" ? actualizarLista : (typeof reload === "function" ? reload : () => {});
 
   const [Id_Programa,     setId_Programa]     = useState("");
   const [Nom_Programa,    setNom_Programa]     = useState("");
@@ -14,18 +16,18 @@ const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
 
   // Rellena el formulario cuando se va a editar un programa existente
   useEffect(() => {
-    if (programa) {
-      setId_Programa(programa.Id_Programa    || "");
-      setNom_Programa(programa.Nom_Programa  || "");
-      setAre_Programa(programa.Are_Programa  || "");
-      setNivFor_Programa(programa.NivFor_Programa || "");
+    if (progActual) {
+      setId_Programa(progActual.Id_Programa    || "");
+      setNom_Programa(progActual.Nom_Programa  || "");
+      setAre_Programa(progActual.Are_Programa  || "");
+      setNivFor_Programa(progActual.NivFor_Programa || "");
     } else {
       setId_Programa("");
       setNom_Programa("");
       setAre_Programa("");
       setNivFor_Programa("");
     }
-  }, [programa]);
+  }, [progActual]);
 
   const gestionarForm = async (e) => {
     e.preventDefault();
@@ -43,14 +45,14 @@ const ProgramaForm = ({ hideModal, programa, actualizarLista }) => {
     };
 
     try {
-      if (programa) {
+      if (progActual) {
         await apiAxios.put(`/api/Programa/${Id_Programa}`, payload);
         toast.success("Programa actualizado correctamente");
       } else {
         await apiAxios.post("/api/Programa/", payload);
         toast.success("Programa creado correctamente");
       }
-      actualizarLista();
+      fnRecargar();
       hideModal();
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Error al guardar programa";

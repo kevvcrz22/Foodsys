@@ -11,6 +11,7 @@ import ProgramaModel from "../Models/ProgramaModel.js";
 import RolesModel from "../Models/RolesModel.js";
 import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import { sincronizarEstadoAprendices } from "../Services/FichasServices.js";
+import { normalizarNombrePrograma } from "../Services/ProgramaService.js";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import XLSX from "xlsx"; // npm install xlsx
@@ -359,10 +360,28 @@ function extractExcelField(row, exactKeys = [], partialKeys = []) {
  * y detecta la fila exacta de encabezados. Soporta Base_NO MODIFICAR_2026_SEPTIEMBRE, Hoja1, etc.
  */
 function detectarHojaAprendices(Workbook) {
-  const prioridades = ["Base_Datos_IQR", "Hoja1", "Aprendices", "Usuarios", "Base_Datos"];
+  // Priorizar hojas institucionales del SENA (Juicios, Base IQR, Foodsys, etc.)
+  const prioridades = [
+    "J_TGOs_Comp_2026_09",
+    "J_TCOs_Comp_2026_09",
+    "Base_Datos_IQR",
+    "Aprendices_Activos",
+    "Plantilla_Aprendices",
+    "Hoja1",
+    "Aprendices",
+    "Usuarios",
+    "Base_Datos",
+    "Registro",
+    "Registro Asistencia",
+    "TGOs-Jucios_Tot",
+    "TCOs-Jucios_Tot"
+  ];
+
+  const dinamicas = Workbook.SheetNames.filter(n => /J_.*Comp/i.test(n) && !prioridades.includes(n));
   const todosNombres = [
     ...prioridades.filter(n => Workbook.Sheets[n]),
-    ...Workbook.SheetNames.filter(n => !prioridades.includes(n))
+    ...dinamicas,
+    ...Workbook.SheetNames.filter(n => !prioridades.includes(n) && !dinamicas.includes(n))
   ];
 
   for (const nombreHoja of todosNombres) {
@@ -370,10 +389,22 @@ function detectarHojaAprendices(Workbook) {
     if (!ws) continue;
     const rawMatrix = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
 
-    for (let r = 0; r < Math.min(10, rawMatrix.length); r++) {
+    for (let r = 0; r < Math.min(15, rawMatrix.length); r++) {
       const fila = (rawMatrix[r] || []).map(c => String(c).trim().toUpperCase());
-      const hasDoc = fila.some(c => c.includes("DOCUMENTO") || c.includes("IDENTIFICACI") || c.includes("NUMDOC"));
-      const hasNombre = fila.some(c => c.includes("NOMBRE") || c.includes("SIMBRES") || c.includes("APRENDIZ"));
+      const hasDoc = fila.some(c =>
+        c.includes("DOCUMENTO") ||
+        c.includes("IDENTIFICACI") ||
+        c.includes("NUMDOC") ||
+        c.includes("DCTO") ||
+        c.includes("CEDULA") ||
+        c.includes("CÉDULA")
+      );
+      const hasNombre = fila.some(c =>
+        c.includes("NOMBRE") ||
+        c.includes("SIMBRES") ||
+        c.includes("APRENDIZ") ||
+        c.includes("APELLIDO")
+      );
 
       if (hasDoc && hasNombre) {
         const Filas = XLSX.utils.sheet_to_json(ws, { range: r, defval: "" });
@@ -492,11 +523,16 @@ export const previewImport = async (req, res) => {
     let omitidosInactivos = 0;
 
     for (const Fila of Filas) {
-      // Extracción limpia de documento previniendo notación científica
+      // Extraccion limpia de documento previniendo notacion cientifica
       const numDocRaw = extractExcelField(
         Fila,
-        ["DOCUMENTO", "NUMDOC_USUARIO", "NUM_DOC", "NÚMERO DE IDENTIFICACIÓN APRENDIZ", "NUMERO DE IDENTIFICACION APRENDIZ", "NÚMERO DE IDENTIFICACIÓN"],
-        ["IDENTIFICACION", "IDENTIFICACIÓN"]
+        [
+          "NUM. DCTO.", "NUM. DCTO", "NUMERO DCTO", "NÚMERO DCTO", "NÚMERO DCTO.",
+          "DOCUMENTO", "NUMDOC_USUARIO", "NUM_DOC", "NÚMERO DE DOCUMENTO", "NUMERO DE DOCUMENTO",
+          "NÚMERO DE IDENTIFICACIÓN APRENDIZ", "NUMERO DE IDENTIFICACION APRENDIZ",
+          "NÚMERO DE IDENTIFICACIÓN", "CEDULA", "CÉDULA", "CÉDULA DEL APRENDIZ", "IDENTIFICACION"
+        ],
+        ["NUM. DCTO", "NUM DCTO", "DOCUMENTO", "IDENTIFICACI", "CEDULA"]
       );
 
       let numDoc = "";
@@ -512,7 +548,11 @@ export const previewImport = async (req, res) => {
       if (!numDoc) continue;
 
       // Estado del aprendiz en la base original
-      const estadoRaw = extractExcelField(Fila, ["ESTADO", "ESTADO APRENDIZ", "EST_USUARIO"]).toUpperCase().trim();
+      const estadoRaw = extractExcelField(
+        Fila,
+        ["ESTADO", "ESTADO APRENDIZ", "ESTADO DEL APRENDIZ", "EST_USUARIO"]
+      ).toUpperCase().trim();
+
       if (filtrarSoloActivos && estadoRaw) {
         const esInactivo = /CANCELADO|RETIRO|CERTIFICADO|APLAZADO|TRASLADADO/i.test(estadoRaw);
         if (esInactivo) {
@@ -523,11 +563,15 @@ export const previewImport = async (req, res) => {
 
       const tipDoc = extractExcelField(
         Fila,
-        ["TIPO DE DOCUMENTO", "TIPDOC_USUARIO", "TIPO DOCUMENTO", "TIPO DE IDENTIFICACIÓN APRENDIZ", "TIPO DE IDENTIFICACIÓN", "TIPO"]
+        [
+          "T. DCTO.", "T_ DCTO.", "T. DCTO", "T_ DCTO", "TIPO DE DOCUMENTO",
+          "TIPDOC_USUARIO", "TIPO DOCUMENTO", "TIPO DE IDENTIFICACIÓN APRENDIZ",
+          "TIPO DE IDENTIFICACIÓN", "TIPO", "T. DOC"
+        ]
       ) || "CC";
 
       let nombres = extractExcelField(Fila, ["NOM_USUARIO", "SIMBRES", "NOMBRES", "NOMBRE"]);
-      let apellidos = extractExcelField(Fila, ["APE_USUARIO", "APELLIDOS", "APELLIDO"]);
+      let apellidos = extractExcelField(Fila, ["APE_USUARIO", "APELLIDOS", "APELLIDO", "PRIMER APELLIDO"]);
       if (!nombres) {
         const nombreCompleto = extractExcelField(
           Fila,
@@ -542,9 +586,21 @@ export const previewImport = async (req, res) => {
 
       const numFichaRaw = extractExcelField(
         Fila,
-        ["NUM_FICHA", "FICHA", "NÚMERO DE GRUPO", "NUMERO DE GRUPO", "ID_FICHA", "IDENTIFICADOR_FICHA"]
+        [
+          "NUM_FICHA", "FICHA", "NO. DE FICHA", "NUMERO DE FICHA", "NÚMERO DE FICHA",
+          "NÚMERO DE GRUPO", "NUMERO DE GRUPO", "ID_FICHA", "IDENTIFICADOR_FICHA",
+          "FICHA DE CARACTERIZACIÓN", "FICHA DE CARACTERIZACION"
+        ]
       );
       const fichaEncontrada = mapaFichas.get(String(numFichaRaw).trim());
+
+      const nomProgExtraido = extractExcelField(
+        Fila,
+        [
+          "PROGRAMA FORMACIÓN", "PROGRAMA FORMACION", "PROGRAMA DE FORMACIÓN",
+          "PROGRAMA DE FORMACION", "PROGRAMA", "NOMBRE_PROGRAMA_FORMACION", "NOMBRE DEL PROGRAMA"
+        ]
+      );
 
       const corRaw = extractExcelField(
         Fila,
@@ -553,7 +609,7 @@ export const previewImport = async (req, res) => {
 
       const telRawVal = extractExcelField(
         Fila,
-        ["TEL_USUARIO", "TELÉFOSI DE CONTACTO", "TELEFOSI DE CONTACTO", "TELEFONO DE CONTACTO", "TELÉFONO DE CONTACTO DEL APRENDIZ ", "TELÉFONO DE CONTACTO DEL APRENDIZ", "TELEFONO", "CELULAR"]
+        ["TEL_USUARIO", "TELÉFOSI DE CONTACTO", "TELEFOSI DE CONTACTO", "TELEFONO DE CONTACTO", "TELÉFONO DE CONTACTO DEL APRENDIZ ", "TELÉFONO DE CONTACTO DEL APRENDIZ", "TELEFONO", "CELULAR", "MÓVIL", "MOVIL"]
       );
       let telFinal = "";
       if (typeof telRawVal === "number") {
@@ -568,7 +624,7 @@ export const previewImport = async (req, res) => {
 
       const genRaw = extractExcelField(Fila, ["GEN_USUARIO", "GENERO", "GÉNERO", "SEXO"]);
 
-      // Centro de convivencia (Alojamientos, cabañas, Internos)
+      // Centro de convivencia (Alojamientos, cabanas, Internos)
       const cenConRaw = extractExcelField(
         Fila,
         ["CENTRO DE CONVIVENCIA", "CENCON_USUARIO", "ALOJAMIENTO Y/O CABAÑA", "CABAÑA", "ALOJAMIENTO"]
@@ -583,6 +639,7 @@ export const previewImport = async (req, res) => {
 
       // REGLA OBLIGATORIA: Todo aprendiz importado por Excel tiene estado "En Formacion"
       const estUsuario = "En Formacion";
+      const nomProgFinal = fichaEncontrada?.Nom_Programa || nomProgExtraido || "PROGRAMA GENERAL";
 
       Datos.push({
         TipDoc_Usuario: tipDoc,
@@ -595,7 +652,7 @@ export const previewImport = async (req, res) => {
         CenCon_Usuario: esInterno ? "Si" : "No",
         Num_Ficha: fichaEncontrada ? fichaEncontrada.Num_Ficha : (numFichaRaw || "Sin asignar"),
         Id_Ficha: fichaEncontrada ? fichaEncontrada.Id_Ficha : null,
-        Nom_Programa: fichaEncontrada?.Nom_Programa || extractExcelField(Fila, ["PROGRAMA DE FORMACIÓN", "PROGRAMA", "NOMBRE_PROGRAMA_FORMACION"]) || "Por asociar",
+        Nom_Programa: nomProgFinal,
         Rol_Asignado: rolAsignado,
         Est_Usuario: estUsuario,
         Estado_Etapa_Lectiva: "Vigente"
@@ -635,7 +692,16 @@ export const importarSeleccionados = async (req, res) => {
       mapaRoles.set(r.Nom_Rol.trim().toLowerCase(), r.Id_Rol);
     }
 
-    // 2. Precargar fichas en memoria
+    // 2. Precargar todos los programas en memoria
+    const todosProgramas = await ProgramaModel.findAll();
+    const mapaProgramasPorId = new Map();
+    const mapaProgramasPorNombre = new Map();
+    todosProgramas.forEach(p => {
+      mapaProgramasPorId.set(p.Id_Programa, p);
+      mapaProgramasPorNombre.set(normalizarNombrePrograma(p.Nom_Programa), p);
+    });
+
+    // 3. Precargar fichas en memoria
     const todasLasFichas = await FichasModel.findAll();
     const mapaFichas = new Map();
     for (const f of todasLasFichas) {
@@ -643,11 +709,12 @@ export const importarSeleccionados = async (req, res) => {
       mapaFichas.set(String(f.Id_Ficha).trim(), f);
     }
 
-    // 3. Precargar usuarios existentes en Sets para deduplicacion O(1) instantanea
+    // 4. Precargar usuarios existentes en Map (para O(1) deduplicacion y auto-actualizacion)
     const usuariosExistentes = await UsuariosModel.findAll({
-      attributes: ["NumDoc_Usuario", "Cor_Usuario"]
+      attributes: ["Id_Usuario", "NumDoc_Usuario", "Cor_Usuario", "Id_Ficha", "Gen_Usuario"]
     });
-    const setDocs = new Set(usuariosExistentes.map(u => String(u.NumDoc_Usuario).trim()));
+    const mapaUsuariosDoc = new Map(usuariosExistentes.map(u => [String(u.NumDoc_Usuario).trim(), u]));
+    const setDocsEnLote = new Set();
     const setCors = new Set(
       usuariosExistentes
         .filter(u => u.Cor_Usuario)
@@ -655,8 +722,103 @@ export const importarSeleccionados = async (req, res) => {
     );
 
     let Creados = 0;
+    let Actualizados = 0;
     let Omitidos = 0;
     const Errores = [];
+
+    // Funcion auxiliar para resolver o crear el Programa y la Ficha (Cadena Relacional Indestructible)
+    const resolverOCrearFicha = async (numFichaRaw, nomProgramaRaw) => {
+      let numFichaStr = String(numFichaRaw || "").trim();
+      if (!numFichaStr || numFichaStr === "Sin asignar" || numFichaStr === "null" || numFichaStr === "undefined") {
+        numFichaStr = "9999999"; // Ficha institucional general por defecto para no dejar ningun aprendiz huerfano
+        nomProgramaRaw = nomProgramaRaw || "PROGRAMA GENERAL";
+      }
+
+      const numFichaInt = parseInt(numFichaStr.replace(/\D/g, ""), 10);
+      if (!numFichaInt || isNaN(numFichaInt)) return null;
+
+      const numFichaKey = String(numFichaInt);
+      if (mapaFichas.has(numFichaKey)) {
+        return mapaFichas.get(numFichaKey);
+      }
+
+      // Resolver o crear el Programa
+      let idProgramaFicha = null;
+      const nomProgLimpio = normalizarNombrePrograma(nomProgramaRaw);
+
+      if (nomProgLimpio && mapaProgramasPorNombre.has(nomProgLimpio)) {
+        idProgramaFicha = mapaProgramasPorNombre.get(nomProgLimpio).Id_Programa;
+      } else if (nomProgLimpio && nomProgLimpio !== "SIN ASIGNAR" && nomProgLimpio !== "POR ASOCIAR") {
+        try {
+          const nuevoProg = await ProgramaModel.create({
+            Nom_Programa: nomProgLimpio,
+            Are_Programa: "FORMACION",
+            NivFor_Programa: "TECNOLOGO",
+            Est_Programa: "Activo"
+          });
+          idProgramaFicha = nuevoProg.Id_Programa;
+          mapaProgramasPorNombre.set(nomProgLimpio, nuevoProg);
+          mapaProgramasPorId.set(nuevoProg.Id_Programa, nuevoProg);
+        } catch {
+          const progEx = await ProgramaModel.findOne({ where: { Nom_Programa: nomProgLimpio } });
+          if (progEx) {
+            idProgramaFicha = progEx.Id_Programa;
+            mapaProgramasPorNombre.set(nomProgLimpio, progEx);
+            mapaProgramasPorId.set(progEx.Id_Programa, progEx);
+          }
+        }
+      }
+
+      // Si aun no tenemos programa, fallback a PROGRAMA GENERAL
+      if (!idProgramaFicha) {
+        let progGen = mapaProgramasPorNombre.get("PROGRAMA GENERAL") || mapaProgramasPorNombre.get("GENERAL");
+        if (!progGen) {
+          try {
+            progGen = await ProgramaModel.create({
+              Nom_Programa: "PROGRAMA GENERAL",
+              Are_Programa: "GENERAL",
+              NivFor_Programa: "TECNOLOGO",
+              Est_Programa: "Activo"
+            });
+          } catch {
+            progGen = await ProgramaModel.findOne({ where: { Nom_Programa: "PROGRAMA GENERAL" } });
+          }
+          if (progGen) {
+            mapaProgramasPorNombre.set("PROGRAMA GENERAL", progGen);
+            mapaProgramasPorId.set(progGen.Id_Programa, progGen);
+          }
+        }
+        if (progGen) idProgramaFicha = progGen.Id_Programa;
+      }
+
+      // Ahora creamos la ficha con fechas validas por defecto
+      try {
+        const hoy = new Date();
+        const unAnioDespues = new Date(hoy.getTime() + 365 * 24 * 60 * 60 * 1000);
+        const anioYMedio = new Date(hoy.getTime() + 547 * 24 * 60 * 60 * 1000);
+
+        const nuevaFicha = await FichasModel.create({
+          Num_Ficha: numFichaInt,
+          Id_Programa: idProgramaFicha,
+          FecIniLec_Ficha: hoy,
+          FecFinLec_Ficha: unAnioDespues,
+          FecIniPra_Ficha: unAnioDespues,
+          FecFinPra_Ficha: anioYMedio
+        });
+        mapaFichas.set(numFichaKey, nuevaFicha);
+        mapaFichas.set(String(nuevaFicha.Id_Ficha), nuevaFicha);
+        return nuevaFicha;
+      } catch (errFicha) {
+        const fichaEx = await FichasModel.findOne({ where: { Num_Ficha: numFichaInt } });
+        if (fichaEx) {
+          mapaFichas.set(numFichaKey, fichaEx);
+          mapaFichas.set(String(fichaEx.Id_Ficha), fichaEx);
+          return fichaEx;
+        }
+        console.error(`Error al crear ficha ${numFichaInt}:`, errFicha.message);
+        return null;
+      }
+    };
 
     // Procesar en chunks concurrentes de 25 para maximo rendimiento y evitar timeouts HTTP
     const CHUNK_SIZE = 25;
@@ -673,50 +835,9 @@ export const importarSeleccionados = async (req, res) => {
 
             const numDocStr = String(Fila.NumDoc_Usuario).trim();
 
-            // Deduplicación O(1) por documento
-            if (setDocs.has(numDocStr)) {
-              Omitidos++;
-              Errores.push(`Documento ${numDocStr} ya existe en el sistema.`);
-              return;
-            }
-
-            // Deduplicación O(1) por correo
-            const corStr = Fila.Cor_Usuario ? String(Fila.Cor_Usuario).trim().toLowerCase() : "";
-            if (corStr && setCors.has(corStr)) {
-              Omitidos++;
-              Errores.push(`Correo ${corStr} ya esta registrado (doc: ${numDocStr}).`);
-              return;
-            }
-
-            // Registramos en el Set local inmediatamente para evitar duplicados dentro del mismo lote
-            setDocs.add(numDocStr);
-            if (corStr) setCors.add(corStr);
-
-            // Resolver Ficha
-            let idFichaFinal = null;
-            let fichaAsociada = null;
-            const numFichaBuscada = String(Fila.Num_Ficha || Fila.Id_Ficha || "").trim();
-
-            if (numFichaBuscada && numFichaBuscada !== "Sin asignar") {
-              fichaAsociada = mapaFichas.get(numFichaBuscada);
-              if (!fichaAsociada && /^\d+$/.test(numFichaBuscada)) {
-                try {
-                  fichaAsociada = await FichasModel.create({
-                    Num_Ficha: numFichaBuscada,
-                    Est_Ficha: "Activo"
-                  });
-                  mapaFichas.set(numFichaBuscada, fichaAsociada);
-                } catch {
-                  fichaAsociada = await FichasModel.findOne({ where: { Num_Ficha: numFichaBuscada } });
-                  if (fichaAsociada) mapaFichas.set(numFichaBuscada, fichaAsociada);
-                }
-              }
-              if (fichaAsociada) {
-                idFichaFinal = fichaAsociada.Id_Ficha;
-              }
-            }
-
-            const estUsuarioFinal = "En Formacion";
+            // 1. Resolver Ficha y Programa vinculados antes de persistir
+            const fichaObj = await resolverOCrearFicha(Fila.Num_Ficha || Fila.Id_Ficha, Fila.Nom_Programa);
+            const idFichaFinal = fichaObj ? fichaObj.Id_Ficha : null;
 
             // Determinar rol segun CenCon_Usuario
             const cenConStr = String(Fila.CenCon_Usuario || "").toLowerCase().trim();
@@ -733,6 +854,45 @@ export const importarSeleccionados = async (req, res) => {
 
             const idRolFinal = mapaRoles.get(nombreRolAsignar.toLowerCase());
 
+            // 2. Comprobar si el usuario ya existe en BD (Auto-reparacion si tenia "Sin ficha" o provisional)
+            if (mapaUsuariosDoc.has(numDocStr)) {
+              const usuarioEx = mapaUsuariosDoc.get(numDocStr);
+              const fichaProvisional = mapaFichas.get("9999999");
+              const idFichaProvisional = fichaProvisional?.Id_Ficha;
+              const requiereActualizacion = !usuarioEx.Id_Ficha || (idFichaProvisional && usuarioEx.Id_Ficha === idFichaProvisional && idFichaFinal !== idFichaProvisional);
+
+              if (requiereActualizacion && idFichaFinal) {
+                await UsuariosModel.update({
+                  Id_Ficha: idFichaFinal,
+                  Gen_Usuario: (usuarioEx.Gen_Usuario && usuarioEx.Gen_Usuario !== "No especificado")
+                    ? usuarioEx.Gen_Usuario
+                    : (Fila.Gen_Usuario || "No especificado"),
+                  CenCon_Usuario: esInterno ? "Si" : "No",
+                  Est_Usuario: "En Formacion"
+                }, { where: { Id_Usuario: usuarioEx.Id_Usuario } });
+                usuarioEx.Id_Ficha = idFichaFinal;
+                Actualizados++;
+              } else {
+                Omitidos++;
+                Errores.push(`Documento ${numDocStr} ya existe en el sistema.`);
+              }
+              return;
+            }
+
+            // Deduplicacion dentro del mismo archivo
+            if (setDocsEnLote.has(numDocStr)) {
+              Omitidos++;
+              return;
+            }
+            setDocsEnLote.add(numDocStr);
+
+            // Correo electronico con manejo seguro de duplicados
+            let corStr = Fila.Cor_Usuario ? String(Fila.Cor_Usuario).trim().toLowerCase() : null;
+            if (corStr && setCors.has(corStr)) {
+              corStr = null; // No bloquear el registro si el correo se repite
+            }
+            if (corStr) setCors.add(corStr);
+
             // Hash seguro y rapido con 8 rondas
             const HashPwd = await bcrypt.hash(numDocStr, 8);
 
@@ -742,11 +902,11 @@ export const importarSeleccionados = async (req, res) => {
               Nom_Usuario: String(Fila.Nom_Usuario).trim(),
               Ape_Usuario: Fila.Ape_Usuario ? String(Fila.Ape_Usuario).trim() : "",
               Gen_Usuario: Fila.Gen_Usuario && String(Fila.Gen_Usuario).trim() !== "" ? String(Fila.Gen_Usuario).trim() : "No especificado",
-              Cor_Usuario: corStr || null,
+              Cor_Usuario: corStr,
               Tel_Usuario: Fila.Tel_Usuario ? String(Fila.Tel_Usuario).trim() : null,
               CenCon_Usuario: esInterno ? "Si" : "No",
               Id_Ficha: idFichaFinal,
-              Est_Usuario: estUsuarioFinal,
+              Est_Usuario: "En Formacion",
               San_Usuario: Fila.San_Usuario || "No",
               Pol_Usuario: "No",
               password: HashPwd,
@@ -762,6 +922,7 @@ export const importarSeleccionados = async (req, res) => {
               });
             }
 
+            mapaUsuariosDoc.set(numDocStr, nuevoUsuario);
             Creados++;
           } catch (errUser) {
             Omitidos++;
@@ -773,9 +934,10 @@ export const importarSeleccionados = async (req, res) => {
 
     return res.status(200).json({
       creados: Creados,
+      actualizados: Actualizados,
       omitidos: Omitidos,
       errores: Errores,
-      mensaje: `Proceso completado: ${Creados} aprendices registrados exitosamente, ${Omitidos} omitidos.`
+      mensaje: `Proceso completado: ${Creados} aprendices registrados, ${Actualizados} actualizados con ficha/programa, ${Omitidos} omitidos.`
     });
   } catch (error) {
     console.error("Error en importarSeleccionados:", error);

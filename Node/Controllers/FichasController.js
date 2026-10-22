@@ -168,10 +168,61 @@ export const descargarPlantillaFicha = (_req, res) => {
 };
 
 /**
+ * Detecta inteligentemente la hoja que contiene las fichas en el archivo Excel.
+ * Soporta PE-04_1, Fichas_Activas_Foodsys, 1. Juicios_TGOs, 2. Juicios_TCOs, Base_NO MODIFICAR.
+ */
+function detectarHojaFichas(Workbook) {
+  const prioridades = [
+    "Fichas_Activas",
+    "Reporte",
+    "Resum_Juic",
+    "J_TGOs_Comp_2026_09",
+    "J_TCOs_Comp_2026_09",
+    "Plantilla_Fichas",
+    "Fichas",
+    "Hoja1"
+  ];
+  const todosNombres = [
+    ...prioridades.filter(n => Workbook.Sheets[n]),
+    ...Workbook.SheetNames.filter(n => !prioridades.includes(n))
+  ];
+
+  for (const nombreHoja of todosNombres) {
+    const ws = Workbook.Sheets[nombreHoja];
+    if (!ws) continue;
+    const rawMatrix = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+    for (let r = 0; r < Math.min(15, rawMatrix.length); r++) {
+      const fila = (rawMatrix[r] || []).map(c => String(c).trim().toUpperCase());
+      const hasFicha = fila.some(c =>
+        c === "FICHA" ||
+        c.includes("NUM_FICHA") ||
+        c.includes("IDENTIFICADOR_FICHA") ||
+        c.includes("NUMERO DE FICHA") ||
+        c.includes("NO. DE FICHA") ||
+        c === "ID_FICHA"
+      );
+      if (hasFicha) {
+        const Filas = XLSX.utils.sheet_to_json(ws, { range: r, defval: "" });
+        if (Filas.length > 0) {
+          return { hoja: ws, nombreHoja, filaEncabezados: r, Filas };
+        }
+      }
+    }
+  }
+
+  const primerNombre = Workbook.SheetNames[0];
+  const ws = Workbook.Sheets[primerNombre];
+  const Filas = XLSX.utils.sheet_to_json(ws, { defval: "" });
+  return { hoja: ws, nombreHoja: primerNombre, filaEncabezados: 0, Filas };
+}
+
+/**
  * Previsualizacion de importacion de fichas:
- * - Detecta automaticamente la fila de encabezados para soportar archivos PE-04.
- * - Filtra por defecto Formacion Titulada descartando miles de Cursos Especiales.
+ * - Detecta automaticamente la hoja y fila de encabezados para soportar PE-04, Juicios, Foodsys y Base.
+ * - Filtra por defecto Formacion Titulada descartando Cursos Especiales si soloTitulada es true.
  * - Conecta o crea en memoria el programa asociado.
+ * - Deduplica fichas unicas si el archivo contiene multiples registros por ficha.
  * - Calcula automaticamente FecIniPra (-6 meses) y FecFinLec (-1 dia) si vienen vacias.
  */
 export const previewImportFicha = async (req, res) => {
@@ -184,32 +235,9 @@ export const previewImportFicha = async (req, res) => {
     const filtrarSoloTitulada = soloTitulada === "true" || soloTitulada === true;
 
     const Workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-    const Hoja = Workbook.Sheets[Workbook.SheetNames[0]];
+    const { Filas, nombreHoja } = detectarHojaFichas(Workbook);
 
-    const matriz = XLSX.utils.sheet_to_json(Hoja, { header: 1, defval: "" });
-    if (!matriz.length) {
-      return res.status(400).json({ message: "El archivo esta vacio o no tiene datos." });
-    }
-
-    // Buscamos la fila de encabezados reales
-    let filaEncabezados = 0;
-    for (let i = 0; i < Math.min(15, matriz.length); i++) {
-      const fila = matriz[i].map(c => String(c).trim().toUpperCase());
-      if (
-        fila.includes("NUM_FICHA") ||
-        fila.includes("IDENTIFICADOR_FICHA") ||
-        fila.includes("FICHA") ||
-        fila.includes("ID_FICHA") ||
-        fila.includes("NUMERO DE FICHA")
-      ) {
-        filaEncabezados = i;
-        break;
-      }
-    }
-
-    const Filas = XLSX.utils.sheet_to_json(Hoja, { range: filaEncabezados, defval: "" });
-
-    if (!Filas.length) {
+    if (!Filas || !Filas.length) {
       return res.status(400).json({ message: "No se encontraron filas de fichas en el archivo." });
     }
 
@@ -229,6 +257,7 @@ export const previewImportFicha = async (req, res) => {
     todasFichas.forEach(f => mapaFichas.set(Number(f.Num_Ficha), f));
 
     const Datos = [];
+    const fichasVistas = new Set();
     let omitidosPorTipo = 0;
 
     for (const Fila of Filas) {
@@ -243,16 +272,23 @@ export const previewImportFicha = async (req, res) => {
         Limpio["IDENTIFICADOR_FICHA"] ||
         Limpio["FICHA"] ||
         Limpio["NUMERO DE FICHA"] ||
+        Limpio["NO. DE FICHA"] ||
         Limpio["ID_FICHA"] ||
         "";
 
       const numFicha = parseInt(String(numFichaRaw).replace(/\D/g, ""), 10);
       if (!numFicha || isNaN(numFicha)) continue;
 
+      // Deduplicacion O(1) en la previsualizacion
+      if (fichasVistas.has(numFicha)) continue;
+      fichasVistas.add(numFicha);
+
       // Nivel de formacion (para filtro de Formacion Titulada)
       const nivelRaw =
         Limpio["NIVEL DE FORMACION"] ||
         Limpio["NIVEL_FORMACION"] ||
+        Limpio["NIVEL FORMACION"] ||
+        Limpio["NIVEL"] ||
         Limpio["NIVFOR_PROGRAMA"] ||
         "";
       const nivelNormalizado = String(nivelRaw).trim().toUpperCase();
@@ -270,6 +306,10 @@ export const previewImportFicha = async (req, res) => {
       const nombreProgramaRaw =
         Limpio["NOMBRE DEL PROGRAMA"] ||
         Limpio["NOMBRE_PROGRAMA_FORMACION"] ||
+        Limpio["PROGRAMA DE FORMACIÓN"] ||
+        Limpio["PROGRAMA DE FORMACION"] ||
+        Limpio["PROGRAMA FORMACIÓN"] ||
+        Limpio["PROGRAMA FORMACION"] ||
         Limpio["NOM_PROGRAMA"] ||
         Limpio["PROGRAMA"] ||
         "";
@@ -291,7 +331,6 @@ export const previewImportFicha = async (req, res) => {
             idProgramaAsignado = progExistente.Id_Programa;
             nombreProgramaFinal = progExistente.Nom_Programa;
           } else {
-            // En la previsualizacion NO mutamos la base de datos para garantizar rapidez y cero bloqueos
             idProgramaAsignado = null;
             nombreProgramaFinal = nombreParaBuscar;
           }
@@ -299,10 +338,29 @@ export const previewImportFicha = async (req, res) => {
       }
 
       // Extraccion de Fechas
-      const fecIniLec = formatearFechaISO(Limpio["FECINILEC_FICHA"] || Limpio["FECHA_INICIO_FICHA"] || Limpio["FECHA INICIO"]);
-      let fecFinPra = formatearFechaISO(Limpio["FECFINPRA_FICHA"] || Limpio["FECHA_TERMINACION_FICHA"] || Limpio["FECHA FIN"]);
-      let fecIniPra = formatearFechaISO(Limpio["FECINIPRA_FICHA"] || Limpio["FECHA_INICIO_PRACTICA"]);
-      let fecFinLec = formatearFechaISO(Limpio["FECFINLEC_FICHA"] || Limpio["FECHA_FIN_LECTIVA"]);
+      const fecIniLec = formatearFechaISO(
+        Limpio["FECINILEC_FICHA"] ||
+        Limpio["FECHA_INICIO_FICHA"] ||
+        Limpio["FECHA INICIO"] ||
+        Limpio["FECHA DE INICIO"]
+      );
+      let fecFinPra = formatearFechaISO(
+        Limpio["FECFINPRA_FICHA"] ||
+        Limpio["FECHA_TERMINACION_FICHA"] ||
+        Limpio["FECHA FIN"] ||
+        Limpio["FECHA TERMINACIÓN FICHA"] ||
+        Limpio["FECHA TERMINACION FICHA"]
+      );
+      let fecIniPra = formatearFechaISO(
+        Limpio["FECINIPRA_FICHA"] ||
+        Limpio["FECHA_INICIO_PRACTICA"] ||
+        Limpio["INICIO ETAPA PRODUCTIVA"] ||
+        Limpio["ETAPA PRODUCTIVA"]
+      );
+      let fecFinLec = formatearFechaISO(
+        Limpio["FECFINLEC_FICHA"] ||
+        Limpio["FECHA_FIN_LECTIVA"]
+      );
 
       // Regla de calculo matematico automatico:
       // Si FecFinPra tiene fecha valida pero FecIniPra esta vacio -> restar exactamente 6 meses
@@ -315,13 +373,25 @@ export const previewImportFicha = async (req, res) => {
         fecFinLec = restarDiasFecha(fecIniPra, 1);
       }
 
+      // Si tenemos inicio pero no fin, proyectar fecha estimada (1 ano lectiva + 6 meses practica)
+      if (fecIniLec && !fecFinPra) {
+        const dIni = new Date(`${fecIniLec}T12:00:00`);
+        if (!isNaN(dIni)) {
+          const dFinPra = new Date(dIni);
+          dFinPra.setMonth(dFinPra.getMonth() + 18);
+          fecFinPra = dFinPra.toISOString().split("T")[0];
+          fecIniPra = restarMesesFecha(fecFinPra, 6);
+          fecFinLec = restarDiasFecha(fecIniPra, 1);
+        }
+      }
+
       const yaExisteFicha = mapaFichas.has(numFicha);
-      const estadoCurso = Limpio["ESTADO_CURSO"] || Limpio["ESTADO_FICHA"] || Limpio["ESTADO"] || "En ejecucion";
+      const estadoCurso = Limpio["ESTADO_CURSO"] || Limpio["ESTADO_FICHA"] || Limpio["ESTADO FICHA"] || Limpio["ESTADO"] || "En ejecucion";
 
       Datos.push({
         Num_Ficha: numFicha,
         Id_Programa: idProgramaAsignado,
-        Nom_Programa: nombreProgramaFinal || "Sin programa detectado",
+        Nom_Programa: nombreProgramaFinal || "PROGRAMA GENERAL",
         Nivel_Formacion: nivelNormalizado || "TECNOLOGO",
         FecIniLec_Ficha: fecIniLec,
         FecFinLec_Ficha: fecFinLec,
@@ -335,6 +405,7 @@ export const previewImportFicha = async (req, res) => {
 
     return res.status(200).json({
       total: Datos.length,
+      hojaDetectada: nombreHoja,
       data: Datos,
       omitidosCursosEspeciales: omitidosPorTipo,
       nuevas: Datos.filter(d => !d.yaExiste).length,
