@@ -757,6 +757,7 @@ export const importarSeleccionados = async (req, res) => {
     let Creados = 0;
     let Actualizados = 0;
     let Omitidos = 0;
+    const Errores = [];
     // Procesar en chunks concurrentes de 25 para maximo rendimiento y evitar timeouts HTTP
     const CHUNK_SIZE = 25;
     for (let i = 0; i < usuarios.length; i += CHUNK_SIZE) {
