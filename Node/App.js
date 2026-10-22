@@ -213,9 +213,26 @@ try {
     await db.query("ALTER TABLE usuarios MODIFY COLUMN Nom_Usuario VARCHAR(100) NULL");
     await db.query("ALTER TABLE usuarios MODIFY COLUMN Ape_Usuario VARCHAR(100) NULL");
     await db.query("ALTER TABLE usuarios MODIFY COLUMN Cor_Usuario VARCHAR(100) NULL");
-    console.log('✅ Columnas de usuarios ampliadas a VARCHAR(100)');
+    await db.query("ALTER TABLE usuarios MODIFY COLUMN TipDoc_Usuario VARCHAR(20) NULL DEFAULT 'CC'");
+    await db.query("ALTER TABLE usuarios MODIFY COLUMN NumDoc_Usuario BIGINT NOT NULL");
+    await db.query("ALTER TABLE usuarios MODIFY COLUMN Gen_Usuario VARCHAR(50) NULL DEFAULT 'No especificado'");
+    await db.query("ALTER TABLE usuarios MODIFY COLUMN CenCon_Usuario VARCHAR(20) NULL DEFAULT 'No'");
+    await db.query("ALTER TABLE usuarios MODIFY COLUMN Pol_Usuario VARCHAR(20) NULL DEFAULT 'No'");
+    await db.query("ALTER TABLE usuarios MODIFY COLUMN San_Usuario VARCHAR(20) NULL DEFAULT 'No'");
+    console.log('✅ Columnas de usuarios ampliadas y flexibilizadas');
   } catch (errAmpU) {
     console.warn('Nota sobre ampliacion de usuarios:', errAmpU.message);
+  }
+
+  // Asegurar que fichas permita fechas nulas en caso de programas con etapa práctica no proyectada
+  try {
+    await db.query("ALTER TABLE fichas MODIFY COLUMN FecIniLec_Ficha DATE NULL");
+    await db.query("ALTER TABLE fichas MODIFY COLUMN FecFinLec_Ficha DATE NULL");
+    await db.query("ALTER TABLE fichas MODIFY COLUMN FecIniPra_Ficha DATE NULL");
+    await db.query("ALTER TABLE fichas MODIFY COLUMN FecFinPra_Ficha DATE NULL");
+    console.log('✅ Columnas de fechas en fichas configuradas como NULL permitidas');
+  } catch (errAmpF) {
+    console.warn('Nota sobre fechas de fichas:', errAmpF.message);
   }
 
   // Asegurar existencia de columna Est_Programa en programas

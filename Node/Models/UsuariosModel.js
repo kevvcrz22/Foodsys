@@ -4,7 +4,7 @@ import { DataTypes } from "sequelize";
 const UsuariosModel = db.define('usuarios', {
   Id_Usuario: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   TipDoc_Usuario: { type: DataTypes.STRING, allowNull: true },
-  NumDoc_Usuario: { type: DataTypes.INTEGER, allowNull: true },
+  NumDoc_Usuario: { type: DataTypes.BIGINT, allowNull: true },
   Nom_Usuario: { type: DataTypes.STRING, allowNull: true },
   Ape_Usuario: { type: DataTypes.STRING, allowNull: true },
   Gen_Usuario: { type: DataTypes.STRING, allowNull: true },
