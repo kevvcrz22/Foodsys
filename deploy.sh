@@ -10,8 +10,14 @@ echo "=========================================="
 echo "🚀 Iniciando despliegue de Foodsys..."
 echo "=========================================="
 
-# Directorio del proyecto
-PROJECT_DIR="/var/www/foodsys"
+# Directorio del proyecto (soporte case-insensitive)
+if [ -d "/var/www/Foodsys" ]; then
+    PROJECT_DIR="/var/www/Foodsys"
+elif [ -d "/var/www/foodsys" ]; then
+    PROJECT_DIR="/var/www/foodsys"
+else
+    PROJECT_DIR="$(pwd)"
+fi
 cd "$PROJECT_DIR"
 
 echo "📥 1. Obteniendo últimos cambios de Git..."
