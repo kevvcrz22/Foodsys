@@ -302,7 +302,7 @@ export const previewImportFicha = async (req, res) => {
         }
       }
 
-      // Identificacion del Programa
+      // Identificacion y Validacion Estricta del Programa
       const nombreProgramaRaw =
         Limpio["NOMBRE DEL PROGRAMA"] ||
         Limpio["NOMBRE_PROGRAMA_FORMACION"] ||
@@ -331,6 +331,7 @@ export const previewImportFicha = async (req, res) => {
             idProgramaAsignado = progExistente.Id_Programa;
             nombreProgramaFinal = progExistente.Nom_Programa;
           } else {
+            // El programa no existe en la base de datos
             idProgramaAsignado = null;
             nombreProgramaFinal = nombreParaBuscar;
           }
@@ -387,12 +388,16 @@ export const previewImportFicha = async (req, res) => {
 
       const yaExisteFicha = mapaFichas.has(numFicha);
       const estadoCurso = Limpio["ESTADO_CURSO"] || Limpio["ESTADO_FICHA"] || Limpio["ESTADO FICHA"] || Limpio["ESTADO"] || "En ejecucion";
+      const tieneProgramaValido = Boolean(idProgramaAsignado);
+      const nombreMostrar = (nombreProgramaFinal || "SIN PROGRAMA DETECTADO").toUpperCase();
 
       Datos.push({
         Num_Ficha: numFicha,
         Id_Programa: idProgramaAsignado,
-        Nom_Programa: nombreProgramaFinal || "PROGRAMA GENERAL",
-        Nivel_Formacion: nivelNormalizado || "TECNOLOGO",
+        Nom_Programa: nombreMostrar,
+        programaValido: tieneProgramaValido,
+        errorPrograma: tieneProgramaValido ? null : `El programa "${nombreMostrar}" no está registrado en el sistema. Debe crearlo primero en el módulo de Programas.`,
+        Nivel_Formacion: (nivelNormalizado || "TECNOLOGO").toUpperCase(),
         FecIniLec_Ficha: fecIniLec,
         FecFinLec_Ficha: fecFinLec,
         FecIniPra_Ficha: fecIniPra,
@@ -403,13 +408,18 @@ export const previewImportFicha = async (req, res) => {
       });
     }
 
+    const fichasValidas = Datos.filter(d => d.programaValido);
+    const fichasSinPrograma = Datos.filter(d => !d.programaValido);
+
     return res.status(200).json({
       total: Datos.length,
       hojaDetectada: nombreHoja,
       data: Datos,
+      validas: fichasValidas.length,
+      invalidasSinPrograma: fichasSinPrograma.length,
       omitidosCursosEspeciales: omitidosPorTipo,
-      nuevas: Datos.filter(d => !d.yaExiste).length,
-      aActualizar: Datos.filter(d => d.yaExiste).length
+      nuevas: fichasValidas.filter(d => !d.yaExiste).length,
+      aActualizar: fichasValidas.filter(d => d.yaExiste).length
     });
   } catch (error) {
     console.error("Error en previewImportFicha:", error);
@@ -419,7 +429,7 @@ export const previewImportFicha = async (req, res) => {
 
 /**
  * Persiste o actualiza (upsert) las fichas aprobadas por el administrador.
- * Conecta programas automaticamente y sincroniza el estado de los aprendices.
+ * REGLA ESTRICTA: Solo permite subir fichas cuyo programa ya exista en la base de datos.
  */
 export const importarFichasSeleccionadas = async (req, res) => {
   try {
@@ -462,58 +472,21 @@ export const importarFichasSeleccionadas = async (req, res) => {
               return;
             }
 
-            // Resolver Id_Programa
+            // Resolver Id_Programa exclusivamente contra programas existentes
             let idPrograma = Fila.Id_Programa ? parseInt(Fila.Id_Programa, 10) : null;
 
             if (!idPrograma || !mapaProgramasPorId.has(idPrograma)) {
               const nombreBuscar = normalizarNombrePrograma(Fila.Nom_Programa);
               if (nombreBuscar && mapaProgramasPorNombre.has(nombreBuscar)) {
                 idPrograma = mapaProgramasPorNombre.get(nombreBuscar).Id_Programa;
-              } else if (nombreBuscar) {
-                // Crear programa de forma segura capturando posibles carreras concurrentes
-                try {
-                  const nuevoProg = await ProgramaModel.create({
-                    Nom_Programa: nombreBuscar,
-                    Are_Programa: Fila.Are_Programa || Fila.NOMBRE_NUEVO_SECTOR || "FORMACION",
-                    NivFor_Programa: Fila.NivFor_Programa || Fila.Nivel_Formacion || "TECNOLOGO",
-                    Est_Programa: "Activo"
-                  });
-                  idPrograma = nuevoProg.Id_Programa;
-                  mapaProgramasPorId.set(nuevoProg.Id_Programa, nuevoProg);
-                  mapaProgramasPorNombre.set(nombreBuscar, nuevoProg);
-                } catch (errProg) {
-                  const existenteP = await ProgramaModel.findOne({ where: { Nom_Programa: nombreBuscar } });
-                  if (existenteP) {
-                    idPrograma = existenteP.Id_Programa;
-                    mapaProgramasPorId.set(existenteP.Id_Programa, existenteP);
-                    mapaProgramasPorNombre.set(nombreBuscar, existenteP);
-                  }
-                }
               }
             }
 
-            // Fallback de seguridad: si la fila no traia programa o no se resolvio, asociar a PROGRAMA GENERAL
-            if (!idPrograma) {
-              let progGeneral = mapaProgramasPorNombre.get("PROGRAMA GENERAL") || mapaProgramasPorNombre.get("GENERAL");
-              if (!progGeneral) {
-                try {
-                  progGeneral = await ProgramaModel.create({
-                    Nom_Programa: "PROGRAMA GENERAL",
-                    Are_Programa: "GENERAL",
-                    NivFor_Programa: "TECNOLOGO",
-                    Est_Programa: "Activo"
-                  });
-                } catch {
-                  progGeneral = await ProgramaModel.findOne({ where: { Nom_Programa: "PROGRAMA GENERAL" } });
-                }
-                if (progGeneral) {
-                  mapaProgramasPorId.set(progGeneral.Id_Programa, progGeneral);
-                  mapaProgramasPorNombre.set("PROGRAMA GENERAL", progGeneral);
-                }
-              }
-              if (progGeneral) {
-                idPrograma = progGeneral.Id_Programa;
-              }
+            // REGLA OBLIGATORIA: Si el programa no existe en el sistema, NO DEJAR SUBIR ESTA FICHA
+            if (!idPrograma || !mapaProgramasPorId.has(idPrograma)) {
+              Omitidos++;
+              Errores.push(`Ficha #${numFicha} rechazada: El programa "${Fila.Nom_Programa || 'No especificado'}" no existe en el sistema. Primero debe registrar el programa.`);
+              return;
             }
 
             let fecFinPra = Fila.FecFinPra_Ficha || null;

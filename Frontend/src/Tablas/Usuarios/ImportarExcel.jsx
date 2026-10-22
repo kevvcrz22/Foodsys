@@ -75,12 +75,22 @@ const ImportarExcel = ({ onClose, reload }) => {
       });
 
       const lista = res.data.data ?? [];
+      const validos = lista.filter(d => d.fichaValida !== false);
       setDatos(lista);
-      setSeleccionados(lista);
+      // REGLA ESTRICTA: Solo preseleccionar aprendices cuya ficha SI existe en el sistema
+      setSeleccionados(validos);
       setPagina(1);
       setBusqueda("");
       setStep("preview");
-      toast.success(`Se detectaron ${lista.length} aprendices en el archivo.`);
+
+      if (res.data.invalidosSinFicha > 0) {
+        toast.error(
+          `${res.data.invalidosSinFicha} aprendices tienen fichas que NO existen en el sistema y no se podrán subir.`,
+          { duration: 5000 }
+        );
+      } else {
+        toast.success(`Se detectaron ${lista.length} aprendices en el archivo.`);
+      }
     } catch (err) {
       setErrorArchivo(
         err?.response?.data?.message || "Error al leer el archivo. Verifica el formato del Excel."
@@ -99,6 +109,7 @@ const ImportarExcel = ({ onClose, reload }) => {
       String(d.Nom_Usuario || "").toLowerCase().includes(q) ||
       String(d.Ape_Usuario || "").toLowerCase().includes(q) ||
       String(d.Num_Ficha || "").includes(q) ||
+      String(d.Nom_Programa || "").toLowerCase().includes(q) ||
       String(d.Cor_Usuario || "").toLowerCase().includes(q)
     );
   });
@@ -114,24 +125,39 @@ const ImportarExcel = ({ onClose, reload }) => {
      TOGGLE SELECCIÓN
   ========================== */
   const toggleSeleccion = (fila) => {
+    // Si la ficha no existe, no permitir seleccionarla bajo ninguna circunstancia
+    if (fila.fichaValida === false) return;
     setSeleccionados((prev) =>
       prev.includes(fila) ? prev.filter((f) => f !== fila) : [...prev, fila]
     );
   };
 
+  const validosTotal = datos.filter((d) => d.fichaValida !== false);
+  const todosValidosSeleccionados =
+    validosTotal.length > 0 && validosTotal.every((v) => seleccionados.includes(v));
+
   const toggleTodos = () => {
-    setSeleccionados((prev) => (prev.length === datos.length ? [] : [...datos]));
+    if (todosValidosSeleccionados) {
+      setSeleccionados([]);
+    } else {
+      setSeleccionados(validosTotal);
+    }
   };
 
   /* =========================
      IMPORTAR SELECCIONADOS
   ========================== */
   const importarSeleccionados = async () => {
-    if (seleccionados.length === 0) return;
+    // Filtrar estrictamente solo los que tienen ficha valida registrada
+    const aEnviar = seleccionados.filter((s) => s.fichaValida !== false);
+    if (aEnviar.length === 0) {
+      toast.error("No hay aprendices con ficha válida seleccionados para importar.");
+      return;
+    }
     setGuardando(true);
     try {
       const res = await apiAxios.post("/api/Usuarios/importar-seleccionados", {
-        usuarios: seleccionados,
+        usuarios: aEnviar,
       });
       setResultado(res.data);
       setStep("result");
@@ -140,7 +166,7 @@ const ImportarExcel = ({ onClose, reload }) => {
     } catch (err) {
       setResultado({
         creados: 0,
-        omitidos: seleccionados.length,
+        omitidos: aEnviar.length,
         errores: [err?.response?.data?.message || "Error inesperado al importar."],
       });
       setStep("result");
@@ -295,6 +321,21 @@ const ImportarExcel = ({ onClose, reload }) => {
         {step === "preview" && (
           <div className="p-5 flex flex-col gap-3 overflow-hidden">
 
+            {/* Alerta de fichas no existentes si las hay */}
+            {datos.some((d) => d.fichaValida === false) && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-red-900">
+                <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-red-800">
+                    Atención: {datos.filter((d) => d.fichaValida === false).length} aprendices tienen fichas no registradas en el sistema.
+                  </strong>
+                  <p className="m-0 mt-0.5 text-red-700 text-[11px] leading-relaxed">
+                    Por integridad de la base de datos, <strong>no se permite subir aprendices sin que su ficha exista previamente</strong>. Las filas no válidas han sido bloqueadas. Primero debe registrar o importar la ficha en el módulo de Fichas.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Barra superior con contador y buscador */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
               <div className="relative flex-1">
@@ -311,9 +352,10 @@ const ImportarExcel = ({ onClose, reload }) => {
               <div className="flex items-center gap-2 justify-between sm:justify-end">
                 <button
                   onClick={toggleTodos}
-                  className="text-xs text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl px-3 py-1.5 transition-colors cursor-pointer"
+                  disabled={validosTotal.length === 0}
+                  className="text-xs text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 border border-emerald-200 rounded-xl px-3 py-1.5 transition-colors cursor-pointer"
                 >
-                  {seleccionados.length === datos.length ? "Deseleccionar todos" : "Seleccionar todos"}
+                  {todosValidosSeleccionados ? "Deseleccionar todos" : `Seleccionar válidos (${validosTotal.length})`}
                 </button>
               </div>
             </div>
@@ -321,13 +363,14 @@ const ImportarExcel = ({ onClose, reload }) => {
             {/* Tabla preview paginada */}
             <div className="overflow-auto max-h-72 border border-slate-200 rounded-xl">
               <table className="w-full text-xs">
-                <thead className="bg-slate-100 sticky top-0 text-slate-600">
+                <thead className="bg-slate-100 sticky top-0 text-slate-600 z-10">
                   <tr>
                     <th className="px-3 py-2 text-left w-8">
                       <input
                         type="checkbox"
-                        checked={seleccionados.length === datos.length && datos.length > 0}
+                        checked={todosValidosSeleccionados}
                         onChange={toggleTodos}
+                        disabled={validosTotal.length === 0}
                         className="rounded accent-emerald-600 cursor-pointer"
                       />
                     </th>
@@ -340,20 +383,28 @@ const ImportarExcel = ({ onClose, reload }) => {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {datosPaginados.map((fila, i) => {
+                    const esValido = fila.fichaValida !== false;
                     const seleccionado = seleccionados.includes(fila);
                     const esInterno = fila.CenCon_Usuario === "Si" || fila.Rol_Asignado?.includes("Interno");
                     return (
                       <tr
                         key={fila.NumDoc_Usuario || i}
-                        className={`cursor-pointer transition-colors ${seleccionado ? "bg-emerald-50/60" : "hover:bg-slate-50"}`}
-                        onClick={() => toggleSeleccion(fila)}
+                        className={`transition-colors ${
+                          !esValido
+                            ? "bg-red-50/60 opacity-80 cursor-not-allowed"
+                            : seleccionado
+                              ? "bg-emerald-50/70 hover:bg-emerald-50 cursor-pointer"
+                              : "hover:bg-slate-50 cursor-pointer"
+                        }`}
+                        onClick={() => esValido && toggleSeleccion(fila)}
                       >
                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={seleccionado}
-                            onChange={() => toggleSeleccion(fila)}
-                            className="rounded accent-emerald-600 cursor-pointer"
+                            disabled={!esValido}
+                            onChange={() => esValido && toggleSeleccion(fila)}
+                            className="rounded accent-emerald-600 cursor-pointer disabled:cursor-not-allowed"
                           />
                         </td>
                         <td className="px-3 py-2 font-mono font-semibold text-slate-800">
@@ -376,10 +427,26 @@ const ImportarExcel = ({ onClose, reload }) => {
                           </span>
                         </td>
                         <td className="px-3 py-2 text-slate-700">
-                          <span className="font-bold">Ficha #{fila.Num_Ficha || "—"}</span>
-                          <span className="text-[10px] text-slate-400 block truncate max-w-[140px]">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold">Ficha #{fila.Num_Ficha || "—"}</span>
+                            {esValido ? (
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
+                                ✓ Ficha registrada
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded" title={fila.errorFicha}>
+                                ⚠️ Ficha NO registrada
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-500 block truncate max-w-[170px] mt-0.5 font-medium" title={fila.Nom_Programa}>
                             {fila.Nom_Programa || "Por asociar"}
                           </span>
+                          {!esValido && (
+                            <span className="text-[10px] text-red-600 block mt-0.5 leading-tight font-normal">
+                              {fila.errorFicha || "Ficha no existe en el sistema"}
+                            </span>
+                          )}
                         </td>
                         <td className="px-3 py-2 text-center font-bold">
                           {esInterno ? (
@@ -398,7 +465,7 @@ const ImportarExcel = ({ onClose, reload }) => {
             {/* Paginación y resumen */}
             <div className="flex items-center justify-between text-xs text-slate-600 px-1">
               <span className="font-semibold text-slate-700">
-                {seleccionados.length} de {datos.length} seleccionados
+                {seleccionados.length} de {validosTotal.length} válidos seleccionados ({datos.length} totales en archivo)
                 {busqueda && ` (${datosFiltrados.length} filtrados)`}
               </span>
 

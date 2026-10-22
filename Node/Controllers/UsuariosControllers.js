@@ -360,8 +360,9 @@ function extractExcelField(row, exactKeys = [], partialKeys = []) {
  * y detecta la fila exacta de encabezados. Soporta Base_NO MODIFICAR_2026_SEPTIEMBRE, Hoja1, etc.
  */
 function detectarHojaAprendices(Workbook) {
-  // Priorizar hojas institucionales del SENA (Juicios, Base IQR, Foodsys, etc.)
+  // Priorizar hojas institucionales del SENA (Centro de Convivencia, Juicios, Base IQR, Foodsys, etc.)
   const prioridades = [
+    "CENTRO DE CONVIVENCIA",
     "J_TGOs_Comp_2026_09",
     "J_TCOs_Comp_2026_09",
     "Base_Datos_IQR",
@@ -374,7 +375,8 @@ function detectarHojaAprendices(Workbook) {
     "Registro",
     "Registro Asistencia",
     "TGOs-Jucios_Tot",
-    "TCOs-Jucios_Tot"
+    "TCOs-Jucios_Tot",
+    "JUNIO"
   ];
 
   const dinamicas = Workbook.SheetNames.filter(n => /J_.*Comp/i.test(n) && !prioridades.includes(n));
@@ -637,31 +639,52 @@ export const previewImport = async (req, res) => {
         ? (esInterno ? "Pasante Interno" : "Pasante Externo")
         : (esInterno ? "Aprendiz Interno" : "Aprendiz Externo");
 
+      // REGLA OBLIGATORIA: Nombres y apellidos siempre en MAYUSCULAS
+      const nombresMayus = (nombres || "SIN NOMBRE").trim().toUpperCase();
+      const apellidosMayus = (apellidos || "").trim().toUpperCase();
+
+      // REGLA OBLIGATORIA: Validar si la ficha existe previamente en la base de datos
+      const numFichaLimpio = String(numFichaRaw || "").trim().replace(/\D/g, "");
+      const fichaEncontrada = numFichaLimpio ? (mapaFichas.get(numFichaLimpio) || mapaFichas.get(String(parseInt(numFichaLimpio, 10)))) : null;
+      const tieneFichaValida = Boolean(fichaEncontrada && fichaEncontrada.Id_Ficha);
+
       // REGLA OBLIGATORIA: Todo aprendiz importado por Excel tiene estado "En Formacion"
       const estUsuario = "En Formacion";
-      const nomProgFinal = fichaEncontrada?.Nom_Programa || nomProgExtraido || "PROGRAMA GENERAL";
 
       Datos.push({
         TipDoc_Usuario: tipDoc,
         NumDoc_Usuario: numDoc,
-        Nom_Usuario: nombres || "Sin Nombre",
-        Ape_Usuario: apellidos || "",
+        Nom_Usuario: nombresMayus,
+        Ape_Usuario: apellidosMayus,
         Cor_Usuario: corRaw || null,
         Tel_Usuario: telFinal || null,
         Gen_Usuario: genRaw ? (genRaw.toUpperCase().startsWith("M") ? "Masculino" : "Femenino") : "No especificado",
         CenCon_Usuario: esInterno ? "Si" : "No",
-        Num_Ficha: fichaEncontrada ? fichaEncontrada.Num_Ficha : (numFichaRaw || "Sin asignar"),
-        Id_Ficha: fichaEncontrada ? fichaEncontrada.Id_Ficha : null,
-        Nom_Programa: nomProgFinal,
+        Num_Ficha: tieneFichaValida ? fichaEncontrada.Num_Ficha : (numFichaLimpio || "Sin ficha"),
+        Id_Ficha: tieneFichaValida ? fichaEncontrada.Id_Ficha : null,
+        Nom_Programa: tieneFichaValida
+          ? String(fichaEncontrada.Nom_Programa || "").toUpperCase()
+          : (nomProgExtraido ? String(nomProgExtraido).trim().toUpperCase() : "SIN PROGRAMA ASIGNADO"),
+        fichaValida: tieneFichaValida,
+        errorFicha: tieneFichaValida
+          ? null
+          : (numFichaLimpio
+              ? `La ficha #${numFichaLimpio} no está registrada en el sistema. Primero debe registrar o importar la ficha en el módulo de Fichas.`
+              : "El aprendiz no tiene número de ficha asignado. No se puede subir sin ficha."),
         Rol_Asignado: rolAsignado,
         Est_Usuario: estUsuario,
         Estado_Etapa_Lectiva: "Vigente"
       });
     }
 
+    const aprendicesValidos = Datos.filter(d => d.fichaValida);
+    const aprendicesSinFicha = Datos.filter(d => !d.fichaValida);
+
     return res.status(200).json({
       total: Datos.length,
       hojaDetectada: nombreHoja,
+      validosConFicha: aprendicesValidos.length,
+      invalidosSinFicha: aprendicesSinFicha.length,
       omitidosInactivos,
       data: Datos
     });
@@ -724,102 +747,6 @@ export const importarSeleccionados = async (req, res) => {
     let Creados = 0;
     let Actualizados = 0;
     let Omitidos = 0;
-    const Errores = [];
-
-    // Funcion auxiliar para resolver o crear el Programa y la Ficha (Cadena Relacional Indestructible)
-    const resolverOCrearFicha = async (numFichaRaw, nomProgramaRaw) => {
-      let numFichaStr = String(numFichaRaw || "").trim();
-      if (!numFichaStr || numFichaStr === "Sin asignar" || numFichaStr === "null" || numFichaStr === "undefined") {
-        numFichaStr = "9999999"; // Ficha institucional general por defecto para no dejar ningun aprendiz huerfano
-        nomProgramaRaw = nomProgramaRaw || "PROGRAMA GENERAL";
-      }
-
-      const numFichaInt = parseInt(numFichaStr.replace(/\D/g, ""), 10);
-      if (!numFichaInt || isNaN(numFichaInt)) return null;
-
-      const numFichaKey = String(numFichaInt);
-      if (mapaFichas.has(numFichaKey)) {
-        return mapaFichas.get(numFichaKey);
-      }
-
-      // Resolver o crear el Programa
-      let idProgramaFicha = null;
-      const nomProgLimpio = normalizarNombrePrograma(nomProgramaRaw);
-
-      if (nomProgLimpio && mapaProgramasPorNombre.has(nomProgLimpio)) {
-        idProgramaFicha = mapaProgramasPorNombre.get(nomProgLimpio).Id_Programa;
-      } else if (nomProgLimpio && nomProgLimpio !== "SIN ASIGNAR" && nomProgLimpio !== "POR ASOCIAR") {
-        try {
-          const nuevoProg = await ProgramaModel.create({
-            Nom_Programa: nomProgLimpio,
-            Are_Programa: "FORMACION",
-            NivFor_Programa: "TECNOLOGO",
-            Est_Programa: "Activo"
-          });
-          idProgramaFicha = nuevoProg.Id_Programa;
-          mapaProgramasPorNombre.set(nomProgLimpio, nuevoProg);
-          mapaProgramasPorId.set(nuevoProg.Id_Programa, nuevoProg);
-        } catch {
-          const progEx = await ProgramaModel.findOne({ where: { Nom_Programa: nomProgLimpio } });
-          if (progEx) {
-            idProgramaFicha = progEx.Id_Programa;
-            mapaProgramasPorNombre.set(nomProgLimpio, progEx);
-            mapaProgramasPorId.set(progEx.Id_Programa, progEx);
-          }
-        }
-      }
-
-      // Si aun no tenemos programa, fallback a PROGRAMA GENERAL
-      if (!idProgramaFicha) {
-        let progGen = mapaProgramasPorNombre.get("PROGRAMA GENERAL") || mapaProgramasPorNombre.get("GENERAL");
-        if (!progGen) {
-          try {
-            progGen = await ProgramaModel.create({
-              Nom_Programa: "PROGRAMA GENERAL",
-              Are_Programa: "GENERAL",
-              NivFor_Programa: "TECNOLOGO",
-              Est_Programa: "Activo"
-            });
-          } catch {
-            progGen = await ProgramaModel.findOne({ where: { Nom_Programa: "PROGRAMA GENERAL" } });
-          }
-          if (progGen) {
-            mapaProgramasPorNombre.set("PROGRAMA GENERAL", progGen);
-            mapaProgramasPorId.set(progGen.Id_Programa, progGen);
-          }
-        }
-        if (progGen) idProgramaFicha = progGen.Id_Programa;
-      }
-
-      // Ahora creamos la ficha con fechas validas por defecto
-      try {
-        const hoy = new Date();
-        const unAnioDespues = new Date(hoy.getTime() + 365 * 24 * 60 * 60 * 1000);
-        const anioYMedio = new Date(hoy.getTime() + 547 * 24 * 60 * 60 * 1000);
-
-        const nuevaFicha = await FichasModel.create({
-          Num_Ficha: numFichaInt,
-          Id_Programa: idProgramaFicha,
-          FecIniLec_Ficha: hoy,
-          FecFinLec_Ficha: unAnioDespues,
-          FecIniPra_Ficha: unAnioDespues,
-          FecFinPra_Ficha: anioYMedio
-        });
-        mapaFichas.set(numFichaKey, nuevaFicha);
-        mapaFichas.set(String(nuevaFicha.Id_Ficha), nuevaFicha);
-        return nuevaFicha;
-      } catch (errFicha) {
-        const fichaEx = await FichasModel.findOne({ where: { Num_Ficha: numFichaInt } });
-        if (fichaEx) {
-          mapaFichas.set(numFichaKey, fichaEx);
-          mapaFichas.set(String(fichaEx.Id_Ficha), fichaEx);
-          return fichaEx;
-        }
-        console.error(`Error al crear ficha ${numFichaInt}:`, errFicha.message);
-        return null;
-      }
-    };
-
     // Procesar en chunks concurrentes de 25 para maximo rendimiento y evitar timeouts HTTP
     const CHUNK_SIZE = 25;
     for (let i = 0; i < usuarios.length; i += CHUNK_SIZE) {
@@ -834,10 +761,22 @@ export const importarSeleccionados = async (req, res) => {
             }
 
             const numDocStr = String(Fila.NumDoc_Usuario).trim();
+            const nomUsuarioFinal = String(Fila.Nom_Usuario).trim().toUpperCase();
+            const apeUsuarioFinal = Fila.Ape_Usuario ? String(Fila.Ape_Usuario).trim().toUpperCase() : "";
 
-            // 1. Resolver Ficha y Programa vinculados antes de persistir
-            const fichaObj = await resolverOCrearFicha(Fila.Num_Ficha || Fila.Id_Ficha, Fila.Nom_Programa);
-            const idFichaFinal = fichaObj ? fichaObj.Id_Ficha : null;
+            // REGLA OBLIGATORIA: La ficha DEBE existir previamente en el sistema. Si no existe, NO SE PERMITE SUBIR.
+            const numFichaBuscada = String(Fila.Num_Ficha || Fila.Id_Ficha || "").trim().replace(/\D/g, "");
+            const fichaAsociada = numFichaBuscada
+              ? (mapaFichas.get(numFichaBuscada) || mapaFichas.get(String(parseInt(numFichaBuscada, 10))))
+              : null;
+
+            if (!fichaAsociada || !fichaAsociada.Id_Ficha) {
+              Omitidos++;
+              Errores.push(`Aprendiz ${numDocStr} (${nomUsuarioFinal} ${apeUsuarioFinal}) rechazado: La ficha #${numFichaBuscada || 'No especificada'} no existe en el sistema. Primero debe registrar o importar la ficha.`);
+              return;
+            }
+
+            const idFichaFinal = fichaAsociada.Id_Ficha;
 
             // Determinar rol segun CenCon_Usuario
             const cenConStr = String(Fila.CenCon_Usuario || "").toLowerCase().trim();
@@ -854,16 +793,15 @@ export const importarSeleccionados = async (req, res) => {
 
             const idRolFinal = mapaRoles.get(nombreRolAsignar.toLowerCase());
 
-            // 2. Comprobar si el usuario ya existe en BD (Auto-reparacion si tenia "Sin ficha" o provisional)
+            // 2. Comprobar si el usuario ya existe en BD
             if (mapaUsuariosDoc.has(numDocStr)) {
               const usuarioEx = mapaUsuariosDoc.get(numDocStr);
-              const fichaProvisional = mapaFichas.get("9999999");
-              const idFichaProvisional = fichaProvisional?.Id_Ficha;
-              const requiereActualizacion = !usuarioEx.Id_Ficha || (idFichaProvisional && usuarioEx.Id_Ficha === idFichaProvisional && idFichaFinal !== idFichaProvisional);
-
-              if (requiereActualizacion && idFichaFinal) {
+              // Si existia pero no tenia ficha asignada o era diferente, actualizarlo con su ficha legitima
+              if (!usuarioEx.Id_Ficha || usuarioEx.Id_Ficha !== idFichaFinal) {
                 await UsuariosModel.update({
                   Id_Ficha: idFichaFinal,
+                  Nom_Usuario: nomUsuarioFinal,
+                  Ape_Usuario: apeUsuarioFinal,
                   Gen_Usuario: (usuarioEx.Gen_Usuario && usuarioEx.Gen_Usuario !== "No especificado")
                     ? usuarioEx.Gen_Usuario
                     : (Fila.Gen_Usuario || "No especificado"),
@@ -899,8 +837,8 @@ export const importarSeleccionados = async (req, res) => {
             const nuevoUsuario = await UsuariosModel.create({
               TipDoc_Usuario: Fila.TipDoc_Usuario || "CC",
               NumDoc_Usuario: numDocStr,
-              Nom_Usuario: String(Fila.Nom_Usuario).trim(),
-              Ape_Usuario: Fila.Ape_Usuario ? String(Fila.Ape_Usuario).trim() : "",
+              Nom_Usuario: nomUsuarioFinal,
+              Ape_Usuario: apeUsuarioFinal,
               Gen_Usuario: Fila.Gen_Usuario && String(Fila.Gen_Usuario).trim() !== "" ? String(Fila.Gen_Usuario).trim() : "No especificado",
               Cor_Usuario: corStr,
               Tel_Usuario: Fila.Tel_Usuario ? String(Fila.Tel_Usuario).trim() : null,

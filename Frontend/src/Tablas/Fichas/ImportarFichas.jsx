@@ -125,11 +125,17 @@ const ImportarFichas = ({ onClose, reload }) => {
         return;
       }
       setPreview(Datos);
-      setSeleccion(Datos.map((_, Idx) => Idx));
+      // Solo preseleccionar las fichas cuyo programa SI existe en el sistema
+      const validos = Datos.map((d, Idx) => d.programaValido !== false ? Idx : null).filter(x => x !== null);
+      setSeleccion(validos);
       setPagina(1);
       setBusqueda("");
       setPaso(2);
-      toast.success(`Se detectaron ${Datos.length} fichas para importar.`);
+      if (Resp.data.invalidasSinPrograma > 0) {
+        toast.error(`${Resp.data.invalidasSinPrograma} fichas tienen programas no registrados y no se podrán subir.`, { duration: 5000 });
+      } else {
+        toast.success(`Se detectaron ${Datos.length} fichas listas para importar.`);
+      }
     } catch (Err) {
       setError(Err.response?.data?.message || "Error al leer el archivo. Asegurate de que tenga formato .xlsx o .xlsm valido.");
     } finally {
@@ -143,9 +149,11 @@ const ImportarFichas = ({ onClose, reload }) => {
       Prev.includes(Idx) ? Prev.filter((I) => I !== Idx) : [...Prev, Idx]
     );
 
-  // Selecciona o deselecciona todas las filas
-  const ToggleTodos = () =>
-    setSeleccion(Seleccion.length === Preview.length ? [] : Preview.map((_, I) => I));
+  // Selecciona o deselecciona todas las filas validas
+  const ToggleTodos = () => {
+    const indicesValidos = Preview.map((d, i) => d.programaValido !== false ? i : null).filter(x => x !== null);
+    setSeleccion((Prev) => (Prev.length === indicesValidos.length ? [] : indicesValidos));
+  };
 
   // Confirma e inserta las filas seleccionadas en la base de datos MySQL
   const ConfirmarImportacion = async () => {
@@ -361,19 +369,25 @@ const ImportarFichas = ({ onClose, reload }) => {
                     <p className="text-center text-xs text-slate-400 py-6">No se encontraron fichas coincidentes con "{busqueda}".</p>
                   ) : (
                     itemsPaginados.map(({ item: Fila, originalIdx }) => {
+                      const esValido = Fila.programaValido !== false;
                       const Marcado = Seleccion.includes(originalIdx);
                       return (
                         <label
                           key={originalIdx}
-                          className={`flex items-start gap-3 p-2.5 rounded-xl border cursor-pointer transition-colors ${
-                            Marcado ? "bg-blue-50/70 border-blue-200" : "bg-slate-50 border-slate-200 opacity-60"
+                          className={`flex items-start gap-3 p-2.5 rounded-xl border transition-colors ${
+                            !esValido
+                              ? "bg-red-50/70 border-red-200 cursor-not-allowed opacity-90"
+                              : Marcado
+                                ? "bg-blue-50/70 border-blue-200 cursor-pointer"
+                                : "bg-slate-50 border-slate-200 opacity-60 cursor-pointer"
                           }`}
                         >
                           <input
                             type="checkbox"
                             className={`mt-1 w-4 h-4 ${CL.check} shrink-0`}
                             checked={Marcado}
-                            onChange={() => ToggleFila(originalIdx)}
+                            disabled={!esValido}
+                            onChange={() => esValido && ToggleFila(originalIdx)}
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -381,8 +395,21 @@ const ImportarFichas = ({ onClose, reload }) => {
                                 Ficha #{Fila.Num_Ficha || <span className="text-red-500 italic">Sin numero</span>}
                               </span>
                               {Fila.Nom_Programa && (
-                                <span className="text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded truncate max-w-[220px]" title={Fila.Nom_Programa}>
+                                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded truncate max-w-[240px] border ${
+                                  esValido
+                                    ? "bg-white text-slate-700 border-slate-200"
+                                    : "bg-red-100 text-red-800 border-red-300"
+                                }`} title={Fila.Nom_Programa}>
                                   {Fila.Nom_Programa}
+                                </span>
+                              )}
+                              {esValido ? (
+                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
+                                  ✓ Programa registrado
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
+                                  ⚠️ Programa NO existe
                                 </span>
                               )}
                               {Fila.Nivel_Formacion && (
@@ -390,12 +417,13 @@ const ImportarFichas = ({ onClose, reload }) => {
                                   {Fila.Nivel_Formacion}
                                 </span>
                               )}
-                              {Fila.Estado_Curso && (
-                                <span className="text-[10px] font-medium text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded">
-                                  {Fila.Estado_Curso}
-                                </span>
-                              )}
                             </div>
+
+                            {!esValido && Fila.errorPrograma && (
+                              <p className="text-[11px] text-red-600 font-semibold m-0 mt-1">
+                                {Fila.errorPrograma}
+                              </p>
+                            )}
 
                             <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-slate-500">
                               <span className="flex items-center gap-1">
