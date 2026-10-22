@@ -380,12 +380,24 @@ export const getPlatosTopConsumo = async (req, res) => {
   }
 };
 
+function validarAccesoCocina(req, res) {
+  const rolHeader = String(req.headers["x-rol-activo"] || "").toLowerCase();
+  const rolesToken = Array.isArray(req.user?.roles) ? req.user.roles.map(r => String(r).toLowerCase()) : [];
+  const esSoloCocina = rolHeader === "cocina" || (rolesToken.length === 1 && rolesToken[0] === "cocina");
+  if (esSoloCocina) {
+    res.status(403).json({ message: "El rol Cocina solo tiene autorización para consultar y descargar consumos reales." });
+    return false;
+  }
+  return true;
+}
+
 // GET /api/Reportes/no-consumidos
 // Retorna la lista de aprendices que reservaron pero no consumieron,
 // con filtros por periodo (diario, semanal, mensual, anual, personalizado),
 // por tipo de alimento y búsqueda de aprendiz.
 export const getNoConsumidos = async (req, res) => {
   try {
+    if (!validarAccesoCocina(req, res)) return;
     const {
       periodo = "diario",
       fecha,
@@ -420,6 +432,7 @@ export const getNoConsumidos = async (req, res) => {
 // GET /api/Reportes/no-consumidos/exportar/pdf
 export const exportarNoConsumidosPDF = async (req, res) => {
   try {
+    if (!validarAccesoCocina(req, res)) return;
     const {
       periodo = "diario",
       fecha,
@@ -464,6 +477,7 @@ export const exportarNoConsumidosPDF = async (req, res) => {
 // GET /api/Reportes/no-consumidos/exportar/excel
 export const exportarNoConsumidosExcel = async (req, res) => {
   try {
+    if (!validarAccesoCocina(req, res)) return;
     const {
       periodo = "diario",
       fecha,
@@ -521,6 +535,7 @@ export const getConsumidoresNominales = async (req, res) => {
 // Retorna la lista de aprendices activos que tienen 0 reservas o 0 consumos en el periodo seleccionado
 export const getSeguimientoBienestar = async (req, res) => {
   try {
+    if (!validarAccesoCocina(req, res)) return;
     const data = await ReportesService.getSeguimientoBienestar(req.query);
     res.status(200).json(data);
   } catch (error) {

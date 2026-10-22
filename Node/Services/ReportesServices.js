@@ -61,7 +61,7 @@ class ReportesService {
          SUM(CASE WHEN Tip_Reserva = 'Almuerzo' THEN 1 ELSE 0 END) AS almuerzo,
          SUM(CASE WHEN Tip_Reserva = 'Cena'     THEN 1 ELSE 0 END) AS cena
        FROM reservas
-       WHERE Est_Reserva = 'Consumido'
+       WHERE Est_Reserva IN ('Consumido', 'Generado')
          AND Fec_Reserva >= CURDATE() - INTERVAL 7 DAY
        GROUP BY DATE(Fec_Reserva)
        ORDER BY periodo ASC`,
@@ -83,7 +83,7 @@ class ReportesService {
          SUM(CASE WHEN Tip_Reserva = 'Almuerzo' THEN 1 ELSE 0 END)   AS almuerzo,
          SUM(CASE WHEN Tip_Reserva = 'Cena'     THEN 1 ELSE 0 END)   AS cena
        FROM reservas
-       WHERE Est_Reserva = 'Consumido'
+       WHERE Est_Reserva IN ('Consumido', 'Generado')
          AND Fec_Reserva >= CURDATE() - INTERVAL 8 WEEK
        GROUP BY YEAR(Fec_Reserva), WEEK(Fec_Reserva, 1), CONCAT('Sem ', WEEK(Fec_Reserva, 1), '-', YEAR(Fec_Reserva))
        ORDER BY anio ASC, semana ASC`,
@@ -104,7 +104,7 @@ class ReportesService {
          SUM(CASE WHEN Tip_Reserva = 'Almuerzo' THEN 1 ELSE 0 END) AS almuerzo,
          SUM(CASE WHEN Tip_Reserva = 'Cena'     THEN 1 ELSE 0 END) AS cena
        FROM reservas
-       WHERE Est_Reserva = 'Consumido'
+       WHERE Est_Reserva IN ('Consumido', 'Generado')
          AND Fec_Reserva >= CURDATE() - INTERVAL 12 MONTH
        GROUP BY DATE_FORMAT(Fec_Reserva, '%Y-%m'), DATE_FORMAT(Fec_Reserva, '%b %Y')
        ORDER BY periodo ASC`,
@@ -124,7 +124,7 @@ class ReportesService {
          SUM(CASE WHEN Tip_Reserva = 'Almuerzo' THEN 1 ELSE 0 END) AS almuerzo,
          SUM(CASE WHEN Tip_Reserva = 'Cena'     THEN 1 ELSE 0 END) AS cena
        FROM reservas
-       WHERE Est_Reserva = 'Consumido'
+       WHERE Est_Reserva IN ('Consumido', 'Generado')
          AND YEAR(Fec_Reserva) >= YEAR(CURDATE()) - 4
        GROUP BY YEAR(Fec_Reserva)
        ORDER BY periodo ASC`,
@@ -136,7 +136,7 @@ class ReportesService {
   // Retorna las reservas en un rango de fechas libre con filtro opcional de tipo de alimento.
   // El WHERE se construye dinamicamente para no agregar condicion innecesaria cuando tipoAlimento es Todos.
   async getPersonalizado(fechaInicio, fechaFin, tipoAlimento) {
-    let whereClause = `WHERE Est_Reserva = 'Consumido' AND Fec_Reserva BETWEEN :fechaInicio AND :fechaFin`;
+    let whereClause = `WHERE Est_Reserva IN ('Consumido', 'Generado') AND Fec_Reserva BETWEEN :fechaInicio AND :fechaFin`;
     let replacements = { fechaInicio, fechaFin };
 
     // Solo agregar el filtro de tipo si no es "Todos" o indefinido
@@ -744,11 +744,11 @@ class ReportesService {
     const Desglose = await this.getSemanalDesglose(Anio, Semana);
     const { lunes, domingo } = Desglose;
 
-    // Traer solo las reservas consumidas del rango con la informacion del plato
+    // Traer las reservas del rango con la informacion del plato
     const Reservas = await ReservaModel.findAll({
       where: {
         Fec_Reserva: { [Op.between]: [lunes, domingo] },
-        Est_Reserva: "Consumido"
+        Est_Reserva: { [Op.in]: ["Consumido", "Generado"] }
       },
       include: [{
         model: PlatosModel,
@@ -1041,7 +1041,7 @@ class ReportesService {
          COUNT(r.Id_Reserva) AS veces_consumido
        FROM reservas r
        INNER JOIN platos p ON r.Id_Plato = p.Id_Plato
-       WHERE r.Est_Reserva = 'Consumido'
+       WHERE r.Est_Reserva IN ('Consumido', 'Generado')
          AND ${Filtro_Fecha}
        GROUP BY p.Id_Plato, p.Nom_Plato, p.Img_Plato, p.Tip_Plato, p.Des_Plato
        ORDER BY veces_consumido DESC
@@ -1317,9 +1317,14 @@ class ReportesService {
     const { inicioStr, finStr } = this.resolverRangoFechas({ periodo, fecha, anio, semana, mes, fechaInicio, fechaFin });
 
     const whereClause = {
-      Est_Reserva: "Consumido",
       Fec_Reserva: { [Op.between]: [inicioStr, finStr] }
     };
+
+    if (filtros.estado && filtros.estado !== "Todos") {
+      whereClause.Est_Reserva = filtros.estado;
+    } else {
+      whereClause.Est_Reserva = { [Op.in]: ["Consumido", "Generado"] };
+    }
 
     if (tipoAlimento && tipoAlimento !== "Todos") {
       whereClause.Tip_Reserva = tipoAlimento;

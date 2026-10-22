@@ -72,7 +72,7 @@ const TABLAS_POR_ROL = {
     { to: "/usuarios", label: "Usuarios", icon: Users },
     { to: "/aprendices", label: "Aprendices", icon: User },
     { to: "/pasantes", label: "Pasantes", icon: Users },
-    { to: "/UsuariosRoles", label: "Usuarios Roles", icon: ShieldCheck },
+    { to: "/UsuariosRoles", label: "Asignar Roles", icon: ShieldCheck },
     { to: "/roles", label: "Roles", icon: ShieldCheck },
     { to: "/fichas", label: "Fichas", icon: FileText },
     { to: "/programas", label: "Programas", icon: GraduationCap },

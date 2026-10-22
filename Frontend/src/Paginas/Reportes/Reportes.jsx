@@ -28,8 +28,19 @@ import ReporteSeguimientoBienestar from "./ReporteSeguimientoBienestar";
 import { descargarBlobUniversal, confirmarExportacion } from "../../utils/exportUtils";
 
 const Reportes = () => {
+  // Detección de rol del usuario: Cocina solo tiene acceso a Consumos Reales (quienes consumieron)
+  const rolActivo = (localStorage.getItem("rolActivo") || localStorage.getItem("rol") || "").trim().toLowerCase();
+  const esRolCocina = rolActivo.includes("cocina") && !rolActivo.includes("admin") && !rolActivo.includes("coordinad");
+
   // Vista activa principal: "estadisticas" | "no_consumidos" | "seguimiento_bienestar"
   const [VistaActiva, Set_VistaActiva] = useState("estadisticas");
+
+  // Si el rol es cocina, forzar siempre a vista de consumos reales
+  useEffect(() => {
+    if (esRolCocina && VistaActiva !== "estadisticas") {
+      Set_VistaActiva("estadisticas");
+    }
+  }, [esRolCocina, VistaActiva]);
 
   // Periodo activo del modulo estadistico.
   // Se inicializa en "diario" para que el tab Diario sea lo primero que ve el usuario.
@@ -224,29 +235,33 @@ const Reportes = () => {
           <span>Tab 1 — Consumos Reales</span>
         </button>
 
-        <button
-          onClick={() => Set_VistaActiva("no_consumidos")}
-          className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
-            VistaActiva === "no_consumidos"
-              ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
-              : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"
-          }`}
-        >
-          <UserX className="w-4 h-4 text-rose-300" />
-          <span>Tab 2 — Inasistencias / No Consumieron</span>
-        </button>
+        {!esRolCocina && (
+          <>
+            <button
+              onClick={() => Set_VistaActiva("no_consumidos")}
+              className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
+                VistaActiva === "no_consumidos"
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
+                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"
+              }`}
+            >
+              <UserX className="w-4 h-4 text-rose-300" />
+              <span>Tab 2 — Inasistencias / No Consumieron</span>
+            </button>
 
-        <button
-          onClick={() => Set_VistaActiva("seguimiento_bienestar")}
-          className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
-            VistaActiva === "seguimiento_bienestar"
-              ? "bg-purple-700 text-white border-purple-700 shadow-sm shadow-purple-200"
-              : "bg-white text-purple-700 border-purple-200 hover:bg-purple-50"
-          }`}
-        >
-          <HeartHandshake className="w-4 h-4 text-purple-300" />
-          <span>Tab 3 — Alerta Seguimiento Bienestar</span>
-        </button>
+            <button
+              onClick={() => Set_VistaActiva("seguimiento_bienestar")}
+              className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
+                VistaActiva === "seguimiento_bienestar"
+                  ? "bg-purple-700 text-white border-purple-700 shadow-sm shadow-purple-200"
+                  : "bg-white text-purple-700 border-purple-200 hover:bg-purple-50"
+              }`}
+            >
+              <HeartHandshake className="w-4 h-4 text-purple-300" />
+              <span>Tab 3 — Alerta Seguimiento Bienestar</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Renderizado segun el enfoque activo */}
@@ -336,7 +351,7 @@ const Reportes = () => {
                 fechaInicio={FechaInicio}
                 fechaFin={FechaFin}
                 tipoAlimento={TipoAlimento}
-                estado="Consumido"
+                estado="Todos"
               />
             </div>
           )}

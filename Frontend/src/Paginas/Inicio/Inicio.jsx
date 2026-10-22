@@ -35,7 +35,7 @@ const MANUAL_POR_ROL = {
       {
         Icono: Users,
         Titulo: "Gestionar Usuarios",
-        Descripcion: "Crea, edita o inactiva usuarios. Asigna roles desde el submodulo Usuarios Roles.",
+        Descripcion: "Crea, edita o inactiva usuarios. Asigna roles desde el submodulo Asignar Roles.",
         Link: "/usuarios",
       },
       {

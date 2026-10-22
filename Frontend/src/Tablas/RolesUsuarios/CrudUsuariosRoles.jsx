@@ -385,7 +385,7 @@ const CrudUsuariosRoles = () => {
                 <Shield size={18} />
               </div>
               <div>
-                <h1 className="font-bold text-slate-900 text-base sm:text-lg m-0">Asignacion de Roles a Usuarios</h1>
+                <h1 className="font-bold text-slate-900 text-base sm:text-lg m-0">Asignar Roles</h1>
                 <p className="text-xs text-slate-500 m-0">{usuariosRol.length} roles asignados</p>
               </div>
             </div>

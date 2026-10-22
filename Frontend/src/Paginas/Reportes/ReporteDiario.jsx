@@ -237,9 +237,31 @@ const ReporteDiario = () => {
 
           {/* Selector de fecha nativo con icono superpuesto */}
           <div className="w-full sm:flex-1">
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-              Seleccionar fecha
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-500">
+                Seleccionar fecha
+              </label>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => Set_Fecha(new Date().toISOString().split("T")[0])}
+                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded cursor-pointer border-0"
+                >
+                  Hoy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 1);
+                    Set_Fecha(d.toISOString().split("T")[0]);
+                  }}
+                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded cursor-pointer border-0"
+                >
+                  Mañana
+                </button>
+              </div>
+            </div>
             <div className="relative">
               {/* Icono decorativo de calendario, no interactivo */}
               <i className="fas fa-calendar absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
@@ -247,7 +269,6 @@ const ReporteDiario = () => {
                 type="date"
                 value={Fecha}
                 onChange={(E) => Set_Fecha(E.target.value)}
-                max={new Date().toISOString().split("T")[0]}
                 className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#1861c1]"
               />
             </div>

@@ -326,7 +326,7 @@ const CrudRoles = () => {
             </div>
             <div className="space-y-1">
               <p className="font-bold text-purple-700 uppercase tracking-wide">2. Asignacion</p>
-              <p>Los roles se vinculan a los usuarios en el modulo de <strong>Usuarios Roles</strong> para otorgarles acceso a sus vistas correspondientes.</p>
+              <p>Los roles se vinculan a los usuarios en el modulo de <strong>Asignar Roles</strong> para otorgarles acceso a sus vistas correspondientes.</p>
             </div>
             <div className="space-y-1">
               <p className="font-bold text-emerald-700 uppercase tracking-wide">3. Exportacion</p>
