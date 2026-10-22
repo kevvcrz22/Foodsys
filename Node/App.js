@@ -263,6 +263,17 @@ try {
     console.warn('Nota sobre columna Tel_Usuario:', errTel.message);
   }
 
+  // Asegurar que Gen_Usuario admita NULL o tenga default 'No especificado' para evitar fallos en importacion
+  try {
+    const [colsGen] = await db.query("SHOW COLUMNS FROM usuarios LIKE 'Gen_Usuario'");
+    if (colsGen.length > 0 && colsGen[0].Null === 'NO') {
+      await db.query("ALTER TABLE usuarios MODIFY COLUMN Gen_Usuario VARCHAR(20) NULL DEFAULT 'No especificado'");
+      console.log('✅ Columna Gen_Usuario ajustada para admitir NULL y default');
+    }
+  } catch (errGen) {
+    console.warn('Nota sobre columna Gen_Usuario:', errGen.message);
+  }
+
   // Asegurar existencia de tablas turnos y notificaciones
   try {
     await TurnosModel.sync({ alter: false });

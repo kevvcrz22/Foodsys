@@ -421,6 +421,30 @@ export const importarFichasSeleccionadas = async (req, res) => {
               }
             }
 
+            // Fallback de seguridad: si la fila no traia programa o no se resolvio, asociar a PROGRAMA GENERAL
+            if (!idPrograma) {
+              let progGeneral = mapaProgramasPorNombre.get("PROGRAMA GENERAL") || mapaProgramasPorNombre.get("GENERAL");
+              if (!progGeneral) {
+                try {
+                  progGeneral = await ProgramaModel.create({
+                    Nom_Programa: "PROGRAMA GENERAL",
+                    Are_Programa: "GENERAL",
+                    NivFor_Programa: "TECNOLOGO",
+                    Est_Programa: "Activo"
+                  });
+                } catch {
+                  progGeneral = await ProgramaModel.findOne({ where: { Nom_Programa: "PROGRAMA GENERAL" } });
+                }
+                if (progGeneral) {
+                  mapaProgramasPorId.set(progGeneral.Id_Programa, progGeneral);
+                  mapaProgramasPorNombre.set("PROGRAMA GENERAL", progGeneral);
+                }
+              }
+              if (progGeneral) {
+                idPrograma = progGeneral.Id_Programa;
+              }
+            }
+
             let fecFinPra = Fila.FecFinPra_Ficha || null;
             let fecIniPra = Fila.FecIniPra_Ficha || null;
             let fecFinLec = Fila.FecFinLec_Ficha || null;
