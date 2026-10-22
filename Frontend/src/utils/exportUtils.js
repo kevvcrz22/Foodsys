@@ -95,10 +95,8 @@ export const confirmarExportacion = async ({
  */
 export const exportarAExcel = ({
   datos,
-  columnas = null,
   nombreArchivo = "Reporte_Foodsys",
-  nombreHoja = "Datos",
-  tituloHoja = "Datos"
+  nombreHoja = "Datos"
 }) => {
   if (!datos || datos.length === 0) {
     Swal.fire({
@@ -110,32 +108,15 @@ export const exportarAExcel = ({
     return;
   }
 
-  const nombreFinalHoja = (tituloHoja || nombreHoja || "Datos").substring(0, 31);
-
-  // Mapear datos a encabezados legibles si se proporciono la definicion de columnas
-  let datosExportar = datos;
-  if (Array.isArray(columnas) && columnas.length > 0 && typeof datos[0] === "object" && !Array.isArray(datos[0])) {
-    datosExportar = datos.map((fila) => {
-      const filaMapeada = {};
-      columnas.forEach((col) => {
-        const key = typeof col === "object" && col !== null ? col.key : col;
-        const header = typeof col === "object" && col !== null ? (col.header || col.title || col.key) : col;
-        const valor = fila[key];
-        filaMapeada[header] = valor !== null && valor !== undefined ? valor : "";
-      });
-      return filaMapeada;
-    });
-  }
-
   // Crear libro y hoja con los datos
-  const hoja = XLSX.utils.json_to_sheet(datosExportar);
+  const hoja = XLSX.utils.json_to_sheet(datos);
   const libro = XLSX.utils.book_new();
 
   // Calcular ancho automatico de columnas basado en el contenido
-  const encabezados = Object.keys(datosExportar[0] || {});
+  const encabezados = Object.keys(datos[0] || {});
   const anchos = encabezados.map((col) => {
     let maxLongitud = col.length;
-    datosExportar.forEach((fila) => {
+    datos.forEach((fila) => {
       const val = fila[col] !== null && fila[col] !== undefined ? String(fila[col]) : "";
       if (val.length > maxLongitud) {
         maxLongitud = val.length;
@@ -145,7 +126,7 @@ export const exportarAExcel = ({
   });
 
   hoja["!cols"] = anchos;
-  XLSX.utils.book_append_sheet(libro, hoja, nombreFinalHoja);
+  XLSX.utils.book_append_sheet(libro, hoja, nombreHoja.substring(0, 31));
 
   // Generar buffer en formato ArrayBuffer
   const excelBuffer = XLSX.write(libro, { bookType: "xlsx", type: "array" });
@@ -163,8 +144,8 @@ export const exportarAExcel = ({
 export const exportarAPDF = ({
   titulo = "Reporte del Sistema Foodsys",
   subtitulo = "Centro Agropecuario La Granja - Espinal Tolima",
-  columnas = [], // Array de encabezados visibles: ['N° Doc', 'Nombre'] o [{ header: 'Doc', key: 'NumDoc' }]
-  datos = [],    // Matriz de filas [['1003810', 'Carlos']] o array de objetos [{ NumDoc: '1003810' }]
+  columnas = [], // Array de encabezados visibles: ['N° Doc', 'Nombre', 'Ficha', 'Estado']
+  datos = [],    // Matriz de filas: [['1003810', 'Carlos Perez', '255481', 'Activo']]
   nombreArchivo = "Reporte_Foodsys",
   orientacion = "landscape" // 'portrait' o 'landscape'
 }) => {
@@ -176,33 +157,6 @@ export const exportarAPDF = ({
       confirmButtonColor: "#2E5792"
     });
     return;
-  }
-
-  // Normalizar encabezados de columna para evitar [object Object]
-  const encabezadosTexto = (columnas || []).map((col) => {
-    if (typeof col === "object" && col !== null) {
-      return col.header || col.title || col.key || "";
-    }
-    return String(col);
-  });
-
-  // Normalizar filas para autoTable
-  let filasNormalizadas = [];
-  if (datos.length > 0) {
-    if (Array.isArray(datos[0])) {
-      // Ya viene como matriz de arrays [[val1, val2]]
-      filasNormalizadas = datos;
-    } else {
-      // Viene como array de objetos [{ key: val }]
-      filasNormalizadas = datos.map((fila) => {
-        return (columnas || []).map((col) => {
-          const key = typeof col === "object" && col !== null ? col.key : col;
-          const valor = fila[key];
-          if (valor === null || valor === undefined) return "";
-          return String(valor);
-        });
-      });
-    }
   }
 
   const doc = new jsPDF({
@@ -241,11 +195,28 @@ export const exportarAPDF = ({
   doc.setTextColor(100, 116, 139);
   doc.text(`Generado: ${fechaHoy} | Total registros: ${datos.length}`, 40, 100);
 
+  // Normalizar encabezados (soportar tanto array de strings como array de objetos { header: '...', key: '...' })
+  const encabezados = columnas.map((c) =>
+    typeof c === "object" && c !== null ? (c.header || c.title || c.name || "") : String(c)
+  );
+
+  // Normalizar filas (soportar array de arrays o array de objetos)
+  let filasDatos = datos;
+  if (datos.length > 0 && !Array.isArray(datos[0]) && typeof datos[0] === "object") {
+    const keys = columnas.map((c) => (typeof c === "object" && c !== null ? c.key : null));
+    filasDatos = datos.map((fila) =>
+      keys.map((k, idx) => {
+        if (k && fila[k] !== undefined) return String(fila[k] ?? "");
+        return String(Object.values(fila)[idx] ?? "");
+      })
+    );
+  }
+
   // Tabla con AutoTable
   autoTable(doc, {
     startY: 110,
-    head: [encabezadosTexto],
-    body: filasNormalizadas,
+    head: [encabezados],
+    body: filasDatos,
     theme: "striped",
     headStyles: {
       fillColor: [46, 87, 146],

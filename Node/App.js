@@ -134,7 +134,7 @@ const opcionesCors = {
 };
 aplicacion.use(cors(opcionesCors));
 
-// ---------- 6. REGISTRO DE RUTAS DE LA API ----------
+// ---------- 6. REGISTRO DE RUTAS DE LA API (Soporta PascalCase y minúsculas) ----------
 aplicacion.use('/api/Usuarios', UsuariosRoute);
 aplicacion.use('/api/usuarios', UsuariosRoute);
 aplicacion.use('/api/Fichas', FichasRoute);
@@ -146,6 +146,7 @@ aplicacion.use('/api/programa', ProgramaRoute);
 aplicacion.use('/api/Roles', RolesRoute);
 aplicacion.use('/api/roles', RolesRoute);
 aplicacion.use('/api/UsuariosRoles', UsuariosRolRoutes);
+aplicacion.use('/api/usuariosroles', UsuariosRolRoutes);
 aplicacion.use('/api/Platos', PlatosRoutes);
 aplicacion.use('/api/platos', PlatosRoutes);
 aplicacion.use('/api/Menus', MenusRoutes);
@@ -153,6 +154,7 @@ aplicacion.use('/api/menus', MenusRoutes);
 aplicacion.use('/api/Reportes', ReportesRoute);
 aplicacion.use('/api/reportes', ReportesRoute);
 aplicacion.use('/api/Inicio', InicioRoute);
+aplicacion.use('/api/inicio', InicioRoute);
 aplicacion.use('/api/Novedades', NovedadesRoute);
 aplicacion.use('/api/novedades', NovedadesRoute);
 aplicacion.use('/api/Cocina', CocinaRoute);

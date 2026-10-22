@@ -333,42 +333,124 @@ export const importarCSV = async (req, res) => {
 //   * Las validaciones ocurren en el backend, no en el frontend.
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Extrae un valor de una fila buscando primero coincidencias exactas y luego parciales.
+ */
+function extractExcelField(row, exactKeys = [], partialKeys = []) {
+  if (!row) return "";
+  const keys = Object.keys(row);
+  for (const ek of exactKeys) {
+    const found = keys.find(k => k.trim().toUpperCase() === ek.toUpperCase());
+    if (found && row[found] !== undefined && String(row[found]).trim() !== "") {
+      return String(row[found]).trim();
+    }
+  }
+  for (const pk of partialKeys) {
+    const found = keys.find(k => k.trim().toUpperCase().includes(pk.toUpperCase()));
+    if (found && row[found] !== undefined && String(row[found]).trim() !== "") {
+      return String(row[found]).trim();
+    }
+  }
+  return "";
+}
+
+/**
+ * Busca inteligentemente la hoja del libro que contiene aprendices reales
+ * y detecta la fila exacta de encabezados. Soporta Base_NO MODIFICAR_2026_SEPTIEMBRE, Hoja1, etc.
+ */
+function detectarHojaAprendices(Workbook) {
+  const prioridades = ["Base_Datos_IQR", "Hoja1", "Aprendices", "Usuarios", "Base_Datos"];
+  const todosNombres = [
+    ...prioridades.filter(n => Workbook.Sheets[n]),
+    ...Workbook.SheetNames.filter(n => !prioridades.includes(n))
+  ];
+
+  for (const nombreHoja of todosNombres) {
+    const ws = Workbook.Sheets[nombreHoja];
+    if (!ws) continue;
+    const rawMatrix = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+    for (let r = 0; r < Math.min(10, rawMatrix.length); r++) {
+      const fila = (rawMatrix[r] || []).map(c => String(c).trim().toUpperCase());
+      const hasDoc = fila.some(c => c.includes("DOCUMENTO") || c.includes("IDENTIFICACI") || c.includes("NUMDOC"));
+      const hasNombre = fila.some(c => c.includes("NOMBRE") || c.includes("SIMBRES") || c.includes("APRENDIZ"));
+
+      if (hasDoc && hasNombre) {
+        const Filas = XLSX.utils.sheet_to_json(ws, { range: r, defval: "" });
+        if (Filas.length > 0) {
+          return { hoja: ws, nombreHoja, filaEncabezados: r, Filas };
+        }
+      }
+    }
+  }
+
+  const primerNombre = Workbook.SheetNames[0];
+  const ws = Workbook.Sheets[primerNombre];
+  const Filas = XLSX.utils.sheet_to_json(ws, { defval: "" });
+  return { hoja: ws, nombreHoja: primerNombre, filaEncabezados: 0, Filas };
+}
+
 /*
   descargarPlantilla  (Paso A)
-  Genera un libro Excel vacio con los encabezados definidos en
-  COLUMNAS_PLANTILLA y lo envia como archivo descargable.
-  El administrador llena esta plantilla y la sube en el Paso B.
+  Genera un libro Excel con la plantilla oficial de Foodsys y la plantilla SENA compatible.
 */
 export const descargarPlantilla = (_req, res) => {
   try {
     const Libro = XLSX.utils.book_new();
-    const Hoja = XLSX.utils.aoa_to_sheet([COLUMNAS_PLANTILLA]);
-    // Ancho uniforme de 22 caracteres por columna para mejor lectura
-    Hoja["!cols"] = COLUMNAS_PLANTILLA.map(() => ({ wch: 22 }));
-    XLSX.utils.book_append_sheet(Libro, Hoja, "Aprendices");
+
+    // Hoja 1: Plantilla Institucional Foodsys (Limpia y con ejemplos)
+    const filasFoodsys = [
+      [
+        "Tipo de Documento", "Documento", "Nombres", "Apellidos", "Ficha",
+        "Centro de Convivencia", "Correo Electrónico", "Teléfono", "Género", "Rol", "Estado"
+      ],
+      [
+        "CC", "1006129136", "ABNER GIULIANI", "DURAN SAENZ", "3404817",
+        "No", "abner.duran@soy.sena.edu.co", "3107979024", "M", "Aprendiz Externo", "En Formacion"
+      ],
+      [
+        "TI", "1111337529", "FAIDER FABIAN", "ESCARPETA NIETO", "3404814",
+        "Si", "faiderescarpeta77@gmail.com", "3132026563", "M", "Aprendiz Interno", "En Formacion"
+      ]
+    ];
+    const Hoja1 = XLSX.utils.aoa_to_sheet(filasFoodsys);
+    Hoja1["!cols"] = [
+      { wch: 18 }, { wch: 16 }, { wch: 22 }, { wch: 22 }, { wch: 14 },
+      { wch: 22 }, { wch: 32 }, { wch: 16 }, { wch: 10 }, { wch: 20 }, { wch: 16 }
+    ];
+    XLSX.utils.book_append_sheet(Libro, Hoja1, "Plantilla_Aprendices");
+
+    // Hoja 2: Ejemplo estructura Base_Datos_IQR SENA
+    const filasBaseSENA = [
+      [
+        "Rol", "Tipo de Documento", "Documento", "SImbres", "Apellidos", "Ficha",
+        "Programa de Formación", "CORREO ELECTRÓNICO ", "TELÉFOSI DE CONTACTO",
+        "CENTRO DE CONVIVENCIA", "ESTADO"
+      ],
+      [
+        "Aprendiz", "CC", "1006129136", "ABNER GIULIANI", "DURAN SAENZ", "3404817",
+        "GESTION DE EMPRESAS AGROPECUARIAS", "yuranyt320@gmail.com", "3107979024",
+        "NO", "EN FORMACIÓN"
+      ]
+    ];
+    const Hoja2 = XLSX.utils.aoa_to_sheet(filasBaseSENA);
+    Hoja2["!cols"] = filasBaseSENA[0].map(() => ({ wch: 22 }));
+    XLSX.utils.book_append_sheet(Libro, Hoja2, "Ejemplo_Base_SENA");
 
     const Buffer = XLSX.write(Libro, { type: "buffer", bookType: "xlsx" });
 
-    res.setHeader("Content-Disposition", 'attachment; filename="plantilla_aprendices.xlsx"');
+    res.setHeader("Content-Disposition", 'attachment; filename="Plantilla_Aprendices_Foodsys_SENA.xlsx"');
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.send(Buffer);
   } catch (error) {
-    res.status(500).json({ message: "Error al generar la plantilla." });
+    res.status(500).json({ message: "Error al generar la plantilla de aprendices." });
   }
 };
 
 /*
   previewImport  (Paso B)
-  Paso 1: multer (memoryStorage) entrega el archivo en req.file.buffer;
-          nunca se escribe en disco, mejora seguridad y rendimiento.
-  Paso 2: XLSX.read parsea el buffer directamente en memoria.
-  Paso 3: sheet_to_json convierte cada fila en un objeto JS
-          usando los encabezados como claves.
-  Paso 4: Se limpian espacios en los nombres de columna para evitar
-          errores silenciosos por espacios invisibles.
-  Paso 5: Se devuelve el total de filas y el array de datos para
-          que el frontend muestre la tabla de previsualizacion.
-  No se escribe nada en la base de datos en este paso.
+  Detecta la hoja y las columnas automáticamente, soportando Base_NO MODIFICAR, Hoja1, etc.
+  Garantiza por regla de negocio que todo aprendiz importado tenga Est_Usuario = "En Formacion".
 */
 export const previewImport = async (req, res) => {
   try {
@@ -377,68 +459,115 @@ export const previewImport = async (req, res) => {
     }
 
     const Workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-    const Hoja = Workbook.Sheets[Workbook.SheetNames[0]];
-    const Filas = XLSX.utils.sheet_to_json(Hoja, { defval: "" });
+    const { Filas, nombreHoja } = detectarHojaAprendices(Workbook);
 
-    if (!Filas.length) {
-      return res.status(400).json({ message: "El archivo esta vacio o no tiene datos." });
+    if (!Filas || !Filas.length) {
+      return res.status(400).json({ message: "El archivo esta vacio o no se detectaron filas de aprendices." });
     }
 
-    // Precargar todas las fichas en memoria con sus programas asociados
-    const todasLasFichas = await FichasModel.findAll({
-      include: [{ model: ProgramaModel, as: "programas", attributes: ["Nom_Programa"] }]
-    });
+    // Precargar fichas y programas en memoria de forma independiente y segura
+    const todasLasFichas = await FichasModel.findAll({ attributes: ["Id_Ficha", "Num_Ficha", "Id_Programa", "FecFinLec_Ficha"] });
+    const todosProgramas = await ProgramaModel.findAll({ attributes: ["Id_Programa", "Nom_Programa"] });
+    const mapaProgramas = new Map(todosProgramas.map(p => [p.Id_Programa, p.Nom_Programa]));
 
     const mapaFichas = new Map();
     for (const f of todasLasFichas) {
-      mapaFichas.set(String(f.Num_Ficha).trim(), f);
-      mapaFichas.set(String(f.Id_Ficha).trim(), f);
+      const nomProg = mapaProgramas.get(f.Id_Programa) || "Por asociar";
+      const fichaObj = {
+        Id_Ficha: f.Id_Ficha,
+        Num_Ficha: f.Num_Ficha,
+        Id_Programa: f.Id_Programa,
+        Nom_Programa: nomProg,
+        FecFinLec_Ficha: f.FecFinLec_Ficha
+      };
+      mapaFichas.set(String(f.Num_Ficha).trim(), fichaObj);
+      mapaFichas.set(String(f.Id_Ficha).trim(), fichaObj);
     }
 
-    const hoyBogota = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
-
-    // Normalizar claves y enriquecer datos con Ficha y Programa
-    const Datos = Filas.map((Fila) => {
-      const normalizado = Object.fromEntries(
-        Object.entries(Fila).map(([K, V]) => [K.trim(), V])
+    // Procesar y normalizar cada fila
+    const Datos = [];
+    for (const Fila of Filas) {
+      const numDocRaw = extractExcelField(
+        Fila,
+        ["DOCUMENTO", "NUMDOC_USUARIO", "NUM_DOC", "NÚMERO DE IDENTIFICACIÓN APRENDIZ", "NUMERO DE IDENTIFICACION APRENDIZ", "NÚMERO DE IDENTIFICACIÓN"],
+        ["IDENTIFICACION", "IDENTIFICACIÓN"]
       );
+      const numDoc = numDocRaw.replace(/\D/g, "");
+      if (!numDoc) continue;
 
-      const numFichaRaw = String(normalizado.Num_Ficha || normalizado.Id_Ficha || normalizado.IDENTIFICADOR_FICHA || "").trim();
-      const fichaEncontrada = mapaFichas.get(numFichaRaw);
+      const tipDoc = extractExcelField(
+        Fila,
+        ["TIPO DE DOCUMENTO", "TIPDOC_USUARIO", "TIPO DOCUMENTO", "TIPO DE IDENTIFICACIÓN APRENDIZ", "TIPO DE IDENTIFICACIÓN", "TIPO"]
+      ) || "CC";
 
-      normalizado.Num_Ficha = fichaEncontrada ? fichaEncontrada.Num_Ficha : numFichaRaw;
-      normalizado.Id_Ficha = fichaEncontrada ? fichaEncontrada.Id_Ficha : null;
-      normalizado.Nom_Programa = fichaEncontrada?.programas?.Nom_Programa || "Por asociar";
-
-      // Validar si la ficha ya vencio su etapa lectiva
-      if (fichaEncontrada?.FecFinLec_Ficha && fichaEncontrada.FecFinLec_Ficha < hoyBogota) {
-        normalizado.Est_Usuario = "Inactivo";
-        normalizado.Estado_Etapa_Lectiva = "Vencida";
-      } else {
-        // Obligatorio por directiva institucional: todos los usuarios cargados por Excel quedan 'En Formacion'
-        normalizado.Est_Usuario = "En Formacion";
-        normalizado.Estado_Etapa_Lectiva = "Vigente";
+      let nombres = extractExcelField(Fila, ["NOM_USUARIO", "SIMBRES", "NOMBRES", "NOMBRE"]);
+      let apellidos = extractExcelField(Fila, ["APE_USUARIO", "APELLIDOS", "APELLIDO"]);
+      if (!nombres) {
+        const nombreCompleto = extractExcelField(
+          Fila,
+          ["NOMBRE Y APELLIDOS DEL APRENDIZ", "NOMBRE Y APELLIDOS", "NOMBRE COMPLETO", "SIMBRE COMPLETO", "APRENDIZ"]
+        );
+        if (nombreCompleto) {
+          const partes = nombreCompleto.trim().split(/\s+/);
+          nombres = partes.slice(0, Math.ceil(partes.length / 2)).join(" ");
+          apellidos = partes.slice(Math.ceil(partes.length / 2)).join(" ");
+        }
       }
 
-      // Evaluar rol segun Centro de Convivencia (CenCon_Usuario)
-      const cenCon = String(normalizado.CenCon_Usuario || "").toLowerCase().trim();
-      const esInterno = ["si", "sí", "1", "true"].includes(cenCon);
-      const rolRaw = String(normalizado.Rol || normalizado.Tip_Usuario || normalizado.Rol_Usuario || "").toLowerCase();
+      const numFichaRaw = extractExcelField(
+        Fila,
+        ["NUM_FICHA", "FICHA", "NÚMERO DE GRUPO", "NUMERO DE GRUPO", "ID_FICHA", "IDENTIFICADOR_FICHA"]
+      );
+      const fichaEncontrada = mapaFichas.get(String(numFichaRaw).trim());
+
+      const corRaw = extractExcelField(
+        Fila,
+        ["COR_USUARIO", "CORREO ELECTRÓNICO ", "CORREO ELECTRÓNICO", "CORREO ELECTRONICO", "CORREO ELECTRÓNICO DEL APRENDIZ ", "CORREO ELECTRÓNICO DEL APRENDIZ", "EMAIL", "CORREO"]
+      );
+      const telRaw = extractExcelField(
+        Fila,
+        ["TEL_USUARIO", "TELÉFOSI DE CONTACTO", "TELEFONO DE CONTACTO", "TELÉFONO DE CONTACTO DEL APRENDIZ ", "TELÉFONO DE CONTACTO DEL APRENDIZ", "TELEFONO", "CELULAR"]
+      );
+      const genRaw = extractExcelField(Fila, ["GEN_USUARIO", "GENERO", "GÉNERO", "SEXO"]);
+
+      // Centro de convivencia (Alojamientos, cabañas, Internos)
+      const cenConRaw = extractExcelField(
+        Fila,
+        ["CENTRO DE CONVIVENCIA", "CENCON_USUARIO", "ALOJAMIENTO Y/O CABAÑA", "CABAÑA", "ALOJAMIENTO"]
+      );
+      const esInterno = /si|sí|cabaña|alojamiento|interno|1|true/i.test(cenConRaw) && !/no|ninguno/i.test(cenConRaw);
+
+      const rolRaw = extractExcelField(Fila, ["ROL", "TIP_USUARIO", "ROL_USUARIO", "ROL_ASIGNADO"]).toLowerCase();
       const esPasante = rolRaw.includes("pasante");
+      const rolAsignado = esPasante
+        ? (esInterno ? "Pasante Interno" : "Pasante Externo")
+        : (esInterno ? "Aprendiz Interno" : "Aprendiz Externo");
 
-      if (esPasante) {
-        normalizado.Rol_Asignado = esInterno ? "Pasante Interno" : "Pasante Externo";
-      } else {
-        normalizado.Rol_Asignado = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
-      }
+      // REGLA OBLIGATORIA: Todo aprendiz importado por Excel tiene estado "En Formacion"
+      const estUsuario = "En Formacion";
 
-      return normalizado;
-    });
+      Datos.push({
+        TipDoc_Usuario: tipDoc,
+        NumDoc_Usuario: numDoc,
+        Nom_Usuario: nombres || "Sin Nombre",
+        Ape_Usuario: apellidos || "",
+        Cor_Usuario: corRaw || null,
+        Tel_Usuario: telRaw || null,
+        Gen_Usuario: genRaw ? (genRaw.toUpperCase().startsWith("M") ? "M" : "F") : null,
+        CenCon_Usuario: esInterno ? "Si" : "No",
+        Num_Ficha: fichaEncontrada ? fichaEncontrada.Num_Ficha : (numFichaRaw || "Sin asignar"),
+        Id_Ficha: fichaEncontrada ? fichaEncontrada.Id_Ficha : null,
+        Nom_Programa: fichaEncontrada?.programas?.Nom_Programa || extractExcelField(Fila, ["PROGRAMA DE FORMACIÓN", "PROGRAMA", "NOMBRE_PROGRAMA_FORMACION"]) || "Por asociar",
+        Rol_Asignado: rolAsignado,
+        Est_Usuario: estUsuario,
+        Estado_Etapa_Lectiva: "Vigente"
+      });
+    }
 
-    return res.status(200).json({ total: Datos.length, data: Datos });
+    return res.status(200).json({ total: Datos.length, hojaDetectada: nombreHoja, data: Datos });
   } catch (error) {
     console.error("Error en previewImport:", error);
-    return res.status(500).json({ message: "Error al leer el archivo. Verifica que uses la plantilla oficial." });
+    return res.status(500).json({ message: "Error al leer el archivo. Verifica el formato de aprendices." });
   }
 };
 
@@ -524,11 +653,8 @@ export const importarSeleccionados = async (req, res) => {
         }
       }
 
-      // Verificar vencimiento de etapa lectiva (obligatoriamente 'En Formacion' salvo vencida)
-      let estUsuarioFinal = "En Formacion";
-      if (fichaAsociada?.FecFinLec_Ficha && fichaAsociada.FecFinLec_Ficha < hoyBogota) {
-        estUsuarioFinal = "Inactivo";
-      }
+      // MANDATORIO: Todos los usuarios importados por Excel deben tener estado obligatorio "En Formacion"
+      const estUsuarioFinal = "En Formacion";
 
       // Determinar rol segun CenCon_Usuario
       const cenConStr = String(Fila.CenCon_Usuario || "").toLowerCase().trim();
