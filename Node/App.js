@@ -59,46 +59,17 @@ aplicacion.set('trust proxy', 1);
 // Seguridad: Cabeceras HTTP seguras
 aplicacion.use(helmet());
 
-// Seguridad: Rate Limiting global de alta concurrencia
-// Diseñado para soportar más de 5.000 peticiones concurrentes y redes compartidas (Wi-Fi SENA)
-const limitadorGlobal = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 50000, // Capacidad para miles de peticiones concurrentes sin bloquear a aprendices
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    mensaje: 'Demasiadas peticiones al servidor, por favor intenta nuevamente más tarde.'
-  }
-});
-aplicacion.use('/api', limitadorGlobal);
-
-// Seguridad: Rate Limiting para Login y Recuperación (Anti Fuerza Bruta)
-// Agrupa por IP + Documento para evitar que el fallo de un aprendiz bloquee a toda la sede en el Wi-Fi
-const limitadorSensible = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 30, // Máximo 30 intentos por documento/cuenta en 15 minutos
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: { keyGeneratorIpFallback: false },
-  keyGenerator: (req) => {
-    const doc = req.body?.NumDoc_Usuario || req.body?.email || req.body?.documento || req.body?.correo || 'anon';
-    const clientIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
-    return `${clientIp}_${doc}`;
-  },
-  message: {
-    mensaje: 'Demasiados intentos para esta cuenta. Por motivos de seguridad, por favor intenta nuevamente en 15 minutos.'
-  }
-});
-aplicacion.use('/api/Usuarios/login', limitadorSensible);
-aplicacion.use('/api/Auth/recuperar', limitadorSensible);
-
 // Middlewares estándar con capacidad para importaciones masivas (hasta 50 MB)
+// Se montan PRIMERO para que el body esté disponible para validadores y limitadores
 aplicacion.use(Express.json({ limit: '50mb' }));
 aplicacion.use(Express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Lista de orígenes permitidos por CORS
 const origenesPermitidos = [
   'https://foodsyslagranja.com',
   'https://www.foodsyslagranja.com',
+  'https://2.31.23.211',
+  'http://2.31.23.211',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:8000',
@@ -118,7 +89,7 @@ const opcionesCors = {
   origin: function (origin, callback) {
     // Permitir llamadas sin origin (same-origin, curl, server-to-server)
     if (!origin) return callback(null, true);
-    // Permitir origenes declarados o cualquier puerto local en desarrollo
+    // Permitir orígenes declarados o cualquier puerto local en desarrollo
     if (origenesPermitidos.includes(origin) || (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost(:\d+)?$/.test(origin))) {
       return callback(null, true);
     }
@@ -126,7 +97,11 @@ const opcionesCors = {
     if (/^https?:\/\/(www\.)?foodsyslagranja\.com(:[0-9]+)?$/.test(origin)) {
       return callback(null, true);
     }
-    return callback(new Error(`Bloqueado por CORS: origen ${origin} no permitido`));
+    // Permitir cualquier IP directa (acceso por IP del servidor como https://2.31.23.211)
+    if (/^https?:\/\/\d+\.\d+\.\d+\.\d+(:[0-9]+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -134,6 +109,40 @@ const opcionesCors = {
   optionsSuccessStatus: 200
 };
 aplicacion.use(cors(opcionesCors));
+
+// Seguridad: Rate Limiting global de alta concurrencia
+// Diseñado para soportar más de 50.000 peticiones concurrentes y redes compartidas (Wi-Fi SENA)
+const limitadorGlobal = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 50000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  message: {
+    mensaje: 'Demasiadas peticiones al servidor, por favor intenta nuevamente más tarde.'
+  }
+});
+aplicacion.use('/api', limitadorGlobal);
+
+// Seguridad: Rate Limiting para Login y Recuperación (Anti Fuerza Bruta)
+// Agrupa por IP + Documento para evitar que el fallo de un aprendiz bloquee a toda la sede en el Wi-Fi
+const limitadorSensible = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 60, // Máximo 60 intentos por cuenta en 15 minutos
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  keyGenerator: (req) => {
+    const doc = req.body?.NumDoc_Usuario || req.body?.email || req.body?.documento || req.body?.correo || 'anon';
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    return `${clientIp}_${doc}`;
+  },
+  message: {
+    mensaje: 'Demasiados intentos para esta cuenta. Por motivos de seguridad, por favor intenta nuevamente en 15 minutos.'
+  }
+});
+aplicacion.use('/api/Usuarios/login', limitadorSensible);
+aplicacion.use('/api/Auth/recuperar', limitadorSensible);
 
 // ---------- 6. REGISTRO DE RUTAS DE LA API (Soporta PascalCase y minúsculas) ----------
 aplicacion.use('/api/Usuarios', UsuariosRoute);
@@ -323,6 +332,16 @@ setInterval(async () => {
     console.error('[Mantenimiento] Error en reversión programada:', errorIntervalo.message);
   }
 }, 24 * 60 * 60 * 1000);
+
+// ---------- 10. MANEJADOR GLOBAL DE ERRORES ----------
+// Captura cualquier error no controlado y responde en formato JSON limpio evitando bloqueos 500
+aplicacion.use((err, req, res, next) => {
+  console.error('[Error No Capturado]:', err?.message || err);
+  const status = err.status || (err.message && err.message.includes('CORS') ? 403 : 500);
+  res.status(status).json({
+    message: err.message || 'Error interno del servidor. Intenta nuevamente.'
+  });
+});
 
 // ---------- 11. INICIAR EL SERVIDOR ----------
 const PUERTO = process.env.PORT || 8000;
