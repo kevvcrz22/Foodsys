@@ -265,46 +265,55 @@ export const importarProgramasSeleccionados = async (req, res) => {
     const Errores = [];
 
     for (const Fila of programas) {
-      const nombreLimpio = normalizarNombrePrograma(Fila.Nom_Programa);
+      try {
+        const nombreLimpio = normalizarNombrePrograma(Fila.Nom_Programa);
 
-      if (!nombreLimpio) {
-        Omitidos++;
-        Errores.push("Fila omitida: falta Nombre del Programa.");
-        continue;
-      }
-
-      // Verificamos si ya existe en la base de datos o ya fue creado en esta misma peticion
-      if (mapaExistentes.has(nombreLimpio)) {
-        const existente = mapaExistentes.get(nombreLimpio);
-        // Si el existente no tenia area o nivel y ahora si vienen, los actualizamos
-        const cambios = {};
-        if (!existente.Are_Programa && Fila.Are_Programa) cambios.Are_Programa = String(Fila.Are_Programa).trim();
-        if (!existente.NivFor_Programa && Fila.NivFor_Programa) cambios.NivFor_Programa = String(Fila.NivFor_Programa).trim();
-
-        if (Object.keys(cambios).length > 0) {
-          await ProgramaModel.update(cambios, { where: { Id_Programa: existente.Id_Programa } });
+        if (!nombreLimpio) {
+          Omitidos++;
+          Errores.push("Fila omitida: falta Nombre del Programa.");
+          continue;
         }
 
+        const nomFinal = nombreLimpio.substring(0, 255);
+        const areFinal = Fila.Are_Programa ? String(Fila.Are_Programa).trim().substring(0, 100) : null;
+        const nivFinal = Fila.NivFor_Programa ? String(Fila.NivFor_Programa).trim().substring(0, 100) : null;
+
+        // Verificamos si ya existe en la base de datos o ya fue creado en esta misma peticion
+        if (mapaExistentes.has(nomFinal)) {
+          const existente = mapaExistentes.get(nomFinal);
+          // Si el existente no tenia area o nivel y ahora si vienen, los actualizamos
+          const cambios = {};
+          if (!existente.Are_Programa && areFinal) cambios.Are_Programa = areFinal;
+          if (!existente.NivFor_Programa && nivFinal) cambios.NivFor_Programa = nivFinal;
+
+          if (Object.keys(cambios).length > 0) {
+            await ProgramaModel.update(cambios, { where: { Id_Programa: existente.Id_Programa } });
+          }
+
+          Omitidos++;
+          continue;
+        }
+
+        // Crear nuevo programa con nombre normalizado y limites seguros
+        const nuevo = await ProgramaModel.create({
+          Nom_Programa: nomFinal,
+          Are_Programa: areFinal,
+          NivFor_Programa: nivFinal,
+          Est_Programa: "Activo"
+        });
+
+        // Lo guardamos en el Map para evitar duplicados en filas posteriores
+        mapaExistentes.set(nomFinal, nuevo);
+        Creados++;
+      } catch (errFila) {
         Omitidos++;
-        continue;
+        Errores.push(`Error al guardar programa "${Fila.Nom_Programa || 'Desconocido'}": ${errFila.message}`);
       }
-
-      // Crear nuevo programa con nombre normalizado
-      const nuevo = await ProgramaModel.create({
-        Nom_Programa: nombreLimpio,
-        Are_Programa: Fila.Are_Programa ? String(Fila.Are_Programa).trim() : null,
-        NivFor_Programa: Fila.NivFor_Programa ? String(Fila.NivFor_Programa).trim() : null,
-        Est_Programa: "Activo"
-      });
-
-      // Lo guardamos en el Map para evitar duplicados en filas posteriores
-      mapaExistentes.set(nombreLimpio, nuevo);
-      Creados++;
     }
 
     return res.status(200).json({ creados: Creados, omitidos: Omitidos, errores: Errores });
   } catch (error) {
     console.error("Error en importarProgramasSeleccionados:", error);
-    return res.status(500).json({ message: "Error interno al importar los programas seleccionados." });
+    return res.status(500).json({ message: error?.message || "Error interno al importar los programas seleccionados." });
   }
 };

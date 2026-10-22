@@ -199,6 +199,25 @@ try {
     console.warn('Nota sobre columna Fec_Desancion:', errCol.message);
   }
 
+  // Asegurar ampliación de columnas para nombres largos institucionales en programas y usuarios
+  try {
+    await db.query("ALTER TABLE programas MODIFY COLUMN Nom_Programa VARCHAR(255) NOT NULL");
+    await db.query("ALTER TABLE programas MODIFY COLUMN Are_Programa VARCHAR(100) NULL");
+    await db.query("ALTER TABLE programas MODIFY COLUMN NivFor_Programa VARCHAR(100) NULL");
+    console.log('✅ Columnas de programas ampliadas a VARCHAR(255) y VARCHAR(100)');
+  } catch (errAmpP) {
+    console.warn('Nota sobre ampliacion de programas:', errAmpP.message);
+  }
+
+  try {
+    await db.query("ALTER TABLE usuarios MODIFY COLUMN Nom_Usuario VARCHAR(100) NULL");
+    await db.query("ALTER TABLE usuarios MODIFY COLUMN Ape_Usuario VARCHAR(100) NULL");
+    await db.query("ALTER TABLE usuarios MODIFY COLUMN Cor_Usuario VARCHAR(100) NULL");
+    console.log('✅ Columnas de usuarios ampliadas a VARCHAR(100)');
+  } catch (errAmpU) {
+    console.warn('Nota sobre ampliacion de usuarios:', errAmpU.message);
+  }
+
   // Asegurar existencia de columna Est_Programa en programas
   try {
     const [colsProg] = await db.query("SHOW COLUMNS FROM programas LIKE 'Est_Programa'");
@@ -209,17 +228,6 @@ try {
     }
   } catch (errCol) {
     console.warn('Nota sobre columna Est_Programa:', errCol.message);
-  }
-
-  // Asegurar existencia de columna NivFor_Programa en programas
-  try {
-    const [colsNiv] = await db.query("SHOW COLUMNS FROM programas LIKE 'NivFor_Programa'");
-    if (colsNiv.length === 0) {
-      await db.query("ALTER TABLE programas ADD COLUMN NivFor_Programa VARCHAR(100) NULL");
-      console.log('Columna NivFor_Programa creada exitosamente en tabla programas');
-    }
-  } catch (errCol) {
-    console.warn('Nota sobre columna NivFor_Programa:', errCol.message);
   }
 
 
