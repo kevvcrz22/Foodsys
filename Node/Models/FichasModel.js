@@ -5,10 +5,10 @@ import { DataTypes } from "sequelize";
 const FichasModel = db.define('fichas', {
   Id_Ficha: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true }, // Clave primaria autoincrementable
   Num_Ficha: { type: DataTypes.INTEGER },                                       // Numero identificador de la ficha
-  FecIniLec_Ficha: { type: DataTypes.DATE, allowNull: true },
-  FecFinLec_Ficha: { type: DataTypes.DATE, allowNull: true },
-  FecIniPra_Ficha: { type: DataTypes.DATE, allowNull: true },
-  FecFinPra_Ficha: { type: DataTypes.DATE, allowNull: true },
+  FecIniLec_Ficha: { type: DataTypes.DATE, allowNull: false },
+  FecFinLec_Ficha: { type: DataTypes.DATE, allowNull: false },
+  FecIniPra_Ficha: { type: DataTypes.DATE, allowNull: false },
+  FecFinPra_Ficha: { type: DataTypes.DATE, allowNull: false },
   Id_Programa: {                                                                // Llave foranea hacia la tabla programas
     type: DataTypes.INTEGER,
     references: { model: 'programas', key: 'Id_Programa' }

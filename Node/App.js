@@ -224,13 +224,13 @@ try {
     console.warn('Nota sobre ampliacion de usuarios:', errAmpU.message);
   }
 
-  // Asegurar que fichas permita fechas nulas en caso de programas con etapa práctica no proyectada
+  // Asegurar que fichas mantenga todas sus fechas como obligatorias (NOT NULL)
   try {
-    await db.query("ALTER TABLE fichas MODIFY COLUMN FecIniLec_Ficha DATE NULL");
-    await db.query("ALTER TABLE fichas MODIFY COLUMN FecFinLec_Ficha DATE NULL");
-    await db.query("ALTER TABLE fichas MODIFY COLUMN FecIniPra_Ficha DATE NULL");
-    await db.query("ALTER TABLE fichas MODIFY COLUMN FecFinPra_Ficha DATE NULL");
-    console.log('✅ Columnas de fechas en fichas configuradas como NULL permitidas');
+    await db.query("ALTER TABLE fichas MODIFY COLUMN FecIniLec_Ficha DATE NOT NULL");
+    await db.query("ALTER TABLE fichas MODIFY COLUMN FecFinLec_Ficha DATE NOT NULL");
+    await db.query("ALTER TABLE fichas MODIFY COLUMN FecIniPra_Ficha DATE NOT NULL");
+    await db.query("ALTER TABLE fichas MODIFY COLUMN FecFinPra_Ficha DATE NOT NULL");
+    console.log('✅ Columnas de fechas en fichas aseguradas como obligatorias (NOT NULL)');
   } catch (errAmpF) {
     console.warn('Nota sobre fechas de fichas:', errAmpF.message);
   }

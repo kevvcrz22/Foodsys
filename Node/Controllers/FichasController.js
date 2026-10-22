@@ -75,6 +75,17 @@ function restarMesesFecha(fechaStr, meses = 6) {
 }
 
 /**
+ * Suma exactamente N meses a una fecha en formato YYYY-MM-DD
+ */
+function sumarMesesFecha(fechaStr, meses = 6) {
+  if (!fechaStr) return null;
+  const d = new Date(`${fechaStr}T12:00:00`);
+  if (isNaN(d)) return null;
+  d.setMonth(d.getMonth() + meses);
+  return d.toISOString().split("T")[0];
+}
+
+/**
  * Resta exactamente N dias a una fecha en formato YYYY-MM-DD
  */
 function restarDiasFecha(fechaStr, dias = 1) {
@@ -83,6 +94,116 @@ function restarDiasFecha(fechaStr, dias = 1) {
   if (isNaN(d)) return null;
   d.setDate(d.getDate() - dias);
   return d.toISOString().split("T")[0];
+}
+
+/**
+ * Suma exactamente N dias a una fecha en formato YYYY-MM-DD
+ */
+function sumarDiasFecha(fechaStr, dias = 1) {
+  if (!fechaStr) return null;
+  const d = new Date(`${fechaStr}T12:00:00`);
+  if (isNaN(d)) return null;
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().split("T")[0];
+}
+
+/**
+ * Calcula y completa de forma obligatoria las 4 fechas del ciclo formativo SENA:
+ * - FecIniLec_Ficha (Inicio Etapa Lectiva)
+ * - FecFinLec_Ficha (Fin Etapa Lectiva)
+ * - FecIniPra_Ficha (Inicio Etapa Productiva)
+ * - FecFinPra_Ficha (Fin Etapa Productiva)
+ *
+ * REGLAS INSTITUCIONALES SENA:
+ * 1. La etapa productiva dura exactamente 6 meses: FecIniPra = FecFinPra - 6 meses.
+ * 2. La etapa lectiva culmina el día anterior al inicio de la productiva: FecFinLec = FecIniPra - 1 día.
+ * 3. Si solo viene "Fin de Etapa Productiva" (FecFinPra / Terminacion de Ficha):
+ *    - FecIniPra = FecFinPra - 6 meses
+ *    - FecFinLec = FecIniPra - 1 día
+ *    - FecIniLec = FecFinLec - mesesLectiva (18 meses para tecnólogo, 12 o 6 para técnico)
+ * 4. NINGUNA FECHA PUEDE QUEDAR NULA.
+ */
+export function calcularFechasCompletasFicha({
+  fecIniLecRaw,
+  fecFinLecRaw,
+  fecIniPraRaw,
+  fecFinPraRaw,
+  nivelFormacion = "TECNOLOGO"
+}) {
+  let fecIniLec = formatearFechaISO(fecIniLecRaw);
+  let fecFinLec = formatearFechaISO(fecFinLecRaw);
+  let fecIniPra = formatearFechaISO(fecIniPraRaw);
+  let fecFinPra = formatearFechaISO(fecFinPraRaw);
+
+  const nivel = String(nivelFormacion || "").toUpperCase();
+  const esTecnico = nivel.includes("TECNICO") || nivel.includes("OPERARIO") || nivel.includes("AUXILIAR");
+  const mesesLectiva = esTecnico ? 12 : 18;
+
+  // CASO 1: Tenemos Fin de Etapa Productiva (terminación)
+  if (fecFinPra) {
+    if (!fecIniPra) {
+      fecIniPra = restarMesesFecha(fecFinPra, 6);
+    }
+    if (!fecFinLec && fecIniPra) {
+      fecFinLec = restarDiasFecha(fecIniPra, 1);
+    }
+    if (!fecIniLec && fecFinLec) {
+      fecIniLec = restarMesesFecha(fecFinLec, mesesLectiva);
+    }
+  }
+
+  // CASO 2: No teníamos Fin de Productiva, pero tenemos Inicio de Productiva
+  if (!fecFinPra && fecIniPra) {
+    fecFinPra = sumarMesesFecha(fecIniPra, 6);
+    if (!fecFinLec) {
+      fecFinLec = restarDiasFecha(fecIniPra, 1);
+    }
+    if (!fecIniLec && fecFinLec) {
+      fecIniLec = restarMesesFecha(fecFinLec, mesesLectiva);
+    }
+  }
+
+  // CASO 3: No teníamos fechas de productiva, pero tenemos Fin de Lectiva
+  if (fecFinLec) {
+    if (!fecIniPra) {
+      fecIniPra = sumarDiasFecha(fecFinLec, 1);
+    }
+    if (!fecFinPra && fecIniPra) {
+      fecFinPra = sumarMesesFecha(fecIniPra, 6);
+    }
+    if (!fecIniLec) {
+      fecIniLec = restarMesesFecha(fecFinLec, mesesLectiva);
+    }
+  }
+
+  // CASO 4: Solo tenemos Inicio de Lectiva
+  if (fecIniLec) {
+    if (!fecFinLec) {
+      fecFinLec = sumarMesesFecha(fecIniLec, mesesLectiva);
+    }
+    if (!fecIniPra && fecFinLec) {
+      fecIniPra = sumarDiasFecha(fecFinLec, 1);
+    }
+    if (!fecFinPra && fecIniPra) {
+      fecFinPra = sumarMesesFecha(fecIniPra, 6);
+    }
+  }
+
+  // CASO 5: Proyección de respaldo para garantizar 100% que NUNCA sea NULL
+  if (!fecFinPra) {
+    const anioActual = new Date().getFullYear();
+    fecFinPra = `${anioActual}-12-15`;
+    fecIniPra = restarMesesFecha(fecFinPra, 6);
+    fecFinLec = restarDiasFecha(fecIniPra, 1);
+    fecIniLec = restarMesesFecha(fecFinLec, mesesLectiva);
+  }
+
+  return {
+    fecIniLec: fecIniLec || "2025-01-15",
+    fecFinLec: fecFinLec || "2026-06-14",
+    fecIniPra: fecIniPra || "2026-06-15",
+    fecFinPra: fecFinPra || "2026-12-15"
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -349,53 +470,33 @@ export const previewImportFicha = async (req, res) => {
         }
       }
 
-      // Extraccion de Fechas
-      const fecIniLec = formatearFechaISO(
-        Limpio["FECINILEC_FICHA"] ||
-        Limpio["FECHA_INICIO_FICHA"] ||
-        Limpio["FECHA INICIO"] ||
-        Limpio["FECHA DE INICIO"]
-      );
-      let fecFinPra = formatearFechaISO(
-        Limpio["FECFINPRA_FICHA"] ||
-        Limpio["FECHA_TERMINACION_FICHA"] ||
-        Limpio["FECHA FIN"] ||
-        Limpio["FECHA TERMINACIÓN FICHA"] ||
-        Limpio["FECHA TERMINACION FICHA"]
-      );
-      let fecIniPra = formatearFechaISO(
-        Limpio["FECINIPRA_FICHA"] ||
-        Limpio["FECHA_INICIO_PRACTICA"] ||
-        Limpio["INICIO ETAPA PRODUCTIVA"] ||
-        Limpio["ETAPA PRODUCTIVA"]
-      );
-      let fecFinLec = formatearFechaISO(
-        Limpio["FECFINLEC_FICHA"] ||
-        Limpio["FECHA_FIN_LECTIVA"]
-      );
+      // Calculo matematico y obligatorio de las 4 fechas del ciclo formativo SENA
+      const fechasCalculadas = calcularFechasCompletasFicha({
+        fecIniLecRaw:
+          Limpio["FECINILEC_FICHA"] ||
+          Limpio["FECHA_INICIO_FICHA"] ||
+          Limpio["FECHA INICIO"] ||
+          Limpio["FECHA DE INICIO"],
+        fecFinLecRaw:
+          Limpio["FECFINLEC_FICHA"] ||
+          Limpio["FECHA_FIN_LECTIVA"],
+        fecIniPraRaw:
+          Limpio["FECINIPRA_FICHA"] ||
+          Limpio["FECHA_INICIO_PRACTICA"] ||
+          Limpio["INICIO ETAPA PRODUCTIVA"] ||
+          Limpio["ETAPA PRODUCTIVA"],
+        fecFinPraRaw:
+          Limpio["FECFINPRA_FICHA"] ||
+          Limpio["FECHA_TERMINACION_FICHA"] ||
+          Limpio["FECHA FIN"] ||
+          Limpio["FECHA TERMINACIÓN FICHA"] ||
+          Limpio["FECHA TERMINACION FICHA"] ||
+          Limpio["FECHA TERMINACION"] ||
+          Limpio["TERMINACION"],
+        nivelFormacion: nivelNormalizado
+      });
 
-      // Regla de calculo matematico automatico:
-      // Si FecFinPra tiene fecha valida pero FecIniPra esta vacio -> restar exactamente 6 meses
-      if (fecFinPra && !fecIniPra) {
-        fecIniPra = restarMesesFecha(fecFinPra, 6);
-      }
-
-      // Si FecFinLec esta vacio y ya tenemos FecIniPra -> restar 1 dia
-      if (!fecFinLec && fecIniPra) {
-        fecFinLec = restarDiasFecha(fecIniPra, 1);
-      }
-
-      // Si tenemos inicio pero no fin, proyectar fecha estimada (1 ano lectiva + 6 meses practica)
-      if (fecIniLec && !fecFinPra) {
-        const dIni = new Date(`${fecIniLec}T12:00:00`);
-        if (!isNaN(dIni)) {
-          const dFinPra = new Date(dIni);
-          dFinPra.setMonth(dFinPra.getMonth() + 18);
-          fecFinPra = dFinPra.toISOString().split("T")[0];
-          fecIniPra = restarMesesFecha(fecFinPra, 6);
-          fecFinLec = restarDiasFecha(fecIniPra, 1);
-        }
-      }
+      const { fecIniLec, fecFinLec, fecIniPra, fecFinPra } = fechasCalculadas;
 
       const yaExisteFicha = mapaFichas.has(numFicha);
       const estadoCurso = Limpio["ESTADO_CURSO"] || Limpio["ESTADO_FICHA"] || Limpio["ESTADO FICHA"] || Limpio["ESTADO"] || "En ejecucion";
@@ -500,18 +601,19 @@ export const importarFichasSeleccionadas = async (req, res) => {
               return;
             }
 
-            let fecFinPra = Fila.FecFinPra_Ficha || null;
-            let fecIniPra = Fila.FecIniPra_Ficha || null;
-            let fecFinLec = Fila.FecFinLec_Ficha || null;
-            const fecIniLec = Fila.FecIniLec_Ficha || null;
+            // Calculo matematico y obligatorio de las 4 fechas del ciclo formativo SENA
+            const fechasResueltas = calcularFechasCompletasFicha({
+              fecIniLecRaw: Fila.FecIniLec_Ficha,
+              fecFinLecRaw: Fila.FecFinLec_Ficha,
+              fecIniPraRaw: Fila.FecIniPra_Ficha,
+              fecFinPraRaw: Fila.FecFinPra_Ficha,
+              nivelFormacion: Fila.Nivel_Formacion || "TECNOLOGO"
+            });
 
-            // Calculo de 6 meses y -1 dia
-            if (fecFinPra && !fecIniPra) {
-              fecIniPra = restarMesesFecha(fecFinPra, 6);
-            }
-            if (!fecFinLec && fecIniPra) {
-              fecFinLec = restarDiasFecha(fecIniPra, 1);
-            }
+            const fecFinPra = fechasResueltas.fecFinPra;
+            const fecIniPra = fechasResueltas.fecIniPra;
+            const fecFinLec = fechasResueltas.fecFinLec;
+            const fecIniLec = fechasResueltas.fecIniLec;
 
             // Verificamos si la ficha ya existe para hacer UPSERT
             const fichaExistente = mapaFichasBD.get(numFicha);
