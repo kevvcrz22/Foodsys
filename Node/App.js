@@ -237,6 +237,22 @@ try {
     console.warn('Nota sobre columna Est_Usuario:', errEst.message);
   }
 
+  // Asegurar que Tel_Usuario admita NULL y telefonos compartidos entre aprendices sin error 500
+  try {
+    const [colsTel] = await db.query("SHOW COLUMNS FROM usuarios LIKE 'Tel_Usuario'");
+    if (colsTel.length > 0 && colsTel[0].Null === 'NO') {
+      await db.query("ALTER TABLE usuarios MODIFY COLUMN Tel_Usuario VARCHAR(20) NULL DEFAULT NULL");
+      console.log('✅ Columna Tel_Usuario ajustada para admitir NULL');
+    }
+    const [indexesTel] = await db.query("SHOW INDEX FROM usuarios WHERE Key_name = 'Tel_Aprendiz'");
+    if (indexesTel.length > 0) {
+      await db.query("ALTER TABLE usuarios DROP INDEX Tel_Aprendiz");
+      console.log('✅ Indice Tel_Aprendiz flexibilizado para permitir telefonos familiares/compartidos');
+    }
+  } catch (errTel) {
+    console.warn('Nota sobre columna Tel_Usuario:', errTel.message);
+  }
+
   // Asegurar existencia de tablas turnos y notificaciones
   try {
     await TurnosModel.sync({ alter: false });
