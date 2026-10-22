@@ -5,18 +5,26 @@ import toast from "react-hot-toast";
 import {
   Upload, X, CheckCircle, AlertCircle,
   FileSpreadsheet, ChevronRight, FileCheck, Download,
+  Search, ChevronLeft, Loader2
 } from "lucide-react";
 
 const ImportarExcel = ({ onClose, reload }) => {
-  const [step, setStep]               = useState("upload");
-  const [archivo, setArchivo]         = useState(null);
+  const [step, setStep]                   = useState("upload");
+  const [archivo, setArchivo]             = useState(null);
   const [archivoNombre, setArchivoNombre] = useState("");
-  const [guardando, setGuardando]     = useState(false);
-  const [resultado, setResultado]     = useState(null);
-  const [dragOver, setDragOver]       = useState(false);
-  const [datos, setDatos]             = useState([]);
+  const [guardando, setGuardando]         = useState(false);
+  const [resultado, setResultado]         = useState(null);
+  const [dragOver, setDragOver]           = useState(false);
+  const [datos, setDatos]                 = useState([]);
   const [seleccionados, setSeleccionados] = useState([]);
   const [errorArchivo, setErrorArchivo]   = useState("");
+  const [soloActivos, setSoloActivos]     = useState(true);
+  
+  // Paginación y búsqueda rápida en la vista previa
+  const [busqueda, setBusqueda]           = useState("");
+  const [pagina, setPagina]               = useState(1);
+  const filasPorPagina = 50;
+
   const fileRef = useRef();
 
   /* =========================
@@ -30,7 +38,7 @@ const ImportarExcel = ({ onClose, reload }) => {
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", "plantilla_aprendices.xlsx");
+      link.setAttribute("download", "Plantilla_Aprendices_Foodsys.xlsx");
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -49,8 +57,8 @@ const ImportarExcel = ({ onClose, reload }) => {
     setErrorArchivo("");
 
     const ext = file.name.split(".").pop().toLowerCase();
-    if (!["xlsx", "xls", "csv"].includes(ext)) {
-      setErrorArchivo("Formato no soportado. Usa .xlsx, .xls o .csv");
+    if (!["xlsx", "xlsm", "xls", "csv"].includes(ext)) {
+      setErrorArchivo("Formato no soportado. Usa .xlsx, .xlsm, .xls o .csv");
       return;
     }
 
@@ -59,22 +67,48 @@ const ImportarExcel = ({ onClose, reload }) => {
 
     try {
       const formData = new FormData();
-      formData.append("file", file); // ✅ usa el parámetro "file", no el estado
+      formData.append("file", file);
+      formData.append("soloActivos", soloActivos);
 
-      const res = await apiAxios.post("/api/Usuarios/preview-import", formData, {
+      const res = await apiAxios.post(`/api/Usuarios/preview-import?soloActivos=${soloActivos}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setDatos(res.data.data ?? []);
-      // Pre-seleccionar todos
-      setSeleccionados(res.data.data ?? []);
+      const lista = res.data.data ?? [];
+      setDatos(lista);
+      setSeleccionados(lista);
+      setPagina(1);
+      setBusqueda("");
       setStep("preview");
+      toast.success(`Se detectaron ${lista.length} aprendices en el archivo.`);
     } catch (err) {
       setErrorArchivo(
-        err?.response?.data?.message || "Error al leer el archivo. Verifica que uses la plantilla oficial."
+        err?.response?.data?.message || "Error al leer el archivo. Verifica el formato del Excel."
       );
     }
   };
+
+  /* =========================
+     FILTRADO Y PAGINACIÓN
+  ========================== */
+  const datosFiltrados = datos.filter((d) => {
+    if (!busqueda) return true;
+    const q = busqueda.toLowerCase().trim();
+    return (
+      String(d.NumDoc_Usuario || "").includes(q) ||
+      String(d.Nom_Usuario || "").toLowerCase().includes(q) ||
+      String(d.Ape_Usuario || "").toLowerCase().includes(q) ||
+      String(d.Num_Ficha || "").includes(q) ||
+      String(d.Cor_Usuario || "").toLowerCase().includes(q)
+    );
+  });
+
+  const totalPaginas = Math.ceil(datosFiltrados.length / filasPorPagina) || 1;
+  const paginaSegura = Math.min(pagina, totalPaginas);
+  const datosPaginados = datosFiltrados.slice(
+    (paginaSegura - 1) * filasPorPagina,
+    paginaSegura * filasPorPagina
+  );
 
   /* =========================
      TOGGLE SELECCIÓN
@@ -101,7 +135,8 @@ const ImportarExcel = ({ onClose, reload }) => {
       });
       setResultado(res.data);
       setStep("result");
-      reload();
+      toast.success("¡Importación completada exitosamente!");
+      reload?.();
     } catch (err) {
       setResultado({
         creados: 0,
@@ -121,8 +156,8 @@ const ImportarExcel = ({ onClose, reload }) => {
   const stepIdx = steps.indexOf(step);
   const STEPS   = [
     { label: "Archivo", icon: Upload },
-    { label: "Revisar",  icon: FileCheck },
-    { label: "Listo",    icon: CheckCircle },
+    { label: "Revisar", icon: FileCheck },
+    { label: "Listo",   icon: CheckCircle },
   ];
 
   return (
@@ -134,82 +169,98 @@ const ImportarExcel = ({ onClose, reload }) => {
       />
 
       {/* Modal */}
-      <div className="fixed bottom-0 left-0 right-0 mx-auto z-[9999] w-full max-w-[560px] bg-white rounded-t-2xl flex flex-col overflow-hidden shadow-[0_-4px_32px_rgba(15,23,42,0.18)] max-h-[90vh]">
+      <div className="fixed bottom-0 left-0 right-0 mx-auto z-[9999] w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 flex flex-col overflow-hidden shadow-2xl max-h-[92vh]">
 
         {/* Handle */}
-        <div className="w-8 h-[3px] bg-slate-200 rounded-full mx-auto mt-3" />
+        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 sm:hidden shrink-0" />
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-800 to-teal-800 text-white shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
-              <FileSpreadsheet size={17} className="text-white" />
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shadow-sm">
+              <FileSpreadsheet size={20} className="text-white" />
             </div>
             <div>
-              <h2 className="font-semibold text-slate-800 text-[15px]">Importar desde Excel</h2>
-              {archivoNombre && (
-                <p className="text-[11px] text-slate-400 font-mono truncate max-w-[160px]">{archivoNombre}</p>
-              )}
+              <p className="text-[11px] text-emerald-200 font-bold uppercase tracking-wider m-0">Importación Masiva</p>
+              <h2 className="font-bold text-white text-base m-0">Aprendices desde Excel / Base IQR</h2>
             </div>
           </div>
 
-          {/* Steps indicator */}
-          <div className="flex items-center gap-1.5">
-            {STEPS.map(({ label, icon: Icon }, i) => {
-              const done    = i < stepIdx;
-              const current = i === stepIdx;
-              return (
-                <div key={label} className="flex items-center gap-1.5">
-                  <div className={[
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold",
-                    done    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : current ? "bg-blue-600 text-white"
-                    :           "bg-slate-100 text-slate-400",
-                  ].join(" ")}>
-                    {done ? <CheckCircle size={10} /> : <Icon size={10} />}
-                    <span>{label}</span>
+          <div className="flex items-center gap-3">
+            {/* Steps indicator */}
+            <div className="hidden sm:flex items-center gap-1.5 bg-black/20 px-3 py-1 rounded-full">
+              {STEPS.map(({ label, icon: Icon }, i) => {
+                const done    = i < stepIdx;
+                const current = i === stepIdx;
+                return (
+                  <div key={label} className="flex items-center gap-1">
+                    <span className={`text-[11px] font-bold ${current ? "text-white underline" : done ? "text-emerald-300" : "text-white/50"}`}>
+                      {label}
+                    </span>
+                    {i < 2 && <ChevronRight size={10} className="text-white/40" />}
                   </div>
-                  {i < 2 && <ChevronRight size={12} className="text-slate-300" />}
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
 
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center"
-          >
-            <X size={14} className="text-slate-500" />
-          </button>
+            <button
+              onClick={onClose}
+              disabled={guardando}
+              className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white border-0 cursor-pointer transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         {/* ── STEP 1: UPLOAD ── */}
         {step === "upload" && (
-          <div className="p-6 flex flex-col gap-4">
+          <div className="p-6 flex flex-col gap-4 overflow-y-auto">
+
+            {/* Checkbox inteligente para filtrar solo aprendices activos */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="chkSoloActivos"
+                checked={soloActivos}
+                onChange={(e) => setSoloActivos(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-emerald-600 cursor-pointer shrink-0"
+              />
+              <label htmlFor="chkSoloActivos" className="text-xs text-emerald-950 cursor-pointer">
+                <strong className="text-emerald-800">Filtrar automáticamente solo aprendices activos (En Formación / Inducción)</strong>
+                <p className="text-[11px] text-emerald-700 m-0 mt-0.5">
+                  Recomendado para bases oficiales como <em>Base_NO MODIFICAR_2026_SEPTIEMBRE.xlsm</em> (omite aprendices cancelados, certificados y retirados).
+                </p>
+              </label>
+            </div>
 
             {/* Zona drag & drop */}
             <div
               className={[
-                "border-2 border-dashed rounded-xl py-10 px-8 text-center cursor-pointer transition-all",
-                dragOver ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-slate-50 hover:border-slate-300",
+                "border-2 border-dashed rounded-2xl py-8 px-6 text-center cursor-pointer transition-all",
+                dragOver ? "border-emerald-500 bg-emerald-50" : "border-slate-300 bg-slate-50/70 hover:bg-emerald-50/40 hover:border-emerald-300",
               ].join(" ")}
               onClick={() => fileRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setDragOver(false); leerArchivo(e.dataTransfer.files[0]); }}
             >
-              <div className="w-14 h-14 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mx-auto mb-4">
-                <Upload size={24} className="text-slate-400" />
+              <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mx-auto mb-3">
+                <Upload size={26} className="text-emerald-600" />
               </div>
-              <p className="font-semibold text-slate-700 mb-1">Arrastra tu archivo aquí</p>
-              <p className="text-xs text-slate-400 mb-5">Formatos soportados: .xlsx, .xls, .csv</p>
-              <span className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-2.5 text-xs font-semibold">
-                <Upload size={12} /> Seleccionar archivo
+              <p className="font-bold text-slate-800 mb-1 text-sm">
+                {archivo ? archivo.name : "Haz clic aquí o arrastra tu archivo Excel"}
+              </p>
+              <p className="text-xs text-slate-500 mb-4">
+                Soporta archivos: <strong>.xlsx, .xlsm (con macros), .xls, .csv</strong>
+              </p>
+              <span className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl px-5 py-2.5 text-xs font-bold shadow-sm">
+                <Upload size={14} /> Seleccionar Archivo
               </span>
               <input
                 ref={fileRef}
                 type="file"
-                accept=".xlsx,.xls,.csv"
+                accept=".xlsx,.xlsm,.xls,.csv"
                 className="hidden"
                 onChange={(e) => leerArchivo(e.target.files[0])}
               />
@@ -218,94 +269,125 @@ const ImportarExcel = ({ onClose, reload }) => {
             {/* Error de archivo */}
             {errorArchivo && (
               <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-red-600">{errorArchivo}</p>
+                <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-red-700 m-0">{errorArchivo}</p>
               </div>
             )}
 
-            {/* Botón descargar plantilla */}
-            <button
-              onClick={descargarPlantilla}
-              className="flex items-center justify-center gap-2 w-full border border-slate-200 hover:border-slate-300 bg-white text-slate-600 hover:text-slate-800 rounded-xl py-2.5 text-xs font-semibold transition-all"
-            >
-              <Download size={13} />
-              Descargar plantilla oficial (.xlsx)
-            </button>
+            {/* Botón descargar plantilla oficial */}
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button
+                onClick={descargarPlantilla}
+                className="flex items-center justify-center gap-2 border border-slate-200 hover:border-slate-300 bg-white text-slate-700 hover:text-slate-900 rounded-xl py-2.5 px-4 text-xs font-bold transition-all shadow-sm"
+              >
+                <Download size={14} className="text-emerald-600" />
+                Descargar Plantilla Oficial (.xlsx)
+              </button>
 
-            {/* Recomendaciones */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
-              <p className="text-[11px] font-semibold text-amber-700 mb-1.5">📋 Recomendaciones</p>
-              {[
-                "Usa solo la plantilla oficial (.xlsx).",
-                "No repitas correos ni documentos.",
-                "Evita dejar celdas vacías obligatorias.",
-                "La ficha del aprendiz ya debe existir en el sistema.",
-              ].map((r) => (
-                <p key={r} className="text-[11px] text-amber-600">• {r}</p>
-              ))}
+              <p className="text-[11px] text-slate-400 m-0">
+                Al subir, la contraseña inicial del aprendiz será su <strong>número de documento</strong>.
+              </p>
             </div>
           </div>
         )}
 
         {/* ── STEP 2: PREVIEW ── */}
         {step === "preview" && (
-          <div className="p-6 flex flex-col gap-4 overflow-hidden">
+          <div className="p-5 flex flex-col gap-3 overflow-hidden">
 
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-slate-700 text-sm">
-                {datos.length} registro{datos.length !== 1 ? "s" : ""} encontrado{datos.length !== 1 ? "s" : ""}
-              </h3>
-              <button
-                onClick={toggleTodos}
-                className="text-[11px] text-blue-600 hover:underline font-medium"
-              >
-                {seleccionados.length === datos.length ? "Deseleccionar todos" : "Seleccionar todos"}
-              </button>
+            {/* Barra superior con contador y buscador */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 text-slate-400" size={15} />
+                <input
+                  type="text"
+                  placeholder="Buscar por documento, nombre o ficha..."
+                  value={busqueda}
+                  onChange={(e) => { setBusqueda(e.target.value); setPagina(1); }}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 justify-between sm:justify-end">
+                <button
+                  onClick={toggleTodos}
+                  className="text-xs text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl px-3 py-1.5 transition-colors cursor-pointer"
+                >
+                  {seleccionados.length === datos.length ? "Deseleccionar todos" : "Seleccionar todos"}
+                </button>
+              </div>
             </div>
 
-            {/* Tabla preview */}
-            <div className="overflow-auto max-h-64 border border-slate-200 rounded-xl">
+            {/* Tabla preview paginada */}
+            <div className="overflow-auto max-h-72 border border-slate-200 rounded-xl">
               <table className="w-full text-xs">
-                <thead className="bg-slate-50 sticky top-0">
+                <thead className="bg-slate-100 sticky top-0 text-slate-600">
                   <tr>
                     <th className="px-3 py-2 text-left w-8">
                       <input
                         type="checkbox"
                         checked={seleccionados.length === datos.length && datos.length > 0}
                         onChange={toggleTodos}
-                        className="rounded"
+                        className="rounded accent-emerald-600 cursor-pointer"
                       />
                     </th>
-                    <th className="px-3 py-2 text-left text-slate-500 font-semibold">Documento</th>
-                    <th className="px-3 py-2 text-left text-slate-500 font-semibold">Nombre</th>
-                    <th className="px-3 py-2 text-left text-slate-500 font-semibold">Correo</th>
-                    <th className="px-3 py-2 text-left text-slate-500 font-semibold">Ficha</th>
+                    <th className="px-3 py-2 text-left font-bold">Documento</th>
+                    <th className="px-3 py-2 text-left font-bold">Aprendiz</th>
+                    <th className="px-3 py-2 text-left font-bold">Rol Asignado</th>
+                    <th className="px-3 py-2 text-left font-bold">Ficha / Programa</th>
+                    <th className="px-3 py-2 text-left font-bold">Convivencia</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {datos.map((fila, i) => {
+                  {datosPaginados.map((fila, i) => {
                     const seleccionado = seleccionados.includes(fila);
+                    const esInterno = fila.CenCon_Usuario === "Si" || fila.Rol_Asignado?.includes("Interno");
                     return (
                       <tr
-                        key={i}
-                        className={seleccionado ? "bg-blue-50/60" : "hover:bg-slate-50"}
+                        key={fila.NumDoc_Usuario || i}
+                        className={`cursor-pointer transition-colors ${seleccionado ? "bg-emerald-50/60" : "hover:bg-slate-50"}`}
                         onClick={() => toggleSeleccion(fila)}
                       >
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={seleccionado}
                             onChange={() => toggleSeleccion(fila)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="rounded"
+                            className="rounded accent-emerald-600 cursor-pointer"
                           />
                         </td>
-                        <td className="px-3 py-2 text-slate-600 font-mono">{fila.NumDoc_Usuario ?? "—"}</td>
-                        <td className="px-3 py-2 text-slate-700 font-medium">
-                          {[fila.Nom_Usuario, fila.Ape_Usuario].filter(Boolean).join(" ") || "Sin nombre"}
+                        <td className="px-3 py-2 font-mono font-semibold text-slate-800">
+                          {fila.NumDoc_Usuario}
+                          <span className="text-[10px] text-slate-400 block font-normal">{fila.TipDoc_Usuario || "CC"}</span>
                         </td>
-                        <td className="px-3 py-2 text-slate-500">{fila.Cor_Usuario ?? "—"}</td>
-                        <td className="px-3 py-2 text-slate-500">{fila.Id_Ficha ?? "—"}</td>
+                        <td className="px-3 py-2">
+                          <p className="font-bold text-slate-800 m-0">
+                            {[fila.Nom_Usuario, fila.Ape_Usuario].filter(Boolean).join(" ")}
+                          </p>
+                          <p className="text-[10px] text-slate-400 m-0 truncate max-w-[150px]">
+                            {fila.Cor_Usuario || "Sin correo"}
+                          </p>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            esInterno ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-amber-50 text-amber-700 border-amber-200"
+                          }`}>
+                            {fila.Rol_Asignado || "Aprendiz Externo"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-slate-700">
+                          <span className="font-bold">Ficha #{fila.Num_Ficha || "—"}</span>
+                          <span className="text-[10px] text-slate-400 block truncate max-w-[140px]">
+                            {fila.Nom_Programa || "Por asociar"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-center font-bold">
+                          {esInterno ? (
+                            <span className="text-blue-700 bg-blue-100 px-2 py-0.5 rounded text-[10px]">Sí (3 comidas)</span>
+                          ) : (
+                            <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded text-[10px]">No (Almuerzo)</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -313,31 +395,55 @@ const ImportarExcel = ({ onClose, reload }) => {
               </table>
             </div>
 
-            {/* Contador seleccionados */}
-            <p className="text-[11px] text-slate-400 text-center">
-              {seleccionados.length} de {datos.length} seleccionados
-            </p>
+            {/* Paginación y resumen */}
+            <div className="flex items-center justify-between text-xs text-slate-600 px-1">
+              <span className="font-semibold text-slate-700">
+                {seleccionados.length} de {datos.length} seleccionados
+                {busqueda && ` (${datosFiltrados.length} filtrados)`}
+              </span>
 
-            {/* Botones */}
-            <div className="flex gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                  disabled={paginaSegura <= 1}
+                  className="px-2.5 py-1 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 text-xs font-bold cursor-pointer"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="text-[11px] font-bold">
+                  Página {paginaSegura} de {totalPaginas}
+                </span>
+                <button
+                  onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+                  disabled={paginaSegura >= totalPaginas}
+                  className="px-2.5 py-1 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 text-xs font-bold cursor-pointer"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Botones de acción */}
+            <div className="flex gap-3 pt-1">
               <button
                 onClick={() => { setStep("upload"); setDatos([]); setSeleccionados([]); }}
-                className="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl py-2.5 text-xs font-semibold"
+                disabled={guardando}
+                className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl py-2.5 text-xs font-bold cursor-pointer transition-colors"
               >
                 Volver
               </button>
               <button
                 onClick={importarSeleccionados}
                 disabled={guardando || seleccionados.length === 0}
-                className="flex-[2] bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-2"
+                className="flex-[2] bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-xl py-2.5 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all active:scale-95"
               >
                 {guardando ? (
                   <>
-                    <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    Importando…
+                    <Loader2 size={16} className="animate-spin text-white" />
+                    <span>Guardando aprendices ({seleccionados.length})...</span>
                   </>
                 ) : (
-                  `Importar ${seleccionados.length} registro${seleccionados.length !== 1 ? "s" : ""}`
+                  `Confirmar e Importar (${seleccionados.length} Aprendices)`
                 )}
               </button>
             </div>
@@ -346,45 +452,50 @@ const ImportarExcel = ({ onClose, reload }) => {
 
         {/* ── STEP 3: RESULT ── */}
         {step === "result" && resultado && (
-          <div className="p-8 flex flex-col items-center gap-5">
+          <div className="p-8 flex flex-col items-center gap-5 overflow-y-auto">
             <div className="text-center">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 mx-auto mb-4 flex items-center justify-center">
-                <CheckCircle size={30} className="text-emerald-600" />
+              <div className="w-16 h-16 rounded-2xl bg-emerald-100 border border-emerald-300 mx-auto mb-3 flex items-center justify-center shadow-inner">
+                <CheckCircle size={32} className="text-emerald-700" />
               </div>
-              <h3 className="font-semibold text-slate-800 text-lg">Importación completada</h3>
-              <p className="text-xs text-slate-400">El proceso finalizó correctamente</p>
+              <h3 className="font-bold text-slate-800 text-lg m-0">¡Proceso de Importación Finalizado!</h3>
+              <p className="text-xs text-slate-500 m-0 mt-1">Los registros fueron sincronizados en la base de datos.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 w-full">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center">
-                <p className="text-4xl font-bold text-emerald-700">{resultado.creados ?? 0}</p>
-                <p className="text-xs text-emerald-600 font-medium">Creados</p>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
+                <p className="text-4xl font-extrabold text-emerald-800 m-0">{resultado.creados ?? 0}</p>
+                <p className="text-xs text-emerald-700 font-bold uppercase tracking-wider m-0 mt-1">Nuevos Aprendices Creados</p>
               </div>
-              <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-center">
-                <p className="text-4xl font-bold text-red-600">{resultado.omitidos ?? 0}</p>
-                <p className="text-xs text-red-500 font-medium">Omitidos</p>
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
+                <p className="text-4xl font-extrabold text-amber-800 m-0">{resultado.omitidos ?? 0}</p>
+                <p className="text-xs text-amber-700 font-bold uppercase tracking-wider m-0 mt-1">Omitidos / Ya Existían</p>
               </div>
             </div>
 
             {resultado.errores?.length > 0 && (
-              <div className="w-full rounded-xl border border-red-200 bg-red-50 overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-red-100">
-                  <AlertCircle size={12} className="text-red-500" />
-                  <span className="text-xs font-semibold text-red-700">Detalle de errores</span>
+              <div className="w-full rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 border-b border-slate-200">
+                  <AlertCircle size={14} className="text-amber-600" />
+                  <span className="text-xs font-bold text-slate-700">Detalles y observaciones ({resultado.errores.length})</span>
                 </div>
-                <div className="p-3 max-h-40 overflow-y-auto space-y-1">
-                  {resultado.errores.map((err, i) => (
-                    <p key={i} className="text-[11px] text-red-600">• {err}</p>
+                <div className="p-3 max-h-36 overflow-y-auto space-y-1">
+                  {resultado.errores.slice(0, 100).map((err, i) => (
+                    <p key={i} className="text-[11px] text-slate-600 m-0 leading-relaxed">• {err}</p>
                   ))}
+                  {resultado.errores.length > 100 && (
+                    <p className="text-[11px] text-slate-400 italic m-0 pt-1">
+                      ... y {resultado.errores.length - 100} registros omitidos más (ya existentes en la base de datos).
+                    </p>
+                  )}
                 </div>
               </div>
             )}
 
             <button
               onClick={onClose}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 text-sm font-semibold"
+              className="w-full bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl py-3 text-xs sm:text-sm font-bold shadow-md cursor-pointer transition-colors border-0"
             >
-              Cerrar
+              Cerrar y Ver Lista de Aprendices
             </button>
           </div>
         )}

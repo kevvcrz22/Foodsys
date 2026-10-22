@@ -256,9 +256,10 @@ export const previewImportFicha = async (req, res) => {
         Limpio["NIVFOR_PROGRAMA"] ||
         "";
       const nivelNormalizado = String(nivelRaw).trim().toUpperCase();
+      const nivelSinTildes = nivelNormalizado.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-      if (filtrarSoloTitulada && nivelNormalizado) {
-        const esTitulada = NIVELES_TITULADA.some(nt => nivelNormalizado.includes(nt));
+      if (filtrarSoloTitulada && nivelSinTildes) {
+        const esTitulada = NIVELES_TITULADA.some(nt => nivelSinTildes.includes(nt));
         if (!esTitulada) {
           omitidosPorTipo++;
           continue;
@@ -315,15 +316,18 @@ export const previewImportFicha = async (req, res) => {
       }
 
       const yaExisteFicha = mapaFichas.has(numFicha);
+      const estadoCurso = Limpio["ESTADO_CURSO"] || Limpio["ESTADO_FICHA"] || Limpio["ESTADO"] || "En ejecucion";
 
       Datos.push({
         Num_Ficha: numFicha,
         Id_Programa: idProgramaAsignado,
         Nom_Programa: nombreProgramaFinal || "Sin programa detectado",
+        Nivel_Formacion: nivelNormalizado || "TECNOLOGO",
         FecIniLec_Ficha: fecIniLec,
         FecFinLec_Ficha: fecFinLec,
         FecIniPra_Ficha: fecIniPra,
         FecFinPra_Ficha: fecFinPra,
+        Estado_Curso: estadoCurso,
         yaExiste: yaExisteFicha,
         accion: yaExisteFicha ? "Actualizar" : "Crear"
       });
@@ -364,81 +368,105 @@ export const importarFichasSeleccionadas = async (req, res) => {
       mapaProgramasPorNombre.set(normalizarNombrePrograma(p.Nom_Programa), p);
     });
 
+    const todasFichasBD = await FichasModel.findAll();
+    const mapaFichasBD = new Map();
+    todasFichasBD.forEach(f => mapaFichasBD.set(Number(f.Num_Ficha), f));
+
     let Creados = 0;
     let Actualizados = 0;
     let Omitidos = 0;
     const Errores = [];
 
-    for (const Fila of fichas) {
-      const numFicha = parseInt(Fila.Num_Ficha, 10);
-      if (!numFicha || isNaN(numFicha)) {
-        Omitidos++;
-        Errores.push("Fila omitida: falta Num_Ficha valido.");
-        continue;
-      }
+    // Procesamos en lotes concurrentes para alta velocidad sin bloquear la base de datos
+    const CHUNK_SIZE = 25;
+    for (let i = 0; i < fichas.length; i += CHUNK_SIZE) {
+      const lote = fichas.slice(i, i + CHUNK_SIZE);
+      await Promise.all(
+        lote.map(async (Fila) => {
+          try {
+            const numFicha = parseInt(Fila.Num_Ficha, 10);
+            if (!numFicha || isNaN(numFicha)) {
+              Omitidos++;
+              Errores.push("Fila omitida: falta Num_Ficha valido.");
+              return;
+            }
 
-      // Resolver Id_Programa
-      let idPrograma = Fila.Id_Programa ? parseInt(Fila.Id_Programa, 10) : null;
+            // Resolver Id_Programa
+            let idPrograma = Fila.Id_Programa ? parseInt(Fila.Id_Programa, 10) : null;
 
-      if (!idPrograma || !mapaProgramasPorId.has(idPrograma)) {
-        const nombreBuscar = normalizarNombrePrograma(Fila.Nom_Programa);
-        if (nombreBuscar && mapaProgramasPorNombre.has(nombreBuscar)) {
-          idPrograma = mapaProgramasPorNombre.get(nombreBuscar).Id_Programa;
-        } else if (nombreBuscar) {
-          // Crear programa al vuelo si no existe
-          const nuevoProg = await ProgramaModel.create({
-            Nom_Programa: nombreBuscar,
-            Est_Programa: "Activo"
-          });
-          idPrograma = nuevoProg.Id_Programa;
-          mapaProgramasPorId.set(nuevoProg.Id_Programa, nuevoProg);
-          mapaProgramasPorNombre.set(nombreBuscar, nuevoProg);
-        }
-      }
+            if (!idPrograma || !mapaProgramasPorId.has(idPrograma)) {
+              const nombreBuscar = normalizarNombrePrograma(Fila.Nom_Programa);
+              if (nombreBuscar && mapaProgramasPorNombre.has(nombreBuscar)) {
+                idPrograma = mapaProgramasPorNombre.get(nombreBuscar).Id_Programa;
+              } else if (nombreBuscar) {
+                // Crear programa de forma segura capturando posibles carreras concurrentes
+                try {
+                  const nuevoProg = await ProgramaModel.create({
+                    Nom_Programa: nombreBuscar,
+                    Are_Programa: Fila.Are_Programa || Fila.NOMBRE_NUEVO_SECTOR || "FORMACION",
+                    NivFor_Programa: Fila.NivFor_Programa || Fila.Nivel_Formacion || "TECNOLOGO",
+                    Est_Programa: "Activo"
+                  });
+                  idPrograma = nuevoProg.Id_Programa;
+                  mapaProgramasPorId.set(nuevoProg.Id_Programa, nuevoProg);
+                  mapaProgramasPorNombre.set(nombreBuscar, nuevoProg);
+                } catch (errProg) {
+                  const existenteP = await ProgramaModel.findOne({ where: { Nom_Programa: nombreBuscar } });
+                  if (existenteP) {
+                    idPrograma = existenteP.Id_Programa;
+                    mapaProgramasPorId.set(existenteP.Id_Programa, existenteP);
+                    mapaProgramasPorNombre.set(nombreBuscar, existenteP);
+                  }
+                }
+              }
+            }
 
-      let fecFinPra = Fila.FecFinPra_Ficha || null;
-      let fecIniPra = Fila.FecIniPra_Ficha || null;
-      let fecFinLec = Fila.FecFinLec_Ficha || null;
-      const fecIniLec = Fila.FecIniLec_Ficha || null;
+            let fecFinPra = Fila.FecFinPra_Ficha || null;
+            let fecIniPra = Fila.FecIniPra_Ficha || null;
+            let fecFinLec = Fila.FecFinLec_Ficha || null;
+            const fecIniLec = Fila.FecIniLec_Ficha || null;
 
-      // Calculo de 6 meses y -1 dia
-      if (fecFinPra && !fecIniPra) {
-        fecIniPra = restarMesesFecha(fecFinPra, 6);
-      }
-      if (!fecFinLec && fecIniPra) {
-        fecFinLec = restarDiasFecha(fecIniPra, 1);
-      }
+            // Calculo de 6 meses y -1 dia
+            if (fecFinPra && !fecIniPra) {
+              fecIniPra = restarMesesFecha(fecFinPra, 6);
+            }
+            if (!fecFinLec && fecIniPra) {
+              fecFinLec = restarDiasFecha(fecIniPra, 1);
+            }
 
-      // Verificamos si la ficha ya existe para hacer UPSERT
-      const fichaExistente = await FichasModel.findOne({ where: { Num_Ficha: numFicha } });
+            // Verificamos si la ficha ya existe para hacer UPSERT
+            const fichaExistente = mapaFichasBD.get(numFicha);
 
-      if (fichaExistente) {
-        await FichasModel.update(
-          {
-            Id_Programa: idPrograma || fichaExistente.Id_Programa,
-            FecIniLec_Ficha: fecIniLec || fichaExistente.FecIniLec_Ficha,
-            FecFinLec_Ficha: fecFinLec || fichaExistente.FecFinLec_Ficha,
-            FecIniPra_Ficha: fecIniPra || fichaExistente.FecIniPra_Ficha,
-            FecFinPra_Ficha: fecFinPra || fichaExistente.FecFinPra_Ficha,
-          },
-          { where: { Id_Ficha: fichaExistente.Id_Ficha } }
-        );
-
-        await sincronizarEstadoAprendices(fichaExistente.Id_Ficha);
-        Actualizados++;
-      } else {
-        const nuevaFicha = await FichasModel.create({
-          Num_Ficha: numFicha,
-          Id_Programa: idPrograma,
-          FecIniLec_Ficha: fecIniLec,
-          FecFinLec_Ficha: fecFinLec,
-          FecIniPra_Ficha: fecIniPra,
-          FecFinPra_Ficha: fecFinPra,
-        });
-
-        await sincronizarEstadoAprendices(nuevaFicha.Id_Ficha);
-        Creados++;
-      }
+            if (fichaExistente) {
+              await FichasModel.update(
+                {
+                  Id_Programa: idPrograma || fichaExistente.Id_Programa,
+                  FecIniLec_Ficha: fecIniLec || fichaExistente.FecIniLec_Ficha,
+                  FecFinLec_Ficha: fecFinLec || fichaExistente.FecFinLec_Ficha,
+                  FecIniPra_Ficha: fecIniPra || fichaExistente.FecIniPra_Ficha,
+                  FecFinPra_Ficha: fecFinPra || fichaExistente.FecFinPra_Ficha,
+                },
+                { where: { Id_Ficha: fichaExistente.Id_Ficha } }
+              );
+              Actualizados++;
+            } else {
+              const nuevaFicha = await FichasModel.create({
+                Num_Ficha: numFicha,
+                Id_Programa: idPrograma,
+                FecIniLec_Ficha: fecIniLec,
+                FecFinLec_Ficha: fecFinLec,
+                FecIniPra_Ficha: fecIniPra,
+                FecFinPra_Ficha: fecFinPra,
+              });
+              mapaFichasBD.set(numFicha, nuevaFicha);
+              Creados++;
+            }
+          } catch (errFila) {
+            Omitidos++;
+            Errores.push(`Error al procesar ficha #${Fila.Num_Ficha || '?'}: ${errFila.message}`);
+          }
+        })
+      );
     }
 
     return res.status(200).json({

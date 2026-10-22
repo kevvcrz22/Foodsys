@@ -9,8 +9,8 @@ import apiAxios from "../../api/axiosConfig";
 import toast from "react-hot-toast";
 import {
   X, Download, Upload, CheckCircle, AlertCircle,
-  FileSpreadsheet, ChevronRight, Loader2, ToggleLeft, ToggleRight, Calendar,
-  Filter, HelpCircle
+  FileSpreadsheet, ChevronRight, ChevronLeft, Loader2, ToggleLeft, ToggleRight, Calendar,
+  Filter, HelpCircle, Search
 } from "lucide-react";
 
 /* ── Paleta de colores para el modulo de Fichas (Azul Institucional) ── */
@@ -63,6 +63,11 @@ const ImportarFichas = ({ onClose, reload }) => {
   
   // Filtro inteligente para omitir Cursos Especiales y Eventos (activo por defecto segun directiva)
   const [soloTitulada, setSoloTitulada] = useState(true);
+
+  // Paginación y búsqueda rápida en cliente
+  const [busqueda, setBusqueda] = useState("");
+  const [pagina, setPagina] = useState(1);
+  const filasPorPagina = 50;
 
   const InputRef = useRef(null);
 
@@ -121,10 +126,12 @@ const ImportarFichas = ({ onClose, reload }) => {
       }
       setPreview(Datos);
       setSeleccion(Datos.map((_, Idx) => Idx));
+      setPagina(1);
+      setBusqueda("");
       setPaso(2);
       toast.success(`Se detectaron ${Datos.length} fichas para importar.`);
     } catch (Err) {
-      setError(Err.response?.data?.message || "Error al leer el archivo. Asegurate de que tenga formato .xlsx valido.");
+      setError(Err.response?.data?.message || "Error al leer el archivo. Asegurate de que tenga formato .xlsx o .xlsm valido.");
     } finally {
       setCargando(false);
     }
@@ -255,22 +262,22 @@ const ImportarFichas = ({ onClose, reload }) => {
               {/* Zona de Arrastre de Archivo */}
               <div>
                 <p className="font-bold text-slate-800 text-sm mb-2">
-                  Paso 2 — Sube tu archivo Excel (.xlsx)
+                  Paso 2 — Sube tu archivo Excel (.xlsx o .xlsm)
                 </p>
                 <label
                   htmlFor="InputFicha"
                   className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-blue-300 rounded-2xl py-8 px-4 cursor-pointer bg-blue-50/40 hover:bg-blue-50 transition-colors"
                 >
                   <Upload size={32} className="text-blue-500" />
-                  <p className="text-sm font-bold text-slate-700 m-0">
-                    {Archivo ? Archivo.name : "Haz clic aqui o arrastra tu archivo Excel"}
+                  <p className="text-sm font-bold text-slate-700 m-0 text-center">
+                    {Archivo ? Archivo.name : "Haz clic aquí o arrastra tu archivo Excel"}
                   </p>
-                  <p className="text-xs text-slate-400 m-0">Formatos soportados: .xlsx</p>
+                  <p className="text-xs text-slate-400 m-0">Formatos soportados: .xlsx, .xlsm, .xls</p>
                   <input
                     id="InputFicha"
                     ref={InputRef}
                     type="file"
-                    accept=".xlsx"
+                    accept=".xlsx, .xlsm, .xls"
                     className="hidden"
                     onChange={AlSeleccionarArchivo}
                   />
@@ -296,91 +303,168 @@ const ImportarFichas = ({ onClose, reload }) => {
           )}
 
           {/* PASO 2: VISTA PREVIA Y SELECCION */}
-          {Paso === 2 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <p className="font-bold text-slate-800 text-sm m-0">Revisa las fichas procesadas</p>
-                  <p className="text-xs text-slate-500 m-0">
-                    {Seleccion.length} de {Preview.length} seleccionadas para guardar
-                  </p>
+          {Paso === 2 && (() => {
+            const previewFiltrado = Preview.map((item, originalIdx) => ({ item, originalIdx })).filter(({ item }) => {
+              if (!busqueda) return true;
+              const q = busqueda.toLowerCase().trim();
+              return (
+                String(item.Num_Ficha || "").includes(q) ||
+                String(item.Nom_Programa || "").toLowerCase().includes(q) ||
+                String(item.Estado_Curso || "").toLowerCase().includes(q) ||
+                String(item.Nivel_Formacion || "").toLowerCase().includes(q)
+              );
+            });
+
+            const totalPaginas = Math.ceil(previewFiltrado.length / filasPorPagina) || 1;
+            const paginaSegura = Math.min(pagina, totalPaginas);
+            const itemsPaginados = previewFiltrado.slice(
+              (paginaSegura - 1) * filasPorPagina,
+              paginaSegura * filasPorPagina
+            );
+
+            return (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <p className="font-bold text-slate-800 text-sm m-0">Revisa las fichas procesadas</p>
+                    <p className="text-xs text-slate-500 m-0">
+                      {Seleccion.length} de {Preview.length} seleccionadas para guardar
+                    </p>
+                  </div>
+                  <button
+                    onClick={ToggleTodos}
+                    className={`flex items-center gap-1.5 ${CL.btnLight} rounded-xl px-3 py-1.5 text-xs font-bold cursor-pointer transition-colors`}
+                  >
+                    {Seleccion.length === Preview.length ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                    {Seleccion.length === Preview.length ? "Deseleccionar todo" : "Seleccionar todo"}
+                  </button>
                 </div>
-                <button
-                  onClick={ToggleTodos}
-                  className={`flex items-center gap-1.5 ${CL.btnLight} rounded-xl px-3 py-1.5 text-xs font-bold cursor-pointer transition-colors`}
-                >
-                  {Seleccion.length === Preview.length ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                  {Seleccion.length === Preview.length ? "Deseleccionar todo" : "Seleccionar todo"}
-                </button>
-              </div>
 
-              <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1">
-                {Preview.map((Fila, Idx) => {
-                  const Marcado = Seleccion.includes(Idx);
-                  return (
-                    <label
-                      key={Idx}
-                      className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                        Marcado ? "bg-blue-50/70 border-blue-200" : "bg-slate-50 border-slate-200 opacity-60"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        className={`mt-1 w-4 h-4 ${CL.check} shrink-0`}
-                        checked={Marcado}
-                        onChange={() => ToggleFila(Idx)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-extrabold text-blue-800 text-xs sm:text-sm">
-                            Ficha #{Fila.Num_Ficha || <span className="text-red-500 italic">Sin numero</span>}
-                          </span>
-                          {Fila.Nom_Programa && (
-                            <span className="text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded">
-                              {Fila.Nom_Programa}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-slate-500">
-                          <span className="flex items-center gap-1">
-                            <Calendar size={11} className="text-slate-400" /> Lectiva: {FormatearFecha(Fila.FecIniLec_Ficha)} – {FormatearFecha(Fila.FecFinLec_Ficha)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar size={11} className="text-slate-400" /> Practica: {FormatearFecha(Fila.FecIniPra_Ficha)} – {FormatearFecha(Fila.FecFinPra_Ficha)}
-                          </span>
-                        </div>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-
-              {Error && (
-                <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                  <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-                  <p className="text-xs text-red-700 m-0">{Error}</p>
+                {/* Busqueda rapida */}
+                <div className="relative">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por ficha, programa o estado..."
+                    value={busqueda}
+                    onChange={(e) => {
+                      setBusqueda(e.target.value);
+                      setPagina(1);
+                    }}
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
-              )}
 
-              <div className="flex gap-3">
-                <button
-                  onClick={Reiniciar}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl py-2.5 text-xs font-bold cursor-pointer transition-colors border-0"
-                >
-                  Volver a cargar
-                </button>
-                <button
-                  onClick={ConfirmarImportacion}
-                  disabled={!Seleccion.length || Cargando}
-                  className={`flex-1 flex items-center justify-center gap-2 ${CL.btn} rounded-xl py-2.5 text-xs font-bold cursor-pointer transition-colors border-0 disabled:opacity-50`}
-                >
-                  {Cargando ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                  Importar {Seleccion.length} Ficha{Seleccion.length !== 1 ? "s" : ""}
-                </button>
+                {/* Lista paginada */}
+                <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+                  {itemsPaginados.length === 0 ? (
+                    <p className="text-center text-xs text-slate-400 py-6">No se encontraron fichas coincidentes con "{busqueda}".</p>
+                  ) : (
+                    itemsPaginados.map(({ item: Fila, originalIdx }) => {
+                      const Marcado = Seleccion.includes(originalIdx);
+                      return (
+                        <label
+                          key={originalIdx}
+                          className={`flex items-start gap-3 p-2.5 rounded-xl border cursor-pointer transition-colors ${
+                            Marcado ? "bg-blue-50/70 border-blue-200" : "bg-slate-50 border-slate-200 opacity-60"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className={`mt-1 w-4 h-4 ${CL.check} shrink-0`}
+                            checked={Marcado}
+                            onChange={() => ToggleFila(originalIdx)}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-extrabold text-blue-800 text-xs sm:text-sm">
+                                Ficha #{Fila.Num_Ficha || <span className="text-red-500 italic">Sin numero</span>}
+                              </span>
+                              {Fila.Nom_Programa && (
+                                <span className="text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded truncate max-w-[220px]" title={Fila.Nom_Programa}>
+                                  {Fila.Nom_Programa}
+                                </span>
+                              )}
+                              {Fila.Nivel_Formacion && (
+                                <span className="text-[10px] font-medium text-blue-700 bg-blue-100/70 px-1.5 py-0.5 rounded">
+                                  {Fila.Nivel_Formacion}
+                                </span>
+                              )}
+                              {Fila.Estado_Curso && (
+                                <span className="text-[10px] font-medium text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                                  {Fila.Estado_Curso}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-slate-500">
+                              <span className="flex items-center gap-1">
+                                <Calendar size={11} className="text-slate-400" /> Lectiva: {FormatearFecha(Fila.FecIniLec_Ficha)} – {FormatearFecha(Fila.FecFinLec_Ficha)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Calendar size={11} className="text-slate-400" /> Practica: {FormatearFecha(Fila.FecIniPra_Ficha)} – {FormatearFecha(Fila.FecFinPra_Ficha)}
+                              </span>
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Paginador */}
+                {totalPaginas > 1 && (
+                  <div className="flex items-center justify-between px-1 py-1 text-xs text-slate-500 border-t border-slate-100">
+                    <span>
+                      Pág. {paginaSegura} de {totalPaginas} ({previewFiltrado.length} fichas)
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        disabled={paginaSegura <= 1}
+                        onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                        className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-medium text-[11px]"
+                      >
+                        <ChevronLeft size={12} /> Anterior
+                      </button>
+                      <button
+                        type="button"
+                        disabled={paginaSegura >= totalPaginas}
+                        onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+                        className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-medium text-[11px]"
+                      >
+                        Siguiente <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {Error && (
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                    <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-700 m-0">{Error}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={Reiniciar}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl py-2.5 text-xs font-bold cursor-pointer transition-colors border-0"
+                  >
+                    Volver a cargar
+                  </button>
+                  <button
+                    onClick={ConfirmarImportacion}
+                    disabled={!Seleccion.length || Cargando}
+                    className={`flex-1 flex items-center justify-center gap-2 ${CL.btn} rounded-xl py-2.5 text-xs font-bold cursor-pointer transition-colors border-0 disabled:opacity-50`}
+                  >
+                    {Cargando ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                    Importar {Seleccion.length} Ficha{Seleccion.length !== 1 ? "s" : ""}
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* PASO 3: RESULTADO FINAL */}
           {Paso === 3 && Resultado && (

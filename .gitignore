@@ -10,3 +10,7 @@ Thumbs.db
 Frontend/dist/
 *.xlsx
 *.xlsm
+!Aprendices_Activos_Foodsys.xlsx
+!Fichas_Activas_Foodsys.xlsx
+!PE-04_1.xlsx
+!Base_NO MODIFICAR_2026_SEPTIEMBRE.xlsm

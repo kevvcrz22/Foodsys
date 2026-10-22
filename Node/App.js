@@ -92,8 +92,9 @@ const limitadorSensible = rateLimit({
 aplicacion.use('/api/Usuarios/login', limitadorSensible);
 aplicacion.use('/api/Auth/recuperar', limitadorSensible);
 
-// Middlewares estándar
-aplicacion.use(Express.json());
+// Middlewares estándar con capacidad para importaciones masivas (hasta 50 MB)
+aplicacion.use(Express.json({ limit: '50mb' }));
+aplicacion.use(Express.urlencoded({ extended: true, limit: '50mb' }));
 
 const origenesPermitidos = [
   'https://foodsyslagranja.com',

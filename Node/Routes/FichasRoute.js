@@ -21,7 +21,7 @@ const router = express.Router();
 // Configuracion de multer en memoria (RAM) para procesar archivos Excel sin tocar disco
 const Upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // limite de 10 MB suficiente para archivos PE-04 masivos
+  limits: { fileSize: 50 * 1024 * 1024 } // limite de 50 MB suficiente para archivos PE-04 masivos
 });
 
 // Lectura de fichas y descarga de plantilla oficial

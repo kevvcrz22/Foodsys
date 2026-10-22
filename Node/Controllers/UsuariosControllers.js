@@ -458,6 +458,9 @@ export const previewImport = async (req, res) => {
       return res.status(400).json({ message: "Archivo requerido" });
     }
 
+    const { soloActivos = "true" } = req.query;
+    const filtrarSoloActivos = soloActivos === "true" || soloActivos === true;
+
     const Workbook = XLSX.read(req.file.buffer, { type: "buffer" });
     const { Filas, nombreHoja } = detectarHojaAprendices(Workbook);
 
@@ -486,14 +489,37 @@ export const previewImport = async (req, res) => {
 
     // Procesar y normalizar cada fila
     const Datos = [];
+    let omitidosInactivos = 0;
+
     for (const Fila of Filas) {
+      // Extracción limpia de documento previniendo notación científica
       const numDocRaw = extractExcelField(
         Fila,
         ["DOCUMENTO", "NUMDOC_USUARIO", "NUM_DOC", "NÚMERO DE IDENTIFICACIÓN APRENDIZ", "NUMERO DE IDENTIFICACION APRENDIZ", "NÚMERO DE IDENTIFICACIÓN"],
         ["IDENTIFICACION", "IDENTIFICACIÓN"]
       );
-      const numDoc = numDocRaw.replace(/\D/g, "");
+
+      let numDoc = "";
+      if (typeof numDocRaw === "number") {
+        numDoc = Math.round(numDocRaw).toString();
+      } else {
+        let s = String(numDocRaw || "").trim();
+        if (/[eE]/.test(s) && !isNaN(Number(s))) {
+          s = Math.round(Number(s)).toString();
+        }
+        numDoc = s.split(".")[0].replace(/\D/g, "");
+      }
       if (!numDoc) continue;
+
+      // Estado del aprendiz en la base original
+      const estadoRaw = extractExcelField(Fila, ["ESTADO", "ESTADO APRENDIZ", "EST_USUARIO"]).toUpperCase().trim();
+      if (filtrarSoloActivos && estadoRaw) {
+        const esInactivo = /CANCELADO|RETIRO|CERTIFICADO|APLAZADO|TRASLADADO/i.test(estadoRaw);
+        if (esInactivo) {
+          omitidosInactivos++;
+          continue;
+        }
+      }
 
       const tipDoc = extractExcelField(
         Fila,
@@ -524,10 +550,22 @@ export const previewImport = async (req, res) => {
         Fila,
         ["COR_USUARIO", "CORREO ELECTRÓNICO ", "CORREO ELECTRÓNICO", "CORREO ELECTRONICO", "CORREO ELECTRÓNICO DEL APRENDIZ ", "CORREO ELECTRÓNICO DEL APRENDIZ", "EMAIL", "CORREO"]
       );
-      const telRaw = extractExcelField(
+
+      const telRawVal = extractExcelField(
         Fila,
-        ["TEL_USUARIO", "TELÉFOSI DE CONTACTO", "TELEFONO DE CONTACTO", "TELÉFONO DE CONTACTO DEL APRENDIZ ", "TELÉFONO DE CONTACTO DEL APRENDIZ", "TELEFONO", "CELULAR"]
+        ["TEL_USUARIO", "TELÉFOSI DE CONTACTO", "TELEFOSI DE CONTACTO", "TELEFONO DE CONTACTO", "TELÉFONO DE CONTACTO DEL APRENDIZ ", "TELÉFONO DE CONTACTO DEL APRENDIZ", "TELEFONO", "CELULAR"]
       );
+      let telFinal = "";
+      if (typeof telRawVal === "number") {
+        telFinal = Math.round(telRawVal).toString();
+      } else if (telRawVal) {
+        let st = String(telRawVal).trim();
+        if (/[eE]/.test(st) && !isNaN(Number(st))) {
+          st = Math.round(Number(st)).toString();
+        }
+        telFinal = st.split(".")[0].replace(/\D/g, "");
+      }
+
       const genRaw = extractExcelField(Fila, ["GEN_USUARIO", "GENERO", "GÉNERO", "SEXO"]);
 
       // Centro de convivencia (Alojamientos, cabañas, Internos)
@@ -552,19 +590,24 @@ export const previewImport = async (req, res) => {
         Nom_Usuario: nombres || "Sin Nombre",
         Ape_Usuario: apellidos || "",
         Cor_Usuario: corRaw || null,
-        Tel_Usuario: telRaw || null,
+        Tel_Usuario: telFinal || null,
         Gen_Usuario: genRaw ? (genRaw.toUpperCase().startsWith("M") ? "M" : "F") : null,
         CenCon_Usuario: esInterno ? "Si" : "No",
         Num_Ficha: fichaEncontrada ? fichaEncontrada.Num_Ficha : (numFichaRaw || "Sin asignar"),
         Id_Ficha: fichaEncontrada ? fichaEncontrada.Id_Ficha : null,
-        Nom_Programa: fichaEncontrada?.programas?.Nom_Programa || extractExcelField(Fila, ["PROGRAMA DE FORMACIÓN", "PROGRAMA", "NOMBRE_PROGRAMA_FORMACION"]) || "Por asociar",
+        Nom_Programa: fichaEncontrada?.Nom_Programa || extractExcelField(Fila, ["PROGRAMA DE FORMACIÓN", "PROGRAMA", "NOMBRE_PROGRAMA_FORMACION"]) || "Por asociar",
         Rol_Asignado: rolAsignado,
         Est_Usuario: estUsuario,
         Estado_Etapa_Lectiva: "Vigente"
       });
     }
 
-    return res.status(200).json({ total: Datos.length, hojaDetectada: nombreHoja, data: Datos });
+    return res.status(200).json({
+      total: Datos.length,
+      hojaDetectada: nombreHoja,
+      omitidosInactivos,
+      data: Datos
+    });
   } catch (error) {
     console.error("Error en previewImport:", error);
     return res.status(500).json({ message: "Error al leer el archivo. Verifica el formato de aprendices." });
@@ -575,6 +618,7 @@ export const previewImport = async (req, res) => {
   importarSeleccionados  (Paso C)
   Recibe el array de usuarios aprobados, resuelve fichas,
   asigna roles en usuarios_rol y desactiva aprendices con fichas vencidas.
+  Optimizado para procesar lotes masivos en segundos mediante Sets en memoria y chunks paralelos.
 */
 export const importarSeleccionados = async (req, res) => {
   try {
@@ -584,14 +628,14 @@ export const importarSeleccionados = async (req, res) => {
       return res.status(400).json({ message: "No hay datos seleccionados" });
     }
 
-    // Precargar todos los roles en un mapa en memoria
+    // 1. Precargar roles en memoria
     const rolesDisponibles = await RolesModel.findAll();
     const mapaRoles = new Map();
     for (const r of rolesDisponibles) {
       mapaRoles.set(r.Nom_Rol.trim().toLowerCase(), r.Id_Rol);
     }
 
-    // Precargar todas las fichas en un mapa en memoria
+    // 2. Precargar fichas en memoria
     const todasLasFichas = await FichasModel.findAll();
     const mapaFichas = new Map();
     for (const f of todasLasFichas) {
@@ -599,119 +643,143 @@ export const importarSeleccionados = async (req, res) => {
       mapaFichas.set(String(f.Id_Ficha).trim(), f);
     }
 
-    const hoyBogota = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+    // 3. Precargar usuarios existentes en Sets para deduplicacion O(1) instantanea
+    const usuariosExistentes = await UsuariosModel.findAll({
+      attributes: ["NumDoc_Usuario", "Cor_Usuario"]
+    });
+    const setDocs = new Set(usuariosExistentes.map(u => String(u.NumDoc_Usuario).trim()));
+    const setCors = new Set(
+      usuariosExistentes
+        .filter(u => u.Cor_Usuario)
+        .map(u => String(u.Cor_Usuario).toLowerCase().trim())
+    );
 
     let Creados = 0;
     let Omitidos = 0;
     const Errores = [];
 
-    for (const Fila of usuarios) {
-      if (!Fila.NumDoc_Usuario || !Fila.Nom_Usuario) {
-        Omitidos++;
-        Errores.push(`Fila omitida: falta NumDoc_Usuario o Nom_Usuario (doc: "${Fila.NumDoc_Usuario || "?"}")`);
-        continue;
-      }
+    // Procesar en chunks concurrentes de 25 para maximo rendimiento y evitar timeouts HTTP
+    const CHUNK_SIZE = 25;
+    for (let i = 0; i < usuarios.length; i += CHUNK_SIZE) {
+      const lote = usuarios.slice(i, i + CHUNK_SIZE);
+      await Promise.all(
+        lote.map(async (Fila) => {
+          try {
+            if (!Fila.NumDoc_Usuario || !Fila.Nom_Usuario) {
+              Omitidos++;
+              Errores.push(`Fila omitida: falta Documento o Nombre (doc: "${Fila.NumDoc_Usuario || '?'}")`);
+              return;
+            }
 
-      const numDocStr = String(Fila.NumDoc_Usuario).trim();
+            const numDocStr = String(Fila.NumDoc_Usuario).trim();
 
-      // Duplicado por documento
-      const ExisteDoc = await UsuariosModel.findOne({ where: { NumDoc_Usuario: numDocStr } });
-      if (ExisteDoc) {
-        Omitidos++;
-        Errores.push(`Documento ${numDocStr} ya existe en el sistema.`);
-        continue;
-      }
+            // Deduplicación O(1) por documento
+            if (setDocs.has(numDocStr)) {
+              Omitidos++;
+              Errores.push(`Documento ${numDocStr} ya existe en el sistema.`);
+              return;
+            }
 
-      // Duplicado por correo (si viene informado)
-      if (Fila.Cor_Usuario && String(Fila.Cor_Usuario).trim()) {
-        const corStr = String(Fila.Cor_Usuario).trim();
-        const ExisteCorreo = await UsuariosModel.findOne({ where: { Cor_Usuario: corStr } });
-        if (ExisteCorreo) {
-          Omitidos++;
-          Errores.push(`Correo ${corStr} ya esta registrado (doc: ${numDocStr}).`);
-          continue;
-        }
-      }
+            // Deduplicación O(1) por correo
+            const corStr = Fila.Cor_Usuario ? String(Fila.Cor_Usuario).trim().toLowerCase() : "";
+            if (corStr && setCors.has(corStr)) {
+              Omitidos++;
+              Errores.push(`Correo ${corStr} ya esta registrado (doc: ${numDocStr}).`);
+              return;
+            }
 
-      // Resolver Ficha
-      let idFichaFinal = null;
-      let fichaAsociada = null;
-      const numFichaBuscada = String(Fila.Num_Ficha || Fila.Id_Ficha || Fila.IDENTIFICADOR_FICHA || "").trim();
+            // Registramos en el Set local inmediatamente para evitar duplicados dentro del mismo lote
+            setDocs.add(numDocStr);
+            if (corStr) setCors.add(corStr);
 
-      if (numFichaBuscada) {
-        fichaAsociada = mapaFichas.get(numFichaBuscada);
-        if (!fichaAsociada && /^\d+$/.test(numFichaBuscada)) {
-          // Si no existe pero es un numero valido, crear la ficha automaticamente para no rechazar al aprendiz
-          fichaAsociada = await FichasModel.create({
-            Num_Ficha: numFichaBuscada,
-            Est_Ficha: "Activo"
-          });
-          mapaFichas.set(numFichaBuscada, fichaAsociada);
-        }
-        if (fichaAsociada) {
-          idFichaFinal = fichaAsociada.Id_Ficha;
-        }
-      }
+            // Resolver Ficha
+            let idFichaFinal = null;
+            let fichaAsociada = null;
+            const numFichaBuscada = String(Fila.Num_Ficha || Fila.Id_Ficha || "").trim();
 
-      // MANDATORIO: Todos los usuarios importados por Excel deben tener estado obligatorio "En Formacion"
-      const estUsuarioFinal = "En Formacion";
+            if (numFichaBuscada && numFichaBuscada !== "Sin asignar") {
+              fichaAsociada = mapaFichas.get(numFichaBuscada);
+              if (!fichaAsociada && /^\d+$/.test(numFichaBuscada)) {
+                try {
+                  fichaAsociada = await FichasModel.create({
+                    Num_Ficha: numFichaBuscada,
+                    Est_Ficha: "Activo"
+                  });
+                  mapaFichas.set(numFichaBuscada, fichaAsociada);
+                } catch {
+                  fichaAsociada = await FichasModel.findOne({ where: { Num_Ficha: numFichaBuscada } });
+                  if (fichaAsociada) mapaFichas.set(numFichaBuscada, fichaAsociada);
+                }
+              }
+              if (fichaAsociada) {
+                idFichaFinal = fichaAsociada.Id_Ficha;
+              }
+            }
 
-      // Determinar rol segun CenCon_Usuario
-      const cenConStr = String(Fila.CenCon_Usuario || "").toLowerCase().trim();
-      const esInterno = ["si", "sí", "1", "true"].includes(cenConStr);
-      const rolRaw = String(Fila.Rol_Asignado || Fila.Rol || Fila.Tip_Usuario || "").toLowerCase();
-      const esPasante = rolRaw.includes("pasante");
+            const estUsuarioFinal = "En Formacion";
 
-      let nombreRolAsignar = "Aprendiz Externo";
-      if (esPasante) {
-        nombreRolAsignar = esInterno ? "Pasante Interno" : "Pasante Externo";
-      } else {
-        nombreRolAsignar = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
-      }
+            // Determinar rol segun CenCon_Usuario
+            const cenConStr = String(Fila.CenCon_Usuario || "").toLowerCase().trim();
+            const esInterno = ["si", "sí", "1", "true"].includes(cenConStr);
+            const rolRaw = String(Fila.Rol_Asignado || Fila.Rol || "").toLowerCase();
+            const esPasante = rolRaw.includes("pasante");
 
-      const idRolFinal = mapaRoles.get(nombreRolAsignar.toLowerCase());
+            let nombreRolAsignar = "Aprendiz Externo";
+            if (esPasante) {
+              nombreRolAsignar = esInterno ? "Pasante Interno" : "Pasante Externo";
+            } else {
+              nombreRolAsignar = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
+            }
 
-      const HashPwd = await bcrypt.hash(numDocStr, 10);
+            const idRolFinal = mapaRoles.get(nombreRolAsignar.toLowerCase());
 
-      const nuevoUsuario = await UsuariosModel.create({
-        TipDoc_Usuario: Fila.TipDoc_Usuario || "CC",
-        NumDoc_Usuario: numDocStr,
-        Nom_Usuario: String(Fila.Nom_Usuario).trim(),
-        Ape_Usuario: Fila.Ape_Usuario ? String(Fila.Ape_Usuario).trim() : null,
-        Gen_Usuario: Fila.Gen_Usuario || null,
-        Cor_Usuario: Fila.Cor_Usuario ? String(Fila.Cor_Usuario).trim() : null,
-        Tel_Usuario: Fila.Tel_Usuario ? String(Fila.Tel_Usuario).trim() : null,
-        CenCon_Usuario: esInterno ? "Si" : "No",
-        Id_Ficha: idFichaFinal,
-        Est_Usuario: estUsuarioFinal,
-        San_Usuario: Fila.San_Usuario || "No",
-        Pol_Usuario: "No",
-        password: HashPwd,
-        uuid: uuidv4(),
-        createdat: new Date(),
-        updatedat: new Date(),
-      });
+            // Hash seguro y rapido con 8 rondas
+            const HashPwd = await bcrypt.hash(numDocStr, 8);
 
-      // Asignar rol en usuarios_rol
-      if (idRolFinal) {
-        await UsuariosRolModel.create({
-          Id_Usuario: nuevoUsuario.Id_Usuario,
-          Id_Rol: idRolFinal
-        });
-      }
+            const nuevoUsuario = await UsuariosModel.create({
+              TipDoc_Usuario: Fila.TipDoc_Usuario || "CC",
+              NumDoc_Usuario: numDocStr,
+              Nom_Usuario: String(Fila.Nom_Usuario).trim(),
+              Ape_Usuario: Fila.Ape_Usuario ? String(Fila.Ape_Usuario).trim() : null,
+              Gen_Usuario: Fila.Gen_Usuario || null,
+              Cor_Usuario: corStr || null,
+              Tel_Usuario: Fila.Tel_Usuario ? String(Fila.Tel_Usuario).trim() : null,
+              CenCon_Usuario: esInterno ? "Si" : "No",
+              Id_Ficha: idFichaFinal,
+              Est_Usuario: estUsuarioFinal,
+              San_Usuario: Fila.San_Usuario || "No",
+              Pol_Usuario: "No",
+              password: HashPwd,
+              uuid: uuidv4(),
+              createdat: new Date(),
+              updatedat: new Date(),
+            });
 
-      // Si la ficha ya vencio, sincronizar para cancelar cualquier reserva previa
-      if (idFichaFinal && estUsuarioFinal === "Inactivo") {
-        await sincronizarEstadoAprendices(idFichaFinal);
-      }
+            if (idRolFinal) {
+              await UsuariosRolModel.create({
+                Id_Usuario: nuevoUsuario.Id_Usuario,
+                Id_Rol: idRolFinal
+              });
+            }
 
-      Creados++;
+            Creados++;
+          } catch (errUser) {
+            Omitidos++;
+            Errores.push(`Error al registrar documento ${Fila.NumDoc_Usuario || '?'}: ${errUser.message}`);
+          }
+        })
+      );
     }
 
-    res.json({ creados: Creados, omitidos: Omitidos, errores: Errores });
+    return res.status(200).json({
+      creados: Creados,
+      omitidos: Omitidos,
+      errores: Errores,
+      mensaje: `Proceso completado: ${Creados} aprendices registrados exitosamente, ${Omitidos} omitidos.`
+    });
   } catch (error) {
     console.error("Error en importarSeleccionados:", error);
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 

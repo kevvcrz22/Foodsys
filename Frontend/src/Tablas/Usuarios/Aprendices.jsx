@@ -8,10 +8,11 @@ import apiAxios from "../../api/axiosConfig";
 import DataTable from "react-data-table-component";
 import toast from "react-hot-toast";
 import UsuariosForm from "./UsuariosForm.jsx";
+import ImportarExcel from "./ImportarExcel.jsx";
 import {
   Users, Search, CheckCircle2, AlertCircle, ShieldCheck, Ban,
   History, X, Download, FileText, ChevronDown, ChevronUp,
-  HelpCircle, Phone, Mail, Pencil
+  HelpCircle, Phone, Mail, Pencil, Upload
 } from "lucide-react";
 import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
 import GlobalLoader from "../../Components/GlobalLoader";
@@ -78,6 +79,7 @@ const Aprendices = () => {
   const [selectedUsuario, setSelectedUsuario] = useState(null);
   const [isEdit, setIsEdit] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Modal de historial individual
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
@@ -420,8 +422,16 @@ const Aprendices = () => {
         {/* Botones de accion y exportacion */}
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-sm transition active:scale-95 cursor-pointer"
+            title="Importar lista de aprendices desde archivo Excel (.xlsx o .xlsm)"
+          >
+            <Upload size={15} />
+            Importar Excel
+          </button>
+          <button
             onClick={handleExportarExcel}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-xl shadow-sm transition active:scale-95"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-xl shadow-sm transition active:scale-95 cursor-pointer"
             title="Descargar lista en Excel (.xlsx)"
           >
             <Download size={15} />
@@ -429,7 +439,7 @@ const Aprendices = () => {
           </button>
           <button
             onClick={handleExportarPDF}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold rounded-xl shadow-sm transition active:scale-95"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold rounded-xl shadow-sm transition active:scale-95 cursor-pointer"
             title="Descargar lista en PDF (.pdf)"
           >
             <FileText size={15} />
@@ -726,6 +736,14 @@ const Aprendices = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de importacion masiva Excel */}
+      {isImportModalOpen && (
+        <ImportarExcel
+          onClose={() => setIsImportModalOpen(false)}
+          reload={cargarAprendices}
+        />
       )}
     </div>
   );

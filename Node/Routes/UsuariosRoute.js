@@ -33,7 +33,10 @@ const Router = express.Router();
   MemoryStorage: el archivo llega en req.file.buffer (RAM).
   Nunca se escribe en disco; mas rapido y seguro para archivos temporales.
 */
-const Upload = multer({ storage: multer.memoryStorage() });
+const Upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 } // 50 MB para soportar archivos masivos como Base_NO MODIFICAR
+});
 
 // ─────────────────────────────────────────────────────────────
 // RUTAS ESTATICAS Y ESPECIFICAS
