@@ -174,6 +174,10 @@ router.get('/vencidas/count', authMiddleware, ContarVencidas);
 router.get(
   '/supervisor/resumen-hoy',
   authMiddleware,
+  SupervisorMiddleware,
+  ResumenSupervisor
+);
+
 // Rutas para Ceder Reserva y Bolsa Solidaria (Habeas Data)
 router.get('/ceder/buscar-companero', authMiddleware, buscarCompaneroParaCeder);
 router.post('/ceder/transferir', authMiddleware, cederReserva);
