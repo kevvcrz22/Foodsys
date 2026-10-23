@@ -678,10 +678,10 @@ export const previewImport = async (req, res) => {
       const nombresMayus = (nombres || "SIN NOMBRE").trim().toUpperCase();
       const apellidosMayus = (apellidos || "").trim().toUpperCase();
 
-      // Validar si la ficha existe o sera auto-registrada (Bug 4)
+      // Validar si la ficha existe en el sistema (Obligatorio: Primero Programa, luego Ficha, luego Usuarios)
       const numFichaLimpio = String(numFichaRaw || "").trim().replace(/\D/g, "");
       const fichaEncontrada = numFichaLimpio ? (mapaFichas.get(numFichaLimpio) || mapaFichas.get(String(parseInt(numFichaLimpio, 10)))) : null;
-      const tieneFichaValida = Boolean(numFichaLimpio);
+      const tieneFichaValida = Boolean(fichaEncontrada && fichaEncontrada.Id_Ficha);
 
       const estUsuario = "En Formacion";
 
@@ -694,13 +694,17 @@ export const previewImport = async (req, res) => {
         Tel_Usuario: telFinal || null,
         Gen_Usuario: genRaw ? (genRaw.toUpperCase().startsWith("M") ? "Masculino" : "Femenino") : "No especificado",
         CenCon_Usuario: esInterno ? "Si" : "No",
-        Num_Ficha: tieneFichaValida ? (fichaEncontrada ? fichaEncontrada.Num_Ficha : numFichaLimpio) : "Sin ficha",
-        Id_Ficha: fichaEncontrada ? fichaEncontrada.Id_Ficha : null,
-        Nom_Programa: fichaEncontrada
+        Num_Ficha: tieneFichaValida ? fichaEncontrada.Num_Ficha : (numFichaLimpio || "Sin ficha"),
+        Id_Ficha: tieneFichaValida ? fichaEncontrada.Id_Ficha : null,
+        Nom_Programa: tieneFichaValida
           ? String(fichaEncontrada.Nom_Programa || "").toUpperCase()
-          : (nomProgExtraido ? String(nomProgExtraido).trim().toUpperCase() : "PROGRAMA ASOCIADO"),
+          : "PROGRAMA NO REGISTRADO",
         fichaValida: tieneFichaValida,
-        errorFicha: tieneFichaValida ? null : "El aprendiz no tiene numero de ficha asignado.",
+        errorFicha: tieneFichaValida
+          ? null
+          : (numFichaLimpio
+              ? `La ficha #${numFichaLimpio} no esta registrada en el sistema. Primero debe registrar o importar la ficha en el modulo de Fichas.`
+              : "El aprendiz no tiene numero de ficha asignado. No se puede subir sin ficha."),
         Rol_Asignado: rolAsignado,
         Est_Usuario: estUsuario,
         Estado_Etapa_Lectiva: "Vigente"
@@ -795,37 +799,19 @@ export const importarSeleccionados = async (req, res) => {
             const nomUsuarioFinal = String(Fila.Nom_Usuario).trim().toUpperCase();
             const apeUsuarioFinal = Fila.Ape_Usuario ? String(Fila.Ape_Usuario).trim().toUpperCase() : "";
 
-            // Auto-registro al vuelo de Fichas y Programas si no existen previamente (Bug 4)
+            // REGLA OBLIGATORIA: La ficha DEBE existir previamente en el sistema. Si no existe, NO SE PERMITE SUBIR.
             const numFichaBuscada = String(Fila.Num_Ficha || Fila.Id_Ficha || "").trim().replace(/\D/g, "");
-            let fichaAsociada = numFichaBuscada
+            const fichaAsociada = numFichaBuscada
               ? (mapaFichas.get(numFichaBuscada) || mapaFichas.get(String(parseInt(numFichaBuscada, 10))))
               : null;
 
-            let idFichaFinal = fichaAsociada?.Id_Ficha || null;
-            if (!idFichaFinal && numFichaBuscada) {
-              const nomProgFila = normalizarNombrePrograma(Fila.Nom_Programa) || `PROGRAMA FICHA ${numFichaBuscada}`;
-              let progObj = mapaProgramasPorNombre.get(nomProgFila);
-              if (!progObj) {
-                progObj = await ProgramaModel.create({
-                  Nom_Programa: nomProgFila,
-                  NivFor_Programa: "TECNOLOGO",
-                  Est_Programa: "Activo"
-                });
-                mapaProgramasPorNombre.set(nomProgFila, progObj);
-                mapaProgramasPorId.set(progObj.Id_Programa, progObj);
-              }
-              const nuevaFicha = await FichasModel.create({
-                Num_Ficha: numFichaBuscada,
-                Id_Programa: progObj.Id_Programa,
-                FecIniLec_Ficha: obtenerFechaColombia(),
-                FecFinLec_Ficha: "2028-12-31",
-                FecIniPra_Ficha: "2029-01-01",
-                FecFinPra_Ficha: "2029-06-30"
-              });
-              mapaFichas.set(String(nuevaFicha.Num_Ficha).trim(), nuevaFicha);
-              mapaFichas.set(String(nuevaFicha.Id_Ficha).trim(), nuevaFicha);
-              idFichaFinal = nuevaFicha.Id_Ficha;
+            if (!fichaAsociada || !fichaAsociada.Id_Ficha) {
+              Omitidos++;
+              Errores.push(`Aprendiz ${numDocStr} (${nomUsuarioFinal} ${apeUsuarioFinal}) rechazado: La ficha #${numFichaBuscada || 'No especificada'} no existe en el sistema. Primero debe registrar o importar la ficha.`);
+              return;
             }
+
+            const idFichaFinal = fichaAsociada.Id_Ficha;
 
             // Determinar rol segun CenCon_Usuario
             const cenConStr = String(Fila.CenCon_Usuario || "").toLowerCase().trim();
