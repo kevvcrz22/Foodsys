@@ -521,6 +521,6 @@ const PUERTO = process.env.PORT || 8000;
 const servidorHttp = http.createServer(aplicacion);
 initSocket(servidorHttp, opcionesCors);
 
-servidorHttp.listen(PUERTO, () => console.log(`Servidor ejecutándose en http://localhost:${PUERTO}`));
+servidorHttp.listen(PUERTO, '0.0.0.0', () => console.log(`Servidor ejecutándose en http://0.0.0.0:${PUERTO}`));
 
 export default aplicacion;

@@ -70,9 +70,8 @@ class ReservasServices {
   // Valida horario limite para ceder reservas (2 horas antes del turno oficial en Colombia)
   // Desayuno hasta 04:00 AM, Almuerzo hasta 09:30 AM, Cena hasta 04:00 PM (16:00)
   ValidarHorarioCesion(tipo, fechaReserva) {
-    const { obtenerFechaColombia, obtenerHoraColombia } = require ? {} : {};
-    const fechaHoyCol = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const horaActualCol = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+    const fechaHoyCol = obtenerFechaColombia();
+    const horaActualCol = obtenerHoraColombia();
     const [hhActual, mmActual] = horaActualCol.split(':').map(Number);
     const minutosActuales = hhActual * 60 + mmActual;
 

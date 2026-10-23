@@ -10,9 +10,10 @@ export default defineConfig({
     basicSsl(),
   ],
   server: {
-    https: false,
+    https: true,
     host: true,
     port: 5173,
+    strictPort: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',  // ← puerto de tu backend
