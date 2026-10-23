@@ -948,6 +948,29 @@ class ReservasServices {
     });
   }
 
+  // Retorna todas las reservas con los datos del usuario y del plato para reportes y panel administrativo
+  async ObtenerTodas() {
+    return await ReservaModel.findAll({
+      include: [
+        {
+          model: UsuariosModel,
+          as: "usuario",
+          attributes: ["Id_Usuario", "Nom_Usuario", "Ape_Usuario", "NumDoc_Usuario", "Cor_Usuario"]
+        },
+        {
+          model: PlatosModels,
+          as: "plato",
+          attributes: ["Id_Plato", "Nom_Plato", "Img_Plato", "Des_Plato"]
+        }
+      ],
+      order: [["Fec_Reserva", "DESC"], ["createdAt", "DESC"]]
+    });
+  }
+
+  async obtenerTodas() {
+    return await this.ObtenerTodas();
+  }
+
   async cancelarReserva(Id_Reserva, Id_Usuario) {
     const Reserva = await ReservaModel.findOne({
       where: { Id_Reserva, Id_Usuario }

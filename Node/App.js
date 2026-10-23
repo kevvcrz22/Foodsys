@@ -508,6 +508,14 @@ aplicacion.use((err, req, res, next) => {
   });
 });
 
+// Prevenir caida del proceso Node ante excepciones no capturadas o promesas rechazadas
+process.on('uncaughtException', (err) => {
+  console.error('⚠️ [ALERTA DE PROCESO] uncaughtException:', err?.message || err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️ [ALERTA DE PROCESO] unhandledRejection:', reason?.message || reason);
+});
+
 // ---------- 11. INICIAR EL SERVIDOR ----------
 const PUERTO = process.env.PORT || 8000;
 const servidorHttp = http.createServer(aplicacion);

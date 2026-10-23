@@ -11,9 +11,7 @@ let socketInstance = null;
 
 export const getSocket = () => {
   if (!socketInstance) {
-    const SOCKET_URL =
-      import.meta.env.VITE_API_URL ||
-      (window.location.hostname === "localhost" ? "http://localhost:8000" : window.location.origin);
+    const SOCKET_URL = import.meta.env.VITE_API_URL || window.location.origin;
 
     socketInstance = io(SOCKET_URL, {
       transports: ["polling", "websocket"],
