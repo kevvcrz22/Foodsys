@@ -7,7 +7,7 @@ import {
   Home, User, Edit, BarChart3, LogOut, Menu, X,
   CalendarCheck, Users, FileText, GraduationCap,
   Database, ShieldCheck, Utensils, ClipboardList,
-  Phone, Info, ChefHat, BookOpen, ExternalLink,
+  Phone, Info, ChefHat, BookOpen, ExternalLink, MessageSquare, ArrowUpDown,
 } from 'lucide-react';
 import { useNavBar } from "./CerrarSesion";
 import NavRolSelector from "./NavBar/NavRolSelector";
@@ -72,6 +72,8 @@ const TABLAS_POR_ROL = {
     { to: "/usuarios", label: "Usuarios", icon: Users },
     { to: "/aprendices", label: "Aprendices", icon: User },
     { to: "/pasantes", label: "Pasantes", icon: Users },
+    { to: "/pqrsf-admin", label: "PQRSF Interventoría", icon: MessageSquare },
+    { to: "/sincronizacion", label: "Sincronización Offline", icon: ArrowUpDown },
     { to: "/UsuariosRoles", label: "Asignar Roles", icon: ShieldCheck },
     { to: "/roles", label: "Roles", icon: ShieldCheck },
     { to: "/fichas", label: "Fichas", icon: FileText },
@@ -87,6 +89,7 @@ const TABLAS_POR_ROL = {
   Bienestar: [
     { to: '/aprendices', label: 'Aprendices', icon: User },
     { to: '/pasantes', label: 'Pasantes', icon: Users },
+    { to: "/pqrsf-admin", label: "PQRSF Interventoría", icon: MessageSquare },
   ],
   Cocina: [
     { to: '/menus',  label: 'Menús',  icon: ClipboardList },

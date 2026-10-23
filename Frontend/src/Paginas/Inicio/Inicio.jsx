@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TurnoSupervisorCard from "../../Components/TurnoSupervisorCard.jsx";
+import SemaforoAforoCard from "../../Components/SemaforoAforoCard.jsx";
 
 // Prefijo de ruta segun el rol activo.
 // ⚠️ MODIFICABLE: si cambias el nombre de un rol en la BD, actualiza aqui.
@@ -296,6 +297,9 @@ const Inicio = () => {
           )}
         </p>
       </div>
+
+      {/* Semaforo de aforo y congestion en tiempo real */}
+      <SemaforoAforoCard />
 
       {/* Panel de Turno Exclusivo para Supervisor */}
       {Rol_Activo === "Supervisor" && <TurnoSupervisorCard usuario={Usuario} />}

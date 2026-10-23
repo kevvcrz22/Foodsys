@@ -12,6 +12,7 @@
 //   GET /api/Cocina/turno-actual/:tipo    -> balance del turno en progreso
 
 import CocinaService from '../Services/CocinaService.js';
+import { obtenerFechaColombia } from '../Utils/dateUtils.js';
 
 // Resumen completo de reservas para una fecha especifica
 // Params: fecha en formato YYYY-MM-DD
@@ -32,7 +33,7 @@ export const GetResumenPorFecha = async (req, res) => {
 // Resumen de hoy (atajo que no requiere parametro de fecha)
 export const GetResumenHoy = async (req, res) => {
   try {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = obtenerFechaColombia();
     const resumen = await CocinaService.ResumenPorFecha(hoy);
     return res.status(200).json(resumen);
   } catch (err) {
@@ -47,7 +48,7 @@ export const GetResumenHoy = async (req, res) => {
 export const GetReportePrevioTurno = async (req, res) => {
   try {
     const { tipo } = req.params;
-    const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
+    const fecha = req.query.fecha || obtenerFechaColombia();
     const reporte = await CocinaService.ReportePrevioTurno(tipo, fecha);
     return res.status(200).json(reporte);
   } catch (err) {

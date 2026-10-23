@@ -24,7 +24,9 @@ import {
   ActualizarSancion,
   GetSancionados,
   getResetPassword,
-  setNewPassword
+  setNewPassword,
+  diagnosticarSofiaPlus,
+  aplicarConciliacionSofiaPlus
 } from '../Controllers/UsuariosControllers.js';
 
 const Router = express.Router();
@@ -98,6 +100,10 @@ Router.post("/preview-import", Upload.single("file"), previewImport);
   La logica de validacion y deduplicacion vive en el controlador.
 */
 Router.post("/importar-seleccionados", importarSeleccionados);
+
+// Motor de Conciliacion Inteligente SOFIA Plus en 1 Clic
+Router.post("/sofia/diagnostico", authMiddleware, Upload.single("file"), diagnosticarSofiaPlus);
+Router.post("/sofia/conciliar", authMiddleware, aplicarConciliacionSofiaPlus);
 
 // ─────────────────────────────────────────────────────────────
 // RUTAS CON PARAMETRO DINAMICO /:Id

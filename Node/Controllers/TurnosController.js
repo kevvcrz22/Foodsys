@@ -60,10 +60,21 @@ export const obtenerConsumosDeTurno = async (req, res) => {
   }
 };
 
+export const obtenerAforoSemaforo = async (req, res) => {
+  try {
+    const aforo = await TurnosService.obtenerAforoSemaforo();
+    return res.status(200).json(aforo);
+  } catch (error) {
+    console.error("Error al obtener aforo semaforo:", error.message);
+    return res.status(500).json({ mensaje: "Error al calcular aforo del comedor" });
+  }
+};
+
 export default {
   obtenerTurnoActivo,
   iniciarTurno,
   finalizarTurno,
   obtenerHistorial,
-  obtenerConsumosDeTurno
+  obtenerConsumosDeTurno,
+  obtenerAforoSemaforo
 };

@@ -1,21 +1,28 @@
+# Dependencias
 node_modules/
 Frontend/node_modules/
 Node/node_modules/
+
+# Variables de entorno y secretos
 .env
 Node/.env
+*.env.local
+
+# Logs
 *.log
 npm-debug.log*
+
+# Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Compilacion
 Frontend/dist/
+dist/
+
+# Archivos pesados de Excel en la raiz y subcarpetas (excepto plantillas)
 *.xlsx
 *.xlsm
-!Aprendices_Activos_Foodsys.xlsx
-!Fichas_Activas_Foodsys.xlsx
-!PE-04_1.xlsx
-!Base_NO MODIFICAR_2026_SEPTIEMBRE.xlsm
-!Programas_Foodsys_Oficial.xlsx
-!Fichas_Foodsys_Oficial.xlsx
-!Aprendices_Foodsys_Oficial.xlsx
+*.xls
 !Node/Templates/**
-!Frontend/public/plantillas/**
+!Frontend/public/plantillas/**

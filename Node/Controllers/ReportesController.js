@@ -31,6 +31,7 @@
 
 import ReportesService from "../Services/ReportesServices.js";
 import ExportService from "../Services/ExportService.js";
+import { obtenerFechaColombia } from "../Utils/dateUtils.js";
 
 // ===========================================================================
 // FUNCIONES ORIGINALES — SIN NINGUNA MODIFICACION
@@ -457,15 +458,16 @@ export const exportarNoConsumidosPDF = async (req, res) => {
       busqueda
     });
 
+    const fechaReporte = fecha || obtenerFechaColombia();
     const pdfBuffer = await ExportService.generarPDFNoConsumidos(data, {
       periodo,
       tipoAlimento,
-      fecha: fecha || new Date().toISOString().split("T")[0]
+      fecha: fechaReporte
     });
 
     res.set({
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="Inasistencias_${periodo}_${new Date().toISOString().split("T")[0]}.pdf"`,
+      "Content-Disposition": `attachment; filename="Inasistencias_${periodo}_${obtenerFechaColombia()}.pdf"`,
     });
     res.send(pdfBuffer);
   } catch (error) {
@@ -502,15 +504,16 @@ export const exportarNoConsumidosExcel = async (req, res) => {
       busqueda
     });
 
+    const fechaReporteExcel = fecha || obtenerFechaColombia();
     const buffer = await ExportService.generarExcelNoConsumidos(data, {
       periodo,
       tipoAlimento,
-      fecha: fecha || new Date().toISOString().split("T")[0]
+      fecha: fechaReporteExcel
     });
 
     res.set({
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="Inasistencias_${periodo}_${new Date().toISOString().split("T")[0]}.xlsx"`,
+      "Content-Disposition": `attachment; filename="Inasistencias_${periodo}_${obtenerFechaColombia()}.xlsx"`,
     });
     res.send(buffer);
   } catch (error) {

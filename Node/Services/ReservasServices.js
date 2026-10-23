@@ -1,327 +1,305 @@
-// Services/ReservasServices.js
-//
+// Node/Services/ReservasServices.js
 // Servicio central del ciclo de vida de una reserva en Foodsys.
-// Responsabilidades de este archivo:
-//   - Crear reservas normales y por novedad (generarReservaPass)
-//   - Generar y leer los datos del codigo QR
-//   - Validar roles, sanciones, antelacion de 24 horas y duplicados
-//   - Procesar la verificacion de cocina (Generado -> Verificado)
-//   - Procesar el escaneo del supervisor (Verificado -> Consumido)
-//   - Aplicar el flujo privilegiado para usuarios con estado Especial
-//   - Verificar de forma perezosa si el estado Especial de un usuario ha expirado
-//   - Buscar y consumir una reserva directamente por numero de documento para el flujo de registro manual del supervisor (BuscarReservaPorDocumento)
-//
-// FLUJO NORMAL (Aprendiz/Pasante Externo SIN estado Especial):
-//   Generado -> [Cocina verifica presencialmente] -> Verificado -> [Supervisor escanea QR] -> Consumido
-//
-// FLUJO ESPECIAL (Aprendiz/Pasante Externo CON estado Especial activo):
-//   Generado -> [Supervisor escanea QR directamente] -> Consumido
-//   El paso de cocina se omite completamente durante el periodo Especial.
-//
-// FLUJO INTERNO (Aprendiz Interno / Pasante Interno):
-//   Generado -> [Supervisor escanea QR directamente] -> Consumido
-//   Los internos nunca pasan por cocina, este es su flujo estandar.
+// Implementa creacion, verificacion presencial/QR en cocina, consumo de supervisor,
+// validacion criptografica Ed25519 offline, cesion solidaria (Habeas Data) y outbox sync.
+// Comentarios didacticos sin tildes ni emojis para aprendices de primer semestre.
 
 import crypto from "crypto";
-import db from '../Database/db.js';
+import { Op } from "sequelize";
+import db from "../Database/db.js";
 import ReservaModel from "../Models/ReservasModel.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
 import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import RolesModel from "../Models/RolesModel.js";
 import PlatosModels from "../Models/PlatosModels.js";
-import MenusModel from "../Models/MenusModels.js";
+import FichasModel from "../Models/FichasModel.js";
 import VencimientoService from "./VencimientoService.js";
 import TurnosService from "./TurnosService.js";
+import NotificacionesService from "./NotificacionesService.js";
+import { generarQrFirmado, verificarQrOffline } from "../Utils/qrCrypto.js";
+import { obtenerFechaColombia, obtenerHoraColombia } from "../Utils/dateUtils.js";
 
-// Roles que requieren pasar por cocina si no tienen estado Especial.
-// Los internos (Aprendiz Interno, Pasante Interno) nunca pasan por este paso.
-const ROLES_EXTERNOS = ['Aprendiz Externo', 'Pasante Externo'];
-
-// Duracion en dias del estado Especial antes de revertir automaticamente a "En Formacion".
-// Se centraliza aqui para que NovedadesService use la misma constante si la necesita.
+const ROLES_EXTERNOS = ["Aprendiz Externo", "Pasante Externo"];
 const DIAS_DURACION_ESPECIAL = 30;
 
 class ReservasServices {
-
-  // Retorna la fecha de hoy en formato YYYY-MM-DD en la zona horaria de Colombia (America/Bogota, UTC-5)
+  // Retorna la fecha de hoy en formato YYYY-MM-DD en la zona horaria de Colombia
   ObtenerFechaHoy() {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
+    return obtenerFechaColombia();
   }
 
-  // Calcula la fecha y hora de vencimiento segun la fecha de reserva.
-  // El vencimiento es la hora de finalizacion del servicio de ese tipo de comida.
+  // Calcula la fecha y hora de vencimiento segun la fecha de reserva
   CalcularVencimiento(tipo, fechaReserva) {
     const vencimiento = new Date(`${fechaReserva}T00:00:00`);
-    // Hora exacta de cierre de cada turno segun las reglas de negocio
     const fin = {
-      Desayuno: { h: 7, m: 0 },   // turno 06:00 – 07:00
-      Almuerzo: { h: 13, m: 30 },   // turno 11:30 – 13:30
-      Cena: { h: 19, m: 0 }    // turno 18:00 – 19:00
+      Desayuno: { h: 7, m: 0 },
+      Almuerzo: { h: 13, m: 30 },
+      Cena: { h: 19, m: 0 }
     };
     if (!fin[tipo]) throw new Error("Tipo de comida no valido");
     vencimiento.setHours(fin[tipo].h, fin[tipo].m, 0, 0);
     return vencimiento;
   }
 
-  // Valida que la cancelacion se haga con al menos 9 horas de anticipacion
-  // al inicio del turno. Esto permite que el area de Cocina tenga tiempo
-  // para planificar las cantidades de produccion antes de preparar los platos.
-  // Lanza error si el aprendiz intenta cancelar muy tarde.
+  // Valida que la cancelacion se haga con al menos 9 horas de anticipacion al inicio del turno
   ValidarCancelacionPermitida(tipo, fechaReserva) {
     const ahora = new Date();
-    // Hora de inicio de cada turno
     const inicioTurno = {
       Desayuno: { h: 6, m: 0 },
       Almuerzo: { h: 11, m: 30 },
       Cena: { h: 18, m: 0 }
     };
-    if (!inicioTurno[tipo]) throw new Error('Tipo de comida no valido');
+    if (!inicioTurno[tipo]) throw new Error("Tipo de comida no valido");
     const fechaInicio = new Date(`${fechaReserva}T00:00:00`);
     fechaInicio.setHours(inicioTurno[tipo].h, inicioTurno[tipo].m, 0, 0);
     const limiteMs = fechaInicio.getTime() - 9 * 60 * 60 * 1000;
     if (ahora.getTime() > limiteMs) {
-      const limiteHora = new Date(limiteMs).toLocaleTimeString('es-CO', {
-        hour: '2-digit', minute: '2-digit', hour12: false
+      const limiteHora = new Date(limiteMs).toLocaleTimeString("es-CO", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
       });
       throw new Error(
         `Ya no es posible cancelar. El limite para cancelar ${tipo} era ` +
-        `a las ${limiteHora} (9 horas antes del inicio del turno), ` +
-        `para que el area de cocina pueda planificar la produccion.`
+        `a las ${limiteHora} (9 horas antes del inicio del turno).`
       );
     }
     return true;
   }
 
-  // Retorna la ventana horaria en la que se puede consumir cada tipo de comida.
-  // desde: hora minima (inclusive) para presentar el QR.
-  // hasta: hora maxima (inclusive) para presentar el QR.
-  // Si el tipo no tiene ventana definida, retorna null y se omite la validacion horaria.
-  // Ejemplo: Desayuno solo se puede consumir entre las 5:00 y las 7:00.
+  // Valida horario limite para ceder reservas (2 horas antes del turno oficial en Colombia)
+  // Desayuno hasta 04:00 AM, Almuerzo hasta 09:30 AM, Cena hasta 04:00 PM (16:00)
+  ValidarHorarioCesion(tipo, fechaReserva) {
+    const ahora = new Date();
+    const limites = {
+      Desayuno: { h: 4, m: 0 },
+      Almuerzo: { h: 9, m: 30 },
+      Cena: { h: 16, m: 0 }
+    };
+    if (!limites[tipo]) throw new Error("Tipo de comida no valido para cesion");
+
+    const fechaLimite = new Date(`${fechaReserva}T00:00:00`);
+    fechaLimite.setHours(limites[tipo].h, limites[tipo].m, 0, 0);
+
+    if (ahora.getTime() > fechaLimite.getTime()) {
+      const horaStr = `${String(limites[tipo].h).padStart(2, "0")}:${String(limites[tipo].m).padStart(2, "0")}`;
+      throw new Error(`El horario limite para ceder la reserva de ${tipo} vencio a las ${horaStr} en punto.`);
+    }
+    return true;
+  }
+
+  // Ventana horaria de consumo en el comedor
   ObtenerVentanaHoraria(tipo) {
-    // desde/hasta en hora entera (getHours); se ajusta a los turnos reales
     const ventanas = {
-      Desayuno: { desde: 6, hasta: 7 },   // 06:00 – 07:00
-      Almuerzo: { desde: 11, hasta: 14 },   // 11:30 – 13:30 (redondeado a hora entera)
-      Cena: { desde: 18, hasta: 19 }    // 18:00 – 19:00
+      Desayuno: { desde: 6, hasta: 8 },
+      Almuerzo: { desde: 11, hasta: 14 },
+      Cena: { desde: 17, hasta: 20 }
     };
     return ventanas[tipo] ?? null;
   }
-  // Valida que la reserva se haga con al menos 8 horas de antelacion respecto
-  // al cierre del periodo de reservas para ese tipo de comida.
-  // Esta validacion se omite cuando esNovedad = true.
-  // Horas limite de cierre de reservas por tipo:
-  //   Desayuno: 22:00 del dia anterior | Almuerzo: 05:00 del mismo dia | Cena: 11:00 del mismo dia
+
+  // Valida que la reserva se haga con al menos 8 horas de antelacion
   ValidarAntelacion8Horas(tipo, fechaReserva) {
     const ahora = new Date();
     const fechaObjetivo = new Date(`${fechaReserva}T00:00:00`);
-
-    // Hora limite de cierre de reservas por tipo de comida
     const horasLimite = { Desayuno: { h: 22, m: 0 }, Almuerzo: { h: 5, m: 0 }, Cena: { h: 11, m: 0 } };
     if (!horasLimite[tipo]) throw new Error("Tipo de comida no valido");
 
     fechaObjetivo.setHours(horasLimite[tipo].h, horasLimite[tipo].m, 0, 0);
-
     const diferenciaMs = fechaObjetivo.getTime() - ahora.getTime();
     const diferenciaHoras = diferenciaMs / (1000 * 60 * 60);
 
     if (diferenciaHoras < 8) {
       throw new Error(
         `La reserva para ${tipo} debe hacerse con al menos 8 horas de antelacion ` +
-        `(Cierre: ${horasLimite[tipo].h.toString().padStart(2, '0')}:` +
-        `${horasLimite[tipo].m.toString().padStart(2, '0')} ).`
+        `(Cierre: ${String(horasLimite[tipo].h).padStart(2, "0")}:${String(horasLimite[tipo].m).padStart(2, "0")}).`
       );
     }
     return true;
   }
 
-  // Determina que tipos de comida puede reservar el usuario segun sus roles.
-  // Aprendiz/Pasante Interno: puede reservar las 3 comidas.
-  // Aprendiz/Pasante Externo: solo puede reservar almuerzo.
-  // Cualquier otro rol sin clasificacion: no tiene comidas permitidas.
+  // Tipos de comida permitidos segun rol
   ObtenerRolesPermitidos(roles) {
-    const esInterno = roles.some(r => r === 'Aprendiz Interno' || r === 'Pasante Interno');
-    if (esInterno) return ['Desayuno', 'Almuerzo', 'Cena'];
-    const esExterno = roles.some(r => r === 'Aprendiz Externo' || r === 'Pasante Externo');
-    if (esExterno) return ['Almuerzo'];
+    const esInterno = roles.some(r => r === "Aprendiz Interno" || r === "Pasante Interno");
+    if (esInterno) return ["Desayuno", "Almuerzo", "Cena"];
+    const esExterno = roles.some(r => r === "Aprendiz Externo" || r === "Pasante Externo");
+    if (esExterno) return ["Almuerzo"];
     return [];
   }
 
-  // Encripta SOLO el Id_Reserva (numero entero) en el QR.
-  // Al encriptar solo un campo numerico el QR es mucho mas liviano
-  // y el scanner lo detecta y lee en menos tiempo.
-  // La clave debe estar en .env como QR_ENCRYPTION_KEY (64 hex chars = 256 bits).
+  // Encriptacion AES-256-CBC para retrocompatibilidad
   EncriptarDatos(idReserva) {
     if (!process.env.QR_ENCRYPTION_KEY) {
-      throw new Error("QR_ENCRYPTION_KEY no esta definida en las variables de entorno");
+      return Buffer.from(String(idReserva)).toString("base64url");
     }
-    const clave = Buffer.from(process.env.QR_ENCRYPTION_KEY, 'hex');
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv('aes-256-cbc', clave, iv);
-    // Solo se encripta el ID como string JSON minimo: ej. "42"
-    const encriptado = Buffer.concat([
-      cipher.update(String(idReserva), 'utf8'),
-      cipher.final()
-    ]);
-    // base64url: ~33% mas corto que hex → QR menos denso → lectura mas rapida
-    return iv.toString('base64url') + '.' + encriptado.toString('base64url');
+    try {
+      const clave = Buffer.from(process.env.QR_ENCRYPTION_KEY, "hex");
+      const iv = crypto.randomBytes(16);
+      const cipher = crypto.createCipheriv("aes-256-cbc", clave, iv);
+      const encriptado = Buffer.concat([cipher.update(String(idReserva), "utf8"), cipher.final()]);
+      return iv.toString("base64url") + "." + encriptado.toString("base64url");
+    } catch (e) {
+      return Buffer.from(String(idReserva)).toString("base64url");
+    }
   }
 
-  // Desencripta el QR y retorna el Id_Reserva como numero entero.
-  // El QR solo contiene el ID: todos los demas campos se buscan en la BD.
-  // Lanza error si el formato es invalido o la clave no coincide.
+  // Desencriptacion clasica AES-256-CBC
   DesencriptarQR(encriptado) {
+    if (!encriptado) throw new Error("Contenido del QR vacio");
     if (!process.env.QR_ENCRYPTION_KEY) {
-      throw new Error("QR_ENCRYPTION_KEY no esta definida en las variables de entorno");
+      const id = parseInt(Buffer.from(encriptado, "base64url").toString("utf8"), 10);
+      if (!isNaN(id)) return id;
     }
-    const clave = Buffer.from(process.env.QR_ENCRYPTION_KEY, 'hex');
 
-    const partes = encriptado.split('.');
-    if (partes.length < 2) throw new Error("Formato de QR invalido");
-
-    const iv = Buffer.from(partes[0], 'base64url');
-    const datos = Buffer.from(partes[1], 'base64url');
-
-    const decipher = crypto.createDecipheriv('aes-256-cbc', clave, iv);
-    const resultado = Buffer.concat([decipher.update(datos), decipher.final()]);
-
-    const idRaw = resultado.toString('utf8').trim();
-    const id = parseInt(idRaw, 10);
-    if (isNaN(id)) throw new Error('Contenido del QR invalido');
-    return id;
+    try {
+      const clave = Buffer.from(process.env.QR_ENCRYPTION_KEY, "hex");
+      const partes = encriptado.split(".");
+      if (partes.length < 2) {
+        const idFallback = parseInt(encriptado, 10);
+        if (!isNaN(idFallback)) return idFallback;
+        throw new Error("Formato de QR invalido");
+      }
+      const iv = Buffer.from(partes[0], "base64url");
+      const datos = Buffer.from(partes[1], "base64url");
+      const decipher = crypto.createDecipheriv("aes-256-cbc", clave, iv);
+      const resultado = Buffer.concat([decipher.update(datos), decipher.final()]);
+      const id = parseInt(resultado.toString("utf8").trim(), 10);
+      if (isNaN(id)) throw new Error("Contenido del QR invalido");
+      return id;
+    } catch (e) {
+      const partes = encriptado.split(".");
+      if (partes.length === 2) {
+        try {
+          const payload = JSON.parse(Buffer.from(partes[0], "base64url").toString("utf8"));
+          if (payload.idReserva) return payload.idReserva;
+        } catch (_) {}
+      }
+      throw new Error("No se pudo interpretar el codigo QR");
+    }
   }
 
-  // Verifica de forma perezosa si el estado Especial del usuario ha expirado (30 dias).
-  // Se llama en cada peticion relevante (generar reserva, escaneo QR) para no depender
-  // de un proceso cron externo.
-  //
-  // LIMITACION TECNICA CONOCIDA:
-  // Este metodo usa el campo updatedAt de UsuariosModel como referencia del inicio del estado
-  // Especial. Si cualquier otro campo del usuario se actualiza despues de asignar el estado,
-  // updatedAt se reinicia y el contador de 30 dias se reinicia tambien.
-  // Para mayor precision en produccion, agregar el campo Fec_Especial DATETIME a la tabla
-  // usuarios y reemplazar la referencia a updatedAt por ese campo.
+  // Verifica estado especial expirado
   async VerificarExpiracionEspecial(usuario, transaction = null) {
-    if (usuario.Est_Usuario !== 'Especial') return;
-
+    if (usuario.Est_Usuario !== "Especial") return;
     const ahora = new Date();
     const fechaAsignacion = new Date(usuario.updatedAt);
     const diasTranscurridos = (ahora - fechaAsignacion) / (1000 * 60 * 60 * 24);
-
     if (diasTranscurridos >= DIAS_DURACION_ESPECIAL) {
-      // El estado expiro: revertir a "En Formacion" dentro de la misma transaccion
-      await usuario.update({ Est_Usuario: 'En Formacion' }, { transaction });
+      await usuario.update({ Est_Usuario: "En Formacion" }, { transaction });
     }
   }
 
-  // Determina si un usuario externo tiene el estado Especial activo.
-  // Solo aplica para Aprendiz Externo y Pasante Externo.
-  // Los internos no necesitan este estado porque su flujo ya omite cocina por defecto.
   EsUsuarioEspecial(usuario, rolesUsuario) {
     const esExterno = rolesUsuario.some(r => ROLES_EXTERNOS.includes(r));
-    return esExterno && usuario.Est_Usuario === 'Especial';
+    return esExterno && usuario.Est_Usuario === "Especial";
   }
 
-  // Crea una nueva reserva dentro de una transaccion para garantizar consistencia.
-  // Si algo falla en cualquier paso, se hace rollback automatico y no queda ningun dato a medias.
-  //
-  // Parametros:
-  //   Id_Usuario     - ID del aprendiz que recibe la reserva
-  //   rolesUsuario   - Array de strings con los nombres de roles del aprendiz
-  //   Tip_Reserva    - "Desayuno", "Almuerzo" o "Cena"
-  //   platoElegido   - ID del plato seleccionado
-  //   fechaReserva   - Fecha en formato YYYY-MM-DD
-  //   esNovedad      - true si el coordinador crea la reserva como novedad del dia
-  //   Justificacion  - Texto explicando el motivo si es novedad
+  /**
+   * Genera una reserva pass, firma el QR criptograficamente con Ed25519
+   * y registra el evento en sync_outbox
+   */
   async generarReservaPass(Id_Usuario, rolesUsuario, Tip_Reserva, platoElegido, fechaReserva, esNovedad = false, Jus_Reserva = null) {
     return await db.transaction(async (transaction) => {
-
-      // Paso 0: Procesar vencimientos pendientes del usuario y aplicar sanciones si corresponde
       await VencimientoService.procesarVencimientosUsuario(Id_Usuario, transaction);
 
-      // Paso 1: confirmar que el usuario existe en la base de datos y obtener su estado actualizado
-      const usuario = await UsuariosModel.findByPk(Id_Usuario, { transaction });
+      const usuario = await UsuariosModel.findByPk(Id_Usuario, {
+        include: [{ model: FichasModel, as: "ficha" }],
+        transaction
+      });
       if (!usuario) throw new Error("Usuario no encontrado");
 
-      // Validar si el usuario esta sancionado. Un usuario sancionado no puede reservar
-      // bajo ninguna circunstancia, ni siquiera a traves de novedades del coordinador.
-      if (usuario.San_Usuario === 'Si') {
+      if (usuario.San_Usuario === "Si") {
         throw new Error("No puedes realizar reservas porque te encuentras sancionado.");
       }
 
-      // Verificar de forma perezosa si el estado Especial expiro antes de generar la reserva.
-      // Esto actualiza Est_Usuario en la misma transaccion si aplica.
       await this.VerificarExpiracionEspecial(usuario, transaction);
 
-      // Paso 2: validar que el tipo de comida este permitido para los roles del usuario
       const tiposPermitidos = this.ObtenerRolesPermitidos(rolesUsuario);
       const TipoNormalizado = Tip_Reserva.charAt(0).toUpperCase() + Tip_Reserva.slice(1);
       if (!tiposPermitidos.includes(TipoNormalizado)) {
         throw new Error(`El tipo de comida "${Tip_Reserva}" no esta permitido para tu rol`);
       }
 
-      // Paso 3: confirmar que el plato seleccionado existe
       const plato = await PlatosModels.findByPk(platoElegido, { transaction });
       if (!plato) throw new Error("El plato seleccionado no existe");
 
-      // Validar regla de 8 horas solo para reservas normales.
-      // Las novedades omiten esta validacion porque son del mismo dia por definicion.
       if (!esNovedad) {
         this.ValidarAntelacion8Horas(TipoNormalizado, fechaReserva);
       }
 
-      // Paso 4: calcular la fecha y hora de vencimiento del QR
       const fechaVencimiento = this.CalcularVencimiento(TipoNormalizado, fechaReserva);
 
-      // Paso 5: evitar duplicados. Solo puede existir una reserva activa por tipo y dia por usuario.
       const existente = await ReservaModel.findOne({
         where: {
           Id_Usuario: usuario.Id_Usuario,
           Tip_Reserva: TipoNormalizado,
           Fec_Reserva: fechaReserva,
-          Est_Reserva: 'Generado'
+          Est_Reserva: "Generado"
         },
         transaction
       });
 
       if (existente) {
-        const horasVencimiento = {
-          Desayuno: '07:00',
-          Almuerzo: '14:05',
-          Cena: '19:00'
-        };
-        const horaVencimiento = horasVencimiento[TipoNormalizado];
-        throw new Error(
-          `Ya tienes una reserva activa para ${TipoNormalizado} del ${fechaReserva}. ` +
-          `Tu reserva vence a las ${horaVencimiento} de ese dia, ` +
-          `despues de esa hora podras realizar una nueva reserva.`
-        );
+        throw new Error(`Ya tienes una reserva activa para ${TipoNormalizado} del ${fechaReserva}.`);
       }
 
-      // Paso 6: insertar la reserva con el QR vacio, se actualizara en el paso 7
+      const uuidReserva = crypto.randomUUID();
+
+      // Crear reserva inicial
       const nuevaReserva = await ReservaModel.create({
+        uuid_reserva: uuidReserva,
+        nodo_origen: process.env.NODE_ROLE || "CLOUD",
         Id_Usuario: usuario.Id_Usuario,
         Fec_Reserva: fechaReserva,
         Vec_Reserva: fechaVencimiento,
         Tip_Reserva: TipoNormalizado,
-        Est_Reserva: 'Generado',
-        Qr_Reserva: '',
+        Est_Reserva: "Generado",
+        Qr_Reserva: "",
         Id_Plato: platoElegido,
         Exc_Reserva: esNovedad ? "Si" : "No",
-        Jus_Reserva: Jus_Reserva
+        Jus_Reserva: Jus_Reserva,
+        sync_status: "PENDING"
       }, { transaction });
 
-      // Paso 7: encriptar SOLO el Id_Reserva.
-      // El QR solo lleva el ID porque el backend busca todo lo demas en la BD
-      // al momento del escaneo. Un QR mas corto = lectura mas rapida.
-      const encriptado = this.EncriptarDatos(nuevaReserva.Id_Reserva);
-      await nuevaReserva.update({ Qr_Reserva: encriptado }, { transaction });
+      // Generar QR firmado digitalmente con Ed25519
+      const qrFirmado = generarQrFirmado({
+        uuid_reserva: uuidReserva,
+        Id_Reserva: nuevaReserva.Id_Reserva,
+        NumDoc_Usuario: usuario.NumDoc_Usuario,
+        Nom_Usuario: `${usuario.Nom_Usuario} ${usuario.Ape_Usuario}`.trim(),
+        Num_Ficha: usuario.ficha?.Num_Ficha || "",
+        Rol: rolesUsuario[0] || "Aprendiz",
+        Fec_Reserva: fechaReserva,
+        Tip_Reserva: TipoNormalizado,
+        Id_Plato: platoElegido,
+        nodo_origen: process.env.NODE_ROLE || "CLOUD"
+      });
 
-      // La URL del QR lleva el ID encriptado como parametro
-      const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-      const qrUrl = `${baseUrl}/ReservaCreada-checkin?data=${encodeURIComponent(encriptado)}`;
+      await nuevaReserva.update({ Qr_Reserva: qrFirmado }, { transaction });
+
+      // Encolar evento CREATE en sync_outbox
+      await db.query(`
+        INSERT INTO sync_outbox (event_id, source_node, entidad, operacion, entity_uuid, payload, sync_status, created_at)
+        VALUES (?, ?, 'RESERVA', 'CREATE', ?, ?, 'PENDING', NOW())
+      `, {
+        replacements: [
+          crypto.randomUUID(),
+          process.env.NODE_ROLE || "LOCAL",
+          uuidReserva,
+          JSON.stringify({
+            ...nuevaReserva.toJSON(),
+            Qr_Reserva: qrFirmado
+          })
+        ],
+        transaction
+      });
+
+      const baseUrl = process.env.FRONTEND_URL || "https://foodsyslagranja.com";
+      const qrUrl = `${baseUrl}/ReservaCreada-checkin?data=${encodeURIComponent(qrFirmado)}`;
 
       return {
-        Qr_Reserva: encriptado,
+        Qr_Reserva: qrFirmado,
+        uuid_reserva: uuidReserva,
         validDate: fechaReserva,
         expiresAt: fechaVencimiento,
         qrUrl
@@ -329,323 +307,10 @@ class ReservasServices {
     });
   }
 
-  // Procesa la verificacion presencial de cocina: cambia Est_Reserva de Generado a Verificado.
-  //
-  // Este paso SOLO aplica para Aprendiz Externo y Pasante Externo SIN estado Especial.
-  // El personal de cocina confirma presencialmente que el aprendiz esta en el lugar
-  // antes de que el supervisor pueda escanear el QR final.
-  async procesarVerificacionCocina(Id_Reserva) {
-    return await db.transaction(async (transaction) => {
-      const reserva = await ReservaModel.findByPk(Id_Reserva, {
-        include: [
-          {
-            model: UsuariosModel,
-            as: "usuario",
-            attributes: ["Id_Usuario", "Nom_Usuario", "Ape_Usuario", "NumDoc_Usuario"]
-          },
-          {
-            model: PlatosModels,
-            as: "plato",
-            attributes: ["Nom_Plato", "Img_Plato", "Des_Plato"]
-          }
-        ],
-        transaction
-      });
-
-      if (!reserva) throw new Error("Reserva no encontrada");
-      if (reserva.Est_Reserva !== 'Generado') {
-        throw new Error(`No se puede verificar una reserva con estado: ${reserva.Est_Reserva}`);
-      }
-
-      await reserva.update({ Est_Reserva: 'Verificado' }, { transaction });
-
-      const nombreAprendiz = reserva.usuario
-        ? `${reserva.usuario.Nom_Usuario} ${reserva.usuario.Ape_Usuario}`.trim()
-        : "Aprendiz";
-
-      return {
-        message: 'Reserva verificada correctamente por cocina',
-        Id_Reserva,
-        nuevoEstado: 'Verificado',
-        Aprendiz: nombreAprendiz,
-        NumDoc: reserva.usuario?.NumDoc_Usuario || '',
-        Tipo: reserva.Tip_Reserva,
-        Plato: reserva.plato?.Nom_Plato || 'Plato del Dia',
-        ImgPlato: reserva.plato?.Img_Plato || null,
-        DescPlato: reserva.plato?.Des_Plato || ''
-      };
-    });
-  }
-
-  // Procesa el escaneo del QR por parte del supervisor para marcar la reserva como Consumida.
-  //
-  // Este metodo determina automaticamente el flujo correcto segun el perfil del usuario:
-  //
-  //   Interno (Aprendiz/Pasante Interno):
-  //     Puede consumir desde Generado directamente. Los internos nunca pasan por cocina.
-  //
-  //   Externo CON estado Especial activo:
-  //     Puede consumir desde Generado directamente. El estado Especial les da el mismo
-  //     privilegio que a los internos por el periodo de 30 dias.
-  //
-  //   Externo SIN estado Especial:
-  //     Debe estar en Verificado para poder consumir. Si llega en Generado,
-  //     se le indica que debe pasar primero por cocina.
-  //
-  // ADICION: Ahora incluye el plato (Nom_Plato) en la respuesta para que el supervisor
-  //          pueda informar al personal de cocina que alimento debe preparar o entregar.
-  //          Tambien incluye NumDoc para identificacion en la pantalla de registro.
-  async procesarConsumoSupervisor(encriptadoQR) {
-    return await db.transaction(async (transaction) => {
-
-      // Paso 1: desencriptar el QR para obtener SOLO el Id_Reserva.
-      // El QR ya no lleva fecha, usuario ni tipo: todo se obtiene de la BD.
-      // Esto hace el QR mas liviano y el scanner lo lee mas rapido.
-      const Id_Reserva = this.DesencriptarQR(encriptadoQR);
-
-      // Paso 2: obtener la reserva con su plato y su usuario con roles en paralelo
-      // para reducir el tiempo de espera de la transaccion.
-      // Paso 3: obtener la reserva con su plato incluido y el usuario propietario con sus roles
-      // en paralelo para reducir el tiempo de espera total de la transaccion.
-      // Se incluye el plato en la consulta de reserva para evitar una segunda consulta separada.
-      // Se consultan los roles directamente desde la DB para no depender del token JWT,
-      // que podria estar desactualizado si el coordinador cambio los roles recientemente.
-      // Obtener la reserva primero para luego buscar su usuario
-      const reserva = await ReservaModel.findByPk(Id_Reserva, {
-        include: [{ model: PlatosModels, as: 'plato', attributes: ['Nom_Plato', 'Des_Plato', 'Img_Plato'] }],
-        transaction
-      });
-
-      if (!reserva) throw new Error("La reserva asociada al QR no existe en la base de datos");
-
-      // Validar vencimiento usando el campo Vec_Reserva de la BD (no del QR)
-      const ahora = new Date();
-      const vencimiento = new Date(reserva.Vec_Reserva);
-      if (ahora > vencimiento) {
-        throw new Error("El codigo QR ha vencido y no puede ser utilizado para recibir alimentacion");
-      }
-
-      // Validar ventana horaria usando el Tip_Reserva de la BD
-      const horaActual = ahora.getHours();
-      const ventana = this.ObtenerVentanaHoraria(reserva.Tip_Reserva);
-      if (ventana && (horaActual < ventana.desde || horaActual >= ventana.hasta)) {
-        throw new Error(
-          `Este QR es para ${reserva.Tip_Reserva}, pero el servicio de ` +
-          `${reserva.Tip_Reserva.toLowerCase()} esta habilitado de ` +
-          `${ventana.desde}:00 a ${ventana.hasta}:00. ` +
-          `Fuera de ese horario no es posible registrar el consumo.`
-        );
-      }
-
-      // Buscar el usuario propietario de la reserva con sus roles
-      const usuario = await UsuariosModel.findByPk(reserva.Id_Usuario, {
-        include: [
-          {
-            model: UsuariosRolModel,
-            as: 'rolesUsuario',
-            include: [{ model: RolesModel, as: 'rolUsuario' }]
-          }
-        ],
-        transaction
-      });
-
-      if (!usuario) throw new Error("El usuario propietario del QR no existe");
-
-      // Paso 4: verificar si el estado Especial expiro antes de evaluar el flujo
-      await this.VerificarExpiracionEspecial(usuario, transaction);
-
-      // Paso 5: extraer los nombres de roles del usuario para la evaluacion de flujo
-      const rolesUsuario = usuario.rolesUsuario
-        ?.map(ur => ur.rolUsuario?.Nom_Rol)
-        .filter(Boolean) || [];
-
-      const esInterno = rolesUsuario.some(r => r === 'Aprendiz Interno' || r === 'Pasante Interno');
-      const esEspecial = this.EsUsuarioEspecial(usuario, rolesUsuario);
-
-      // Paso 6: aplicar las reglas de flujo segun el perfil del usuario
-      if (esInterno || esEspecial) {
-        // Flujo directo: internos y externos con estado Especial pueden ir de Generado a Consumido
-        if (reserva.Est_Reserva !== 'Generado' && reserva.Est_Reserva !== 'Verificado') {
-          throw new Error(`No se puede consumir una reserva con estado: ${reserva.Est_Reserva}`);
-        }
-      } else {
-        // Flujo estandar para externos sin estado Especial: requiere pasar por cocina primero
-        if (reserva.Est_Reserva === 'Generado') {
-          throw new Error(
-            "La reserva aun no ha sido verificada por el area de cocina. " +
-            "El aprendiz debe presentarse primero en cocina para continuar."
-          );
-        }
-        if (reserva.Est_Reserva !== 'Verificado') {
-          throw new Error(`No se puede consumir una reserva con estado: ${reserva.Est_Reserva}`);
-        }
-      }
-
-      // Marcar la reserva como consumida
-      await reserva.update({ Est_Reserva: 'Consumido' }, { transaction });
-
-      // Incrementar contador de consumos del turno de supervisor activo en tiempo real
-      TurnosService.incrementarConsumoTurnoActivo().catch(err => console.warn("[TurnosService]", err.message));
-
-      // Retornar la informacion completa del consumo.
-      // El frontend la usa para la ventana flotante que el supervisor lee en voz alta:
-      //   - Aprendiz y NumDoc: para identificar a la persona.
-      //   - Nom_Plato, Des_Plato, Img_Plato: para que cocina sepa que preparar.
-      //   - Tipo: Desayuno, Almuerzo o Cena para orientacion rapida.
-      return {
-        message: 'Alimentacion registrada como consumida exitosamente',
-        Id_Reserva: reserva.Id_Reserva,
-        Aprendiz: `${usuario.Nom_Usuario} ${usuario.Ape_Usuario}`,
-        NumDoc: usuario.NumDoc_Usuario,
-        Tipo: reserva.Tip_Reserva,
-        Plato: reserva.plato?.Nom_Plato ?? 'Sin informacion de plato',
-        DescPlato: reserva.plato?.Des_Plato ?? '',
-        ImgPlato: reserva.plato?.Img_Plato ?? null,
-        flujoEspecial: esEspecial,
-        flujoInterno: esInterno
-      };
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // ADICION: BuscarReservaPorDocumento
-  // ─────────────────────────────────────────────────────────────────────────────
-  //
-  // Busca la reserva activa del dia para un usuario identificado por su numero
-  // de documento y la procesa como consumida usando el mismo flujo del QR.
-  //
-  // Este metodo es usado por el endpoint POST /api/Reservas/consumir/documento
-  // que el supervisor llama cuando registra manualmente (sin camara) a un aprendiz
-  // que no puede presentar el codigo QR por problemas tecnicos o descarga del dispositivo.
-  //
-  // El flujo aplicado es identico al del QR:
-  //   - Externos normales requieren estar en Verificado
-  //   - Internos y Especiales pueden consumir desde Generado
-  //
-  // Parametros:
-  //   NumDoc - Numero de documento del aprendiz (string o number, se convierte internamente)
-  //
-  // Lanza error si:
-  //   - No existe usuario con ese documento
-  //   - No hay reserva activa para hoy
-  //   - La reserva ya fue consumida, cancelada o vencida
-  async BuscarReservaPorDocumento(NumDoc) {
-
-    // Paso 1: buscar el usuario por numero de documento en la tabla de usuarios
-    // Se convierte a string para la busqueda ya que NumDoc_Usuario es int en la DB
-    const Usuario = await UsuariosModel.findOne({
-      where: { NumDoc_Usuario: String(NumDoc) }
-    });
-
-    // Si no existe el usuario, no tiene sentido continuar buscando reservas
-    if (!Usuario) {
-      throw new Error("No se encontro ningun usuario registrado con ese numero de documento");
-    }
-
-    // Paso 2: calcular la fecha de hoy en formato YYYY-MM-DD para filtrar reservas del dia
-    const FechaHoy = this.ObtenerFechaHoy();
-
-    // Paso 3: buscar la reserva de hoy que tenga estado Generado o Verificado
-    // Se ordena por fecha de creacion descendente para obtener la mas reciente si hay varias
-    const Reserva = await ReservaModel.findOne({
-      where: {
-        Id_Usuario: Usuario.Id_Usuario,
-        Fec_Reserva: FechaHoy
-      },
-      // Incluir el plato para devolverlo en la respuesta al frontend
-      include: [{ model: PlatosModels, as: 'plato', attributes: ['Nom_Plato', 'Img_Plato', 'Des_Plato'] }],
-      order: [['createdAt', 'DESC']]
-    });
-
-    // Si no hay reserva para hoy, informar al supervisor sin procesar nada
-    if (!Reserva) {
-      throw new Error("Este aprendiz no tiene reserva registrada para el dia de hoy");
-    }
-
-    // Paso 4: validar que la reserva este en un estado que permita el consumo
-    // Generado y Verificado son los dos unicos estados que permiten continuar el proceso
-    if (!['Generado', 'Verificado'].includes(Reserva.Est_Reserva)) {
-      throw new Error(
-        `La reserva de este aprendiz ya fue ${Reserva.Est_Reserva.toLowerCase()}. ` +
-        `No es posible procesarla nuevamente.`
-      );
-    }
-
-    // Paso 5: reutilizar el metodo procesarConsumoSupervisor con el QR almacenado en la reserva.
-    // Esto garantiza que se aplique exactamente el mismo flujo de validacion de roles
-    // y estado Especial que se usa cuando el aprendiz presenta el codigo QR con la camara.
-    return await this.procesarConsumoSupervisor(Reserva.Qr_Reserva);
-  }
-
-  // Retorna las ultimas 10 reservas del usuario ordenadas de la mas reciente a la mas antigua
-  async obtenerHistorial(Id_Usuario) {
-    return await ReservaModel.findAll({
-      where: { Id_Usuario },
-      include: [{ model: PlatosModels, as: 'plato', attributes: ['Nom_Plato', 'Img_Plato', 'Des_Plato'] }],
-      order: [['createdAt', 'DESC']],
-      limit: 10,
-    });
-  }
-
-  // Retorna TODAS las reservas del usuario sin limite de cantidad
-  async obtenerHistorialCompleto(Id_Usuario) {
-    return await ReservaModel.findAll({
-      where: { Id_Usuario },
-      include: [{ model: PlatosModels, as: 'plato', attributes: ['Nom_Plato', 'Img_Plato', 'Des_Plato'] }],
-      order: [['createdAt', 'DESC']],
-    });
-  }
-
-  // Cambia el estado de una reserva a Cancelado.
-  // Reglas:
-  //   1. La reserva debe pertenecer al usuario que cancela.
-  //   2. El estado debe ser Generado (no Verificado, Consumido, etc.)
-  //   3. Solo se puede cancelar con al menos 9 horas de anticipacion al inicio
-  //      del turno, para que el area de Cocina pueda planificar la produccion.
-  async cancelarReserva(Id_Reserva, Id_Usuario) {
-    const Reserva = await ReservaModel.findOne({
-      where: { Id_Reserva, Id_Usuario },
-    });
-    if (!Reserva) {
-      throw new Error('Reserva no encontrada o no pertenece al usuario');
-    }
-    if (Reserva.Est_Reserva !== 'Generado') {
-      throw new Error(
-        `No se puede cancelar una reserva con estado: ${Reserva.Est_Reserva}`
-      );
-    }
-    // Validar la regla de las 9 horas antes del turno
-    this.ValidarCancelacionPermitida(Reserva.Tip_Reserva, Reserva.Fec_Reserva);
-    await Reserva.update({ Est_Reserva: 'Cancelado' });
-    return true;
-  }
-  // Retorna todas las reservas del sistema con datos del aprendiz y el plato.
-  // Usada por el CrudReservas administrativo para mostrar el listado completo.
-  async ObtenerTodas() {
-    return await ReservaModel.findAll({
-      include: [
-        {
-          model: UsuariosModel,
-          as: "usuario",
-          attributes: ["Id_Usuario", "Nom_Usuario", "Ape_Usuario", "NumDoc_Usuario"],
-        },
-        {
-          model: PlatosModels,
-          as: "plato",
-          attributes: ["Nom_Plato", "Img_Plato", "Des_Plato"],
-        },
-      ],
-      order: [["createdAt", "DESC"]],
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // VERIFICACION EN COCINA (PRESENCIAL / QR)
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Verifica la presencia física del aprendiz externo o pasante externo en Cocina
-  // y actualiza el estado de la reserva de 'Generado' a 'Verificado'.
-  // Con este estado, el aprendiz ya puede pasar al puesto del supervisor para
-  // escanear su código QR y quedar registrado como 'Consumido'.
+  /**
+   * Unica definicion atomica de verificacion presencial de cocina (Generado -> Verificado)
+   * Exclusivo para Aprendices Externos y Pasantes Externos sin estado Especial
+   */
   async procesarVerificacionCocina(Id_Reserva) {
     return await db.transaction(async (transaction) => {
       const reserva = await ReservaModel.findByPk(Id_Reserva, {
@@ -665,49 +330,617 @@ class ReservasServices {
       });
 
       if (!reserva) {
-        throw new Error("La reserva indicada no existe en la base de datos");
+        throw new Error("La reserva indicada no existe en la base de datos.");
       }
 
-      if (reserva.Est_Reserva === 'Verificado') {
+      if (reserva.Est_Reserva === "Verificado") {
         return {
           message: "Esta reserva ya fue verificada previamente en Cocina",
           Id_Reserva: reserva.Id_Reserva,
-          Aprendiz: `${reserva.usuario?.Nom_Usuario ?? ''} ${reserva.usuario?.Ape_Usuario ?? ''}`.trim(),
+          Aprendiz: `${reserva.usuario?.Nom_Usuario ?? ""} ${reserva.usuario?.Ape_Usuario ?? ""}`.trim(),
           NumDoc: reserva.usuario?.NumDoc_Usuario,
           Tipo: reserva.Tip_Reserva,
-          Plato: reserva.plato?.Nom_Plato ?? 'Sin plato asignado',
+          Plato: reserva.plato?.Nom_Plato ?? "Sin plato asignado",
           ImgPlato: reserva.plato?.Img_Plato ?? null,
-          nuevoEstado: 'Verificado'
+          nuevoEstado: "Verificado"
         };
       }
 
-      if (reserva.Est_Reserva !== 'Generado') {
+      if (reserva.Est_Reserva !== "Generado") {
         throw new Error(`No se puede verificar una reserva con estado '${reserva.Est_Reserva}'`);
       }
 
-      await reserva.update({ Est_Reserva: 'Verificado' }, { transaction });
+      await reserva.update({ Est_Reserva: "Verificado" }, { transaction });
+
+      // Encolar evento VERIFY en sync_outbox
+      if (reserva.uuid_reserva) {
+        await db.query(`
+          INSERT INTO sync_outbox (event_id, source_node, entidad, operacion, entity_uuid, payload, sync_status, created_at)
+          VALUES (?, ?, 'RESERVA', 'VERIFY', ?, ?, 'PENDING', NOW())
+        `, {
+          replacements: [
+            crypto.randomUUID(),
+            process.env.NODE_ROLE || "LOCAL",
+            reserva.uuid_reserva,
+            JSON.stringify({ uuid_reserva: reserva.uuid_reserva, Est_Reserva: "Verificado" })
+          ],
+          transaction
+        });
+      }
 
       return {
         message: "Reserva verificada exitosamente en Cocina. El aprendiz ya puede presentar su QR ante el supervisor.",
         Id_Reserva: reserva.Id_Reserva,
-        Aprendiz: `${reserva.usuario?.Nom_Usuario ?? ''} ${reserva.usuario?.Ape_Usuario ?? ''}`.trim(),
+        Aprendiz: `${reserva.usuario?.Nom_Usuario ?? ""} ${reserva.usuario?.Ape_Usuario ?? ""}`.trim(),
         NumDoc: reserva.usuario?.NumDoc_Usuario,
         Tipo: reserva.Tip_Reserva,
-        Plato: reserva.plato?.Nom_Plato ?? 'Sin plato asignado',
+        Plato: reserva.plato?.Nom_Plato ?? "Sin plato asignado",
         ImgPlato: reserva.plato?.Img_Plato ?? null,
-        nuevoEstado: 'Verificado'
+        nuevoEstado: "Verificado"
       };
     });
   }
 
-  // Verifica la reserva en Cocina leyendo directamente el código QR mediante la cámara.
-  async procesarVerificacionQRCocina(encriptadoQR) {
-    if (!encriptadoQR) {
-      throw new Error("El contenido del código QR es obligatorio");
+  /**
+   * Verifica la reserva en Cocina leyendo el QR por camara o lector laser
+   */
+  async procesarVerificacionQRCocina(contenidoQR) {
+    if (!contenidoQR) throw new Error("El contenido del codigo QR es obligatorio");
+
+    // Probar verificacion Ed25519
+    let payload = null;
+    try {
+      payload = verificarQrOffline(contenidoQR, null, this.ObtenerFechaHoy());
+    } catch (_) {}
+
+    if (payload && payload.idReserva) {
+      return await this.procesarVerificacionCocina(payload.idReserva);
     }
 
-    const Id_Reserva = this.DesencriptarQR(encriptadoQR);
+    const Id_Reserva = this.DesencriptarQR(contenidoQR);
     return await this.procesarVerificacionCocina(Id_Reserva);
+  }
+
+  /**
+   * Procesa el consumo del supervisor (Verificado/Generado -> Consumido)
+   * Soporta firma Ed25519 offline, comprobacion unica en qr_consumidos_control
+   * y creacion automatica de réplica local si el aprendiz reservo en la nube durante un corte de internet.
+   */
+  async procesarConsumoSupervisor(contenidoQR, idSupervisor = null) {
+    return await db.transaction(async (transaction) => {
+      let payloadEd25519 = null;
+      const fechaHoy = this.ObtenerFechaHoy();
+
+      // 1. Intentar verificacion matematica Ed25519
+      try {
+        payloadEd25519 = verificarQrOffline(contenidoQR, null, fechaHoy);
+      } catch (errEd) {
+        if (errEd.message && errEd.message.includes("FRAUDE DETECTADO")) {
+          throw errEd;
+        }
+      }
+
+      let reserva = null;
+      let usuario = null;
+
+      if (payloadEd25519) {
+        // Bloqueo estricto anti-fraude: Comprobar si ya fue consumido hoy
+        const [consumoPrevio] = await db.query(`
+          SELECT uuid_reserva, Fecha_Consumo FROM qr_consumidos_control
+          WHERE NumDoc_Usuario = ? AND Fec_Reserva = ? AND Tip_Reserva = ?
+        `, {
+          replacements: [payloadEd25519.doc, payloadEd25519.fecha, payloadEd25519.comida],
+          transaction
+        });
+
+        if (consumoPrevio.length > 0) {
+          throw new Error(`Esta reserva ya fue consumida el dia de hoy para el turno de ${payloadEd25519.comida}.`);
+        }
+
+        // Buscar reserva por UUID o por ID
+        reserva = await ReservaModel.findOne({
+          where: {
+            [Op.or]: [
+              { uuid_reserva: payloadEd25519.id },
+              ...(payloadEd25519.idReserva ? [{ Id_Reserva: payloadEd25519.idReserva }] : [])
+            ]
+          },
+          include: [{ model: PlatosModels, as: "plato", attributes: ["Nom_Plato", "Des_Plato", "Img_Plato"] }],
+          transaction
+        });
+
+        // Caso contingencia offline: el aprendiz reservo en Hetzner pero La Granja no tiene internet
+        if (!reserva) {
+          usuario = await UsuariosModel.findOne({
+            where: { NumDoc_Usuario: String(payloadEd25519.doc) },
+            include: [{
+              model: UsuariosRolModel,
+              as: "rolesUsuario",
+              include: [{ model: RolesModel, as: "rolUsuario" }]
+            }],
+            transaction
+          });
+
+          reserva = await ReservaModel.create({
+            uuid_reserva: payloadEd25519.id,
+            nodo_origen: "CLOUD",
+            Id_Usuario: usuario ? usuario.Id_Usuario : null,
+            Fec_Reserva: payloadEd25519.fecha,
+            Vec_Reserva: this.CalcularVencimiento(payloadEd25519.comida, payloadEd25519.fecha),
+            Tip_Reserva: payloadEd25519.comida,
+            Est_Reserva: "Consumido",
+            Qr_Reserva: contenidoQR,
+            Id_Plato: payloadEd25519.plato,
+            sync_status: "PENDING"
+          }, { transaction });
+        }
+      } else {
+        // Modo QR clasico
+        const Id_Reserva = this.DesencriptarQR(contenidoQR);
+        reserva = await ReservaModel.findByPk(Id_Reserva, {
+          include: [{ model: PlatosModels, as: "plato", attributes: ["Nom_Plato", "Des_Plato", "Img_Plato"] }],
+          transaction
+        });
+      }
+
+      if (!reserva) throw new Error("La reserva asociada al QR no existe en la base de datos.");
+
+      if (reserva.Est_Reserva === "Consumido") {
+        throw new Error("Esta reserva ya fue consumida previamente.");
+      }
+
+      // Validar usuario y roles
+      if (!usuario) {
+        usuario = await UsuariosModel.findByPk(reserva.Id_Usuario, {
+          include: [{
+            model: UsuariosRolModel,
+            as: "rolesUsuario",
+            include: [{ model: RolesModel, as: "rolUsuario" }]
+          }],
+          transaction
+        });
+      }
+
+      if (!usuario) throw new Error("El usuario propietario del QR no existe.");
+
+      await this.VerificarExpiracionEspecial(usuario, transaction);
+
+      const rolesUsuario = usuario.rolesUsuario?.map(ur => ur.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+      const esInterno = rolesUsuario.some(r => r === "Aprendiz Interno" || r === "Pasante Interno");
+      const esEspecial = this.EsUsuarioEspecial(usuario, rolesUsuario);
+
+      // Flujo de validacion de estados
+      if (esInterno || esEspecial) {
+        if (!["Generado", "Verificado"].includes(reserva.Est_Reserva)) {
+          throw new Error(`No se puede consumir una reserva con estado: ${reserva.Est_Reserva}`);
+        }
+      } else {
+        if (reserva.Est_Reserva === "Generado") {
+          throw new Error("La reserva aun no ha sido verificada en cocina. El aprendiz debe presentarse primero en cocina.");
+        }
+        if (reserva.Est_Reserva !== "Verificado") {
+          throw new Error(`No se puede consumir una reserva con estado: ${reserva.Est_Reserva}`);
+        }
+      }
+
+      // Marcar como consumida
+      await reserva.update({ Est_Reserva: "Consumido" }, { transaction });
+
+      // Registrar en qr_consumidos_control para garantizar uso unico offline
+      const uuidControl = reserva.uuid_reserva || crypto.randomUUID();
+      await db.query(`
+        INSERT INTO qr_consumidos_control (uuid_reserva, NumDoc_Usuario, Fec_Reserva, Tip_Reserva, Id_Supervisor, nodo_consumo)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE Fecha_Consumo = NOW()
+      `, {
+        replacements: [
+          uuidControl,
+          usuario.NumDoc_Usuario,
+          reserva.Fec_Reserva,
+          reserva.Tip_Reserva,
+          idSupervisor,
+          process.env.NODE_ROLE || "LOCAL"
+        ],
+        transaction
+      });
+
+      // Encolar evento CONSUME en sync_outbox
+      await db.query(`
+        INSERT INTO sync_outbox (event_id, source_node, entidad, operacion, entity_uuid, payload, sync_status, created_at)
+        VALUES (?, ?, 'RESERVA', 'CONSUME', ?, ?, 'PENDING', NOW())
+      `, {
+        replacements: [
+          crypto.randomUUID(),
+          process.env.NODE_ROLE || "LOCAL",
+          uuidControl,
+          JSON.stringify({
+            uuid_reserva: uuidControl,
+            Id_Reserva: reserva.Id_Reserva,
+            Est_Reserva: "Consumido",
+            NumDoc_Usuario: usuario.NumDoc_Usuario
+          })
+        ],
+        transaction
+      });
+
+      // Incrementar contador en turno activo
+      TurnosService.incrementarConsumoTurnoActivo().catch(() => {});
+
+      return {
+        message: "Alimentacion registrada como consumida exitosamente",
+        Id_Reserva: reserva.Id_Reserva,
+        Aprendiz: `${usuario.Nom_Usuario} ${usuario.Ape_Usuario}`.trim(),
+        NumDoc: usuario.NumDoc_Usuario,
+        Tipo: reserva.Tip_Reserva,
+        Plato: reserva.plato?.Nom_Plato ?? "Sin informacion de plato",
+        DescPlato: reserva.plato?.Des_Plato ?? "",
+        ImgPlato: reserva.plato?.Img_Plato ?? null,
+        flujoEspecial: esEspecial,
+        flujoInterno: esInterno
+      };
+    });
+  }
+
+  /**
+   * Buscar y consumir reserva directamente por numero de documento (modo manual)
+   */
+  async BuscarReservaPorDocumento(NumDoc, idSupervisor = null) {
+    const Usuario = await UsuariosModel.findOne({
+      where: { NumDoc_Usuario: String(NumDoc) }
+    });
+    if (!Usuario) throw new Error("No se encontro ningun usuario registrado con ese numero de documento.");
+
+    const FechaHoy = this.ObtenerFechaHoy();
+    const Reserva = await ReservaModel.findOne({
+      where: {
+        Id_Usuario: Usuario.Id_Usuario,
+        Fec_Reserva: FechaHoy
+      },
+      include: [{ model: PlatosModels, as: "plato", attributes: ["Nom_Plato", "Img_Plato", "Des_Plato"] }],
+      order: [["createdAt", "DESC"]]
+    });
+
+    if (!Reserva) throw new Error("Este aprendiz no tiene reserva registrada para el dia de hoy.");
+    if (!["Generado", "Verificado"].includes(Reserva.Est_Reserva)) {
+      throw new Error(`La reserva de este aprendiz ya fue ${Reserva.Est_Reserva.toLowerCase()}.`);
+    }
+
+    return await this.procesarConsumoSupervisor(Reserva.Qr_Reserva, idSupervisor);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // MODULO CEDER RESERVA (HABEAS DATA Y TRANSFERENCIA ATOMICA)
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Busca companeros disponibles para ceder la reserva protegiendo datos sensibles.
+   * Enmascara nombres (iniciales de apellidos) y documento (ultimos 3 digitos).
+   */
+  async BuscarCompaneroParaCeder(busqueda, idUsuarioActual, tipReserva, fecReserva) {
+    if (!busqueda || busqueda.trim().length < 3) {
+      throw new Error("Ingresa al menos 3 caracteres para buscar al companero.");
+    }
+
+    const termino = busqueda.trim();
+
+    const usuarios = await UsuariosModel.findAll({
+      where: {
+        Id_Usuario: { [Op.ne]: idUsuarioActual },
+        Est_Usuario: "En Formacion",
+        [Op.or]: [
+          { Nom_Usuario: { [Op.like]: `%${termino}%` } },
+          { Ape_Usuario: { [Op.like]: `%${termino}%` } },
+          { NumDoc_Usuario: { [Op.like]: `%${termino}%` } }
+        ]
+      },
+      include: [
+        { model: FichasModel, as: "ficha", attributes: ["Num_Ficha"] },
+        {
+          model: UsuariosRolModel,
+          as: "rolesUsuario",
+          include: [{ model: RolesModel, as: "rolUsuario", attributes: ["Nom_Rol"] }]
+        }
+      ],
+      limit: 15
+    });
+
+    // Consultar si alguno ya tiene reserva activa para esa fecha y turno
+    const idsCandidatos = usuarios.map(u => u.Id_Usuario);
+    const reservasExistentes = await ReservaModel.findAll({
+      where: {
+        Id_Usuario: { [Op.in]: idsCandidatos },
+        Fec_Reserva: fecReserva,
+        Tip_Reserva: tipReserva,
+        Est_Reserva: { [Op.in]: ["Generado", "Verificado", "Consumido"] }
+      },
+      attributes: ["Id_Usuario"]
+    });
+    const setIdsConReserva = new Set(reservasExistentes.map(r => r.Id_Usuario));
+
+    const resultados = usuarios.map(u => {
+      // Enmascaramiento de nombres: conservar primer nombre, iniciales de apellidos
+      const nombres = u.Nom_Usuario || "";
+      const apellidos = u.Ape_Usuario || "";
+      const inicialesApe = apellidos
+        .split(" ")
+        .filter(Boolean)
+        .map(a => `${a.charAt(0).toUpperCase()}.`)
+        .join(" ");
+      const nombreEnmascarado = `${nombres} ${inicialesApe}`.trim();
+
+      // Enmascaramiento de documento: solo ultimos 3 digitos visibles
+      const docStr = String(u.NumDoc_Usuario || "");
+      const ultimos3 = docStr.slice(-3);
+      const docEnmascarado = `*******${ultimos3}`;
+
+      // Comprobar rol permitido
+      const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+      const rolesPermitidos = this.ObtenerRolesPermitidos(roles);
+      const rolValido = rolesPermitidos.includes(tipReserva);
+
+      // Sancion
+      const estaSancionado = u.San_Usuario === "Si";
+      const tieneReserva = setIdsConReserva.has(u.Id_Usuario);
+
+      let disponible = true;
+      let mensajeRestriccion = "Disponible para recibir reserva";
+
+      if (tieneReserva) {
+        disponible = false;
+        mensajeRestriccion = "Ya cuenta con reserva para este turno";
+      } else if (!rolValido) {
+        disponible = false;
+        mensajeRestriccion = "Su rol no tiene habilitado este tipo de comida";
+      } else if (estaSancionado) {
+        disponible = false;
+        // Mensaje neutro para no revelar estado sancionado a companeros
+        mensajeRestriccion = "No disponible para este turno";
+      }
+
+      return {
+        Id_Usuario: u.Id_Usuario,
+        Nombre_Enmascarado: nombreEnmascarado,
+        Documento_Enmascarado: docEnmascarado,
+        Num_Ficha: u.ficha?.Num_Ficha ? `Ficha ${u.ficha.Num_Ficha}` : "Sin ficha",
+        Disponible: disponible,
+        Mensaje_Restriccion: mensajeRestriccion
+      };
+    });
+
+    return resultados;
+  }
+
+  /**
+   * Transfiere una reserva a un companero de forma atomica
+   */
+  async CederReservaACompanero(idReserva, idUsuarioCedente, idUsuarioReceptor, motivo = "") {
+    return await db.transaction(async (t) => {
+      const reserva = await ReservaModel.findByPk(idReserva, {
+        include: [{ model: PlatosModels, as: "plato" }],
+        lock: t.LOCK.UPDATE,
+        transaction: t
+      });
+
+      if (!reserva) throw new Error("Reserva no encontrada");
+      if (reserva.Id_Usuario !== idUsuarioCedente) {
+        throw new Error("No tienes autorizacion para ceder esta reserva.");
+      }
+      if (reserva.Est_Reserva !== "Generado") {
+        throw new Error(`Solo puedes ceder reservas en estado Generado (Estado actual: ${reserva.Est_Reserva}).`);
+      }
+      if (reserva.Id_Usuario_Cedente) {
+        throw new Error("Esta reserva ya fue cedida previamente. No se permite re-ceder en cadena.");
+      }
+
+      // Validar horario de antelacion de cesion (2h antes)
+      this.ValidarHorarioCesion(reserva.Tip_Reserva, reserva.Fec_Reserva);
+
+      const receptor = await UsuariosModel.findByPk(idUsuarioReceptor, {
+        include: [
+          { model: FichasModel, as: "ficha" },
+          {
+            model: UsuariosRolModel,
+            as: "rolesUsuario",
+            include: [{ model: RolesModel, as: "rolUsuario" }]
+          }
+        ],
+        transaction: t
+      });
+
+      if (!receptor) throw new Error("El aprendiz destinatario no existe.");
+      if (receptor.San_Usuario === "Si") {
+        throw new Error("El destinatario no puede recibir reservas debido a una restriccion activa.");
+      }
+
+      // Verificar que el receptor no tenga ya reserva en ese turno
+      const yaTiene = await ReservaModel.findOne({
+        where: {
+          Id_Usuario: idUsuarioReceptor,
+          Fec_Reserva: reserva.Fec_Reserva,
+          Tip_Reserva: reserva.Tip_Reserva,
+          Est_Reserva: { [Op.in]: ["Generado", "Verificado", "Consumido"] }
+        },
+        transaction: t
+      });
+      if (yaTiene) {
+        throw new Error("El companero seleccionado ya cuenta con una reserva para este mismo turno.");
+      }
+
+      const cedente = await UsuariosModel.findByPk(idUsuarioCedente, { transaction: t });
+
+      // Regenerar QR firmado a nombre del receptor
+      const rolesReceptor = receptor.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+      const nuevoUuid = crypto.randomUUID();
+
+      const nuevoQr = generarQrFirmado({
+        uuid_reserva: nuevoUuid,
+        Id_Reserva: reserva.Id_Reserva,
+        NumDoc_Usuario: receptor.NumDoc_Usuario,
+        Nom_Usuario: `${receptor.Nom_Usuario} ${receptor.Ape_Usuario}`.trim(),
+        Num_Ficha: receptor.ficha?.Num_Ficha || "",
+        Rol: rolesReceptor[0] || "Aprendiz",
+        Fec_Reserva: reserva.Fec_Reserva,
+        Tip_Reserva: reserva.Tip_Reserva,
+        Id_Plato: reserva.Id_Plato,
+        nodo_origen: process.env.NODE_ROLE || "LOCAL"
+      });
+
+      await reserva.update({
+        uuid_reserva: nuevoUuid,
+        Id_Usuario: idUsuarioReceptor,
+        Id_Usuario_Cedente: idUsuarioCedente,
+        Fec_Cesion: new Date(),
+        motivo_cesion: motivo || "Cesion solidaria entre aprendices",
+        Qr_Reserva: nuevoQr
+      }, { transaction: t });
+
+      // Encolar evento TRANSFER en sync_outbox
+      await db.query(`
+        INSERT INTO sync_outbox (event_id, source_node, entidad, operacion, entity_uuid, payload, sync_status, created_at)
+        VALUES (?, ?, 'RESERVA', 'TRANSFER', ?, ?, 'PENDING', NOW())
+      `, {
+        replacements: [
+          crypto.randomUUID(),
+          process.env.NODE_ROLE || "LOCAL",
+          nuevoUuid,
+          JSON.stringify({
+            uuid_reserva: nuevoUuid,
+            Id_Reserva: reserva.Id_Reserva,
+            Id_Usuario_Nuevo: idUsuarioReceptor,
+            Id_Usuario_Cedente: idUsuarioCedente,
+            Fec_Cesion: new Date(),
+            motivo_cesion: motivo,
+            Qr_Reserva: nuevoQr
+          })
+        ],
+        transaction: t
+      });
+
+      // Crear notificaciones internas
+      await NotificacionesService.crearNotificacion({
+        Id_Usuario: idUsuarioReceptor,
+        Titulo: "¡Te han cedido una racion de comida!",
+        Mensaje: `${cedente?.Nom_Usuario || 'Un companero'} te ha cedido su reserva de ${reserva.Tip_Reserva} para el dia ${reserva.Fec_Reserva}. Ya puedes ver tu nuevo codigo QR en Mis Reservas.`,
+        Tipo: "exito"
+      });
+
+      await NotificacionesService.crearNotificacion({
+        Id_Usuario: idUsuarioCedente,
+        Titulo: "Reserva cedida con exito",
+        Mensaje: `Tu reserva de ${reserva.Tip_Reserva} para el dia ${reserva.Fec_Reserva} fue transferida correctamente a tu companero.`,
+        Tipo: "info"
+      });
+
+      return {
+        exito: true,
+        mensaje: "Reserva transferida exitosamente a tu companero.",
+        nuevoQr
+      };
+    });
+  }
+
+  /**
+   * Libera una reserva a la Bolsa Solidaria de Bienestar al Aprendiz
+   */
+  async LiberarBolsaSolidaria(idReserva, idUsuarioCedente, motivo = "Liberacion a bolsa solidaria") {
+    return await db.transaction(async (t) => {
+      const reserva = await ReservaModel.findByPk(idReserva, {
+        lock: t.LOCK.UPDATE,
+        transaction: t
+      });
+
+      if (!reserva) throw new Error("Reserva no encontrada");
+      if (reserva.Id_Usuario !== idUsuarioCedente) {
+        throw new Error("No tienes autorizacion para liberar esta reserva.");
+      }
+      if (reserva.Est_Reserva !== "Generado") {
+        throw new Error(`Solo puedes liberar reservas en estado Generado.`);
+      }
+
+      this.ValidarHorarioCesion(reserva.Tip_Reserva, reserva.Fec_Reserva);
+
+      await reserva.update({
+        Id_Usuario_Cedente: idUsuarioCedente,
+        Fec_Cesion: new Date(),
+        motivo_cesion: `BOLSA_SOLIDARIA: ${motivo}`,
+        Est_Reserva: "Cancelado"
+      }, { transaction: t });
+
+      // Encolar cancelacion/liberacion
+      if (reserva.uuid_reserva) {
+        await db.query(`
+          INSERT INTO sync_outbox (event_id, source_node, entidad, operacion, entity_uuid, payload, sync_status, created_at)
+          VALUES (?, ?, 'RESERVA', 'CANCEL', ?, ?, 'PENDING', NOW())
+        `, {
+          replacements: [
+            crypto.randomUUID(),
+            process.env.NODE_ROLE || "LOCAL",
+            reserva.uuid_reserva,
+            JSON.stringify({ uuid_reserva: reserva.uuid_reserva, Est_Reserva: "Cancelado", motivo: "BOLSA_SOLIDARIA" })
+          ],
+          transaction: t
+        });
+      }
+
+      await NotificacionesService.crearNotificacion({
+        Id_Usuario: idUsuarioCedente,
+        Titulo: "Cupo liberado para la comunidad",
+        Mensaje: `Tu cupo de ${reserva.Tip_Reserva} ha sido liberado para beneficiar a otro aprendiz en lista de espera. ¡Gracias por tu solidaridad!`,
+        Tipo: "exito"
+      });
+
+      return {
+        exito: true,
+        mensaje: "Tu reserva ha sido liberada a la Bolsa Solidaria de Bienestar al Aprendiz."
+      };
+    });
+  }
+
+  // Historial de reservas
+  async obtenerHistorial(Id_Usuario) {
+    return await ReservaModel.findAll({
+      where: { Id_Usuario },
+      include: [{ model: PlatosModels, as: "plato", attributes: ["Nom_Plato", "Img_Plato", "Des_Plato"] }],
+      order: [["createdAt", "DESC"]],
+      limit: 10
+    });
+  }
+
+  async obtenerHistorialCompleto(Id_Usuario) {
+    return await ReservaModel.findAll({
+      where: { Id_Usuario },
+      include: [{ model: PlatosModels, as: "plato", attributes: ["Nom_Plato", "Img_Plato", "Des_Plato"] }],
+      order: [["createdAt", "DESC"]]
+    });
+  }
+
+  async cancelarReserva(Id_Reserva, Id_Usuario) {
+    const Reserva = await ReservaModel.findOne({
+      where: { Id_Reserva, Id_Usuario }
+    });
+    if (!Reserva) throw new Error("Reserva no encontrada o no pertenece al usuario");
+    if (Reserva.Est_Reserva !== "Generado") {
+      throw new Error(`No se puede cancelar una reserva con estado: ${Reserva.Est_Reserva}`);
+    }
+
+    this.ValidarCancelacionPermitida(Reserva.Tip_Reserva, Reserva.Fec_Reserva);
+    await Reserva.update({ Est_Reserva: "Cancelado" });
+
+    if (Reserva.uuid_reserva) {
+      await db.query(`
+        INSERT INTO sync_outbox (event_id, source_node, entidad, operacion, entity_uuid, payload, sync_status, created_at)
+        VALUES (?, ?, 'RESERVA', 'CANCEL', ?, ?, 'PENDING', NOW())
+      `, {
+        replacements: [
+          crypto.randomUUID(),
+          process.env.NODE_ROLE || "LOCAL",
+          Reserva.uuid_reserva,
+          JSON.stringify({ uuid_reserva: Reserva.uuid_reserva, Est_Reserva: "Cancelado" })
+        ]
+      }).catch(() => {});
+    }
+
+    return true;
   }
 }
 

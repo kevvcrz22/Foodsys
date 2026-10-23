@@ -1,11 +1,60 @@
 // Paginas/Contacto/Contacto.jsx
-// Formulario de Contacto y PQRS integrado con Nodemailer y diseno Liquid Glass
-// Envia mensajes y evidencias directamente al correo institucional oficial fierrokkevin@gmail.com
+// Formulario de Contacto y PQRSF integrado con matriz estandar de prioridad y almacenamiento en MySQL + Correo
+// Envia notificacion a fierrokkevin@gmail.com y devuelve numero de radicado oficial para trazabilidad
+// Codigo comentado didacticamente sin tildes ni emojis para aprendices de primer semestre
 
 import { useState } from "react";
-import { Mail, Phone, MapPin, Clock, Paperclip, Send, CheckCircle, ArrowLeft, Instagram, HelpCircle, ChevronDown } from "lucide-react";
+import {
+  Mail, Phone, MapPin, Clock, Paperclip, Send, CheckCircle,
+  ArrowLeft, Instagram, HelpCircle, ChevronDown, Star, AlertTriangle,
+  ShieldCheck, FileText, Sparkles
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import apiNode from "../../api/axiosConfig";
+
+const SUBCATEGORIAS_POR_CATEGORIA = {
+  CALIDAD_ALIMENTACION: [
+    "Comida fria o temperatura inadecuada",
+    "Sabor o sazon deficiente",
+    "Comida cruda o sobrecocida",
+    "Porcion incompleta o escasa",
+    "Presunto mal estado o sospecha de inocuidad",
+    "Cuerpo u objeto extrano en el plato"
+  ],
+  ESTADO_PLATO_MENAJE: [
+    "Plato o bandeja sucia / mal lavada",
+    "Plato desportillado o roto",
+    "Cubiertos o vasos con residuos",
+    "Falta de cubiertos o bandejas en turno"
+  ],
+  MOBILIARIO_MESAS_SILLAS: [
+    "Mesas sucias o con grasa",
+    "Sillas danadas o inestables",
+    "Espacio insuficiente / aglomeracion",
+    "Calor excesivo o falta de ventiladores",
+    "Aseo general del comedor"
+  ],
+  ATENCION_SERVICIO: [
+    "Mal trato verbal o mala atencion en linea",
+    "Demora excesiva en la entrega",
+    "Desorganizacion en la fila",
+    "Excelente atencion recibida (Felicitacion)"
+  ],
+  PLATAFORMA_RESERVAS: [
+    "Inconveniente con lectura de codigo QR",
+    "Dudas sobre horarios de reserva o cesion",
+    "Problema con inicio de sesion",
+    "Sugerencia tecnologica para Foodsys"
+  ],
+  RECONOCIMIENTO: [
+    "Felicitacion por excelente sazon del menu",
+    "Felicitacion al equipo de cocina",
+    "Felicitacion por atencion cordial"
+  ],
+  OTRO: [
+    "Otra situacion no especificada"
+  ]
+};
 
 const Tarjeta_Contacto = ({ Icono, Titulo, Linea1, Linea2 }) => {
   return (
@@ -23,22 +72,43 @@ const Tarjeta_Contacto = ({ Icono, Titulo, Linea1, Linea2 }) => {
 };
 
 const Contacto = () => {
-  const [datosFormulario, setDatosFormulario] = useState({ nombre: '', correo: '', tipoPqrs: 'Peticion', mensaje: '' });
+  const [datosFormulario, setDatosFormulario] = useState({
+    nombre: '',
+    correo: '',
+    tipoPqrs: 'Queja',
+    categoria: 'CALIDAD_ALIMENTACION',
+    subcategoria: 'Comida fria o temperatura inadecuada',
+    tipComida: 'Almuerzo',
+    personaServicioRef: '',
+    calificacion: 3,
+    mensaje: ''
+  });
+
   const [archivo, setArchivo] = useState(null);
   const [estadoCarga, setEstadoCarga] = useState('ocioso'); // ocioso | cargando | exito | error
   const [mensajeError, setMensajeError] = useState('');
+  const [radicadoExitoso, setRadicadoExitoso] = useState('');
   const [mostrarGuia, setMostrarGuia] = useState(false);
 
   const manejarCambio = (e) => {
     const { name, value } = e.target;
-    setDatosFormulario(prev => ({ ...prev, [name]: value }));
+    if (name === "categoria") {
+      const subs = SUBCATEGORIAS_POR_CATEGORIA[value] || ["Otra situacion"];
+      setDatosFormulario(prev => ({
+        ...prev,
+        categoria: value,
+        subcategoria: subs[0]
+      }));
+    } else {
+      setDatosFormulario(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const manejarArchivo = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        setMensajeError("El archivo supera el limite maximo permitido de 2MB.");
+      if (file.size > 5 * 1024 * 1024) {
+        setMensajeError("El archivo supera el limite maximo permitido de 5MB.");
         setArchivo(null);
         e.target.value = '';
       } else {
@@ -60,24 +130,57 @@ const Contacto = () => {
 
     try {
       const formData = new FormData();
-      formData.append('nombre', datosFormulario.nombre);
-      formData.append('correo', datosFormulario.correo);
-      formData.append('tipoPqrs', datosFormulario.tipoPqrs);
-      formData.append('mensaje', datosFormulario.mensaje);
+      formData.append('Nombre_Reportante', datosFormulario.nombre);
+      formData.append('Correo_Reportante', datosFormulario.correo);
+      formData.append('Tipo_Solicitud', datosFormulario.tipoPqrs);
+      formData.append('Categoria_Estandar', datosFormulario.categoria);
+      formData.append('Subcategoria', datosFormulario.subcategoria);
+      formData.append('Tip_Comida', datosFormulario.tipComida);
+      formData.append('Persona_Servicio_Ref', datosFormulario.personaServicioRef);
+      formData.append('Calificacion_Servicio', String(datosFormulario.calificacion));
+      formData.append('Descripcion', datosFormulario.mensaje);
       if (archivo) {
         formData.append('adjunto', archivo);
       }
 
-      await apiNode.post("/api/Auth/contacto", formData);
+      const respuesta = await apiNode.post("/api/Pqrsf", formData);
 
+      const rad = respuesta.data?.pqrsf?.Radicado || respuesta.data?.radicado || "PQRS-REGISTRADA";
+      setRadicadoExitoso(rad);
       setEstadoCarga('exito');
-      setDatosFormulario({ nombre: '', correo: '', tipoPqrs: 'Peticion', mensaje: '' });
+      setDatosFormulario({
+        nombre: '',
+        correo: '',
+        tipoPqrs: 'Queja',
+        categoria: 'CALIDAD_ALIMENTACION',
+        subcategoria: 'Comida fria o temperatura inadecuada',
+        tipComida: 'Almuerzo',
+        personaServicioRef: '',
+        calificacion: 3,
+        mensaje: ''
+      });
       setArchivo(null);
     } catch (error) {
-      setEstadoCarga('error');
-      setMensajeError(error.response?.data?.mensaje || "Error del sistema al enviar el mensaje. Intenta nuevamente.");
+      console.error("Error al enviar PQRSF:", error.message);
+      // Fallback a ruta de contacto basica si falla
+      try {
+        const formDataFallback = new FormData();
+        formDataFallback.append('nombre', datosFormulario.nombre);
+        formDataFallback.append('correo', datosFormulario.correo);
+        formDataFallback.append('tipoPqrs', datosFormulario.tipoPqrs);
+        formDataFallback.append('mensaje', `[${datosFormulario.categoria} - ${datosFormulario.subcategoria}] ${datosFormulario.mensaje}`);
+        if (archivo) formDataFallback.append('adjunto', archivo);
+        await apiNode.post("/api/Auth/contacto", formDataFallback);
+        setRadicadoExitoso("PQRS-RECIBIDA-BIENESTAR");
+        setEstadoCarga('exito');
+      } catch (errFallback) {
+        setEstadoCarga('error');
+        setMensajeError(error.response?.data?.mensaje || errFallback.response?.data?.mensaje || "Error al enviar la solicitud. Por favor intenta nuevamente.");
+      }
     }
   };
+
+  const subcategoriasActuales = SUBCATEGORIAS_POR_CATEGORIA[datosFormulario.categoria] || [];
 
   return (
     <div className="min-h-screen bg-fondo relative overflow-hidden py-10 px-4">
@@ -93,9 +196,11 @@ const Contacto = () => {
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl font-extrabold texto-gradiente inline-block">Oficina de Bienestar al Aprendiz</h1>
+          <h1 className="text-3xl sm:text-4xl font-extrabold texto-gradiente inline-block">
+            Oficina de Bienestar al Aprendiz · PQRSF
+          </h1>
           <p className="mt-3 text-texto-secundario text-sm max-w-xl mx-auto">
-            ¿Tienes dudas, sugerencias o requerimientos sobre el servicio de alimentacion en Foodsys? Estamos atentos a tus mensajes.
+            Canal oficial para Peticiones, Quejas, Reclamos, Sugerencias y Felicitaciones sobre el servicio de alimentacion en el Centro Agropecuario La Granja.
           </p>
         </div>
 
@@ -107,17 +212,16 @@ const Contacto = () => {
           >
             <div className="flex items-center gap-2">
               <HelpCircle className="w-4 h-4 text-acento" />
-              <span>¿Como usar este modulo de contacto y PQRS? (Guia paso a paso)</span>
+              <span>¿Como funciona el sistema de PQRSF? (Guia paso a paso)</span>
             </div>
             <ChevronDown className={`w-4 h-4 transition-transform ${mostrarGuia ? 'rotate-180' : ''}`} />
           </button>
           {mostrarGuia && (
             <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-texto-secundario space-y-1.5 leading-relaxed">
-              <p><strong>1. Identificacion:</strong> Escribe tu nombre completo y tu correo electronico (preferiblemente institucional @misena.edu.co o personal).</p>
-              <p><strong>2. Tipo de Solicitud:</strong> Selecciona si es una Peticion, Queja, Reclamo, Sugerencia o Felicitacion.</p>
-              <p><strong>3. Mensaje claro:</strong> Explica tu caso con detalle (fechas, turnos o situacion ocurrida).</p>
-              <p><strong>4. Evidencia (Opcional):</strong> Si tienes una captura de pantalla, foto o documento PDF de soporte (maximo 2MB), adjuntalo antes de enviar.</p>
-              <p><strong>5. Destino seguro:</strong> El mensaje llegara directamente al correo institucional de Bienestar (fierrokkevin@gmail.com) para su atencion.</p>
+              <p><strong>1. Asignacion de Radicado:</strong> Cada mensaje genera un radicado unico (ej: PQRS-202610-0042) para que puedas consultar su estado.</p>
+              <p><strong>2. Estandar de Prioridad y SLA:</strong> Quejas sobre inocuidad o alimentos en presunto mal estado se marcan como CRITICAS con atencion en menos de 4 horas.</p>
+              <p><strong>3. Termometro de Interventoria:</strong> Si se acumulan 3 o mas quejas sobre un mismo plato o turno, se dispara alerta automatica al contratista del comedor.</p>
+              <p><strong>4. Destino Oficial:</strong> El mensaje se almacena en el sistema y se notifica inmediatamente al correo institucional fierrokkevin@gmail.com.</p>
             </div>
           )}
         </div>
@@ -169,7 +273,7 @@ const Contacto = () => {
             <div className="panel-glass p-6 sm:p-8 relative">
               <h2 className="text-xl font-bold text-texto-principal mb-6 flex items-center gap-2">
                 <Send className="w-5 h-5 text-primario" />
-                Envianos tu solicitud
+                Registrar Solicitud / Queja
               </h2>
 
               {estadoCarga === 'exito' ? (
@@ -177,12 +281,16 @@ const Contacto = () => {
                   <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
                     <CheckCircle className="w-8 h-8 text-emerald-600" />
                   </div>
-                  <h3 className="text-lg font-bold text-texto-principal">¡Mensaje Enviado con Exito!</h3>
+                  <h3 className="text-lg font-bold text-texto-principal">¡Solicitud Registrada con Exito!</h3>
+                  <div className="my-4 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 inline-block">
+                    <p className="text-xs text-blue-700 font-medium">Numero de Radicado Oficial:</p>
+                    <p className="text-base font-extrabold text-[#0f3f80]">{radicadoExitoso}</p>
+                  </div>
                   <p className="text-texto-secundario text-sm mt-2 max-w-sm">
-                    Hemos recibido tu solicitud en la Oficina de Bienestar al Aprendiz. Te responderemos al correo proporcionado a la mayor brevedad.
+                    Hemos recibido tu reporte en la Oficina de Bienestar al Aprendiz e Interventoria. Se notifico a fierrokkevin@gmail.com para su gestion oportuna.
                   </p>
                   <button onClick={() => setEstadoCarga('ocioso')} className="boton-secundario px-6 py-2 mt-6 cursor-pointer">
-                    Enviar otro mensaje
+                    Registrar otra PQRSF
                   </button>
                 </div>
               ) : (
@@ -216,31 +324,122 @@ const Contacto = () => {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="etiqueta-campo">Tipo de Solicitud *</label>
+                      <select
+                        name="tipoPqrs"
+                        value={datosFormulario.tipoPqrs}
+                        onChange={manejarCambio}
+                        className="campo-glass bg-white"
+                        disabled={estadoCarga === 'cargando'}
+                      >
+                        <option value="Queja">Queja (Inconformidad con el servicio)</option>
+                        <option value="Reclamo">Reclamo (Incumplimiento de menu o porcion)</option>
+                        <option value="Peticion">Peticion (Solicitud formal)</option>
+                        <option value="Sugerencia">Sugerencia (Propuesta de mejora)</option>
+                        <option value="Felicitacion">Felicitacion (Reconocimiento)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="etiqueta-campo">Turno de Alimentacion *</label>
+                      <select
+                        name="tipComida"
+                        value={datosFormulario.tipComida}
+                        onChange={manejarCambio}
+                        className="campo-glass bg-white"
+                        disabled={estadoCarga === 'cargando'}
+                      >
+                        <option value="Almuerzo">Almuerzo</option>
+                        <option value="Desayuno">Desayuno</option>
+                        <option value="Cena">Cena</option>
+                        <option value="General">Comedor General</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="etiqueta-campo">Categoria Estandar *</label>
+                      <select
+                        name="categoria"
+                        value={datosFormulario.categoria}
+                        onChange={manejarCambio}
+                        className="campo-glass bg-white"
+                        disabled={estadoCarga === 'cargando'}
+                      >
+                        <option value="CALIDAD_ALIMENTACION">Calidad de Alimentacion</option>
+                        <option value="ESTADO_PLATO_MENAJE">Estado del Plato o Menaje</option>
+                        <option value="MOBILIARIO_MESAS_SILLAS">Mesas, Sillas e Higiene</option>
+                        <option value="ATENCION_SERVICIO">Atencion del Personal de Servicio</option>
+                        <option value="PLATAFORMA_RESERVAS">Plataforma Foodsys y Reservas</option>
+                        <option value="RECONOCIMIENTO">Felicitacion o Agradecimiento</option>
+                        <option value="OTRO">Otro Tema</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="etiqueta-campo">Causa o Subcategoria Especifica *</label>
+                      <select
+                        name="subcategoria"
+                        value={datosFormulario.subcategoria}
+                        onChange={manejarCambio}
+                        className="campo-glass bg-white"
+                        disabled={estadoCarga === 'cargando'}
+                      >
+                        {subcategoriasActuales.map((sub) => (
+                          <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {datosFormulario.categoria === "ATENCION_SERVICIO" && (
+                    <div>
+                      <label className="etiqueta-campo">Referencia de Persona del Servicio (Opcional)</label>
+                      <input
+                        type="text"
+                        name="personaServicioRef"
+                        value={datosFormulario.personaServicioRef}
+                        onChange={manejarCambio}
+                        placeholder="Ej. Personal de entrega de fila 2, o auxiliar de aseo"
+                        className="campo-glass"
+                        disabled={estadoCarga === 'cargando'}
+                      />
+                    </div>
+                  )}
+
                   <div>
-                    <label className="etiqueta-campo">Tipo de Solicitud (PQRS) *</label>
-                    <select
-                      name="tipoPqrs"
-                      value={datosFormulario.tipoPqrs}
-                      onChange={manejarCambio}
-                      className="campo-glass bg-white"
-                      disabled={estadoCarga === 'cargando'}
-                    >
-                      <option value="Peticion">Peticion</option>
-                      <option value="Queja">Queja</option>
-                      <option value="Reclamo">Reclamo</option>
-                      <option value="Sugerencia">Sugerencia</option>
-                      <option value="Felicitacion">Felicitacion</option>
-                    </select>
+                    <label className="etiqueta-campo flex items-center justify-between">
+                      <span>Calificacion del Servicio en este turno (1 a 5 estrellas)</span>
+                      <span className="text-amber-500 font-bold">{datosFormulario.calificacion} de 5 estrellas</span>
+                    </label>
+                    <div className="flex items-center gap-2 mt-1">
+                      {[1, 2, 3, 4, 5].map((estrella) => (
+                        <button
+                          key={estrella}
+                          type="button"
+                          onClick={() => setDatosFormulario(prev => ({ ...prev, calificacion: estrella }))}
+                          className="p-1 text-amber-400 hover:scale-110 transition-transform"
+                        >
+                          <Star
+                            size={24}
+                            className={estrella <= datosFormulario.calificacion ? "fill-amber-400 text-amber-400" : "text-slate-300"}
+                          />
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
-                    <label className="etiqueta-campo">Mensaje Detallado *</label>
+                    <label className="etiqueta-campo">Descripcion Detallada del Hecho *</label>
                     <textarea
                       rows={4}
                       name="mensaje"
                       value={datosFormulario.mensaje}
                       onChange={manejarCambio}
-                      placeholder="Describe tu situacion o requerimiento con el mayor detalle posible..."
+                      placeholder="Explica que sucedio, fecha aproximada, alimentos involucrados o detalles que respalden la situacion..."
                       className="campo-glass resize-none"
                       disabled={estadoCarga === 'cargando'}
                       required
@@ -249,7 +448,7 @@ const Contacto = () => {
 
                   <div>
                     <label className="etiqueta-campo flex items-center gap-2">
-                      <Paperclip className="w-4 h-4 text-primario" /> Archivo Adjunto de Evidencia (Opcional)
+                      <Paperclip className="w-4 h-4 text-primario" /> Archivo Adjunto de Evidencia (Foto o PDF, Opcional)
                     </label>
                     <div className="relative">
                       <input
@@ -260,7 +459,7 @@ const Contacto = () => {
                         disabled={estadoCarga === 'cargando'}
                       />
                       <p className="text-[11px] text-texto-secundario/70 mt-1">
-                        Formatos permitidos: JPG, PNG o PDF. Limite maximo: 2MB.
+                        Formatos permitidos: JPG, PNG o PDF. Limite maximo: 5MB.
                       </p>
                     </div>
                   </div>
@@ -280,12 +479,12 @@ const Contacto = () => {
                     {estadoCarga === 'cargando' ? (
                       <>
                         <div className="spinner w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Enviando mensaje a Bienestar...</span>
+                        <span>Registrando y notificando a Bienestar...</span>
                       </>
                     ) : (
                       <>
                         <Send className="w-4 h-4" />
-                        <span>Enviar Solicitud a Bienestar</span>
+                        <span>Enviar PQRSF a Bienestar</span>
                       </>
                     )}
                   </button>

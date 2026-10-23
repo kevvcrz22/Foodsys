@@ -313,6 +313,82 @@ class TurnosService {
       turnos: rows
     };
   }
+
+  /**
+   * Calcula el estado del semaforo de aforo del comedor en tiempo real
+   * Basado en la tasa de escaneos/consumos por minuto en los ultimos 10 minutos
+   */
+  async obtenerAforoSemaforo() {
+    const turnoActivo = await this.obtenerTurnoActivo();
+
+    if (!turnoActivo) {
+      return {
+        turnoActivo: false,
+        supervisor: null,
+        totalConsumosTurno: 0,
+        consumosUltimos10Min: 0,
+        ritmoMinuto: 0,
+        color: "GRIS",
+        nivel: "Comedor en receso",
+        icono: "⚪",
+        mensaje: "No hay turno de servicio abierto en este momento.",
+        tiempoEsperaEstimado: "N/A"
+      };
+    }
+
+    const hace10Minutos = new Date(Date.now() - 10 * 60 * 1000);
+    const fechaInicioTurno = turnoActivo.Fecha_Inicio;
+    const ventanaInicio = hace10Minutos > fechaInicioTurno ? hace10Minutos : fechaInicioTurno;
+
+    const consumosRecientes = await ReservasModel.count({
+      where: {
+        Est_Reserva: 'Consumido',
+        updatedAt: {
+          [Op.gte]: ventanaInicio
+        }
+      }
+    });
+
+    const minutosTranscurridos = Math.max(1, Math.round((Date.now() - new Date(ventanaInicio).getTime()) / (60 * 1000)));
+    const ritmoMinuto = Math.round((consumosRecientes / minutosTranscurridos) * 10) / 10;
+
+    let color = "VERDE";
+    let nivel = "Fila fluida";
+    let icono = "🟢";
+    let mensaje = "Comedor con paso agil y sin esperas prolongadas.";
+    let tiempoEsperaEstimado = "< 2 minutos";
+
+    if (ritmoMinuto > 5) {
+      color = "ROJO";
+      nivel = "Hora pico (Alta congestion)";
+      icono = "🔴";
+      mensaje = "Fila con alta afluencia. Te sugerimos esperar unos minutos si no tienes prisa.";
+      tiempoEsperaEstimado = "8 - 15 minutos";
+    } else if (ritmoMinuto >= 2) {
+      color = "AMARILLO";
+      nivel = "Flujo moderado";
+      icono = "🟡";
+      mensaje = "Fila con flujo constante y avance rapido.";
+      tiempoEsperaEstimado = "3 - 6 minutos";
+    }
+
+    const nombreSup = turnoActivo.supervisor
+      ? `${turnoActivo.supervisor.Nom_Usuario || ''} ${turnoActivo.supervisor.Ape_Usuario || ''}`.trim()
+      : 'Supervisor en turno';
+
+    return {
+      turnoActivo: true,
+      supervisor: nombreSup,
+      totalConsumosTurno: turnoActivo.Total_Consumos_Registrados || 0,
+      consumosUltimos10Min: consumosRecientes,
+      ritmoMinuto,
+      color,
+      nivel,
+      icono,
+      mensaje,
+      tiempoEsperaEstimado
+    };
+  }
 }
 
 export default new TurnosService();

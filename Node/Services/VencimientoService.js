@@ -375,7 +375,8 @@ class VencimientoService {
   // Tipo: 'Desayuno' | 'Almuerzo' | 'Cena'
   // Cierra el turno marcando reservas como Vencido y evaluando sanciones automáticas.
   async vencerTurno(tipo) {
-    const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const { obtenerFechaColombia } = await import('../Utils/dateUtils.js');
+    const hoy = obtenerFechaColombia(); // YYYY-MM-DD en America/Bogota
 
     const resultado = await db.transaction(async (transaction) => {
 

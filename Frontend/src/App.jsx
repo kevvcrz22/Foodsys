@@ -79,6 +79,8 @@ const CrudMenus = lazy(() => import("./Tablas/Menus/CrudMenus.jsx"));
 const CrudReservas = lazy(() => import("./Tablas/Reservas/CrudReservas.jsx"));
 const Aprendices = lazy(() => import("./Tablas/Usuarios/Aprendices.jsx"));
 const Pasantes = lazy(() => import("./Tablas/Usuarios/Pasantes.jsx"));
+const PqrsfAdminDashboard = lazy(() => import("./Paginas/Admin/PqrsfAdminDashboard.jsx"));
+const PanelSincronizacion = lazy(() => import("./Paginas/Admin/PanelSincronizacion.jsx"));
 const ReservaForm = lazy(() => import("./Tablas/Reservas/ReservaForm.jsx"));
 
 // ── Mapa de redireccion despues del login por rol ────────────────────────────
@@ -287,10 +289,37 @@ function App() {
           duration: 4000,
           style: {
             zIndex: 99999,
+            fontFamily: "'Outfit', 'Inter', system-ui, sans-serif",
             fontSize: "13px",
-            borderRadius: "10px",
-            padding: "10px 14px",
-            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+            fontWeight: "600",
+            borderRadius: "16px",
+            padding: "12px 18px",
+            color: "#0f274a",
+            background: "rgba(255, 255, 255, 0.96)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid rgba(15, 63, 128, 0.15)",
+            boxShadow: "0 20px 35px -10px rgba(15, 63, 128, 0.2), 0 8px 12px -4px rgba(0, 0, 0, 0.08)",
+          },
+          success: {
+            duration: 3500,
+            iconTheme: {
+              primary: "#10b981",
+              secondary: "#ffffff",
+            },
+            style: {
+              borderLeft: "5px solid #10b981",
+            },
+          },
+          error: {
+            duration: 5000,
+            iconTheme: {
+              primary: "#f43f5e",
+              secondary: "#ffffff",
+            },
+            style: {
+              borderLeft: "5px solid #f43f5e",
+            },
           },
         }}
       />
@@ -602,6 +631,36 @@ function App() {
               >
                 <LayoutConSidebar {...Props_Layout}>
                   <Pasantes />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* PQRSF e Interventoria: accesible para Administrador y Bienestar */}
+          <Route
+            path="/pqrsf-admin"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={["Administrador", "Bienestar"]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <PqrsfAdminDashboard />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Sincronizacion Offline: accesible para Administrador */}
+          <Route
+            path="/sincronizacion"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={["Administrador"]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <PanelSincronizacion />
                 </LayoutConSidebar>
               </ProtectedRoute>
             }

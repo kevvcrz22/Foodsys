@@ -43,6 +43,7 @@ import PlatosModel from "../Models/PlatosModels.js";
 import FichasModel from "../Models/FichasModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
 import VencimientoService from "./VencimientoService.js";
+import { obtenerFechaColombia } from "../Utils/dateUtils.js";
 
 class ReportesService {
 
@@ -847,8 +848,8 @@ class ReportesService {
   //   ultimosConsumos - Ultimas 10 reservas consumidas hoy (feed en vivo)
   //   porHora         - Consumos por hora para la curva de demanda del dia
   async getTiempoReal() {
-    // Fecha del dia actual en formato YYYY-MM-DD para el filtro de la consulta
-    const Hoy = new Date().toISOString().split("T")[0];
+    // Fecha del dia actual en formato YYYY-MM-DD para el filtro de la consulta (zona horaria Colombia)
+    const Hoy = obtenerFechaColombia();
 
     // Traer las reservas del dia con informacion del usuario y el plato
     const Reservas = await ReservaModel.findAll({
@@ -1079,7 +1080,7 @@ class ReportesService {
       busqueda = ""
     } = filtros;
 
-    const hoy = new Date().toISOString().split("T")[0];
+    const hoy = obtenerFechaColombia();
     let condicionFecha = {};
 
     if (periodo === "diario") {

@@ -56,7 +56,10 @@ import {
   consumirPorId,
   ContarVencidas,
   ResumenSupervisor,
-  obtenerEstadoInasistencias
+  obtenerEstadoInasistencias,
+  buscarCompaneroParaCeder,
+  cederReserva,
+  liberarBolsaSolidaria
 } from "../Controllers/ReservasController.js";
 const router = Router();
 
@@ -171,7 +174,9 @@ router.get('/vencidas/count', authMiddleware, ContarVencidas);
 router.get(
   '/supervisor/resumen-hoy',
   authMiddleware,
-  SupervisorMiddleware,
-  ResumenSupervisor
-);
+// Rutas para Ceder Reserva y Bolsa Solidaria (Habeas Data)
+router.get('/ceder/buscar-companero', authMiddleware, buscarCompaneroParaCeder);
+router.post('/ceder/transferir', authMiddleware, cederReserva);
+router.post('/ceder/liberar-bolsa', authMiddleware, liberarBolsaSolidaria);
+
 export default router;

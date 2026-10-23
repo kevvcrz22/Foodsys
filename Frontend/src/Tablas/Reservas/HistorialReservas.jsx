@@ -6,10 +6,11 @@ import {
     UtensilsCrossed, Clock, CheckCircle2, XCircle, ShieldCheck,
     CalendarDays, ChevronDown, Loader2, RefreshCw, Ban,
     AlertTriangle, Utensils, Star, QrCode, X, Download,
-    Hash, Timer,
+    Hash, Timer, HeartHandshake, UserCheck,
 } from "lucide-react";
 import { GenerarTicketQR } from "./GenerarTicketQR";
 import apiAxios from "../../api/axiosConfig";
+import ModalCederReserva from "../../Paginas/Reservas/ModalCederReserva.jsx";
 
 // ─── Configuracion visual por estado ─────────────────────────────────────────
 
@@ -359,12 +360,14 @@ function ModalQR({ reserva, usuario, onCerrar }) {
 
 // ─── Tarjeta individual de reserva ───────────────────────────────────────────
 
-function TarjetaReserva({ reserva, onCancelar, cancelando, onVerQR }) {
+function TarjetaReserva({ reserva, onCancelar, cancelando, onVerQR, onCeder }) {
     const [confirmar, setConfirmar] = useState(false);
 
     const estado = CONFIG_ESTADO[reserva.Est_Reserva] ?? CONFIG_ESTADO.Cancelado;
     const claseTipo = CONFIG_TIPO[reserva.Tip_Reserva] ?? "bg-slate-100 text-slate-600 border-slate-200";
     const esCancelable = reserva.Est_Reserva === "Generado";
+    const esCedible = reserva.Est_Reserva === "Generado" && !reserva.Id_Usuario_Cedente;
+    const fueCedida = !!reserva.Id_Usuario_Cedente;
     const esNovedad = reserva.Exc_Reserva === "Si";
     const tieneQR = !!reserva.Qr_Reserva;
 
@@ -443,6 +446,27 @@ function TarjetaReserva({ reserva, onCancelar, cancelando, onVerQR }) {
                                 <QrCode className="w-3.5 h-3.5" />
                                 Ver QR
                             </button>
+                        )}
+
+                        {esCedible && (
+                            <button
+                                onClick={() => onCeder(reserva)}
+                                className="inline-flex items-center gap-1.5 text-[11px] font-semibold
+                           text-emerald-700 bg-emerald-50 hover:bg-emerald-100
+                           border border-emerald-200 px-2.5 py-1.5 rounded-xl
+                           transition-colors shadow-2xs"
+                                title="Ceder reserva a un companero o a la bolsa solidaria"
+                            >
+                                <HeartHandshake className="w-3.5 h-3.5" />
+                                Ceder Reserva
+                            </button>
+                        )}
+
+                        {fueCedida && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                                <UserCheck className="w-3 h-3" />
+                                Cedida
+                            </span>
                         )}
 
                         {esCancelable && (
@@ -525,6 +549,7 @@ export default function HistorialReservas() {
     const [MensajeOk, SetMensajeOk] = useState(null);
     const [MensajeErr, SetMensajeErr] = useState(null);
     const [ReservaQR, SetReservaQR] = useState(null);
+    const [reservaParaCeder, SetReservaParaCeder] = useState(null);
 
     const CargarHistorial = useCallback(async () => {
         SetCargando(true);
@@ -601,6 +626,18 @@ export default function HistorialReservas() {
                         documento: usuario?.NumDoc_Usuario ?? "—",
                     }}
                     onCerrar={() => SetReservaQR(null)}
+                />
+            )}
+
+            {reservaParaCeder && (
+                <ModalCederReserva
+                    reserva={reservaParaCeder}
+                    usuario={usuario}
+                    onCerrar={() => SetReservaParaCeder(null)}
+                    onExito={() => {
+                        CargarHistorial();
+                        window.dispatchEvent(new Event("reservasActualizadas"));
+                    }}
                 />
             )}
 
@@ -681,6 +718,7 @@ export default function HistorialReservas() {
                                 onCancelar={CancelarReserva}
                                 cancelando={Cancelando}
                                 onVerQR={SetReservaQR}
+                                onCeder={SetReservaParaCeder}
                             />
                         ))}
                     </div>

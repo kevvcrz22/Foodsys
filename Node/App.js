@@ -31,6 +31,8 @@ import CocinaRoute from './Routes/CocinaRoute.js';
 import RutasAutenticacion from './Routes/Rutas_Autenticacion.js';
 import TurnosRoute from './Routes/TurnosRoute.js';
 import NotificacionesRoute from './Routes/NotificacionesRoute.js';
+import SyncRoute from './Routes/SyncRoute.js';
+import PqrsfRoute from './Routes/PqrsfRoute.js';
 
 // ---------- 3. IMPORTACIÓN DE MODELOS ----------
 import FichasModel from './Models/FichasModel.js';
@@ -43,7 +45,10 @@ import PlatosModel from './Models/PlatosModels.js';
 import MenuModel from './Models/MenusModels.js';
 import TurnosModel from './Models/TurnosModel.js';
 import NotificacionesModel from './Models/NotificacionesModel.js';
+import PqrsfModel from './Models/PqrsfModel.js';
+import CentrosSenaConfigModel from './Models/CentrosSenaConfigModel.js';
 import NovedadesService from './Services/NovedadesService.js';
+import { syncWorkerInstance } from './Jobs/SyncWorker.js';
 
 // ---------- 4. CONFIGURACIÓN INICIAL ----------
 const __rutaApp = fileURLToPath(import.meta.url);
@@ -175,6 +180,10 @@ aplicacion.use('/api/Turnos', TurnosRoute);
 aplicacion.use('/api/turnos', TurnosRoute);
 aplicacion.use('/api/Notificaciones', NotificacionesRoute);
 aplicacion.use('/api/notificaciones', NotificacionesRoute);
+aplicacion.use('/api/Sync', SyncRoute);
+aplicacion.use('/api/sync', SyncRoute);
+aplicacion.use('/api/Pqrsf', PqrsfRoute);
+aplicacion.use('/api/pqrsf', PqrsfRoute);
 
 // ---------- 7. ARCHIVOS ESTÁTICOS ----------
 const rutaArchivo = fileURLToPath(import.meta.url);
@@ -307,6 +316,111 @@ try {
   } catch (errSync) {
     console.warn('Nota sobre sincronización de tablas turnos/notificaciones:', errSync.message);
   }
+
+  // Asegurar migracion v3: columnas en reservas para sincronizacion offline y cesion
+  try {
+    const [colsRes] = await db.query("SHOW COLUMNS FROM reservas");
+    const nombresColsRes = colsRes.map(c => c.Field);
+    if (!nombresColsRes.includes('uuid_reserva')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN uuid_reserva CHAR(36) NULL AFTER Id_Reserva");
+      await db.query("UPDATE reservas SET uuid_reserva = UUID() WHERE uuid_reserva IS NULL");
+      await db.query("CREATE UNIQUE INDEX idx_reservas_uuid ON reservas (uuid_reserva)");
+      console.log('✅ Columna uuid_reserva creada en tabla reservas');
+    }
+    if (!nombresColsRes.includes('nodo_origen')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN nodo_origen ENUM('LOCAL', 'CLOUD') NOT NULL DEFAULT 'CLOUD'");
+      console.log('✅ Columna nodo_origen creada en tabla reservas');
+    }
+    if (!nombresColsRes.includes('Id_Usuario_Cedente')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN Id_Usuario_Cedente INT NULL");
+      console.log('✅ Columna Id_Usuario_Cedente creada en tabla reservas');
+    }
+    if (!nombresColsRes.includes('Fec_Cesion')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN Fec_Cesion DATETIME NULL");
+      console.log('✅ Columna Fec_Cesion creada en tabla reservas');
+    }
+    if (!nombresColsRes.includes('motivo_cesion')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN motivo_cesion VARCHAR(180) NULL");
+      console.log('✅ Columna motivo_cesion creada en tabla reservas');
+    }
+    if (!nombresColsRes.includes('sync_status')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN sync_status ENUM('PENDING', 'SYNCED') NOT NULL DEFAULT 'PENDING'");
+      console.log('✅ Columna sync_status creada en tabla reservas');
+    }
+  } catch (errRes) {
+    console.warn('Nota sobre columnas de reservas v3:', errRes.message);
+  }
+
+  // Asegurar tablas de sincronizacion offline y control antifraude Ed25519
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS qr_consumidos_control (
+        uuid_reserva CHAR(36) PRIMARY KEY,
+        NumDoc_Usuario BIGINT NOT NULL,
+        Fec_Reserva DATE NOT NULL,
+        Tip_Reserva VARCHAR(20) NOT NULL,
+        Fecha_Consumo DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        Id_Supervisor INT NULL,
+        nodo_consumo ENUM('LOCAL', 'CLOUD') NOT NULL DEFAULT 'LOCAL',
+        UNIQUE INDEX uk_consumo_unico_aprendiz (NumDoc_Usuario, Fec_Reserva, Tip_Reserva)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sync_outbox (
+        event_id CHAR(36) PRIMARY KEY,
+        source_node ENUM('LOCAL', 'CLOUD') NOT NULL DEFAULT 'LOCAL',
+        entidad VARCHAR(40) NOT NULL,
+        operacion VARCHAR(30) NOT NULL,
+        entity_uuid CHAR(36) NOT NULL,
+        payload JSON NOT NULL,
+        sync_status ENUM('PENDING', 'SYNCED', 'CONFLICT', 'ERROR') NOT NULL DEFAULT 'PENDING',
+        attempts INT NOT NULL DEFAULT 0,
+        last_error TEXT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        synced_at DATETIME NULL,
+        INDEX idx_sync_pending (sync_status, created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sync_inbox_processed (
+        event_id CHAR(36) PRIMARY KEY,
+        source_node ENUM('LOCAL', 'CLOUD') NOT NULL,
+        processed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await PqrsfModel.sync({ alter: false });
+    await CentrosSenaConfigModel.sync({ alter: false });
+
+    // Sembrar configuracion base del Centro Agropecuario La Granja si no existe
+    const conteoCentros = await CentrosSenaConfigModel.count();
+    if (conteoCentros === 0) {
+      await CentrosSenaConfigModel.create({
+        Codigo_Centro_Sena: '9121',
+        Nombre_Centro: 'Centro Agropecuario "La Granja" del Espinal-Tolima',
+        Regional: 'Regional Tolima',
+        Tiene_Internado: true,
+        Cupo_Max_Desayuno: 250,
+        Cupo_Max_Almuerzo: 450,
+        Cupo_Max_Cena: 250,
+        Porcentaje_Cupo_Local_Offline: 75,
+        Hora_Inicio_Almuerzo: '11:30:00',
+        Hora_Fin_Almuerzo: '13:30:00',
+        Horas_Antelacion_Reserva: 8,
+        Horas_Antelacion_Cancelacion: 9,
+        Horas_Antelacion_Cesion: 2,
+        Max_Inasistencias_Semana: 3,
+        Valor_Unitario_Racion_COP: 12500,
+        Estado_Nodo_Local: 'ONLINE'
+      });
+      console.log('✅ Configuracion base de Centro La Granja (9121) sembrada');
+    }
+    console.log('✅ Tablas de sincronizacion, PQRSF y multi-sede verificadas');
+  } catch (errSyncTables) {
+    console.warn('Nota sobre tablas de sincronizacion v3:', errSyncTables.message);
+  }
 } catch (errorDb) {
   console.error('Error al conectar a la Base de Datos: ', errorDb);
   process.exit(1);
@@ -340,6 +454,12 @@ TurnosModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario", as: "supervisor
 UsuariosModel.hasMany(NotificacionesModel, { foreignKey: "Id_Usuario", as: "notificaciones" });
 NotificacionesModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario", as: "usuario" });
 
+UsuariosModel.hasMany(PqrsfModel, { foreignKey: 'Id_Usuario', as: 'pqrsfs' });
+PqrsfModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' });
+
+PlatosModel.hasMany(PqrsfModel, { foreignKey: 'Id_Plato_Relacionado', as: 'pqrsfs' });
+PqrsfModel.belongsTo(PlatosModel, { foreignKey: 'Id_Plato_Relacionado', as: 'plato' });
+
 // ========== 10. TAREA DE MANTENIMIENTO: ESTADOS ESPECIALES EXPIRADOS ==========
 try {
   const resultadoReversion = await NovedadesService.RevertirEspecialesExpirados();
@@ -357,6 +477,14 @@ try {
 
 // Sincronizar fichas vencidas despues de que las asociaciones de Sequelize esten listas
 await sincronizarFichasAlInicio();
+
+// Iniciar motor de sincronizacion offline tipo OneDrive (nodo local)
+if (process.env.NODE_ROLE !== 'CLOUD') {
+  syncWorkerInstance.iniciar();
+  console.log('✅ SyncWorker iniciado: monitoreo offline cada 2 minutos hacia Hetzner');
+} else {
+  console.log('ℹ️ Servidor en modo CLOUD Hetzner (SyncWorker receptor activo)');
+}
 
 setInterval(async () => {
   try {

@@ -8,10 +8,14 @@ import {
   iniciarTurno,
   finalizarTurno,
   obtenerHistorial,
-  obtenerConsumosDeTurno
+  obtenerConsumosDeTurno,
+  obtenerAforoSemaforo
 } from "../Controllers/TurnosController.js";
 
 const router = express.Router();
+
+// Semaforo de aforo en tiempo real (publico y visible para aprendices y supervisores)
+router.get("/aforo-semaforo", obtenerAforoSemaforo);
 
 router.use(authMiddleware);
 

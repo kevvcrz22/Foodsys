@@ -10,11 +10,15 @@ import FichasModel from "../Models/FichasModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
 import RolesModel from "../Models/RolesModel.js";
 import UsuariosRolModel from "../Models/UsuariosRolModel.js";
+import ReservaModel from "../Models/ReservasModel.js";
+import SofiaPlusReconcilerService from "../Services/SofiaPlusReconcilerService.js";
 import { sincronizarEstadoAprendices } from "../Services/FichasServices.js";
 import { normalizarNombrePrograma } from "../Services/ProgramaService.js";
+import { obtenerFechaColombia } from "../Utils/dateUtils.js";
+import { Op } from "sequelize";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
-import XLSX from "xlsx"; // npm install xlsx
+import XLSX from "xlsx";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -531,6 +535,10 @@ export const previewImport = async (req, res) => {
       mapaFichas.set(String(f.Id_Ficha).trim(), fichaObj);
     }
 
+    // Precargar usuarios existentes para cruce de inactivos (Bug 3)
+    const usuariosExistentes = await UsuariosModel.findAll({ attributes: ["Id_Usuario", "NumDoc_Usuario", "Est_Usuario"] });
+    const mapaUsuariosDoc = new Map(usuariosExistentes.map(u => [String(u.NumDoc_Usuario).trim(), u]));
+
     // Procesar y normalizar cada fila
     const Datos = [];
     let omitidosInactivos = 0;
@@ -569,6 +577,23 @@ export const previewImport = async (req, res) => {
       if (filtrarSoloActivos && estadoRaw) {
         const esInactivo = /CANCELADO|RETIRO|CERTIFICADO|APLAZADO|TRASLADADO/i.test(estadoRaw);
         if (esInactivo) {
+          // Bug 3: Inactivar si ya existia en Foodsys activo y cancelar reservas futuras
+          const usuarioEx = mapaUsuariosDoc.get(numDoc);
+          if (usuarioEx && usuarioEx.Est_Usuario === "En Formacion") {
+            await UsuariosModel.update({ Est_Usuario: "Inactivo" }, { where: { Id_Usuario: usuarioEx.Id_Usuario } });
+            const hoyStr = obtenerFechaColombia();
+            await ReservaModel.update(
+              { Est_Reserva: "Cancelado" },
+              {
+                where: {
+                  Id_Usuario: usuarioEx.Id_Usuario,
+                  Fec_Reserva: { [Op.gte]: hoyStr },
+                  Est_Reserva: { [Op.in]: ["Generado", "Verificado"] }
+                }
+              }
+            );
+            usuarioEx.Est_Usuario = "Inactivo";
+          }
           omitidosInactivos++;
           continue;
         }
@@ -649,16 +674,15 @@ export const previewImport = async (req, res) => {
         ? (esInterno ? "Pasante Interno" : "Pasante Externo")
         : (esInterno ? "Aprendiz Interno" : "Aprendiz Externo");
 
-      // REGLA OBLIGATORIA: Nombres y apellidos siempre en MAYUSCULAS
+      // Nombres y apellidos siempre en MAYUSCULAS
       const nombresMayus = (nombres || "SIN NOMBRE").trim().toUpperCase();
       const apellidosMayus = (apellidos || "").trim().toUpperCase();
 
-      // REGLA OBLIGATORIA: Validar si la ficha existe previamente en la base de datos
+      // Validar si la ficha existe o sera auto-registrada (Bug 4)
       const numFichaLimpio = String(numFichaRaw || "").trim().replace(/\D/g, "");
       const fichaEncontrada = numFichaLimpio ? (mapaFichas.get(numFichaLimpio) || mapaFichas.get(String(parseInt(numFichaLimpio, 10)))) : null;
-      const tieneFichaValida = Boolean(fichaEncontrada && fichaEncontrada.Id_Ficha);
+      const tieneFichaValida = Boolean(numFichaLimpio);
 
-      // REGLA OBLIGATORIA: Todo aprendiz importado por Excel tiene estado "En Formacion"
       const estUsuario = "En Formacion";
 
       Datos.push({
@@ -670,17 +694,13 @@ export const previewImport = async (req, res) => {
         Tel_Usuario: telFinal || null,
         Gen_Usuario: genRaw ? (genRaw.toUpperCase().startsWith("M") ? "Masculino" : "Femenino") : "No especificado",
         CenCon_Usuario: esInterno ? "Si" : "No",
-        Num_Ficha: tieneFichaValida ? fichaEncontrada.Num_Ficha : (numFichaLimpio || "Sin ficha"),
-        Id_Ficha: tieneFichaValida ? fichaEncontrada.Id_Ficha : null,
-        Nom_Programa: tieneFichaValida
+        Num_Ficha: tieneFichaValida ? (fichaEncontrada ? fichaEncontrada.Num_Ficha : numFichaLimpio) : "Sin ficha",
+        Id_Ficha: fichaEncontrada ? fichaEncontrada.Id_Ficha : null,
+        Nom_Programa: fichaEncontrada
           ? String(fichaEncontrada.Nom_Programa || "").toUpperCase()
-          : (nomProgExtraido ? String(nomProgExtraido).trim().toUpperCase() : "SIN PROGRAMA ASIGNADO"),
+          : (nomProgExtraido ? String(nomProgExtraido).trim().toUpperCase() : "PROGRAMA ASOCIADO"),
         fichaValida: tieneFichaValida,
-        errorFicha: tieneFichaValida
-          ? null
-          : (numFichaLimpio
-              ? `La ficha #${numFichaLimpio} no está registrada en el sistema. Primero debe registrar o importar la ficha en el módulo de Fichas.`
-              : "El aprendiz no tiene número de ficha asignado. No se puede subir sin ficha."),
+        errorFicha: tieneFichaValida ? null : "El aprendiz no tiene numero de ficha asignado.",
         Rol_Asignado: rolAsignado,
         Est_Usuario: estUsuario,
         Estado_Etapa_Lectiva: "Vigente"
@@ -775,23 +795,41 @@ export const importarSeleccionados = async (req, res) => {
             const nomUsuarioFinal = String(Fila.Nom_Usuario).trim().toUpperCase();
             const apeUsuarioFinal = Fila.Ape_Usuario ? String(Fila.Ape_Usuario).trim().toUpperCase() : "";
 
-            // REGLA OBLIGATORIA: La ficha DEBE existir previamente en el sistema. Si no existe, NO SE PERMITE SUBIR.
+            // Auto-registro al vuelo de Fichas y Programas si no existen previamente (Bug 4)
             const numFichaBuscada = String(Fila.Num_Ficha || Fila.Id_Ficha || "").trim().replace(/\D/g, "");
-            const fichaAsociada = numFichaBuscada
+            let fichaAsociada = numFichaBuscada
               ? (mapaFichas.get(numFichaBuscada) || mapaFichas.get(String(parseInt(numFichaBuscada, 10))))
               : null;
 
-            if (!fichaAsociada || !fichaAsociada.Id_Ficha) {
-              Omitidos++;
-              Errores.push(`Aprendiz ${numDocStr} (${nomUsuarioFinal} ${apeUsuarioFinal}) rechazado: La ficha #${numFichaBuscada || 'No especificada'} no existe en el sistema. Primero debe registrar o importar la ficha.`);
-              return;
+            let idFichaFinal = fichaAsociada?.Id_Ficha || null;
+            if (!idFichaFinal && numFichaBuscada) {
+              const nomProgFila = normalizarNombrePrograma(Fila.Nom_Programa) || `PROGRAMA FICHA ${numFichaBuscada}`;
+              let progObj = mapaProgramasPorNombre.get(nomProgFila);
+              if (!progObj) {
+                progObj = await ProgramaModel.create({
+                  Nom_Programa: nomProgFila,
+                  NivFor_Programa: "TECNOLOGO",
+                  Est_Programa: "Activo"
+                });
+                mapaProgramasPorNombre.set(nomProgFila, progObj);
+                mapaProgramasPorId.set(progObj.Id_Programa, progObj);
+              }
+              const nuevaFicha = await FichasModel.create({
+                Num_Ficha: numFichaBuscada,
+                Id_Programa: progObj.Id_Programa,
+                FecIniLec_Ficha: obtenerFechaColombia(),
+                FecFinLec_Ficha: "2028-12-31",
+                FecIniPra_Ficha: "2029-01-01",
+                FecFinPra_Ficha: "2029-06-30"
+              });
+              mapaFichas.set(String(nuevaFicha.Num_Ficha).trim(), nuevaFicha);
+              mapaFichas.set(String(nuevaFicha.Id_Ficha).trim(), nuevaFicha);
+              idFichaFinal = nuevaFicha.Id_Ficha;
             }
-
-            const idFichaFinal = fichaAsociada.Id_Ficha;
 
             // Determinar rol segun CenCon_Usuario
             const cenConStr = String(Fila.CenCon_Usuario || "").toLowerCase().trim();
-            const esInterno = ["si", "sí", "1", "true"].includes(cenConStr);
+            const esInterno = ["si", "sí", "1", "true", "cabaña", "alojamiento"].includes(cenConStr);
             const rolRaw = String(Fila.Rol_Asignado || Fila.Rol || "").toLowerCase();
             const esPasante = rolRaw.includes("pasante");
 
@@ -807,24 +845,42 @@ export const importarSeleccionados = async (req, res) => {
             // 2. Comprobar si el usuario ya existe en BD
             if (mapaUsuariosDoc.has(numDocStr)) {
               const usuarioEx = mapaUsuariosDoc.get(numDocStr);
-              // Si existia pero no tenia ficha asignada o era diferente, actualizarlo con su ficha legitima
-              if (!usuarioEx.Id_Ficha || usuarioEx.Id_Ficha !== idFichaFinal) {
-                await UsuariosModel.update({
-                  Id_Ficha: idFichaFinal,
-                  Nom_Usuario: nomUsuarioFinal,
-                  Ape_Usuario: apeUsuarioFinal,
-                  Gen_Usuario: (usuarioEx.Gen_Usuario && usuarioEx.Gen_Usuario !== "No especificado")
-                    ? usuarioEx.Gen_Usuario
-                    : (Fila.Gen_Usuario || "No especificado"),
-                  CenCon_Usuario: esInterno ? "Si" : "No",
-                  Est_Usuario: "En Formacion"
-                }, { where: { Id_Usuario: usuarioEx.Id_Usuario } });
-                usuarioEx.Id_Ficha = idFichaFinal;
-                Actualizados++;
+              const datosActualizar = {
+                Nom_Usuario: nomUsuarioFinal,
+                Ape_Usuario: apeUsuarioFinal,
+                CenCon_Usuario: esInterno ? "Si" : "No"
+              };
+              if (idFichaFinal) datosActualizar.Id_Ficha = idFichaFinal;
+              if (Fila.Gen_Usuario && Fila.Gen_Usuario !== "No especificado") datosActualizar.Gen_Usuario = Fila.Gen_Usuario;
+              if (Fila.Cor_Usuario) datosActualizar.Cor_Usuario = Fila.Cor_Usuario;
+              if (Fila.Tel_Usuario) datosActualizar.Tel_Usuario = Fila.Tel_Usuario;
+
+              if (Fila.Est_Usuario === "Inactivo") {
+                datosActualizar.Est_Usuario = "Inactivo";
+                const hoyStr = obtenerFechaColombia();
+                await ReservaModel.update(
+                  { Est_Reserva: "Cancelado" },
+                  {
+                    where: {
+                      Id_Usuario: usuarioEx.Id_Usuario,
+                      Fec_Reserva: { [Op.gte]: hoyStr },
+                      Est_Reserva: { [Op.in]: ["Generado", "Verificado"] }
+                    }
+                  }
+                );
               } else {
-                Omitidos++;
-                Errores.push(`Documento ${numDocStr} ya existe en el sistema.`);
+                datosActualizar.Est_Usuario = "En Formacion";
               }
+
+              await UsuariosModel.update(datosActualizar, { where: { Id_Usuario: usuarioEx.Id_Usuario } });
+
+              // Actualizar rol si cambio modalidad
+              if (idRolFinal) {
+                await UsuariosRolModel.destroy({ where: { Id_Usuario: usuarioEx.Id_Usuario } });
+                await UsuariosRolModel.create({ Id_Usuario: usuarioEx.Id_Usuario, Id_Rol: idRolFinal });
+              }
+
+              Actualizados++;
               return;
             }
 
@@ -962,5 +1018,37 @@ export const GetSancionados = async (req, res) => {
     return res.status(200).json(sancionados);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  diagnosticarSofiaPlus
+  Analiza cualquier reporte institucional bruto de SOFIA Plus y devuelve
+  los 5 contadores clave de discrepancias antes de confirmar.
+*/
+export const diagnosticarSofiaPlus = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Archivo de SOFIA Plus requerido" });
+    }
+    const diagnostico = await SofiaPlusReconcilerService.DiagnosticarCruceSofiaPlus(req.file.buffer);
+    return res.status(200).json(diagnostico);
+  } catch (error) {
+    console.error("[UsuariosControllers] Error en diagnosticarSofiaPlus:", error);
+    return res.status(400).json({ message: error.message || "Error al analizar archivo de SOFIA Plus." });
+  }
+};
+
+/*
+  aplicarConciliacionSofiaPlus
+  Ejecuta la conciliacion confirmada de SOFIA Plus en 1 clic dentro de una transaccion.
+*/
+export const aplicarConciliacionSofiaPlus = async (req, res) => {
+  try {
+    const resultado = await SofiaPlusReconcilerService.AplicarConciliacionSofiaPlus(req.body);
+    return res.status(200).json(resultado);
+  } catch (error) {
+    console.error("[UsuariosControllers] Error en aplicarConciliacionSofiaPlus:", error);
+    return res.status(400).json({ message: error.message || "Error al aplicar conciliacion SOFIA Plus." });
   }
 };

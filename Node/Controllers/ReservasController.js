@@ -320,9 +320,10 @@ export const consumirPorId = async (req, res) => {
 export const ResumenSupervisor = async (req, res) => {
   try {
     const { Op } = await import('sequelize');
-    const hoy = new Date().toISOString().split('T')[0];
+    const { obtenerFechaColombia } = await import('../Utils/dateUtils.js');
+    const hoy = obtenerFechaColombia();
 
-    // Contar por cada estado para el día de hoy
+    // Contar por cada estado para el dia de hoy
     const estados = ['Generado', 'Verificado', 'Consumido', 'Vencido', 'Cancelado'];
     const conteos = {};
     for (const est of estados) {
@@ -331,8 +332,8 @@ export const ResumenSupervisor = async (req, res) => {
       });
     }
 
-    // Listar las que aún están pendientes (con datos del aprendiz)
-    // para que el supervisor sepa quiénes faltan
+    // Listar las que aun estan pendientes (con datos del aprendiz)
+    // para que el supervisor sepa quienes faltan
     const UsuariosModel = (await import('../Models/UsuariosModel.js')).default;
     const pendientes = await ReservaModel.findAll({
       where: {
@@ -350,8 +351,8 @@ export const ResumenSupervisor = async (req, res) => {
 
     return res.status(200).json({
       fecha: hoy,
-      conteos,      // { Generado: 3, Verificado: 1, Consumido: 12, Vencido: 0, Cancelado: 2 }
-      pendientes    // array con nombre + tipo de cada reserva abierta
+      conteos,
+      pendientes
     });
   } catch (err) {
     console.error('[ReservasController] ResumenSupervisor:', err.message);
@@ -369,5 +370,70 @@ export const obtenerEstadoInasistencias = async (req, res) => {
   } catch (err) {
     console.error('[ReservasController] obtenerEstadoInasistencias:', err.message);
     return res.status(500).json({ message: err.message });
+  }
+};
+
+// Buscar companeros para ceder reserva protegiendo datos personales por Habeas Data
+export const buscarCompaneroParaCeder = async (req, res) => {
+  try {
+    const Id_Usuario_Actual = req.user.id;
+    const { busqueda, tipReserva, fecReserva } = req.query;
+    const resultados = await ReservasServices.BuscarCompaneroParaCeder(
+      busqueda,
+      Id_Usuario_Actual,
+      tipReserva,
+      fecReserva
+    );
+    return res.status(200).json(resultados);
+  } catch (err) {
+    console.error('[ReservasController] buscarCompaneroParaCeder:', err.message);
+    return res.status(400).json({ message: err.message });
+  }
+};
+
+// Ceder una reserva a un companero de forma atomica
+export const cederReserva = async (req, res) => {
+  try {
+    const Id_Usuario_Cedente = req.user.id;
+    const { Id_Reserva, Id_Usuario_Receptor, motivo } = req.body;
+
+    if (!Id_Reserva || !Id_Usuario_Receptor) {
+      return res.status(400).json({ message: "Se requiere Id_Reserva e Id_Usuario_Receptor" });
+    }
+
+    const resultado = await ReservasServices.CederReservaACompanero(
+      Number(Id_Reserva),
+      Id_Usuario_Cedente,
+      Number(Id_Usuario_Receptor),
+      motivo
+    );
+    notificarCambioReservas({ accion: "cedida", Id_Reserva });
+    return res.status(200).json(resultado);
+  } catch (err) {
+    console.error('[ReservasController] cederReserva:', err.message);
+    return res.status(400).json({ message: err.message });
+  }
+};
+
+// Liberar la reserva a la Bolsa Solidaria de Bienestar al Aprendiz
+export const liberarBolsaSolidaria = async (req, res) => {
+  try {
+    const Id_Usuario_Cedente = req.user.id;
+    const { Id_Reserva, motivo } = req.body;
+
+    if (!Id_Reserva) {
+      return res.status(400).json({ message: "Se requiere Id_Reserva" });
+    }
+
+    const resultado = await ReservasServices.LiberarBolsaSolidaria(
+      Number(Id_Reserva),
+      Id_Usuario_Cedente,
+      motivo
+    );
+    notificarCambioReservas({ accion: "liberada_bolsa", Id_Reserva });
+    return res.status(200).json(resultado);
+  } catch (err) {
+    console.error('[ReservasController] liberarBolsaSolidaria:', err.message);
+    return res.status(400).json({ message: err.message });
   }
 };
