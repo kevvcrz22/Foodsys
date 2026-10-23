@@ -257,4 +257,5 @@ class SyncWorker {
 }
 
 const syncWorkerInstance = new SyncWorker();
+export { syncWorkerInstance, SyncWorker };
 export default syncWorkerInstance;
