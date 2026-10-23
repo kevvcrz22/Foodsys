@@ -72,8 +72,8 @@ const PqrsfAdminDashboard = () => {
         apiAxios.get("/api/Pqrsf"),
         apiAxios.get("/api/Pqrsf/ranking")
       ]);
-      setListaPqrsf(resLista.data?.pqrsfs || []);
-      setRankingData(resRanking.data);
+      setListaPqrsf(resLista.data?.pqrsf || resLista.data?.pqrsfs || []);
+      setRankingData(resRanking.data || {});
     } catch (err) {
       console.error("Error al cargar datos PQRSF:", err.message);
       toast.error("Error al cargar modulo de PQRSF");

@@ -377,17 +377,24 @@ export const obtenerEstadoInasistencias = async (req, res) => {
 export const buscarCompaneroParaCeder = async (req, res) => {
   try {
     const Id_Usuario_Actual = req.user.id;
-    const { busqueda, tipReserva, fecReserva } = req.query;
+    const busqueda = req.query.busqueda || req.query.q || "";
+    const tipReserva = req.query.tipReserva || req.query.tipoComida || "";
+    const fecReserva = req.query.fecReserva || req.query.fecha || "";
+
     const resultados = await ReservasServices.BuscarCompaneroParaCeder(
       busqueda,
       Id_Usuario_Actual,
       tipReserva,
       fecReserva
     );
-    return res.status(200).json(resultados);
+    return res.status(200).json({
+      candidatos: resultados,
+      total: resultados.length,
+      data: resultados
+    });
   } catch (err) {
     console.error('[ReservasController] buscarCompaneroParaCeder:', err.message);
-    return res.status(400).json({ message: err.message });
+    return res.status(400).json({ message: err.message, mensaje: err.message });
   }
 };
 
@@ -395,10 +402,15 @@ export const buscarCompaneroParaCeder = async (req, res) => {
 export const cederReserva = async (req, res) => {
   try {
     const Id_Usuario_Cedente = req.user.id;
-    const { Id_Reserva, Id_Usuario_Receptor, motivo } = req.body;
+    const Id_Reserva = req.body.Id_Reserva || req.body.idReserva;
+    const Id_Usuario_Receptor = req.body.Id_Usuario_Receptor || req.body.idUsuarioReceptor;
+    const motivo = req.body.motivo || "";
 
     if (!Id_Reserva || !Id_Usuario_Receptor) {
-      return res.status(400).json({ message: "Se requiere Id_Reserva e Id_Usuario_Receptor" });
+      return res.status(400).json({
+        message: "Se requiere Id_Reserva e Id_Usuario_Receptor",
+        mensaje: "Se requiere Id_Reserva e Id_Usuario_Receptor"
+      });
     }
 
     const resultado = await ReservasServices.CederReservaACompanero(
@@ -411,7 +423,7 @@ export const cederReserva = async (req, res) => {
     return res.status(200).json(resultado);
   } catch (err) {
     console.error('[ReservasController] cederReserva:', err.message);
-    return res.status(400).json({ message: err.message });
+    return res.status(400).json({ message: err.message, mensaje: err.message });
   }
 };
 
@@ -419,10 +431,14 @@ export const cederReserva = async (req, res) => {
 export const liberarBolsaSolidaria = async (req, res) => {
   try {
     const Id_Usuario_Cedente = req.user.id;
-    const { Id_Reserva, motivo } = req.body;
+    const Id_Reserva = req.body.Id_Reserva || req.body.idReserva;
+    const motivo = req.body.motivo || "";
 
     if (!Id_Reserva) {
-      return res.status(400).json({ message: "Se requiere Id_Reserva" });
+      return res.status(400).json({
+        message: "Se requiere Id_Reserva",
+        mensaje: "Se requiere Id_Reserva"
+      });
     }
 
     const resultado = await ReservasServices.LiberarBolsaSolidaria(
@@ -434,6 +450,6 @@ export const liberarBolsaSolidaria = async (req, res) => {
     return res.status(200).json(resultado);
   } catch (err) {
     console.error('[ReservasController] liberarBolsaSolidaria:', err.message);
-    return res.status(400).json({ message: err.message });
+    return res.status(400).json({ message: err.message, mensaje: err.message });
   }
 };

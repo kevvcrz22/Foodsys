@@ -70,20 +70,31 @@ class ReservasServices {
   // Valida horario limite para ceder reservas (2 horas antes del turno oficial en Colombia)
   // Desayuno hasta 04:00 AM, Almuerzo hasta 09:30 AM, Cena hasta 04:00 PM (16:00)
   ValidarHorarioCesion(tipo, fechaReserva) {
-    const ahora = new Date();
+    const { obtenerFechaColombia, obtenerHoraColombia } = require ? {} : {};
+    const fechaHoyCol = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const horaActualCol = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+    const [hhActual, mmActual] = horaActualCol.split(':').map(Number);
+    const minutosActuales = hhActual * 60 + mmActual;
+
     const limites = {
-      Desayuno: { h: 4, m: 0 },
-      Almuerzo: { h: 9, m: 30 },
-      Cena: { h: 16, m: 0 }
+      Desayuno: { h: 4, m: 0, minutos: 4 * 60 },
+      Almuerzo: { h: 9, m: 30, minutos: 9 * 60 + 30 },
+      Cena: { h: 16, m: 0, minutos: 16 * 60 }
     };
-    if (!limites[tipo]) throw new Error("Tipo de comida no valido para cesion");
+    if (!limites[tipo]) return true;
 
-    const fechaLimite = new Date(`${fechaReserva}T00:00:00`);
-    fechaLimite.setHours(limites[tipo].h, limites[tipo].m, 0, 0);
-
-    if (ahora.getTime() > fechaLimite.getTime()) {
+    // Si la reserva es para un dia futuro, siempre se puede ceder
+    if (fechaReserva > fechaHoyCol) {
+      return true;
+    }
+    // Si la reserva es para una fecha pasada, ya no se puede ceder
+    if (fechaReserva < fechaHoyCol) {
+      throw new Error("No se pueden ceder reservas de fechas pasadas.");
+    }
+    // Si es para el dia de hoy, validar que no supere el horario limite
+    if (minutosActuales > limites[tipo].minutos) {
       const horaStr = `${String(limites[tipo].h).padStart(2, "0")}:${String(limites[tipo].m).padStart(2, "0")}`;
-      throw new Error(`El horario limite para ceder la reserva de ${tipo} vencio a las ${horaStr} en punto.`);
+      throw new Error(`El horario limite para ceder la reserva de ${tipo} vencio hoy a las ${horaStr}.`);
     }
     return true;
   }
@@ -617,21 +628,38 @@ class ReservasServices {
    * Enmascara nombres (iniciales de apellidos) y documento (ultimos 3 digitos).
    */
   async BuscarCompaneroParaCeder(busqueda, idUsuarioActual, tipReserva, fecReserva) {
-    if (!busqueda || busqueda.trim().length < 3) {
-      throw new Error("Ingresa al menos 3 caracteres para buscar al companero.");
+    if (!busqueda || busqueda.trim().length < 2) {
+      throw new Error("Ingresa al menos 2 caracteres para buscar al companero.");
     }
 
     const termino = busqueda.trim();
+    const palabras = termino.split(/\s+/).filter(Boolean);
+
+    // Condiciones de busqueda flexibles: nombre, apellido, documento o nombre completo concatenado
+    const orCondiciones = [
+      { Nom_Usuario: { [Op.like]: `%${termino}%` } },
+      { Ape_Usuario: { [Op.like]: `%${termino}%` } },
+      { NumDoc_Usuario: { [Op.like]: `%${termino}%` } },
+      db.where(
+        db.fn("CONCAT", db.col("Nom_Usuario"), " ", db.fn("COALESCE", db.col("Ape_Usuario"), "")),
+        { [Op.like]: `%${termino}%` }
+      )
+    ];
+
+    if (palabras.length > 1) {
+      orCondiciones.push({
+        [Op.and]: palabras.map(p => db.where(
+          db.fn("CONCAT", db.col("Nom_Usuario"), " ", db.fn("COALESCE", db.col("Ape_Usuario"), "")),
+          { [Op.like]: `%${p}%` }
+        ))
+      });
+    }
 
     const usuarios = await UsuariosModel.findAll({
       where: {
         Id_Usuario: { [Op.ne]: idUsuarioActual },
-        Est_Usuario: "En Formacion",
-        [Op.or]: [
-          { Nom_Usuario: { [Op.like]: `%${termino}%` } },
-          { Ape_Usuario: { [Op.like]: `%${termino}%` } },
-          { NumDoc_Usuario: { [Op.like]: `%${termino}%` } }
-        ]
+        Est_Usuario: { [Op.ne]: "Inactivo" },
+        [Op.or]: orCondiciones
       },
       include: [
         { model: FichasModel, as: "ficha", attributes: ["Num_Ficha"] },
@@ -646,7 +674,7 @@ class ReservasServices {
 
     // Consultar si alguno ya tiene reserva activa para esa fecha y turno
     const idsCandidatos = usuarios.map(u => u.Id_Usuario);
-    const reservasExistentes = await ReservaModel.findAll({
+    const reservasExistentes = idsCandidatos.length > 0 ? await ReservaModel.findAll({
       where: {
         Id_Usuario: { [Op.in]: idsCandidatos },
         Fec_Reserva: fecReserva,
@@ -654,7 +682,7 @@ class ReservasServices {
         Est_Reserva: { [Op.in]: ["Generado", "Verificado", "Consumido"] }
       },
       attributes: ["Id_Usuario"]
-    });
+    }) : [];
     const setIdsConReserva = new Set(reservasExistentes.map(r => r.Id_Usuario));
 
     const resultados = usuarios.map(u => {
@@ -673,10 +701,13 @@ class ReservasServices {
       const ultimos3 = docStr.slice(-3);
       const docEnmascarado = `*******${ultimos3}`;
 
-      // Comprobar rol permitido
+      // Comprobar rol permitido segun tipo de reserva
       const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
-      const rolesPermitidos = this.ObtenerRolesPermitidos(roles);
-      const rolValido = rolesPermitidos.includes(tipReserva);
+      const esInterno = roles.some(r => String(r).toLowerCase().includes("interno")) || String(u.CenCon_Usuario).toLowerCase() === "si";
+      let rolValido = true;
+      if (tipReserva === "Desayuno" || tipReserva === "Cena") {
+        rolValido = esInterno;
+      }
 
       // Sancion
       const estaSancionado = u.San_Usuario === "Si";
@@ -706,7 +737,6 @@ class ReservasServices {
         Mensaje_Restriccion: mensajeRestriccion
       };
     });
-
     return resultados;
   }
 
@@ -857,7 +887,11 @@ class ReservasServices {
         throw new Error(`Solo puedes liberar reservas en estado Generado.`);
       }
 
-      this.ValidarHorarioCesion(reserva.Tip_Reserva, reserva.Fec_Reserva);
+      // Para bolsa solidaria, permitir liberar en cualquier momento del dia antes de que expire el servicio
+      const fechaHoyCol = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      if (reserva.Fec_Reserva < fechaHoyCol) {
+        throw new Error("No se pueden liberar reservas de fechas pasadas.");
+      }
 
       await reserva.update({
         Id_Usuario_Cedente: idUsuarioCedente,

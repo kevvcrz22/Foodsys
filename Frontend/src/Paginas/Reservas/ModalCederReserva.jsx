@@ -48,17 +48,21 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
         const respuesta = await apiAxios.get("/api/Reservas/ceder/buscar-companero", {
           params: {
             q: termino,
+            busqueda: termino,
             tipoComida: reserva.Tip_Reserva,
-            fecha: reserva.Fec_Reserva
+            tipReserva: reserva.Tip_Reserva,
+            fecha: reserva.Fec_Reserva,
+            fecReserva: reserva.Fec_Reserva
           }
         });
-        setCandidatos(respuesta.data?.candidatos || []);
-        if ((respuesta.data?.candidatos || []).length === 0) {
+        const lista = respuesta.data?.candidatos || (Array.isArray(respuesta.data) ? respuesta.data : []);
+        setCandidatos(lista);
+        if (lista.length === 0) {
           setErrorBusqueda("No se encontraron aprendices o pasantes que coincidan con la busqueda.");
         }
       } catch (err) {
         console.error("Error al buscar companero:", err.message);
-        setErrorBusqueda(err.response?.data?.mensaje || "Error al consultar aprendices");
+        setErrorBusqueda(err.response?.data?.mensaje || err.response?.data?.message || "Error al consultar aprendices");
         setCandidatos([]);
       } finally {
         setBuscando(false);
@@ -78,17 +82,19 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
     setProcesando(true);
     try {
       const respuesta = await apiAxios.post("/api/Reservas/ceder/transferir", {
+        Id_Reserva: reserva.Id_Reserva,
         idReserva: reserva.Id_Reserva,
+        Id_Usuario_Receptor: seleccionado.Id_Usuario,
         idUsuarioReceptor: seleccionado.Id_Usuario,
         motivo: motivo.trim() || "Cesion voluntaria solidaria"
       });
 
-      toast.success(respuesta.data?.mensaje || "Reserva cedida exitosamente");
+      toast.success(respuesta.data?.mensaje || respuesta.data?.message || "Reserva cedida exitosamente");
       if (onExito) onExito(respuesta.data);
       onCerrar();
     } catch (err) {
       console.error("Error al transferir reserva:", err.message);
-      toast.error(err.response?.data?.mensaje || "No se pudo transferir la reserva");
+      toast.error(err.response?.data?.mensaje || err.response?.data?.message || "No se pudo transferir la reserva");
     } finally {
       setProcesando(false);
     }
@@ -99,16 +105,17 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
     setProcesando(true);
     try {
       const respuesta = await apiAxios.post("/api/Reservas/ceder/liberar-bolsa", {
+        Id_Reserva: reserva.Id_Reserva,
         idReserva: reserva.Id_Reserva,
         motivo: motivo.trim() || "Liberada a bolsa solidaria de Bienestar"
       });
 
-      toast.success(respuesta.data?.mensaje || "Cupo liberado para la bolsa solidaria");
+      toast.success(respuesta.data?.mensaje || respuesta.data?.message || "Cupo liberado para la bolsa solidaria");
       if (onExito) onExito(respuesta.data);
       onCerrar();
     } catch (err) {
       console.error("Error al liberar a bolsa solidaria:", err.message);
-      toast.error(err.response?.data?.mensaje || "No se pudo liberar el cupo");
+      toast.error(err.response?.data?.mensaje || err.response?.data?.message || "No se pudo liberar el cupo");
     } finally {
       setProcesando(false);
     }

@@ -10,7 +10,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import TurnoSupervisorCard from "../../Components/TurnoSupervisorCard.jsx";
 import SemaforoAforoCard from "../../Components/SemaforoAforoCard.jsx";
 
 // Prefijo de ruta segun el rol activo.
@@ -281,6 +280,15 @@ const Inicio = () => {
     ? `${Usuario.Nom_Usuario ?? ""} ${Usuario.Ape_Usuario ?? ""}`.trim()
     : "Usuario";
 
+  const rolNormalizado = (Rol_Activo || "").toLowerCase();
+  const puedeVerSemaforo = [
+    "aprendiz",
+    "pasante",
+    "bienestar",
+    "admin",
+    "administrador"
+  ].some(r => rolNormalizado.includes(r));
+
   return (
     <div className="w-full">
       {/* Encabezado de bienvenida */}
@@ -298,11 +306,8 @@ const Inicio = () => {
         </p>
       </div>
 
-      {/* Semaforo de aforo y congestion en tiempo real */}
-      <SemaforoAforoCard />
-
-      {/* Panel de Turno Exclusivo para Supervisor */}
-      {Rol_Activo === "Supervisor" && <TurnoSupervisorCard usuario={Usuario} />}
+      {/* Semaforo de aforo y congestion en tiempo real (solo Aprendices, Pasantes, Bienestar y Admin) */}
+      {puedeVerSemaforo && <SemaforoAforoCard />}
 
       {/* Manual de instrucciones */}
       {Manual ? (
