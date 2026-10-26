@@ -13,14 +13,31 @@ const rootDir = path.resolve(__dirname, '../../');
 
 function obtenerIpLocal() {
   const interfaces = os.networkInterfaces();
+
+  // 1. Priorizar interfaces fisicas principales (Wi-Fi o Ethernet)
+  const nombresPrioritarios = ['wi-fi', 'ethernet', 'eth0', 'wlan0'];
+  for (const prio of nombresPrioritarios) {
+    for (const name of Object.keys(interfaces)) {
+      if (name.toLowerCase().includes(prio)) {
+        for (const net of interfaces[name]) {
+          if (net.family === 'IPv4' && !net.internal && !net.address.startsWith('169.254.')) {
+            return net.address;
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Fallback a cualquier otra interfaz IPv4 que no sea virtual ni loopback
   for (const name of Object.keys(interfaces)) {
+    if (name.includes('*') || name.toLowerCase().includes('loopback')) continue;
     for (const net of interfaces[name]) {
-      // Filtrar IPv4 internas, loopback y direcciones APIPA 169.254.x.x
       if (net.family === 'IPv4' && !net.internal && !net.address.startsWith('169.254.')) {
         return net.address;
       }
     }
   }
+
   return '127.0.0.1';
 }
 
