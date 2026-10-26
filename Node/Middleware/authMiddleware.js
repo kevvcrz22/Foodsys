@@ -37,8 +37,14 @@ export default async function authMiddleware(req, res, next) {
       }
     }
 
-    // req.user queda disponible para todos los middlewares y controladores siguientes
+    // req.user y req.usuario quedan disponibles para todos los middlewares y controladores siguientes
     req.user = decoded;
+    req.usuario = {
+      Id_Usuario: decoded.id,
+      id: decoded.id,
+      roles: decoded.roles || [],
+      tokenVersion: decoded.tokenVersion
+    };
     return next();
   } catch (error) {
     return res.status(401).json({ message: "Token invalido o expirado" });

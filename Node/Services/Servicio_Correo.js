@@ -51,6 +51,14 @@ export const Enviar_Correo = async (destinatario, asunto, htmlCuerpo, adjuntos =
 };
 
 /**
+ * Adaptador flexible para enviarCorreo({ to, subject, html, text, attachments }).
+ */
+export const enviarCorreo = async ({ to, subject, html, text, attachments = [] }) => {
+  const cuerpo = html || `<p style="white-space: pre-wrap; font-family: sans-serif;">${text || ''}</p>`;
+  return await Enviar_Correo(to, subject, cuerpo, attachments);
+};
+
+/**
  * Envío de enlace para recuperación de contraseña.
  */
 export const sendPasswordResetEmail = async (email, tokenForPassword) => {
@@ -131,6 +139,7 @@ export const notificarFinTurno = async (supervisor, turno) => {
 
 export default {
   Enviar_Correo,
+  enviarCorreo,
   sendPasswordResetEmail,
   notificarInicioTurno,
   notificarFinTurno,

@@ -94,7 +94,19 @@ const Login = ({ onLogin }) => {
       Fn_FinalizarLogin(Res_Data, Lis_Roles, Txt_RolActivo);
 
     } catch (Err_Excepcion) {
-      Set_TexErrorGeneral(Err_Excepcion.response?.data?.message || Err_Excepcion.message || 'Error al iniciar sesión');
+      // Traducir errores tecnicos a mensajes claros para el usuario
+      const Num_Estado = Err_Excepcion.response?.status;
+      const Txt_MsgServidor = Err_Excepcion.response?.data?.message;
+      let Txt_Mensaje = Txt_MsgServidor;
+      if (!Err_Excepcion.response) {
+        // Sin respuesta: no hay red o el servidor esta apagado
+        Txt_Mensaje = 'No hay conexión con el servidor de Foodsys. Verifica tu red e intenta de nuevo.';
+      } else if (Num_Estado === 503 || Num_Estado === 502 || Num_Estado === 504) {
+        Txt_Mensaje = Txt_MsgServidor || 'El servidor de Foodsys se está iniciando. Espera unos segundos e intenta de nuevo.';
+      } else if (Num_Estado >= 500 && !Txt_MsgServidor) {
+        Txt_Mensaje = 'Ocurrió un problema en el servidor. Intenta de nuevo en unos segundos.';
+      }
+      Set_TexErrorGeneral(Txt_Mensaje || 'Error al iniciar sesión');
     } finally {
       Set_EstCargando(false);
     }

@@ -259,35 +259,59 @@ export const deleteFichas = async (req, res) => {
 // IMPORTACION EXCEL CON MEMORIA Y CALCULO AUTOMATICO DE FECHAS
 // ─────────────────────────────────────────────────────────────
 
-export const descargarPlantillaFicha = (_req, res) => {
+export const descargarPlantillaFicha = async (_req, res) => {
   try {
     const templatePath = path.resolve(__dirname, "../Templates/Fichas_Foodsys_Oficial.xlsx");
+    let Libro;
+
     if (fs.existsSync(templatePath)) {
-      return res.download(templatePath, "Fichas_Foodsys_Oficial.xlsx");
+      Libro = XLSX.readFile(templatePath);
+    } else {
+      Libro = XLSX.utils.book_new();
+
+      // Hoja 1: Plantilla Institucional Foodsys (Limpia con ejemplos)
+      const filasFoodsys = [
+        ["Num_Ficha", "Nom_Programa", "FecIniLec_Ficha", "FecFinLec_Ficha", "FecIniPra_Ficha", "FecFinPra_Ficha"],
+        [3404817, "GESTION DE EMPRESAS AGROPECUARIAS", "2026-04-15", "2027-04-14", "2027-04-15", "2027-10-15"],
+        [3409672, "PRODUCCION DE ESPECIES MENORES", "2026-02-10", "2027-02-09", "2027-02-10", "2027-08-10"]
+      ];
+      const Hoja1 = XLSX.utils.aoa_to_sheet(filasFoodsys);
+      Hoja1["!cols"] = [
+        { wch: 16 }, { wch: 38 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }
+      ];
+      XLSX.utils.book_append_sheet(Libro, Hoja1, "Plantilla_Fichas");
     }
 
-    const Libro = XLSX.utils.book_new();
+    // Consultar programas actualizados de la base de datos para la hoja de seleccion
+    const programasBD = await ProgramaModel.findAll({
+      order: [["Nom_Programa", "ASC"]]
+    });
 
-    // Hoja 1: Plantilla Institucional Foodsys (Limpia con ejemplos)
-    const filasFoodsys = [
-      ["Num_Ficha", "Nom_Programa", "FecIniLec_Ficha", "FecFinLec_Ficha", "FecIniPra_Ficha", "FecFinPra_Ficha"],
-      [3404817, "GESTION DE EMPRESAS AGROPECUARIAS", "2026-04-15", "2027-04-14", "2027-04-15", "2027-10-15"],
-      [3409672, "PRODUCCION DE ESPECIES MENORES", "2026-02-10", "2027-02-09", "2027-02-10", "2027-08-10"]
+    const filasProgramas = [
+      ["ID Programa", "Nombre Oficial del Programa", "Nivel de Formación", "Área", "Estado"]
     ];
-    const Hoja1 = XLSX.utils.aoa_to_sheet(filasFoodsys);
-    Hoja1["!cols"] = [
-      { wch: 16 }, { wch: 38 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }
-    ];
-    XLSX.utils.book_append_sheet(Libro, Hoja1, "Plantilla_Fichas");
 
-    // Hoja 2: Ejemplo estructura institucional SENA PE-04
-    const filasPE04 = [
-      ["CODIGO_REGIONAL", "NOMBRE_REGIONAL", "CODIGO_CENTRO", "NOMBRE_CENTRO", "IDENTIFICADOR_FICHA", "CODIGO_PROGRAMA_FORMACION", "NOMBRE_PROGRAMA_FORMACION", "NIVEL_FORMACION", "ESTADO_FICHA", "FECHA_INICIO_FICHA", "FECHA_TERMINACION_FICHA", "FECHA_INICIO_PRACTICA", "FECHA_FIN_LECTIVA"],
-      [73, "REGIONAL TOLIMA", 9123, "CENTRO AGROPECUARIO LA GRANJA", 3404817, 723101, "GESTION DE EMPRESAS AGROPECUARIAS", "TECNOLOGO", "EN EJECUCION", "2026-04-15", "2027-10-15", "2027-04-15", "2027-04-14"]
+    programasBD.forEach(p => {
+      filasProgramas.push([
+        p.Id_Programa,
+        p.Nom_Programa,
+        p.NivFor_Programa || "TECNOLOGO",
+        p.Are_Programa || "AGROPECUARIA",
+        p.Est_Programa || "Activo"
+      ]);
+    });
+
+    const HojaProgramas = XLSX.utils.aoa_to_sheet(filasProgramas);
+    HojaProgramas["!cols"] = [
+      { wch: 14 }, { wch: 45 }, { wch: 22 }, { wch: 22 }, { wch: 14 }
     ];
-    const Hoja2 = XLSX.utils.aoa_to_sheet(filasPE04);
-    Hoja2["!cols"] = filasPE04[0].map(() => ({ wch: 22 }));
-    XLSX.utils.book_append_sheet(Libro, Hoja2, "Ejemplo_PE-04");
+
+    // Si ya existe la hoja PROGRAMAS_DISPONIBLES, reemplazarla con los datos frescos
+    if (Libro.Sheets["PROGRAMAS_DISPONIBLES"]) {
+      delete Libro.Sheets["PROGRAMAS_DISPONIBLES"];
+      Libro.SheetNames = Libro.SheetNames.filter(n => n !== "PROGRAMAS_DISPONIBLES");
+    }
+    XLSX.utils.book_append_sheet(Libro, HojaProgramas, "PROGRAMAS_DISPONIBLES");
 
     const Buffer = XLSX.write(Libro, { type: "buffer", bookType: "xlsx" });
 
@@ -295,6 +319,7 @@ export const descargarPlantillaFicha = (_req, res) => {
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     return res.send(Buffer);
   } catch (error) {
+    console.error("[FichasController] Error al generar plantilla:", error);
     return res.status(500).json({ message: "Error al generar la plantilla de fichas." });
   }
 };

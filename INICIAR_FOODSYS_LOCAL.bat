@@ -32,13 +32,30 @@ powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 8000, 5173 -Stat
 echo [2/4] Iniciando Servidor Backend (Node.js en puerto 8000)...
 start "Foodsys Backend (Puerto 8000)" cmd /k "cd /d c:\Foodsys\Foodsys\Node && node App.js"
 
+:: 3.1 Esperar a que el backend abra el puerto 8000 (revisa tablas de MySQL antes de escuchar)
+::     Maximo 120 segundos. Asi el login no falla con error 500 por entrar demasiado pronto.
+echo       -^> Esperando a que el backend termine de revisar la base de datos...
+set /a INTENTOS=0
+:ESPERAR_BACKEND
+netstat -ano | findstr "LISTENING" | findstr ":8000 " >nul
+if %errorLevel% equ 0 goto BACKEND_LISTO
+set /a INTENTOS+=1
+if %INTENTOS% geq 60 (
+    echo       -^> AVISO: El backend no abrio el puerto 8000 en 120 s. Revisa la ventana "Foodsys Backend".
+    goto BACKEND_LISTO
+)
+ping 127.0.0.1 -n 3 > nul
+goto ESPERAR_BACKEND
+:BACKEND_LISTO
+echo       -^> Backend listo en el puerto 8000.
+
 :: 4. Iniciar Frontend
 echo [3/4] Iniciando Frontend (Vite en puerto 5173)...
 start "Foodsys Frontend (Puerto 5173)" cmd /k "cd /d c:\Foodsys\Foodsys\Frontend && pnpm run dev"
 
 :: 5. Esperar a que los servidores inicien
 echo [4/4] Esperando inicio de servicios y generando QR de red...
-ping 127.0.0.1 -n 4 > nul
+ping 127.0.0.1 -n 6 > nul
 
 cd /d "c:\Foodsys\Foodsys\Node"
 node scripts\generar_qr_red.js

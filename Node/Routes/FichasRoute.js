@@ -27,6 +27,8 @@ const Upload = multer({
 // Lectura de fichas y descarga de plantilla oficial
 router.get("/", getAllFichas);
 router.get("/plantilla-excel", descargarPlantillaFicha);
+router.get("/descargar-plantilla", descargarPlantillaFicha);
+router.get("/plantilla", descargarPlantillaFicha);
 
 // Rutas de importacion masiva de fichas (deben ir ANTES de /:id para no ser interpretadas como parametro)
 router.post("/preview-import", Upload.single("file"), previewImportFicha);

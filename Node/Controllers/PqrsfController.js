@@ -22,7 +22,7 @@ export const responderPqrsf = async (req, res) => {
   try {
     const { id } = req.params;
     const { respuesta, estado } = req.body;
-    const idResponsable = req.usuario?.Id_Usuario || null;
+    const idResponsable = req.user?.id || req.usuario?.Id_Usuario || null;
 
     const actualizada = await PqrsfService.responderPqrsf(id, idResponsable, respuesta, estado);
     return res.status(200).json({ message: "PQRSF respondida correctamente.", pqrsf: actualizada });
