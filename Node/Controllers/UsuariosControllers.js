@@ -22,6 +22,7 @@ import XLSX from "xlsx";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { encolarEventoSync } from "../Services/SyncOutboxService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -866,6 +867,17 @@ export const importarSeleccionados = async (req, res) => {
                 await UsuariosRolModel.create({ Id_Usuario: usuarioEx.Id_Usuario, Id_Rol: idRolFinal });
               }
 
+              await encolarEventoSync({
+                entidad: "USUARIO",
+                operacion: "UPDATE",
+                entity_uuid: numDocStr,
+                payload: {
+                  NumDoc_Usuario: numDocStr,
+                  ...datosActualizar,
+                  roles: [nombreRolAsignar]
+                }
+              }).catch(() => {});
+
               Actualizados++;
               return;
             }
@@ -912,6 +924,30 @@ export const importarSeleccionados = async (req, res) => {
                 Id_Rol: idRolFinal
               });
             }
+
+            await encolarEventoSync({
+              entidad: "USUARIO",
+              operacion: "CREATE",
+              entity_uuid: numDocStr,
+              payload: {
+                Id_Usuario: nuevoUsuario.Id_Usuario,
+                TipDoc_Usuario: nuevoUsuario.TipDoc_Usuario,
+                NumDoc_Usuario: nuevoUsuario.NumDoc_Usuario,
+                Nom_Usuario: nuevoUsuario.Nom_Usuario,
+                Ape_Usuario: nuevoUsuario.Ape_Usuario,
+                Gen_Usuario: nuevoUsuario.Gen_Usuario,
+                Cor_Usuario: nuevoUsuario.Cor_Usuario,
+                Tel_Usuario: nuevoUsuario.Tel_Usuario,
+                CenCon_Usuario: nuevoUsuario.CenCon_Usuario,
+                Est_Usuario: nuevoUsuario.Est_Usuario,
+                San_Usuario: nuevoUsuario.San_Usuario,
+                Pol_Usuario: nuevoUsuario.Pol_Usuario,
+                Id_Ficha: nuevoUsuario.Id_Ficha,
+                password: HashPwd,
+                uuid: nuevoUsuario.uuid,
+                roles: [nombreRolAsignar]
+              }
+            }).catch(() => {});
 
             mapaUsuariosDoc.set(numDocStr, nuevoUsuario);
             Creados++;
@@ -972,6 +1008,17 @@ export const ActualizarSancion = async (req, res) => {
     }
 
     await usuario.update(camposActualizar);
+
+    await encolarEventoSync({
+      entidad: "USUARIO",
+      operacion: "UPDATE",
+      entity_uuid: usuario.NumDoc_Usuario,
+      payload: {
+        NumDoc_Usuario: usuario.NumDoc_Usuario,
+        San_Usuario,
+        Fec_Desancion: camposActualizar.Fec_Desancion || null
+      }
+    });
 
     return res.status(200).json({
       message: `Sancion ${San_Usuario === 'Si' ? 'activada' : 'eliminada'} correctamente`,

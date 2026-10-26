@@ -1,4 +1,5 @@
 import ProgramaModel from "../Models/ProgramaModel.js";
+import { encolarEventoSync } from "./SyncOutboxService.js";
 
 /**
  * Normaliza el nombre de un programa de formacion del SENA:
@@ -60,11 +61,26 @@ class ProgramaService {
             return existente;
         }
 
-        return await ProgramaModel.create({
+        const nuevoProg = await ProgramaModel.create({
             ...data,
             Nom_Programa: nombreLimpio,
             Est_Programa: data.Est_Programa || 'Activo'
         });
+
+        await encolarEventoSync({
+            entidad: "PROGRAMA",
+            operacion: "CREATE",
+            entity_uuid: nuevoProg.Id_Programa,
+            payload: {
+                Id_Programa: nuevoProg.Id_Programa,
+                Nom_Programa: nuevoProg.Nom_Programa,
+                NivFor_Programa: nuevoProg.NivFor_Programa,
+                Are_Programa: nuevoProg.Are_Programa,
+                Est_Programa: nuevoProg.Est_Programa
+            }
+        });
+
+        return nuevoProg;
     }
 
     // Actualiza los datos de un programa existente
@@ -76,6 +92,21 @@ class ProgramaService {
         const result = await ProgramaModel.update(datosActualizar, { where: { Id_Programa: id } });
         const updated = result[0];
         if (updated === 0) throw new Error("Programa no encontrado o sin cambios");
+
+        const progAct = await ProgramaModel.findByPk(id);
+        await encolarEventoSync({
+            entidad: "PROGRAMA",
+            operacion: "UPDATE",
+            entity_uuid: id,
+            payload: {
+                Id_Programa: id,
+                Nom_Programa: progAct.Nom_Programa,
+                NivFor_Programa: progAct.NivFor_Programa,
+                Are_Programa: progAct.Are_Programa,
+                Est_Programa: progAct.Est_Programa
+            }
+        });
+
         return true;
     }
 
@@ -85,6 +116,18 @@ class ProgramaService {
         if (!programa) throw new Error("Programa no encontrado");
         const estadoFinal = nuevoEstado || (programa.Est_Programa === 'Inactivo' ? 'Activo' : 'Inactivo');
         await ProgramaModel.update({ Est_Programa: estadoFinal }, { where: { Id_Programa: id } });
+
+        await encolarEventoSync({
+            entidad: "PROGRAMA",
+            operacion: "UPDATE",
+            entity_uuid: id,
+            payload: {
+                Id_Programa: id,
+                Nom_Programa: programa.Nom_Programa,
+                Est_Programa: estadoFinal
+            }
+        });
+
         return { estado: estadoFinal };
     }
 
@@ -93,6 +136,18 @@ class ProgramaService {
         const programa = await ProgramaModel.findByPk(id);
         if (!programa) throw new Error("Programa no encontrado");
         await ProgramaModel.update({ Est_Programa: 'Inactivo' }, { where: { Id_Programa: id } });
+
+        await encolarEventoSync({
+            entidad: "PROGRAMA",
+            operacion: "UPDATE",
+            entity_uuid: id,
+            payload: {
+                Id_Programa: id,
+                Nom_Programa: programa.Nom_Programa,
+                Est_Programa: 'Inactivo'
+            }
+        });
+
         return true;
     }
 }

@@ -14,6 +14,7 @@ import PlatosModels from "../Models/PlatosModels.js";
 import NotificacionesService from "./NotificacionesService.js";
 import Servicio_Correo from "./Servicio_Correo.js";
 import db from "../Database/db.js";
+import { encolarEventoSync } from "./SyncOutboxService.js";
 import { obtenerFechaColombia, obtenerFechaHoraColombia } from "../Utils/dateUtils.js";
 
 class PqrsfService {
@@ -151,21 +152,12 @@ class PqrsfService {
     });
 
     // Encolar evento en sync_outbox
-    try {
-      await db.query(`
-        INSERT INTO sync_outbox (event_id, source_node, entidad, operacion, entity_uuid, payload, sync_status, created_at)
-        VALUES (?, ?, 'PQRSF', 'CREATE', ?, ?, 'PENDING', NOW())
-      `, {
-        replacements: [
-          crypto.randomUUID(),
-          process.env.NODE_ROLE || "LOCAL",
-          uuidPqrsf,
-          JSON.stringify(nuevaPqrsf.toJSON())
-        ]
-      });
-    } catch (errSync) {
-      console.warn("[PqrsfService] Nota al encolar en sync_outbox:", errSync.message);
-    }
+    await encolarEventoSync({
+      entidad: "PQRSF",
+      operacion: "CREATE",
+      entity_uuid: uuidPqrsf,
+      payload: nuevaPqrsf.toJSON()
+    });
 
     // Evaluar termometro de interventoria (3 o mas quejas sobre el mismo plato/turno)
     let alertaTermometro = false;
@@ -255,6 +247,20 @@ class PqrsfService {
       Respuesta_Administracion: respuesta,
       Id_Responsable_Respuesta: idResponsable,
       Fecha_Respuesta: new Date()
+    });
+
+    await encolarEventoSync({
+      entidad: "PQRSF",
+      operacion: "UPDATE",
+      entity_uuid: pqrsf.uuid_pqrsf,
+      payload: {
+        uuid_pqrsf: pqrsf.uuid_pqrsf,
+        Radicado: pqrsf.Radicado,
+        Estado_Pqrsf: nuevoEstado,
+        Respuesta_Administracion: respuesta,
+        Id_Responsable_Respuesta: idResponsable,
+        Fecha_Respuesta: pqrsf.Fecha_Respuesta
+      }
     });
 
     // Enviar correo de respuesta al reportante si suministro correo

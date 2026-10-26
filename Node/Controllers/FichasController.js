@@ -6,6 +6,7 @@ import FichasServices, { sincronizarEstadoAprendices } from "../Services/FichasS
 import FichasModel from "../Models/FichasModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
 import { normalizarNombrePrograma } from "../Services/ProgramaService.js";
+import { encolarEventoSync } from "../Services/SyncOutboxService.js";
 import XLSX from "xlsx";
 import path from "path";
 import fs from "fs";
@@ -654,6 +655,22 @@ export const importarFichasSeleccionadas = async (req, res) => {
                 },
                 { where: { Id_Ficha: fichaExistente.Id_Ficha } }
               );
+
+              await encolarEventoSync({
+                entidad: "FICHA",
+                operacion: "UPDATE",
+                entity_uuid: numFicha,
+                payload: {
+                  Id_Ficha: fichaExistente.Id_Ficha,
+                  Num_Ficha: numFicha,
+                  Id_Programa: idPrograma || fichaExistente.Id_Programa,
+                  FecIniLec_Ficha: fecIniLec || fichaExistente.FecIniLec_Ficha,
+                  FecFinLec_Ficha: fecFinLec || fichaExistente.FecFinLec_Ficha,
+                  FecIniPra_Ficha: fecIniPra || fichaExistente.FecIniPra_Ficha,
+                  FecFinPra_Ficha: fecFinPra || fichaExistente.FecFinPra_Ficha
+                }
+              }).catch(() => {});
+
               Actualizados++;
             } else {
               const nuevaFicha = await FichasModel.create({
@@ -664,6 +681,22 @@ export const importarFichasSeleccionadas = async (req, res) => {
                 FecIniPra_Ficha: fecIniPra,
                 FecFinPra_Ficha: fecFinPra,
               });
+
+              await encolarEventoSync({
+                entidad: "FICHA",
+                operacion: "CREATE",
+                entity_uuid: numFicha,
+                payload: {
+                  Id_Ficha: nuevaFicha.Id_Ficha,
+                  Num_Ficha: nuevaFicha.Num_Ficha,
+                  Id_Programa: nuevaFicha.Id_Programa,
+                  FecIniLec_Ficha: nuevaFicha.FecIniLec_Ficha,
+                  FecFinLec_Ficha: nuevaFicha.FecFinLec_Ficha,
+                  FecIniPra_Ficha: nuevaFicha.FecIniPra_Ficha,
+                  FecFinPra_Ficha: nuevaFicha.FecFinPra_Ficha
+                }
+              }).catch(() => {});
+
               mapaFichasBD.set(numFicha, nuevaFicha);
               Creados++;
             }

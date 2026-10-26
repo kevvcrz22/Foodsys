@@ -2,6 +2,7 @@ import { Op } from "sequelize";
 import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
 import RolesModel from "../Models/RolesModel.js";
+import { encolarEventoSync } from "./SyncOutboxService.js";
 
 class UsuariosRolService {
 
@@ -95,7 +96,22 @@ class UsuariosRolService {
         // Validar incompatibilidad (no permitir aprendiz interno y externo juntos, ni pasante interno y externo juntos)
         await this.validarIncompatibilidadRoles(Id_Usuario, Id_Rol);
 
-        return await UsuariosRolModel.create({ Id_Usuario, Id_Rol });
+        const creado = await UsuariosRolModel.create({ Id_Usuario, Id_Rol });
+
+        const user = await UsuariosModel.findByPk(Id_Usuario, {
+            include: [{ model: UsuariosRolModel, as: "rolesUsuario", include: [{ model: RolesModel, as: "rolUsuario" }] }]
+        });
+        if (user) {
+            const rolesNombres = user.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+            await encolarEventoSync({
+                entidad: "USUARIO_ROL",
+                operacion: "SYNC_ROLES",
+                entity_uuid: user.NumDoc_Usuario,
+                payload: { NumDoc_Usuario: user.NumDoc_Usuario, roles: rolesNombres }
+            });
+        }
+
+        return creado;
     }
 
     async update(id, data) {
@@ -123,12 +139,44 @@ class UsuariosRolService {
             { where: { Id_UsuariosRol: id } }
         );
         if (result[0] === 0) throw new Error("UsuarioRol no encontrado o sin cambios");
+
+        const user = await UsuariosModel.findByPk(Id_Usuario, {
+            include: [{ model: UsuariosRolModel, as: "rolesUsuario", include: [{ model: RolesModel, as: "rolUsuario" }] }]
+        });
+        if (user) {
+            const rolesNombres = user.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+            await encolarEventoSync({
+                entidad: "USUARIO_ROL",
+                operacion: "SYNC_ROLES",
+                entity_uuid: user.NumDoc_Usuario,
+                payload: { NumDoc_Usuario: user.NumDoc_Usuario, roles: rolesNombres }
+            });
+        }
+
         return true;
     }
 
     async delete(id) {
+        const ur = await UsuariosRolModel.findByPk(id);
+        const Id_Usuario = ur?.Id_Usuario;
         const deleted = await UsuariosRolModel.destroy({ where: { Id_UsuariosRol: id } });
         if (!deleted) throw new Error("UsuarioRol no encontrado");
+
+        if (Id_Usuario) {
+            const user = await UsuariosModel.findByPk(Id_Usuario, {
+                include: [{ model: UsuariosRolModel, as: "rolesUsuario", include: [{ model: RolesModel, as: "rolUsuario" }] }]
+            });
+            if (user) {
+                const rolesNombres = user.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+                await encolarEventoSync({
+                    entidad: "USUARIO_ROL",
+                    operacion: "SYNC_ROLES",
+                    entity_uuid: user.NumDoc_Usuario,
+                    payload: { NumDoc_Usuario: user.NumDoc_Usuario, roles: rolesNombres }
+                });
+            }
+        }
+
         return true;
     }
 }

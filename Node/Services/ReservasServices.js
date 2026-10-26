@@ -18,6 +18,7 @@ import TurnosService from "./TurnosService.js";
 import NotificacionesService from "./NotificacionesService.js";
 import { generarQrFirmado, verificarQrOffline } from "../Utils/qrCrypto.js";
 import { obtenerFechaColombia, obtenerHoraColombia } from "../Utils/dateUtils.js";
+import { dispararCicloSyncDebounced } from "./SyncOutboxService.js";
 
 const ROLES_EXTERNOS = ["Aprendiz Externo", "Pasante Externo"];
 const DIAS_DURACION_ESPECIAL = 30;
@@ -209,7 +210,7 @@ class ReservasServices {
    * y registra el evento en sync_outbox
    */
   async generarReservaPass(Id_Usuario, rolesUsuario, Tip_Reserva, platoElegido, fechaReserva, esNovedad = false, Jus_Reserva = null) {
-    return await db.transaction(async (transaction) => {
+    const resultado = await db.transaction(async (transaction) => {
       await VencimientoService.procesarVencimientosUsuario(Id_Usuario, transaction);
 
       const usuario = await UsuariosModel.findByPk(Id_Usuario, {
@@ -315,6 +316,8 @@ class ReservasServices {
         qrUrl
       };
     });
+    dispararCicloSyncDebounced();
+    return resultado;
   }
 
   /**
@@ -322,7 +325,7 @@ class ReservasServices {
    * Exclusivo para Aprendices Externos y Pasantes Externos sin estado Especial
    */
   async procesarVerificacionCocina(Id_Reserva) {
-    return await db.transaction(async (transaction) => {
+    const resultado = await db.transaction(async (transaction) => {
       const reserva = await ReservaModel.findByPk(Id_Reserva, {
         include: [
           {
@@ -389,6 +392,8 @@ class ReservasServices {
         nuevoEstado: "Verificado"
       };
     });
+    dispararCicloSyncDebounced();
+    return resultado;
   }
 
   /**
@@ -417,7 +422,7 @@ class ReservasServices {
    * y creacion automatica de réplica local si el aprendiz reservo en la nube durante un corte de internet.
    */
   async procesarConsumoSupervisor(contenidoQR, idSupervisor = null) {
-    return await db.transaction(async (transaction) => {
+    const resultado = await db.transaction(async (transaction) => {
       let payloadEd25519 = null;
       const fechaHoy = this.ObtenerFechaHoy();
 
@@ -589,6 +594,8 @@ class ReservasServices {
         flujoInterno: esInterno
       };
     });
+    dispararCicloSyncDebounced();
+    return resultado;
   }
 
   /**
@@ -743,7 +750,7 @@ class ReservasServices {
    * Transfiere una reserva a un companero de forma atomica
    */
   async CederReservaACompanero(idReserva, idUsuarioCedente, idUsuarioReceptor, motivo = "") {
-    return await db.transaction(async (t) => {
+    const resultado = await db.transaction(async (t) => {
       const reserva = await ReservaModel.findByPk(idReserva, {
         include: [{ model: PlatosModels, as: "plato" }],
         lock: t.LOCK.UPDATE,
@@ -866,13 +873,15 @@ class ReservasServices {
         nuevoQr
       };
     });
+    dispararCicloSyncDebounced();
+    return resultado;
   }
 
   /**
    * Libera una reserva a la Bolsa Solidaria de Bienestar al Aprendiz
    */
   async LiberarBolsaSolidaria(idReserva, idUsuarioCedente, motivo = "Liberacion a bolsa solidaria") {
-    return await db.transaction(async (t) => {
+    const resultado = await db.transaction(async (t) => {
       const reserva = await ReservaModel.findByPk(idReserva, {
         lock: t.LOCK.UPDATE,
         transaction: t
@@ -927,6 +936,8 @@ class ReservasServices {
         mensaje: "Tu reserva ha sido liberada a la Bolsa Solidaria de Bienestar al Aprendiz."
       };
     });
+    dispararCicloSyncDebounced();
+    return resultado;
   }
 
   // Historial de reservas
@@ -996,6 +1007,7 @@ class ReservasServices {
       }).catch(() => {});
     }
 
+    dispararCicloSyncDebounced();
     return true;
   }
 }

@@ -8,6 +8,7 @@ import UsuariosModel from "../Models/UsuariosModel.js";
 import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import ReservaModel from "../Models/ReservasModel.js";
 import { Op } from "sequelize";
+import { encolarEventoSync } from "./SyncOutboxService.js";
 
 // Roles de aprendices y pasantes que dependen de la etapa lectiva de la ficha
 const ROLES_APRENDIZ_Y_PASANTE = [4, 5]; // Aprendiz Interno (4), Aprendiz Externo (5)
@@ -161,6 +162,23 @@ class FichasServices {
 
     const nuevaFicha = await FichasModel.create(datosProcesados);
     await sincronizarEstadoAprendices(nuevaFicha.Id_Ficha);
+
+    await encolarEventoSync({
+      entidad: "FICHA",
+      operacion: "CREATE",
+      entity_uuid: nuevaFicha.Num_Ficha,
+      payload: {
+        Id_Ficha: nuevaFicha.Id_Ficha,
+        Num_Ficha: nuevaFicha.Num_Ficha,
+        Jor_Ficha: nuevaFicha.Jor_Ficha,
+        FecIniLec_Ficha: nuevaFicha.FecIniLec_Ficha,
+        FecFinLec_Ficha: nuevaFicha.FecFinLec_Ficha,
+        FecIniPra_Ficha: nuevaFicha.FecIniPra_Ficha,
+        FecFinPra_Ficha: nuevaFicha.FecFinPra_Ficha,
+        Id_Programa: nuevaFicha.Id_Programa
+      }
+    });
+
     return nuevaFicha;
   }
 
@@ -194,6 +212,23 @@ class FichasServices {
     // Sincroniza estado de aprendices despues de actualizar
     await sincronizarEstadoAprendices(Id);
 
+    const fichaAct = await FichasModel.findByPk(Id);
+    await encolarEventoSync({
+      entidad: "FICHA",
+      operacion: "UPDATE",
+      entity_uuid: fichaAct.Num_Ficha,
+      payload: {
+        Id_Ficha: fichaAct.Id_Ficha,
+        Num_Ficha: fichaAct.Num_Ficha,
+        Jor_Ficha: fichaAct.Jor_Ficha,
+        FecIniLec_Ficha: fichaAct.FecIniLec_Ficha,
+        FecFinLec_Ficha: fichaAct.FecFinLec_Ficha,
+        FecIniPra_Ficha: fichaAct.FecIniPra_Ficha,
+        FecFinPra_Ficha: fichaAct.FecFinPra_Ficha,
+        Id_Programa: fichaAct.Id_Programa
+      }
+    });
+
     return true;
   }
 
@@ -201,6 +236,17 @@ class FichasServices {
     const ficha = await FichasModel.findByPk(Id);
     if (!ficha) throw new Error("Ficha no encontrada");
     await FichasModel.destroy({ where: { Id_Ficha: Id } });
+
+    await encolarEventoSync({
+      entidad: "FICHA",
+      operacion: "DELETE",
+      entity_uuid: ficha.Num_Ficha,
+      payload: {
+        Id_Ficha: Id,
+        Num_Ficha: ficha.Num_Ficha
+      }
+    });
+
     return true;
   }
 }

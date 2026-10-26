@@ -15,6 +15,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { Op } from "sequelize";
+import { encolarEventoSync } from "./SyncOutboxService.js";
 
 class UsuariosService {
 
@@ -50,6 +51,16 @@ class UsuariosService {
       { password: hashedPassword },
       { where: { Id_Usuario: decodificado.usuario.id } }
     );
+
+    await encolarEventoSync({
+      entidad: "USUARIO",
+      operacion: "UPDATE_PASSWORD",
+      entity_uuid: usuario.NumDoc_Usuario,
+      payload: {
+        NumDoc_Usuario: usuario.NumDoc_Usuario,
+        password: hashedPassword
+      }
+    });
 
     return;
   }
@@ -136,17 +147,46 @@ class UsuariosService {
     });
 
     // Asignar roles: si se enviaron roles especificos se asignan, de lo contrario se asigna por CenCon_Usuario
+    let rolesNombres = [];
     if (Array.isArray(Roles) && Roles.length > 0) {
       for (const idRol of Roles) {
         await UsuariosRolModel.create({ Id_Usuario: usuarios.Id_Usuario, Id_Rol: idRol });
+        const rObj = await RolesModel.findByPk(idRol);
+        if (rObj) rolesNombres.push(rObj.Nom_Rol);
       }
     } else {
       const nombreRol = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
       const rolEncontrado = await RolesModel.findOne({ where: { Nom_Rol: nombreRol } });
       if (rolEncontrado) {
         await UsuariosRolModel.create({ Id_Usuario: usuarios.Id_Usuario, Id_Rol: rolEncontrado.Id_Rol });
+        rolesNombres.push(rolEncontrado.Nom_Rol);
       }
     }
+
+    // Encolar evento para sincronizacion inmediata en Hetzner
+    await encolarEventoSync({
+      entidad: "USUARIO",
+      operacion: "CREATE",
+      entity_uuid: usuarios.NumDoc_Usuario,
+      payload: {
+        Id_Usuario: usuarios.Id_Usuario,
+        TipDoc_Usuario: usuarios.TipDoc_Usuario,
+        NumDoc_Usuario: usuarios.NumDoc_Usuario,
+        Nom_Usuario: usuarios.Nom_Usuario,
+        Ape_Usuario: usuarios.Ape_Usuario,
+        Gen_Usuario: usuarios.Gen_Usuario,
+        Cor_Usuario: usuarios.Cor_Usuario,
+        Tel_Usuario: usuarios.Tel_Usuario,
+        CenCon_Usuario: usuarios.CenCon_Usuario,
+        Est_Usuario: usuarios.Est_Usuario,
+        San_Usuario: usuarios.San_Usuario,
+        Pol_Usuario: usuarios.Pol_Usuario,
+        Id_Ficha: usuarios.Id_Ficha,
+        password: hashedPassword,
+        uuid: usuarios.uuid,
+        roles: rolesNombres
+      }
+    });
 
     return usuarios;
   }
@@ -261,12 +301,52 @@ class UsuariosService {
 
     const result = await UsuariosModel.update(dataFiltrada, { where: { Id_Usuario } });
     if (result[0] === 0) throw new Error("Usuario No Encontrado o Sin Cambios");
+
+    const usuarioAct = await UsuariosModel.findByPk(Id_Usuario, {
+      include: [{ model: UsuariosRolModel, as: "rolesUsuario", include: [{ model: RolesModel, as: "rolUsuario" }] }]
+    });
+    const rolesNombres = usuarioAct?.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+
+    await encolarEventoSync({
+      entidad: "USUARIO",
+      operacion: "UPDATE",
+      entity_uuid: usuarioAct.NumDoc_Usuario,
+      payload: {
+        Id_Usuario: usuarioAct.Id_Usuario,
+        TipDoc_Usuario: usuarioAct.TipDoc_Usuario,
+        NumDoc_Usuario: usuarioAct.NumDoc_Usuario,
+        Nom_Usuario: usuarioAct.Nom_Usuario,
+        Ape_Usuario: usuarioAct.Ape_Usuario,
+        Gen_Usuario: usuarioAct.Gen_Usuario,
+        Cor_Usuario: usuarioAct.Cor_Usuario,
+        Tel_Usuario: usuarioAct.Tel_Usuario,
+        CenCon_Usuario: usuarioAct.CenCon_Usuario,
+        Est_Usuario: usuarioAct.Est_Usuario,
+        San_Usuario: usuarioAct.San_Usuario,
+        Fec_Desancion: usuarioAct.Fec_Desancion,
+        Pol_Usuario: usuarioAct.Pol_Usuario,
+        Id_Ficha: usuarioAct.Id_Ficha,
+        password: dataFiltrada.password || undefined,
+        roles: rolesNombres
+      }
+    });
+
     return true;
   }
 
   async delete(Id_Usuario) {
-    const deleted = await UsuariosModel.destroy({ where: { Id_Usuario } });
-    if (!deleted) throw new Error("Usuario No encontrado");
+    const usuario = await UsuariosModel.findByPk(Id_Usuario);
+    if (!usuario) throw new Error("Usuario No encontrado");
+    const doc = usuario.NumDoc_Usuario;
+    await UsuariosModel.destroy({ where: { Id_Usuario } });
+
+    await encolarEventoSync({
+      entidad: "USUARIO",
+      operacion: "DELETE",
+      entity_uuid: doc,
+      payload: { Id_Usuario, NumDoc_Usuario: doc }
+    });
+
     return true;
   }
 
@@ -276,6 +356,17 @@ class UsuariosService {
       { where: { Id_Usuario } }
     );
     if (result[0] === 0) throw new Error("Usuario no encontrado");
+
+    const u = await UsuariosModel.findByPk(Id_Usuario);
+    if (u) {
+      await encolarEventoSync({
+        entidad: "USUARIO",
+        operacion: "UPDATE",
+        entity_uuid: u.NumDoc_Usuario,
+        payload: { NumDoc_Usuario: u.NumDoc_Usuario, Pol_Usuario: "Si" }
+      });
+    }
+
     return true;
   }
 

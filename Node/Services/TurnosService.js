@@ -14,6 +14,7 @@ import Servicio_Correo from "./Servicio_Correo.js";
 import NotificacionesService from "./NotificacionesService.js";
 import { getIO } from "./SocketService.js";
 import { Op } from "sequelize";
+import { encolarEventoSync } from "./SyncOutboxService.js";
 
 class TurnosService {
   /**
@@ -110,6 +111,22 @@ class TurnosService {
       io.emit('turno:iniciado', turnoCompleto);
     }
 
+    // 4. Encolar evento para sincronizacion inmediata en Hetzner
+    await encolarEventoSync({
+      entidad: "TURNO",
+      operacion: "INICIAR",
+      entity_uuid: nuevoTurno.Id_Turno,
+      payload: {
+        Id_Turno: nuevoTurno.Id_Turno,
+        Id_Usuario: idUsuario,
+        NumDoc_Supervisor: supervisor.NumDoc_Usuario,
+        Fecha_Inicio: nuevoTurno.Fecha_Inicio,
+        Estado: "Activo",
+        Total_Consumos_Registrados: 0,
+        Observaciones: observaciones || null
+      }
+    });
+
     return {
       mensaje: "Turno iniciado correctamente.",
       turno: turnoCompleto,
@@ -198,6 +215,21 @@ class TurnosService {
     if (io) {
       io.emit('turno:finalizado', turnoFinalizado);
     }
+
+    // 4. Encolar evento para sincronizacion inmediata en Hetzner
+    await encolarEventoSync({
+      entidad: "TURNO",
+      operacion: "FINALIZAR",
+      entity_uuid: turnoActivo.Id_Turno,
+      payload: {
+        Id_Turno: turnoActivo.Id_Turno,
+        NumDoc_Supervisor: supervisor?.NumDoc_Usuario || null,
+        Fecha_Fin: new Date(),
+        Estado: "Finalizado",
+        Total_Consumos_Registrados: totalFinal,
+        Observaciones: obsFinal
+      }
+    });
 
     return {
       mensaje: "Turno finalizado exitosamente.",

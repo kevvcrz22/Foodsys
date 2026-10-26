@@ -4,34 +4,8 @@
 
 import db from "../Database/db.js";
 import CentrosSenaConfigModel from "../Models/CentrosSenaConfigModel.js";
-import ReservaModel from "../Models/ReservasModel.js";
-import PlatoModel from "../Models/PlatosModels.js";
-import MenuModel from "../Models/MenusModels.js";
 import syncWorkerInstance from "../Jobs/SyncWorker.js";
-import { Op } from "sequelize";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const UPLOADS_DIR = path.resolve(__dirname, "../uploads");
-
-const guardarImagenSiVieneBase64 = (nombreArchivo, base64Data) => {
-  if (!nombreArchivo || !base64Data) return;
-  try {
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    }
-    const destino = path.join(UPLOADS_DIR, nombreArchivo);
-    if (!fs.existsSync(destino)) {
-      fs.writeFileSync(destino, Buffer.from(base64Data, "base64"));
-      console.log(`[SyncController] Imagen guardada desde sync: ${nombreArchivo}`);
-    }
-  } catch (err) {
-    console.warn(`[SyncController] Nota al guardar imagen sync ${nombreArchivo}:`, err.message);
-  }
-};
+import syncApplyServiceInstance from "../Services/SyncApplyService.js";
 
 export const health = async (req, res) => {
   return res.status(200).json({
@@ -47,8 +21,7 @@ export const push = async (req, res) => {
     const confirmedIds = [];
 
     for (const evt of events) {
-      const { event_id, entidad, operacion, payload } = evt;
-      const datos = typeof payload === "string" ? JSON.parse(payload) : payload;
+      const { event_id } = evt;
 
       // 1. Idempotencia: Verificar si ya fue procesado antes
       const [yaProcesado] = await db.query(
@@ -61,168 +34,14 @@ export const push = async (req, res) => {
         continue;
       }
 
-      // 2. Procesar segun la entidad
-      if (entidad === "RESERVA") {
-        if (operacion === "CREATE" || operacion === "UPSERT") {
-          const uuidRes = datos.uuid_reserva || datos.uuid;
-          const existente = await ReservaModel.findOne({
-            where: {
-              [Op.or]: [
-                { uuid_reserva: uuidRes },
-                {
-                  Id_Usuario: datos.Id_Usuario,
-                  Fec_Reserva: datos.Fec_Reserva,
-                  Tip_Reserva: datos.Tip_Reserva
-                }
-              ]
-            }
-          });
-
-          if (!existente) {
-            await ReservaModel.create({
-              uuid_reserva: uuidRes,
-              nodo_origen: sourceNode || "LOCAL",
-              Fec_Reserva: datos.Fec_Reserva,
-              Vec_Reserva: datos.Vec_Reserva,
-              Est_Reserva: datos.Est_Reserva || "Generado",
-              Tip_Reserva: datos.Tip_Reserva,
-              Qr_Reserva: datos.Qr_Reserva,
-              Id_Plato: datos.Id_Plato,
-              Id_Usuario: datos.Id_Usuario,
-              sync_status: "SYNCED"
-            });
-          } else {
-            // Regla de negocio: Si localmente ya se consumio, prevalece
-            if (datos.Est_Reserva === "Consumido" || !["Consumido"].includes(existente.Est_Reserva)) {
-              await existente.update({
-                Est_Reserva: datos.Est_Reserva,
-                Qr_Reserva: datos.Qr_Reserva || existente.Qr_Reserva,
-                Id_Plato: datos.Id_Plato || existente.Id_Plato
-              });
-            }
-          }
-        } else if (operacion === "CONSUME") {
-          const uuidRes = datos.uuid_reserva || datos.uuid;
-          const reserva = await ReservaModel.findOne({ where: { uuid_reserva: uuidRes } });
-          if (reserva) {
-            await reserva.update({ Est_Reserva: "Consumido" });
-          }
-        } else if (operacion === "CANCEL") {
-          const uuidRes = datos.uuid_reserva || datos.uuid;
-          const reserva = await ReservaModel.findOne({ where: { uuid_reserva: uuidRes } });
-          if (reserva && !["Consumido", "Verificado"].includes(reserva.Est_Reserva)) {
-            await reserva.update({ Est_Reserva: "Cancelado" });
-          }
-        } else if (operacion === "TRANSFER") {
-          const uuidRes = datos.uuid_reserva || datos.uuid;
-          const reserva = await ReservaModel.findOne({ where: { uuid_reserva: uuidRes } });
-          if (reserva && !["Consumido"].includes(reserva.Est_Reserva)) {
-            await reserva.update({
-              Id_Usuario: datos.Id_Usuario_Nuevo,
-              Id_Usuario_Cedente: datos.Id_Usuario_Cedente,
-              Fec_Cesion: datos.Fec_Cesion || new Date(),
-              motivo_cesion: datos.motivo_cesion,
-              Qr_Reserva: datos.Qr_Reserva || reserva.Qr_Reserva
-            });
-          }
-        }
-      } else if (entidad === "PLATO") {
-        if (datos.Img_Plato && datos.Img_Base64) {
-          guardarImagenSiVieneBase64(datos.Img_Plato, datos.Img_Base64);
-        }
-
-        if (operacion === "CREATE" || operacion === "UPSERT") {
-          let plato = null;
-          if (datos.Id_Plato) {
-            plato = await PlatoModel.findByPk(datos.Id_Plato);
-          }
-          if (!plato && datos.Nom_Plato) {
-            plato = await PlatoModel.findOne({ where: { Nom_Plato: datos.Nom_Plato } });
-          }
-
-          if (!plato) {
-            await PlatoModel.create({
-              Id_Plato: datos.Id_Plato || undefined,
-              Nom_Plato: datos.Nom_Plato,
-              Des_Plato: datos.Des_Plato,
-              Tip_Plato: datos.Tip_Plato,
-              Img_Plato: datos.Img_Plato
-            });
-          } else {
-            await plato.update({
-              Nom_Plato: datos.Nom_Plato || plato.Nom_Plato,
-              Des_Plato: datos.Des_Plato !== undefined ? datos.Des_Plato : plato.Des_Plato,
-              Tip_Plato: datos.Tip_Plato || plato.Tip_Plato,
-              Img_Plato: datos.Img_Plato || plato.Img_Plato
-            });
-          }
-        } else if (operacion === "UPDATE") {
-          let plato = datos.Id_Plato ? await PlatoModel.findByPk(datos.Id_Plato) : null;
-          if (!plato && datos.Nom_Plato) {
-            plato = await PlatoModel.findOne({ where: { Nom_Plato: datos.Nom_Plato } });
-          }
-          if (plato) {
-            await plato.update({
-              Nom_Plato: datos.Nom_Plato || plato.Nom_Plato,
-              Des_Plato: datos.Des_Plato !== undefined ? datos.Des_Plato : plato.Des_Plato,
-              Tip_Plato: datos.Tip_Plato || plato.Tip_Plato,
-              Img_Plato: datos.Img_Plato || plato.Img_Plato
-            });
-          }
-        } else if (operacion === "DELETE") {
-          if (datos.Id_Plato) {
-            await PlatoModel.destroy({ where: { Id_Plato: datos.Id_Plato } });
-          } else if (datos.Nom_Plato) {
-            await PlatoModel.destroy({ where: { Nom_Plato: datos.Nom_Plato } });
-          }
-        }
-      } else if (entidad === "MENU") {
-        if (operacion === "CREATE" || operacion === "UPSERT") {
-          let menu = null;
-          if (datos.Id_Menu) {
-            menu = await MenuModel.findByPk(datos.Id_Menu);
-          }
-          if (!menu) {
-            menu = await MenuModel.findOne({
-              where: {
-                Fec_Menu: datos.Fec_Menu,
-                Tip_Menu: datos.Tip_Menu,
-                Id_Plato: datos.Id_Plato
-              }
-            });
-          }
-
-          if (!menu) {
-            await MenuModel.create({
-              Id_Menu: datos.Id_Menu || undefined,
-              Fec_Menu: datos.Fec_Menu,
-              Tip_Menu: datos.Tip_Menu,
-              Id_Plato: datos.Id_Plato
-            });
-          } else {
-            await menu.update({
-              Fec_Menu: datos.Fec_Menu || menu.Fec_Menu,
-              Tip_Menu: datos.Tip_Menu || menu.Tip_Menu,
-              Id_Plato: datos.Id_Plato || menu.Id_Plato
-            });
-          }
-        } else if (operacion === "UPDATE") {
-          const menu = await MenuModel.findByPk(datos.Id_Menu);
-          if (menu) {
-            await menu.update({
-              Fec_Menu: datos.Fec_Menu || menu.Fec_Menu,
-              Tip_Menu: datos.Tip_Menu || menu.Tip_Menu,
-              Id_Plato: datos.Id_Plato || menu.Id_Plato
-            });
-          }
-        } else if (operacion === "DELETE") {
-          if (datos.Id_Menu) {
-            await MenuModel.destroy({ where: { Id_Menu: datos.Id_Menu } });
-          }
-        }
+      // 2. Aplicar evento universalmente (RESERVA, PLATO, MENU, PROGRAMA, FICHA, USUARIO, USUARIO_ROL, TURNO, PQRSF)
+      try {
+        await syncApplyServiceInstance.aplicarEvento(evt, sourceNode || "LOCAL");
+      } catch (errAplicar) {
+        console.warn(`[SyncController] Nota al aplicar evento ${evt.entidad}/${evt.operacion}:`, errAplicar.message);
       }
 
-      // Marcar evento como procesado
+      // 3. Marcar evento como procesado
       await db.query(
         "INSERT INTO sync_inbox_processed (event_id, source_node, processed_at) VALUES (?, ?, NOW())",
         { replacements: [event_id, sourceNode || "LOCAL"] }

@@ -482,7 +482,7 @@ await sincronizarFichasAlInicio();
 // Iniciar motor de sincronizacion offline tipo OneDrive (nodo local)
 if (process.env.NODE_ROLE !== 'CLOUD') {
   syncWorkerInstance.iniciar();
-  console.log('✅ SyncWorker iniciado: monitoreo offline cada 2 minutos hacia Hetzner');
+  console.log('✅ SyncWorker iniciado: monitoreo offline cada 20 segundos hacia Hetzner');
 } else {
   console.log('ℹ️ Servidor en modo CLOUD Hetzner (SyncWorker receptor activo)');
 }

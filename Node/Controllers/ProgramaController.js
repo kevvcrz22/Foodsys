@@ -4,6 +4,7 @@
 
 import ProgramaService, { normalizarNombrePrograma } from "../Services/ProgramaService.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
+import { encolarEventoSync } from "../Services/SyncOutboxService.js";
 import XLSX from "xlsx";
 import path from "path";
 import fs from "fs";
@@ -288,6 +289,17 @@ export const importarProgramasSeleccionados = async (req, res) => {
 
           if (Object.keys(cambios).length > 0) {
             await ProgramaModel.update(cambios, { where: { Id_Programa: existente.Id_Programa } });
+
+            await encolarEventoSync({
+              entidad: "PROGRAMA",
+              operacion: "UPDATE",
+              entity_uuid: existente.Id_Programa,
+              payload: {
+                Id_Programa: existente.Id_Programa,
+                Nom_Programa: existente.Nom_Programa,
+                ...cambios
+              }
+            }).catch(() => {});
           }
 
           Omitidos++;
@@ -301,6 +313,19 @@ export const importarProgramasSeleccionados = async (req, res) => {
           NivFor_Programa: nivFinal,
           Est_Programa: "Activo"
         });
+
+        await encolarEventoSync({
+          entidad: "PROGRAMA",
+          operacion: "CREATE",
+          entity_uuid: nuevo.Id_Programa,
+          payload: {
+            Id_Programa: nuevo.Id_Programa,
+            Nom_Programa: nuevo.Nom_Programa,
+            Are_Programa: nuevo.Are_Programa,
+            NivFor_Programa: nuevo.NivFor_Programa,
+            Est_Programa: nuevo.Est_Programa
+          }
+        }).catch(() => {});
 
         // Lo guardamos en el Map para evitar duplicados en filas posteriores
         mapaExistentes.set(nomFinal, nuevo);
