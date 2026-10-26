@@ -60,7 +60,10 @@ export const push = async (req, res) => {
 export const pull = async (req, res) => {
   try {
     const { desde } = req.query;
-    const fechaDesde = desde ? new Date(desde) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    // Aplicamos una ventana de seguridad de 10 minutos para proteger contra diferencias de reloj entre servidores
+    const fechaDesde = desde
+      ? new Date(new Date(desde).getTime() - 10 * 60 * 1000)
+      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     const [eventos] = await db.query(`
       SELECT event_id, source_node, entidad, operacion, entity_uuid, payload, created_at
