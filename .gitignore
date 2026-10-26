@@ -25,4 +25,13 @@ dist/
 *.xlsm
 *.xls
 !Node/Templates/**
-!Frontend/public/plantillas/**
+!Frontend/public/plantillas/**
+
+# Subidas y copias locales
+Node/uploads/*
+!Node/uploads/.gitkeep
+Node/backup_uploads/
+*.sql
+!Node/Database/indices_optimizacion.sql
+!Node/Database/migration_v2.sql
+!Node/Database/migration_v3_innovacion.sql
