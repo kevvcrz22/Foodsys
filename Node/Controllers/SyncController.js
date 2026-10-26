@@ -5,8 +5,33 @@
 import db from "../Database/db.js";
 import CentrosSenaConfigModel from "../Models/CentrosSenaConfigModel.js";
 import ReservaModel from "../Models/ReservasModel.js";
+import PlatoModel from "../Models/PlatosModels.js";
+import MenuModel from "../Models/MenusModels.js";
 import syncWorkerInstance from "../Jobs/SyncWorker.js";
 import { Op } from "sequelize";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const UPLOADS_DIR = path.resolve(__dirname, "../uploads");
+
+const guardarImagenSiVieneBase64 = (nombreArchivo, base64Data) => {
+  if (!nombreArchivo || !base64Data) return;
+  try {
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+    const destino = path.join(UPLOADS_DIR, nombreArchivo);
+    if (!fs.existsSync(destino)) {
+      fs.writeFileSync(destino, Buffer.from(base64Data, "base64"));
+      console.log(`[SyncController] Imagen guardada desde sync: ${nombreArchivo}`);
+    }
+  } catch (err) {
+    console.warn(`[SyncController] Nota al guardar imagen sync ${nombreArchivo}:`, err.message);
+  }
+};
 
 export const health = async (req, res) => {
   return res.status(200).json({
@@ -99,6 +124,100 @@ export const push = async (req, res) => {
               motivo_cesion: datos.motivo_cesion,
               Qr_Reserva: datos.Qr_Reserva || reserva.Qr_Reserva
             });
+          }
+        }
+      } else if (entidad === "PLATO") {
+        if (datos.Img_Plato && datos.Img_Base64) {
+          guardarImagenSiVieneBase64(datos.Img_Plato, datos.Img_Base64);
+        }
+
+        if (operacion === "CREATE" || operacion === "UPSERT") {
+          let plato = null;
+          if (datos.Id_Plato) {
+            plato = await PlatoModel.findByPk(datos.Id_Plato);
+          }
+          if (!plato && datos.Nom_Plato) {
+            plato = await PlatoModel.findOne({ where: { Nom_Plato: datos.Nom_Plato } });
+          }
+
+          if (!plato) {
+            await PlatoModel.create({
+              Id_Plato: datos.Id_Plato || undefined,
+              Nom_Plato: datos.Nom_Plato,
+              Des_Plato: datos.Des_Plato,
+              Tip_Plato: datos.Tip_Plato,
+              Img_Plato: datos.Img_Plato
+            });
+          } else {
+            await plato.update({
+              Nom_Plato: datos.Nom_Plato || plato.Nom_Plato,
+              Des_Plato: datos.Des_Plato !== undefined ? datos.Des_Plato : plato.Des_Plato,
+              Tip_Plato: datos.Tip_Plato || plato.Tip_Plato,
+              Img_Plato: datos.Img_Plato || plato.Img_Plato
+            });
+          }
+        } else if (operacion === "UPDATE") {
+          let plato = datos.Id_Plato ? await PlatoModel.findByPk(datos.Id_Plato) : null;
+          if (!plato && datos.Nom_Plato) {
+            plato = await PlatoModel.findOne({ where: { Nom_Plato: datos.Nom_Plato } });
+          }
+          if (plato) {
+            await plato.update({
+              Nom_Plato: datos.Nom_Plato || plato.Nom_Plato,
+              Des_Plato: datos.Des_Plato !== undefined ? datos.Des_Plato : plato.Des_Plato,
+              Tip_Plato: datos.Tip_Plato || plato.Tip_Plato,
+              Img_Plato: datos.Img_Plato || plato.Img_Plato
+            });
+          }
+        } else if (operacion === "DELETE") {
+          if (datos.Id_Plato) {
+            await PlatoModel.destroy({ where: { Id_Plato: datos.Id_Plato } });
+          } else if (datos.Nom_Plato) {
+            await PlatoModel.destroy({ where: { Nom_Plato: datos.Nom_Plato } });
+          }
+        }
+      } else if (entidad === "MENU") {
+        if (operacion === "CREATE" || operacion === "UPSERT") {
+          let menu = null;
+          if (datos.Id_Menu) {
+            menu = await MenuModel.findByPk(datos.Id_Menu);
+          }
+          if (!menu) {
+            menu = await MenuModel.findOne({
+              where: {
+                Fec_Menu: datos.Fec_Menu,
+                Tip_Menu: datos.Tip_Menu,
+                Id_Plato: datos.Id_Plato
+              }
+            });
+          }
+
+          if (!menu) {
+            await MenuModel.create({
+              Id_Menu: datos.Id_Menu || undefined,
+              Fec_Menu: datos.Fec_Menu,
+              Tip_Menu: datos.Tip_Menu,
+              Id_Plato: datos.Id_Plato
+            });
+          } else {
+            await menu.update({
+              Fec_Menu: datos.Fec_Menu || menu.Fec_Menu,
+              Tip_Menu: datos.Tip_Menu || menu.Tip_Menu,
+              Id_Plato: datos.Id_Plato || menu.Id_Plato
+            });
+          }
+        } else if (operacion === "UPDATE") {
+          const menu = await MenuModel.findByPk(datos.Id_Menu);
+          if (menu) {
+            await menu.update({
+              Fec_Menu: datos.Fec_Menu || menu.Fec_Menu,
+              Tip_Menu: datos.Tip_Menu || menu.Tip_Menu,
+              Id_Plato: datos.Id_Plato || menu.Id_Plato
+            });
+          }
+        } else if (operacion === "DELETE") {
+          if (datos.Id_Menu) {
+            await MenuModel.destroy({ where: { Id_Menu: datos.Id_Menu } });
           }
         }
       }

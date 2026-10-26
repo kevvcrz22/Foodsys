@@ -2,6 +2,7 @@ import { Op } from "sequelize";
 import MenuModel from "../Models/MenusModels.js";
 import PlatoModel from "../Models/PlatosModels.js";
 import ReservaModel from "../Models/ReservasModel.js";
+import { encolarEventoSync } from "./SyncOutboxService.js";
 
 class MenusService {
 
@@ -72,6 +73,19 @@ class MenusService {
       }
       const nuevo = await MenuModel.create({ Fec_Menu, Tip_Menu, Id_Plato });
       creados.push(nuevo);
+
+      // Encolar evento de sincronizacion bidireccional
+      await encolarEventoSync({
+        entidad: "MENU",
+        operacion: "CREATE",
+        entity_uuid: nuevo.Id_Menu,
+        payload: {
+          Id_Menu: nuevo.Id_Menu,
+          Fec_Menu: nuevo.Fec_Menu,
+          Tip_Menu: nuevo.Tip_Menu,
+          Id_Plato: nuevo.Id_Plato
+        }
+      });
     }
 
     return creados.length === 1 ? creados[0] : creados;
@@ -113,6 +127,20 @@ class MenusService {
     if (updated === 0) {
       throw new Error("No hubo cambios en el menú");
     }
+
+    const menuAct = await MenuModel.findByPk(id);
+    await encolarEventoSync({
+      entidad: "MENU",
+      operacion: "UPDATE",
+      entity_uuid: id,
+      payload: {
+        Id_Menu: id,
+        Fec_Menu: menuAct.Fec_Menu,
+        Tip_Menu: menuAct.Tip_Menu,
+        Id_Plato: menuAct.Id_Plato
+      }
+    });
+
     return true;
   }
 
@@ -136,6 +164,14 @@ class MenusService {
 
     const deleted = await MenuModel.destroy({ where: { Id_Menu: id } });
     if (!deleted) throw new Error("Menú no encontrado");
+
+    await encolarEventoSync({
+      entidad: "MENU",
+      operacion: "DELETE",
+      entity_uuid: id,
+      payload: { Id_Menu: id }
+    });
+
     return true;
   }
 

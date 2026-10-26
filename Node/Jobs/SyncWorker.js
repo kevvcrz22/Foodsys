@@ -7,7 +7,45 @@
 import db from "../Database/db.js";
 import ReservaModel from "../Models/ReservasModel.js";
 import CentrosSenaConfigModel from "../Models/CentrosSenaConfigModel.js";
+import PlatoModel from "../Models/PlatosModels.js";
+import MenuModel from "../Models/MenusModels.js";
 import { Op } from "sequelize";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const UPLOADS_DIR = path.resolve(__dirname, "../uploads");
+
+const asegurarImagenLocal = async (nombreArchivo, base64Data, cloudBaseUrl) => {
+  if (!nombreArchivo) return;
+  try {
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+    const destino = path.join(UPLOADS_DIR, nombreArchivo);
+    if (fs.existsSync(destino)) return;
+
+    if (base64Data) {
+      fs.writeFileSync(destino, Buffer.from(base64Data, "base64"));
+      console.log(`[SyncWorker] Imagen guardada desde base64: ${nombreArchivo}`);
+      return;
+    }
+
+    if (cloudBaseUrl) {
+      const imgUrl = `${cloudBaseUrl}/uploads/${nombreArchivo}`;
+      const res = await fetch(imgUrl);
+      if (res.ok) {
+        const buffer = Buffer.from(await res.arrayBuffer());
+        fs.writeFileSync(destino, buffer);
+        console.log(`[SyncWorker] Imagen descargada desde nube: ${nombreArchivo}`);
+      }
+    }
+  } catch (err) {
+    console.warn(`[SyncWorker] Nota al descargar imagen ${nombreArchivo}:`, err.message);
+  }
+};
 
 class SyncWorker {
   constructor() {
@@ -17,9 +55,9 @@ class SyncWorker {
 
   /**
    * Inicia el demonio de sincronizacion periodica
-   * @param {number} intervaloMs - Tiempo entre intentos (por defecto 2 minutos = 120000ms)
+   * @param {number} intervaloMs - Tiempo entre intentos (por defecto 20 segundos = 20000ms)
    */
-  iniciar(intervaloMs = 120000) {
+  iniciar(intervaloMs = 20000) {
     if (this.intervalo) return;
 
     console.log(`[SyncWorker] Iniciado demonio de sincronizacion cada ${intervaloMs / 1000}s`);
@@ -250,6 +288,101 @@ class SyncWorker {
             motivo_cesion: datos.motivo_cesion,
             Qr_Reserva: datos.Qr_Reserva || reserva.Qr_Reserva
           });
+        }
+      }
+    } else if (entidad === "PLATO") {
+      const cloudBaseUrl = (process.env.CLOUD_API_URL || "https://foodsyslagranja.com/api").replace(/\/api$/, "");
+      if (datos.Img_Plato) {
+        await asegurarImagenLocal(datos.Img_Plato, datos.Img_Base64, cloudBaseUrl);
+      }
+
+      if (operacion === "CREATE" || operacion === "UPSERT") {
+        let plato = null;
+        if (datos.Id_Plato) {
+          plato = await PlatoModel.findByPk(datos.Id_Plato);
+        }
+        if (!plato && datos.Nom_Plato) {
+          plato = await PlatoModel.findOne({ where: { Nom_Plato: datos.Nom_Plato } });
+        }
+
+        if (!plato) {
+          await PlatoModel.create({
+            Id_Plato: datos.Id_Plato || undefined,
+            Nom_Plato: datos.Nom_Plato,
+            Des_Plato: datos.Des_Plato,
+            Tip_Plato: datos.Tip_Plato,
+            Img_Plato: datos.Img_Plato
+          });
+        } else {
+          await plato.update({
+            Nom_Plato: datos.Nom_Plato || plato.Nom_Plato,
+            Des_Plato: datos.Des_Plato !== undefined ? datos.Des_Plato : plato.Des_Plato,
+            Tip_Plato: datos.Tip_Plato || plato.Tip_Plato,
+            Img_Plato: datos.Img_Plato || plato.Img_Plato
+          });
+        }
+      } else if (operacion === "UPDATE") {
+        let plato = datos.Id_Plato ? await PlatoModel.findByPk(datos.Id_Plato) : null;
+        if (!plato && datos.Nom_Plato) {
+          plato = await PlatoModel.findOne({ where: { Nom_Plato: datos.Nom_Plato } });
+        }
+        if (plato) {
+          await plato.update({
+            Nom_Plato: datos.Nom_Plato || plato.Nom_Plato,
+            Des_Plato: datos.Des_Plato !== undefined ? datos.Des_Plato : plato.Des_Plato,
+            Tip_Plato: datos.Tip_Plato || plato.Tip_Plato,
+            Img_Plato: datos.Img_Plato || plato.Img_Plato
+          });
+        }
+      } else if (operacion === "DELETE") {
+        if (datos.Id_Plato) {
+          await PlatoModel.destroy({ where: { Id_Plato: datos.Id_Plato } });
+        } else if (datos.Nom_Plato) {
+          await PlatoModel.destroy({ where: { Nom_Plato: datos.Nom_Plato } });
+        }
+      }
+    } else if (entidad === "MENU") {
+      if (operacion === "CREATE" || operacion === "UPSERT") {
+        let menu = null;
+        if (datos.Id_Menu) {
+          menu = await MenuModel.findByPk(datos.Id_Menu);
+        }
+        if (!menu) {
+          menu = await MenuModel.findOne({
+            where: {
+              Fec_Menu: datos.Fec_Menu,
+              Tip_Menu: datos.Tip_Menu,
+              Id_Plato: datos.Id_Plato
+            }
+          });
+        }
+
+        if (!menu) {
+          await MenuModel.create({
+            Id_Menu: datos.Id_Menu || undefined,
+            Fec_Menu: datos.Fec_Menu,
+            Tip_Menu: datos.Tip_Menu,
+            Id_Plato: datos.Id_Plato
+          });
+        } else {
+          await menu.update({
+            Fec_Menu: datos.Fec_Menu || menu.Fec_Menu,
+            Tip_Menu: datos.Tip_Menu || menu.Tip_Menu,
+            Id_Plato: datos.Id_Plato || menu.Id_Plato
+          });
+        }
+      } else if (operacion === "UPDATE") {
+        const menu = await MenuModel.findByPk(datos.Id_Menu);
+        if (menu) {
+          await menu.update({
+            Fec_Menu: datos.Fec_Menu || menu.Fec_Menu,
+            Tip_Menu: datos.Tip_Menu || menu.Tip_Menu,
+            Id_Plato: datos.Id_Plato || menu.Id_Plato
+          });
+        }
+      } else if (operacion === "DELETE") {
+        if (datos.Id_Menu) {
+          await MenuModel.destroy({ where: { Id_Menu: datos.Id_Menu } });
         }
       }
     }
