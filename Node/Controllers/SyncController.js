@@ -57,13 +57,32 @@ export const push = async (req, res) => {
   }
 };
 
+function fechaAFormatoColombiaMySQL(fecha) {
+  const d = new Date(fecha);
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).formatToParts(d);
+  const m = {};
+  for (const p of partes) m[p.type] = p.value;
+  return `${m.year}-${m.month}-${m.day} ${m.hour}:${m.minute}:${m.second}`;
+}
+
 export const pull = async (req, res) => {
   try {
     const { desde } = req.query;
     // Aplicamos una ventana de seguridad de 10 minutos para proteger contra diferencias de reloj entre servidores
-    const fechaDesde = desde
+    const fechaRef = desde
       ? new Date(new Date(desde).getTime() - 10 * 60 * 1000)
       : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const fechaDesdeStr = fechaAFormatoColombiaMySQL(fechaRef);
 
     const [eventos] = await db.query(`
       SELECT event_id, source_node, entidad, operacion, entity_uuid, payload, created_at
@@ -71,7 +90,7 @@ export const pull = async (req, res) => {
       WHERE created_at >= ?
       ORDER BY created_at ASC
       LIMIT 200
-    `, { replacements: [fechaDesde] });
+    `, { replacements: [fechaDesdeStr] });
 
     return res.status(200).json({
       events: eventos,
