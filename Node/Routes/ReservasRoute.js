@@ -63,7 +63,9 @@ import {
   solicitarCesionReserva,
   responderCesionReserva,
   obtenerCesionesPendientes,
-  liberarBolsaSolidaria
+  liberarBolsaSolidaria,
+  obtenerCuposBolsaSolidaria,
+  reclamarCupoBolsaSolidaria
 } from "../Controllers/ReservasController.js";
 const router = Router();
 
@@ -197,5 +199,7 @@ router.post('/ceder/solicitar', authMiddleware, solicitarCesionReserva);
 router.get('/ceder/pendientes', authMiddleware, obtenerCesionesPendientes);
 router.post('/ceder/responder', authMiddleware, responderCesionReserva);
 router.post('/ceder/liberar-bolsa', authMiddleware, liberarBolsaSolidaria);
+router.get('/bolsa/disponibles', authMiddleware, obtenerCuposBolsaSolidaria);
+router.post('/bolsa/:id/reclamar', authMiddleware, reclamarCupoBolsaSolidaria);
 
 export default router;

@@ -37,4 +37,5 @@ Node/backup_uploads/
 !Node/Database/migration_v2.sql
 !Node/Database/migration_v3_innovacion.sql
 !Node/Database/migration_v4_platos_bebidas_horarios.sql
-!Node/Database/migration_v5_campo_sena_empresa.sql
+!Node/Database/migration_v5_campo_sena_empresa.sql
+!Node/Database/migration_v6_bolsa_solidaria.sql

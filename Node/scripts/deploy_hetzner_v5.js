@@ -31,8 +31,16 @@ try {
   if (fs.existsSync(sqlV5Path)) {
     console.log("   -> Aplicando migration_v5...");
     execSync(`scp ${sqlV5Path} root@foodsyslagranja.com:/root/migration_v5.sql`);
-    const migResult = execSync('ssh -n root@foodsyslagranja.com "mysql -u root foodsys_db < /root/migration_v5.sql && echo MIGRACION_EXITOSA"', { encoding: "utf8" });
+    const migResult = execSync('ssh -n root@foodsyslagranja.com "mysql -u root foodsys_db < /root/migration_v5.sql && echo MIGRACION_V5_EXITOSA"', { encoding: "utf8" });
     console.log("   ->", migResult.trim());
+  }
+
+  const sqlV6Path = "./Node/Database/migration_v6_bolsa_solidaria.sql";
+  if (fs.existsSync(sqlV6Path)) {
+    console.log("   -> Aplicando migration_v6...");
+    execSync(`scp ${sqlV6Path} root@foodsyslagranja.com:/root/migration_v6.sql`);
+    const migV6Result = execSync('ssh -n root@foodsyslagranja.com "mysql -u root foodsys_db < /root/migration_v6.sql && echo MIGRACION_V6_EXITOSA"', { encoding: "utf8" });
+    console.log("   ->", migV6Result.trim());
   }
 
   // 4. Instalar dependencias si hubieran cambiado

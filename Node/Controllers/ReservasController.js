@@ -514,3 +514,34 @@ export const liberarBolsaSolidaria = async (req, res) => {
     return res.status(400).json({ message: err.message, mensaje: err.message });
   }
 };
+
+// Obtener cupos disponibles de la Bolsa Solidaria para el usuario autenticado
+export const obtenerCuposBolsaSolidaria = async (req, res) => {
+  try {
+    const Id_Usuario = req.user.id;
+    const data = await ReservasServices.ObtenerCuposBolsaSolidaria(Id_Usuario);
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error('[ReservasController] obtenerCuposBolsaSolidaria:', err.message);
+    return res.status(500).json({ message: err.message, mensaje: err.message });
+  }
+};
+
+// Reclamar un cupo de la Bolsa Solidaria
+export const reclamarCupoBolsaSolidaria = async (req, res) => {
+  try {
+    const Id_Usuario_Receptor = req.user.id;
+    const Id_Reserva = req.params.id || req.body.Id_Reserva;
+    if (!Id_Reserva) {
+      return res.status(400).json({ message: "Se requiere Id_Reserva" });
+    }
+    const resultado = await ReservasServices.ReclamarCupoBolsaSolidaria(
+      Number(Id_Reserva),
+      Id_Usuario_Receptor
+    );
+    return res.status(200).json(resultado);
+  } catch (err) {
+    console.error('[ReservasController] reclamarCupoBolsaSolidaria:', err.message);
+    return res.status(400).json({ message: err.message, mensaje: err.message });
+  }
+};

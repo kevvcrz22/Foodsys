@@ -14,6 +14,7 @@ import {
 import { Link } from "react-router-dom";
 import SemaforoAforoCard from "../../Components/SemaforoAforoCard.jsx";
 import ControlRacionesRapido from "../../Components/Admin/ControlRacionesRapido.jsx";
+import BolsaSolidariaCard from "../../Components/BolsaSolidariaCard.jsx";
 
 const MANUAL_POR_ROL = {
   Administrador: {
@@ -314,27 +315,32 @@ const Inicio = () => {
 
   return (
     <div className="w-full space-y-6">
-      {/* Encabezado Superior Suave y Moderno */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 rounded-2xl p-5 sm:p-6 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
-            <span className="text-xs uppercase font-bold tracking-wider text-emerald-300">
-              Sistema de Gestion Nutricional
-            </span>
+      {/* Encabezado Superior Suave - Estilo Reportes y Usuarios */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+            <Utensils className="w-6 h-6" />
           </div>
-          <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-white m-0">
-            Bienvenido, {Nombre}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-300 mt-1 m-0">
-            Centro Agropecuario "La Granja" - SENA Regional Tolima
-          </p>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+              <span className="text-xs uppercase font-semibold tracking-wider text-emerald-700">
+                Sistema de Gestion Nutricional
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-800 m-0">
+              Bienvenido, {Nombre}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 m-0">
+              Centro Agropecuario "La Granja" - SENA Regional Tolima
+            </p>
+          </div>
         </div>
 
         {Rol_Activo && (
-          <div className="self-start sm:self-auto bg-white/10 backdrop-blur-md border border-white/20 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span className="text-xs font-bold text-white uppercase tracking-wide">
+          <div className="self-start sm:self-auto bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+            <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wide">
               {Rol_Activo}
             </span>
           </div>
@@ -346,6 +352,11 @@ const Inicio = () => {
 
       {/* Semaforo de Aforo del Comedor */}
       {puedeVerSemaforo && <SemaforoAforoCard />}
+
+      {/* Bolsa Solidaria Bienestar (Aprendices y Pasantes) */}
+      {(rolNormalizado.includes("aprendiz") || rolNormalizado.includes("pasante")) && (
+        <BolsaSolidariaCard />
+      )}
 
       {/* Manual Interactivo de Uso por Rol */}
       {Manual ? (

@@ -25,6 +25,7 @@ import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import RolesModel from "../Models/RolesModel.js";
 import NotificacionesModel from "../Models/NotificacionesModel.js";
 import { notificarCambioReservas } from "./SocketService.js";
+import { obtenerFechaColombia, obtenerHoraColombia } from "../Utils/dateUtils.js";
 
 class VencimientoService {
 
@@ -56,39 +57,40 @@ class VencimientoService {
 
   // Determina si una reserva dada ya expiro segun la fecha y hora actual en America/Bogota
   esReservaExpirada(reserva, ahora = new Date()) {
-    const hoyStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(ahora);
+    const hoyStr = obtenerFechaColombia(ahora);
 
     // Si la fecha de la reserva es anterior a hoy, esta definitivamente vencida
     if (reserva.Fec_Reserva < hoyStr) return true;
 
-    // Si la fecha es hoy, comprobar la hora de cierre del servicio
-    if (reserva.Fec_Reserva === hoyStr) {
-      // Si la reserva fue guardada por jornada de campo, respetar Hora_Limite_Extendida
-      if (reserva.Es_Guardado_Campo) {
-        const horaLimite = reserva.Hora_Limite_Extendida || '15:00:00';
-        const partes = String(horaLimite).split(':');
-        const hLim = Number(partes[0]) || 15;
-        const mLim = Number(partes[1]) || 0;
-        const horaCierreDate = new Date(ahora);
-        horaCierreDate.setHours(hLim, mLim, 0, 0);
-        return ahora >= horaCierreDate;
-      }
+    // Si la fecha de la reserva es futura, no esta vencida
+    if (reserva.Fec_Reserva > hoyStr) return false;
 
-      if (reserva.Vec_Reserva) {
-        return new Date(reserva.Vec_Reserva) <= ahora;
-      }
-      // Horas limite de cada turno (Bogota UTC-5)
-      const horasCierre = {
-        Desayuno: { h: 7, m: 0 },   // 07:00 AM fin del servicio oficial de desayuno
-        Almuerzo: { h: 13, m: 30 }, // 13:30 (1:30 PM) fin del servicio de almuerzo
-        Cena: { h: 19, m: 30 }      // 19:30 (7:30 PM) fin del servicio oficial de cena
-      };
-      const cierre = horasCierre[reserva.Tip_Reserva];
-      if (cierre) {
-        const horaCierreDate = new Date(ahora);
-        horaCierreDate.setHours(cierre.h, cierre.m, 0, 0);
-        return ahora >= horaCierreDate;
-      }
+    // Si la fecha es hoy, comprobar la hora colombiana de cierre del servicio
+    const horaActualCol = obtenerHoraColombia(ahora);
+    const [hh, mm] = horaActualCol.split(':').map(Number);
+    const minutosActuales = (hh || 0) * 60 + (mm || 0);
+
+    // Si la reserva fue guardada por jornada de campo, respetar Hora_Limite_Extendida
+    if (reserva.Es_Guardado_Campo) {
+      const horaLimite = reserva.Hora_Limite_Extendida || '14:30:00';
+      const [hLim, mLim] = String(horaLimite).split(':').map(Number);
+      const minutosLimiteCampo = (hLim || 14) * 60 + (mLim || 30);
+      return minutosActuales >= minutosLimiteCampo;
+    }
+
+    // Minutos de cierre del servicio oficial en Colombia:
+    // Desayuno: 07:00 AM (420 min)
+    // Almuerzo:  13:30 (1:30 PM = 810 min)
+    // Cena:      19:30 (7:30 PM = 1170 min)
+    const minutosCierrePorTurno = {
+      Desayuno: 7 * 60,         // 07:00 AM
+      Almuerzo: 13 * 60 + 30,   // 01:30 PM
+      Cena: 19 * 60 + 30        // 07:30 PM
+    };
+
+    const minutosCierre = minutosCierrePorTurno[reserva.Tip_Reserva];
+    if (minutosCierre !== undefined) {
+      return minutosActuales >= minutosCierre;
     }
 
     return false;
@@ -401,12 +403,26 @@ class VencimientoService {
         transaction
       });
 
-      if (reservasAbiertas.length === 0) {
+      // Excluir reservas de jornada de campo cuya hora limite extendida no haya llegado aun
+      const horaActualCol = obtenerHoraColombia();
+      const [hh, mm] = horaActualCol.split(':').map(Number);
+      const minActual = (hh || 0) * 60 + (mm || 0);
+
+      const reservasParaVencer = reservasAbiertas.filter(r => {
+        if (r.Es_Guardado_Campo) {
+          const [hLim, mLim] = String(r.Hora_Limite_Extendida || '14:30:00').split(':').map(Number);
+          const minLim = (hLim || 14) * 60 + (mLim || 30);
+          return minActual >= minLim;
+        }
+        return true;
+      });
+
+      if (reservasParaVencer.length === 0) {
         return { tipo, vencidas: 0, sancionados: 0, usuariosEvaluados: 0 };
       }
 
       // 2. Marcar todas como Vencido en un solo UPDATE
-      const idsReservas = reservasAbiertas.map(r => r.Id_Reserva);
+      const idsReservas = reservasParaVencer.map(r => r.Id_Reserva);
       await ReservaModel.update(
         { Est_Reserva: 'Vencido' },
         { where: { Id_Reserva: { [Op.in]: idsReservas } }, transaction }

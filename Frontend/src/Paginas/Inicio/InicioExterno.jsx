@@ -4,9 +4,10 @@
 // Estilo suave, moderno y homogeneo alineado con los modulos de Reportes y Usuarios.
 // Codigo sin tildes ni emojis para aprendices de ADSO.
 
-import { CalendarCheck, History, CheckCircle2, Clock, ChevronRight, ShieldCheck } from "lucide-react";
+import { CalendarCheck, History, CheckCircle2, Clock, ChevronRight, GraduationCap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import SemaforoAforoCard from "../../Components/SemaforoAforoCard.jsx";
+import BolsaSolidariaCard from "../../Components/BolsaSolidariaCard.jsx";
 
 export default function InicioExterno() {
   const navigate = useNavigate();
@@ -44,26 +45,31 @@ export default function InicioExterno() {
 
   return (
     <div className="w-full space-y-6">
-      {/* Encabezado Superior Suave */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 rounded-2xl p-5 sm:p-6 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
-            <span className="text-xs uppercase font-bold tracking-wider text-emerald-300">
-              Formacion Titulada Presencial
-            </span>
+      {/* Encabezado Superior Suave - Estilo Reportes y Usuarios */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center shrink-0">
+            <GraduationCap className="w-6 h-6" />
           </div>
-          <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-white m-0">
-            Panel del Aprendiz Externo
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-300 mt-1 m-0">
-            Centro Agropecuario "La Granja" - SENA Regional Tolima
-          </p>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+              <span className="text-[11px] uppercase font-bold tracking-wider text-blue-800 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                Formacion Titulada Presencial
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight m-0">
+              Panel del Aprendiz Externo
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 m-0">
+              Centro Agropecuario "La Granja" · SENA Regional Tolima
+            </p>
+          </div>
         </div>
 
-        <div className="self-start sm:self-auto bg-white/10 backdrop-blur-md border border-white/20 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span className="text-xs font-bold text-white uppercase tracking-wide">
+        <div className="self-start sm:self-auto bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+          <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
             Aprendiz Externo
           </span>
         </div>
@@ -71,6 +77,9 @@ export default function InicioExterno() {
 
       {/* Semaforo de Aforo del Comedor */}
       <SemaforoAforoCard />
+
+      {/* Bolsa Solidaria Bienestar */}
+      <BolsaSolidariaCard onCupoReclamado={() => navigate('/Externo/Reservar')} />
 
       {/* Tarjeta Informativa de Horarios y Procedimiento */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm space-y-3">

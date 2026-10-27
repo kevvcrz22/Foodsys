@@ -57,16 +57,20 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
         });
         const lista = respuesta.data?.candidatos || (Array.isArray(respuesta.data) ? respuesta.data : []);
         // Normalizar propiedades por si vienen en PascalCase o camelCase
-        const normalizados = lista.map(c => ({
-          Id_Usuario: c.Id_Usuario ?? c.idUsuario ?? c.id,
-          Nombre_Completo: c.Nombre_Completo ?? c.nombreCompleto ?? `${c.Nom_Usuario || ''} ${c.Ape_Usuario || ''}`.trim(),
-          Nombre_Enmascarado: c.Nombre_Enmascarado ?? c.nombreEnmascarado ?? c.Nombre_Completo,
-          Documento_Enmascarado: c.Documento_Enmascarado ?? c.documentoEnmascarado ?? (c.NumDoc_Usuario ? `******${String(c.NumDoc_Usuario).slice(-4)}` : "******"),
-          Num_Ficha: c.Num_Ficha ?? c.numFicha ?? c.ficha ?? "Sin ficha",
-          Rol_Tipo: c.Rol_Tipo ?? c.rolTipo ?? "Aprendiz",
-          Disponible: c.Disponible ?? c.disponible ?? true,
-          Mensaje_Restriccion: c.Mensaje_Restriccion ?? c.motivoRestriccion ?? ""
-        }));
+        const normalizados = lista.map(c => {
+          const disp = Boolean(c.Disponible !== undefined ? c.Disponible : (c.disponible !== undefined ? c.disponible : true));
+          return {
+            Id_Usuario: c.Id_Usuario ?? c.idUsuario ?? c.id,
+            Nombre_Completo: c.Nombre_Completo ?? c.nombreCompleto ?? `${c.Nom_Usuario || ''} ${c.Ape_Usuario || ''}`.trim(),
+            Nombre_Enmascarado: c.Nombre_Enmascarado ?? c.nombreEnmascarado ?? c.Nombre_Completo,
+            Documento_Enmascarado: c.Documento_Enmascarado ?? c.documentoEnmascarado ?? (c.NumDoc_Usuario ? `******${String(c.NumDoc_Usuario).slice(-4)}` : "******"),
+            Num_Ficha: c.Num_Ficha ?? c.numFicha ?? c.ficha ?? "Sin ficha",
+            Rol_Tipo: c.Rol_Tipo ?? c.rolTipo ?? "Aprendiz",
+            disponible: disp,
+            Disponible: disp,
+            Mensaje_Restriccion: c.Mensaje_Restriccion ?? c.motivoRestriccion ?? ""
+          };
+        });
         setCandidatos(normalizados);
         if (normalizados.length === 0) {
           setErrorBusqueda("No se encontraron aprendices o pasantes que coincidan con la busqueda o no cumplen las condiciones del turno.");
@@ -157,41 +161,41 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
     >
       <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border border-slate-100">
 
-        {/* Encabezado con degradado institucional */}
-        <div className="bg-gradient-to-r from-[#0f3f80] to-[#1e5bb0] p-6 text-white relative">
+        {/* Encabezado suave y limpio estilo Reportes/Usuarios */}
+        <div className="p-5 sm:p-6 border-b border-slate-100 bg-white relative">
           <button
             onClick={onCerrar}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors text-slate-500 cursor-pointer"
             aria-label="Cerrar modal"
           >
             <X size={18} />
           </button>
 
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center shrink-0 border border-white/20">
-              <HeartHandshake className="w-6 h-6 text-emerald-300" />
+            <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+              <HeartHandshake className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white leading-tight">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight">
                 Ceder Reserva Solidaria
               </h2>
-              <p className="text-xs text-blue-100 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Centro Agropecuario La Granja · {reserva.Tip_Reserva} del {reserva.Fec_Reserva}
               </p>
             </div>
           </div>
 
           {/* Tarjeta resumen del plato a ceder */}
-          <div className="mt-4 bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/15 flex items-center justify-between">
+          <div className="mt-3.5 bg-slate-50 rounded-xl p-3 border border-slate-200/80 flex items-center justify-between">
             <div className="min-w-0 pr-2">
-              <p className="text-[11px] text-blue-200 uppercase tracking-wider font-semibold">
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">
                 Plato reservado
               </p>
-              <p className="text-sm font-bold text-white truncate">
+              <p className="text-xs sm:text-sm font-bold text-slate-800 truncate">
                 {reserva.plato?.Nom_Plato || "Plato del dia"}
               </p>
             </div>
-            <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+            <span className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200">
               Reserva #{reserva.Id_Reserva}
             </span>
           </div>
@@ -202,9 +206,9 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
           <button
             type="button"
             onClick={() => { setModalidad("companero"); setSeleccionado(null); }}
-            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               modalidad === "companero"
-                ? "bg-white text-[#0f3f80] shadow-sm border border-slate-200"
+                ? "bg-white text-emerald-800 shadow-xs border border-slate-200"
                 : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/60"
             }`}
           >
@@ -214,9 +218,9 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
           <button
             type="button"
             onClick={() => { setModalidad("bolsa"); setSeleccionado(null); }}
-            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               modalidad === "bolsa"
-                ? "bg-white text-[#0f3f80] shadow-sm border border-slate-200"
+                ? "bg-white text-emerald-800 shadow-xs border border-slate-200"
                 : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/60"
             }`}
           >
@@ -229,10 +233,10 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
         <div className="p-6 overflow-y-auto flex-1 space-y-4">
 
           {/* Advertencia de horario y proteccion de datos */}
-          <div className="rounded-xl p-3 bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-amber-900 text-xs">
-            <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="rounded-xl p-3 bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-emerald-900 text-xs">
+            <Clock className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <div className="leading-relaxed">
-              <span className="font-bold">Horario limite de cesion:</span> hasta 2 horas antes del turno (Desayuno: 4:00 AM, Almuerzo: 9:30 AM, Cena: 4:00 PM). Una reserva cedida no se puede volver a ceder.
+              <span className="font-bold">Cesion solidaria flexible:</span> Puedes ceder tu reserva a un companero en cualquier momento antes de que finalice el servicio de comida. Tu companero debe aceptar la solicitud desde su aplicacion.
             </div>
           </div>
 
@@ -278,7 +282,7 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {candidatos.map((cand) => {
                     const isSelected = seleccionado?.Id_Usuario === cand.Id_Usuario;
-                    const canSelect = cand.disponible;
+                    const canSelect = Boolean(cand.disponible ?? cand.Disponible);
 
                     return (
                       <div
@@ -290,10 +294,10 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
                         }}
                         className={`p-3 rounded-xl border transition-all text-xs flex items-center justify-between gap-3 ${
                           !canSelect
-                            ? "bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed"
+                            ? "bg-slate-50/70 border-slate-200 opacity-70 cursor-not-allowed"
                             : isSelected
-                            ? "bg-blue-50/80 border-[#0f3f80] ring-1 ring-[#0f3f80] cursor-pointer"
-                            : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer"
+                            ? "bg-emerald-50/80 border-emerald-600 ring-1 ring-emerald-600 cursor-pointer"
+                            : "bg-white border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/30 cursor-pointer"
                         }`}
                       >
                         <div className="min-w-0 flex-1">
@@ -308,26 +312,33 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
                             <span>•</span>
                             <span>Doc: {cand.Documento_Enmascarado}</span>
                           </div>
-                          {!canSelect && cand.Mensaje_Restriccion && (
-                            <p className="text-[10px] text-amber-700 mt-1 font-medium">
-                              {cand.Mensaje_Restriccion}
+                          {canSelect ? (
+                            <p className="text-[10px] text-emerald-700 mt-1 font-medium flex items-center gap-1">
+                              <CheckCircle2 size={11} className="text-emerald-600" />
+                              Disponible para recibir tu reserva
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-rose-600 mt-1 font-semibold flex items-center gap-1">
+                              <AlertCircle size={11} className="text-rose-500" />
+                              Motivo: {cand.Mensaje_Restriccion || "No cumple las condiciones para este turno"}
                             </p>
                           )}
                         </div>
 
                         <div className="shrink-0">
                           {canSelect ? (
-                            <span
-                              className={`w-5 h-5 rounded-full flex items-center justify-center border ${
+                            <button
+                              type="button"
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                                 isSelected
-                                  ? "bg-[#0f3f80] border-[#0f3f80] text-white"
-                                  : "border-slate-300 bg-white"
+                                  ? "bg-emerald-600 text-white shadow-xs"
+                                  : "bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800"
                               }`}
                             >
-                              {isSelected && <CheckCircle2 size={13} />}
-                            </span>
+                              {isSelected ? "Elegido" : "Seleccionar"}
+                            </button>
                           ) : (
-                            <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                            <span className="text-[10px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
                               No elegible
                             </span>
                           )}

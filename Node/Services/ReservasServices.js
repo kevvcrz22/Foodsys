@@ -17,6 +17,7 @@ import ConfigHorariosModel from "../Models/ConfigHorariosModel.js";
 import VencimientoService from "./VencimientoService.js";
 import TurnosService from "./TurnosService.js";
 import NotificacionesService from "./NotificacionesService.js";
+import { notificarCambioReservas } from "./SocketService.js";
 import { enviarCorreoSolicitudCesion } from "./Servicio_Correo.js";
 import { generarQrFirmado, verificarQrOffline } from "../Utils/qrCrypto.js";
 import {
@@ -1260,20 +1261,20 @@ class ReservasServices {
         Id_Usuario_Cedente: idUsuarioCedente,
         Fec_Cesion: new Date(),
         motivo_cesion: `BOLSA_SOLIDARIA: ${motivo}`,
-        Est_Reserva: "Cancelado"
+        Est_Reserva: "Liberado"
       }, { transaction: t });
 
-      // Encolar cancelacion/liberacion
+      // Encolar liberacion para sincronizacion
       if (reserva.uuid_reserva) {
         await db.query(`
           INSERT INTO sync_outbox (event_id, source_node, entidad, operacion, entity_uuid, payload, sync_status, created_at)
-          VALUES (?, ?, 'RESERVA', 'CANCEL', ?, ?, 'PENDING', NOW())
+          VALUES (?, ?, 'RESERVA', 'UPDATE', ?, ?, 'PENDING', NOW())
         `, {
           replacements: [
             crypto.randomUUID(),
             process.env.NODE_ROLE || "LOCAL",
             reserva.uuid_reserva,
-            JSON.stringify({ uuid_reserva: reserva.uuid_reserva, Est_Reserva: "Cancelado", motivo: "BOLSA_SOLIDARIA" })
+            JSON.stringify({ uuid_reserva: reserva.uuid_reserva, Est_Reserva: "Liberado", motivo: "BOLSA_SOLIDARIA" })
           ],
           transaction: t
         });
@@ -1282,15 +1283,243 @@ class ReservasServices {
       await NotificacionesService.crearNotificacion({
         Id_Usuario: idUsuarioCedente,
         Titulo: "Cupo liberado para la comunidad",
-        Mensaje: `Tu cupo de ${reserva.Tip_Reserva} ha sido liberado para beneficiar a otro aprendiz en lista de espera. ¡Gracias por tu solidaridad!`,
+        Mensaje: `Tu cupo de ${reserva.Tip_Reserva} ha sido liberado para la Bolsa Solidaria de Bienestar. ¡Gracias por tu solidaridad!`,
         Tipo: "exito"
       });
 
       return {
         exito: true,
-        mensaje: "Tu reserva ha sido liberada a la Bolsa Solidaria de Bienestar al Aprendiz."
+        mensaje: "Tu reserva ha sido liberada a la Bolsa Solidaria de Bienestar al Aprendiz. Otros aprendices podran aprovecharla."
       };
     });
+    notificarCambioReservas({ accion: "bolsa_actualizada", Id_Reserva: idReserva });
+    dispararCicloSyncDebounced();
+    return resultado;
+  }
+
+  /**
+   * Obtiene los cupos disponibles de la Bolsa Solidaria que aplican para el usuario segun su rol
+   * - Internos: Desayuno, Almuerzo, Cena
+   * - Externos: Almuerzo unicamente
+   */
+  async ObtenerCuposBolsaSolidaria(idUsuario) {
+    const { obtenerFechaColombia, obtenerHoraColombia } = await import('../Utils/dateUtils.js');
+    const hoy = obtenerFechaColombia();
+    const horaActualCol = obtenerHoraColombia();
+    const [hh, mm] = horaActualCol.split(':').map(Number);
+    const minutosActuales = (hh || 0) * 60 + (mm || 0);
+
+    const usuario = await UsuariosModel.findByPk(idUsuario);
+    if (!usuario) throw new Error("Usuario no encontrado");
+
+    // Consultar roles del usuario
+    const [rolesRows] = await db.query(
+      `SELECT r.Nom_Rol FROM roles r
+       INNER JOIN usuariosrol ur ON ur.Id_Rol = r.Id_Rol
+       WHERE ur.Id_Usuario = ?`,
+      { replacements: [idUsuario] }
+    );
+    const roles = Array.isArray(rolesRows) ? rolesRows.map(r => r.Nom_Rol).filter(Boolean) : [];
+    const esInterno = roles.some(r => String(r).toLowerCase().includes("interno")) || String(usuario.CenCon_Usuario || "").toLowerCase() === "si";
+    const esSancionado = usuario.San_Usuario === 'Si';
+
+    // Obtener reservas activas que el usuario ya tenga para hoy o fechas futuras
+    const reservasPropias = await ReservaModel.findAll({
+      where: {
+        Id_Usuario: idUsuario,
+        Fec_Reserva: { [Op.gte]: hoy },
+        Est_Reserva: { [Op.in]: ['Generado', 'Verificado', 'Consumido'] }
+      },
+      attributes: ['Fec_Reserva', 'Tip_Reserva']
+    });
+    const setMisReservas = new Set(reservasPropias.map(r => `${r.Fec_Reserva}_${r.Tip_Reserva}`));
+
+    // Buscar reservas liberadas a la bolsa con sus platos
+    const [reservasBolsa] = await db.query(
+      `SELECT r.Id_Reserva, r.Fec_Reserva, r.Tip_Reserva, r.Id_Usuario_Cedente,
+              p.Nom_Plato, p.Img_Plato, p.Des_Plato,
+              b.Nom_Plato as Nom_Bebida, b.Subtipo_Bebida
+       FROM reservas r
+       LEFT JOIN platos p ON p.Id_Plato = r.Id_Plato
+       LEFT JOIN platos b ON b.Id_Plato = r.Id_Bebida
+       WHERE r.Est_Reserva = 'Liberado'
+         AND r.Fec_Reserva >= ?
+         AND r.motivo_cesion LIKE 'BOLSA_SOLIDARIA%'
+       ORDER BY r.Fec_Reserva ASC, r.Tip_Reserva ASC`,
+      { replacements: [hoy] }
+    );
+
+    const minutosCierreTurno = {
+      Desayuno: 7 * 60,         // 07:00 AM
+      Almuerzo: 13 * 60 + 30,   // 01:30 PM
+      Cena: 19 * 60 + 30        // 07:30 PM
+    };
+
+    const cuposFiltrados = [];
+    for (const r of (reservasBolsa || [])) {
+      // Si es para hoy, verificar si el turno ya cerro
+      if (r.Fec_Reserva === hoy) {
+        const minCierre = minutosCierreTurno[r.Tip_Reserva] || (20 * 60);
+        if (minutosActuales >= minCierre) continue; // Ya cerro el turno
+      }
+
+      // Regla de roles: Desayuno y Cena SOLO para Internos
+      if ((r.Tip_Reserva === 'Desayuno' || r.Tip_Reserva === 'Cena') && !esInterno) {
+        continue;
+      }
+
+      // Verificar si el usuario puede reclamar este cupo especifico
+      const keyTurno = `${r.Fec_Reserva}_${r.Tip_Reserva}`;
+      const yaTieneReserva = setMisReservas.has(keyTurno);
+      const puedeReclamar = !yaTieneReserva && !esSancionado && r.Id_Usuario_Cedente !== idUsuario;
+
+      let motivoBloqueo = null;
+      if (r.Id_Usuario_Cedente === idUsuario) {
+        motivoBloqueo = "Tu liberaste este cupo";
+      } else if (yaTieneReserva) {
+        motivoBloqueo = `Ya tienes reserva activa de ${r.Tip_Reserva} para esta fecha`;
+      } else if (esSancionado) {
+        motivoBloqueo = "Usuario con sancion activa";
+      }
+
+      cuposFiltrados.push({
+        Id_Reserva: r.Id_Reserva,
+        Fec_Reserva: r.Fec_Reserva,
+        Tip_Reserva: r.Tip_Reserva,
+        Plato: r.Nom_Plato || "Plato General",
+        Img_Plato: r.Img_Plato || null,
+        Des_Plato: r.Des_Plato || "",
+        Bebida: r.Nom_Bebida || null,
+        Subtipo_Bebida: r.Subtipo_Bebida || "NINGUNA",
+        Puede_Reclamar: puedeReclamar,
+        Motivo_Bloqueo: motivoBloqueo
+      });
+    }
+
+    return {
+      totalDisponibles: cuposFiltrados.filter(c => c.Puede_Reclamar).length,
+      cupos: cuposFiltrados
+    };
+  }
+
+  /**
+   * Reclama un cupo de la Bolsa Solidaria para el usuario autenticado
+   */
+  async ReclamarCupoBolsaSolidaria(idReserva, idUsuarioReceptor) {
+    const { obtenerFechaColombia } = await import('../Utils/dateUtils.js');
+    const hoy = obtenerFechaColombia();
+
+    const resultado = await db.transaction(async (t) => {
+      const reserva = await ReservaModel.findByPk(idReserva, {
+        lock: t.LOCK.UPDATE,
+        transaction: t
+      });
+
+      if (!reserva) throw new Error("Cupo de reserva no encontrado.");
+      if (reserva.Est_Reserva !== "Liberado") {
+        throw new Error("Este cupo ya fue tomado por otro compañero o no se encuentra disponible.");
+      }
+      if (reserva.Fec_Reserva < hoy) {
+        throw new Error("Este cupo corresponde a una fecha pasada.");
+      }
+
+      const usuarioReceptor = await UsuariosModel.findByPk(idUsuarioReceptor, {
+        transaction: t
+      });
+      if (!usuarioReceptor) throw new Error("Usuario receptor no encontrado.");
+
+      if (usuarioReceptor.San_Usuario === "Si") {
+        throw new Error("No puedes reclamar cupos porque tienes una sancion activa.");
+      }
+
+      const [rolesRows] = await db.query(
+        `SELECT r.Nom_Rol FROM roles r
+         INNER JOIN usuariosrol ur ON ur.Id_Rol = r.Id_Rol
+         WHERE ur.Id_Usuario = ?`,
+        { replacements: [idUsuarioReceptor], transaction: t }
+      );
+      const roles = Array.isArray(rolesRows) ? rolesRows.map(r => r.Nom_Rol).filter(Boolean) : [];
+      const esInterno = roles.some(r => String(r).toLowerCase().includes("interno")) || String(usuarioReceptor.CenCon_Usuario || "").toLowerCase() === "si";
+
+      if ((reserva.Tip_Reserva === "Desayuno" || reserva.Tip_Reserva === "Cena") && !esInterno) {
+        throw new Error(`El turno de ${reserva.Tip_Reserva} es exclusivo para aprendices internos.`);
+      }
+
+      // Verificar que el receptor no tenga ya reserva activa para ese turno
+      const yaTiene = await ReservaModel.findOne({
+        where: {
+          Id_Usuario: idUsuarioReceptor,
+          Fec_Reserva: reserva.Fec_Reserva,
+          Tip_Reserva: reserva.Tip_Reserva,
+          Est_Reserva: { [Op.in]: ["Generado", "Verificado", "Consumido"] }
+        },
+        transaction: t
+      });
+      if (yaTiene) {
+        throw new Error(`Ya tienes una reserva activa de ${reserva.Tip_Reserva} para el ${reserva.Fec_Reserva}.`);
+      }
+
+      let numFicha = "";
+      if (usuarioReceptor.Id_Ficha) {
+        const [fichaRows] = await db.query(
+          `SELECT Num_Ficha FROM fichas WHERE Id_Ficha = ?`,
+          { replacements: [usuarioReceptor.Id_Ficha], transaction: t }
+        );
+        numFicha = fichaRows?.[0]?.Num_Ficha || "";
+      }
+
+      // Generar nuevo QR firmado para el receptor
+      const nuevoUuid = crypto.randomUUID();
+      const qrFirmado = generarQrFirmado({
+        uuid_reserva: nuevoUuid,
+        Id_Reserva: reserva.Id_Reserva,
+        NumDoc_Usuario: usuarioReceptor.NumDoc_Usuario,
+        Nom_Usuario: `${usuarioReceptor.Nom_Usuario} ${usuarioReceptor.Ape_Usuario}`.trim(),
+        Num_Ficha: numFicha,
+        Rol: roles[0] || "Aprendiz",
+        Fec_Reserva: reserva.Fec_Reserva,
+        Tip_Reserva: reserva.Tip_Reserva,
+        Id_Plato: reserva.Id_Plato,
+        Id_Bebida: reserva.Id_Bebida || null,
+        nodo_origen: process.env.NODE_ROLE || "CLOUD"
+      });
+
+      const donanteId = reserva.Id_Usuario_Cedente;
+
+      await reserva.update({
+        Id_Usuario: idUsuarioReceptor,
+        Estado_Cesion: "ACEPTADA",
+        Est_Reserva: "Generado",
+        Qr_Reserva: qrFirmado,
+        uuid_reserva: nuevoUuid,
+        sync_status: "PENDING"
+      }, { transaction: t });
+
+      // Notificar al receptor
+      await NotificacionesService.crearNotificacion({
+        Id_Usuario: idUsuarioReceptor,
+        Titulo: "Cupo obtenido de la Bolsa Solidaria",
+        Mensaje: `Has tomado con éxito un cupo de ${reserva.Tip_Reserva} para el ${reserva.Fec_Reserva}. Tu código QR ya está generado en tus reservas.`,
+        Tipo: "exito"
+      });
+
+      // Notificar al donante
+      if (donanteId) {
+        await NotificacionesService.crearNotificacion({
+          Id_Usuario: donanteId,
+          Titulo: "Tu cupo donado fue aprovechado",
+          Mensaje: `El cupo de ${reserva.Tip_Reserva} que liberaste para el ${reserva.Fec_Reserva} ha sido tomado por un compañero de la comunidad SENA. ¡Muchas gracias!`,
+          Tipo: "info"
+        });
+      }
+
+      return {
+        exito: true,
+        mensaje: `Cupo de ${reserva.Tip_Reserva} asignado exitosamente a tu nombre. Ya puedes ver tu código QR.`
+      };
+    });
+
+    notificarCambioReservas({ accion: "bolsa_reclamada", Id_Reserva: idReserva });
     dispararCicloSyncDebounced();
     return resultado;
   }
