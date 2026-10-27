@@ -61,13 +61,49 @@ CREATE TABLE IF NOT EXISTS solicitudes_guardado_campo (
   INDEX idx_campo_unidad (Unidad_Productiva, Fec_Servicio)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 3. Ampliar tabla de reservas para vincular solicitud de campo y hora extendida
-ALTER TABLE reservas
-  ADD COLUMN IF NOT EXISTS Es_Guardado_Campo TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 si el almuerzo debe guardarse por jornada de campo',
-  ADD COLUMN IF NOT EXISTS Id_Solicitud_Campo INT NULL COMMENT 'FK a solicitudes_guardado_campo',
-  ADD COLUMN IF NOT EXISTS Hora_Limite_Extendida TIME NULL COMMENT 'Hora extendida de vencimiento por jornada de campo (ej. 15:00:00)',
-  ADD COLUMN IF NOT EXISTS Justificacion_Campo VARCHAR(255) NULL,
-  ADD COLUMN IF NOT EXISTS Unidad_Productiva_Campo VARCHAR(80) NULL;
+-- 3. Ampliar tabla de reservas para vincular solicitud de campo y hora extendida (Compatible con MySQL 8.0)
+DROP PROCEDURE IF EXISTS sp_add_campo_cols;
+DELIMITER $$
+CREATE PROCEDURE sp_add_campo_cols()
+BEGIN
+  IF NOT EXISTS (
+    SELECT * FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reservas' AND COLUMN_NAME = 'Es_Guardado_Campo'
+  ) THEN
+    ALTER TABLE reservas ADD COLUMN Es_Guardado_Campo TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 si el almuerzo debe guardarse por jornada de campo';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT * FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reservas' AND COLUMN_NAME = 'Id_Solicitud_Campo'
+  ) THEN
+    ALTER TABLE reservas ADD COLUMN Id_Solicitud_Campo INT NULL COMMENT 'FK a solicitudes_guardado_campo';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT * FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reservas' AND COLUMN_NAME = 'Hora_Limite_Extendida'
+  ) THEN
+    ALTER TABLE reservas ADD COLUMN Hora_Limite_Extendida TIME NULL COMMENT 'Hora extendida de vencimiento por jornada de campo';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT * FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reservas' AND COLUMN_NAME = 'Justificacion_Campo'
+  ) THEN
+    ALTER TABLE reservas ADD COLUMN Justificacion_Campo VARCHAR(255) NULL;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT * FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reservas' AND COLUMN_NAME = 'Unidad_Productiva_Campo'
+  ) THEN
+    ALTER TABLE reservas ADD COLUMN Unidad_Productiva_Campo VARCHAR(80) NULL;
+  END IF;
+END$$
+DELIMITER ;
+CALL sp_add_campo_cols();
+DROP PROCEDURE IF EXISTS sp_add_campo_cols;
 
 -- 4. Actualizar tabla configuracion_raciones con horarios oficiales V5.0
 UPDATE configuracion_raciones SET
