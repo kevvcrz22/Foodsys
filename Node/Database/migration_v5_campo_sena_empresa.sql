@@ -8,10 +8,18 @@ INSERT IGNORE INTO roles (Nom_Rol, createdat, updatedat) VALUES
 ('Vocero', NOW(), NOW()),
 ('SENA Empresa', NOW(), NOW());
 
--- Unificar en caso de que exista el rol duplicado Coordinacion
-UPDATE IGNORE usuariosrol SET Id_Rol = (SELECT Id_Rol FROM roles WHERE Nom_Rol = 'Coordinador' LIMIT 1)
-WHERE Id_Rol IN (SELECT Id_Rol FROM roles WHERE Nom_Rol = 'Coordinacion');
-DELETE FROM usuariosrol WHERE Id_Rol IN (SELECT Id_Rol FROM roles WHERE Nom_Rol = 'Coordinacion');
+-- Unificar en caso de que exista el rol duplicado Coordinacion (compatible con Windows y Linux)
+SET @tabla_rol = (SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = 'usuariosrol' LIMIT 1);
+SET @sql_update = CONCAT('UPDATE IGNORE ', IFNULL(@tabla_rol, 'usuariosrol'), ' SET Id_Rol = (SELECT Id_Rol FROM roles WHERE Nom_Rol = \'Coordinador\' LIMIT 1) WHERE Id_Rol IN (SELECT Id_Rol FROM roles WHERE Nom_Rol = \'Coordinacion\')');
+PREPARE stmt1 FROM @sql_update;
+EXECUTE stmt1;
+DEALLOCATE PREPARE stmt1;
+
+SET @sql_delete = CONCAT('DELETE FROM ', IFNULL(@tabla_rol, 'usuariosrol'), ' WHERE Id_Rol IN (SELECT Id_Rol FROM roles WHERE Nom_Rol = \'Coordinacion\')');
+PREPARE stmt2 FROM @sql_delete;
+EXECUTE stmt2;
+DEALLOCATE PREPARE stmt2;
+
 DELETE FROM roles WHERE Nom_Rol = 'Coordinacion';
 
 -- 2. Tabla de solicitudes para guardar almuerzos por jornada de campo
