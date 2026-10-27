@@ -36,10 +36,9 @@ const tipoBadge = {
   Todas:    "bg-sky-50 text-sky-700 border-sky-200"
 };
 
-/* ── Card movil de Plato o Bebida ── */
+/* ── Card movil de Plato ── */
 const ItemCard = ({ item, onEdit, onZoom }) => {
   const imgSrc = item.Img_Plato ? `${API_URL}/uploads/${item.Img_Plato}` : null;
-  const esBebida = item.Tipo_Item === "BEBIDA";
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden active:scale-[0.99] transition-transform">
@@ -68,23 +67,9 @@ const ItemCard = ({ item, onEdit, onZoom }) => {
         )}
 
         <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap">
-          <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${tipoBadge[item.Tip_Comida_Item || item.Tip_Plato] || "bg-gray-100 text-gray-600 border-gray-200"}`}>
-            {item.Tip_Comida_Item || item.Tip_Plato || "Todas"}
+          <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${tipoBadge[item.Tip_Plato] || "bg-gray-100 text-gray-600 border-gray-200"}`}>
+            {item.Tip_Plato || "Almuerzo"}
           </span>
-
-          {esBebida && (
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
-              item.Subtipo_Bebida === "CALIENTE"
-                ? "bg-amber-100 text-amber-900 border-amber-300"
-                : "bg-cyan-100 text-cyan-900 border-cyan-300"
-            }`}>
-              {item.Subtipo_Bebida === "CALIENTE" ? (
-                <><Flame size={12} className="text-amber-600" /> Caliente</>
-              ) : (
-                <><Snowflake size={12} className="text-cyan-600" /> Fria</>
-              )}
-            </span>
-          )}
         </div>
       </div>
 
@@ -96,7 +81,7 @@ const ItemCard = ({ item, onEdit, onZoom }) => {
               <DescripcionExpandible
                 texto={item.Des_Plato}
                 limite={60}
-                color={esBebida ? "blue" : "emerald"}
+                color="emerald"
                 className="mt-1"
               />
             )}
@@ -116,7 +101,6 @@ const ItemCard = ({ item, onEdit, onZoom }) => {
 /* ── Componente principal de Platos y Bebidas ── */
 const CrudPlatos = () => {
   const [items, setItems] = useState([]);
-  const [tabActivo, setTabActivo] = useState("PLATOS"); // 'PLATOS' o 'BEBIDAS'
   const [filterText, setFilterText] = useState("");
   const [cargando, setCargando] = useState(true);
   const [selectedPlato, setSelectedPlato] = useState(null);
@@ -137,10 +121,13 @@ const CrudPlatos = () => {
     setCargando(true);
     try {
       const res = await apiAxios.get("/api/platos/");
-      setItems(Array.isArray(res.data) ? res.data : []);
+      const soloPlatos = (Array.isArray(res.data) ? res.data : []).filter(
+        (i) => i.Tipo_Item !== "BEBIDA"
+      );
+      setItems(soloPlatos);
     } catch (err) {
       console.error("Error al cargar catalogo:", err);
-      toast.error("Error al sincronizar el catalogo de platos y bebidas");
+      toast.error("Error al sincronizar el catalogo de platos");
     } finally {
       setCargando(false);
     }
@@ -176,56 +163,43 @@ const CrudPlatos = () => {
     setIsModalOpen(true);
   };
 
-  // Filtrar primero por pestana (Platos vs Bebidas)
-  const itemsPorPestana = items.filter((item) => {
-    if (tabActivo === "BEBIDAS") {
-      return item.Tipo_Item === "BEBIDA";
-    }
-    return item.Tipo_Item !== "BEBIDA";
-  });
-
   // Filtrar luego por texto de busqueda
-  const itemsFiltrados = itemsPorPestana.filter((p) => {
+  const itemsFiltrados = items.filter((p) => {
     const t = filterText.toLowerCase();
     return (
       p.Nom_Plato?.toLowerCase().includes(t) ||
-      (p.Tip_Comida_Item || p.Tip_Plato)?.toLowerCase().includes(t) ||
-      p.Subtipo_Bebida?.toLowerCase().includes(t) ||
+      p.Tip_Plato?.toLowerCase().includes(t) ||
       p.Des_Plato?.toLowerCase().includes(t)
     );
   });
 
-  const totalPlatos = items.filter((i) => i.Tipo_Item !== "BEBIDA").length;
-  const totalBebidas = items.filter((i) => i.Tipo_Item === "BEBIDA").length;
   const tieneFiltrosActivos = Boolean(filterText);
 
   // Exportar a Excel
   const handleExportarExcel = async () => {
-    if (itemsPorPestana.length === 0) {
-      toast.error("No hay registros para exportar en esta categoria.");
+    if (items.length === 0) {
+      toast.error("No hay platos para exportar.");
       return;
     }
 
     const decision = await confirmarExportacion({
-      totalOriginal: itemsPorPestana.length,
+      totalOriginal: items.length,
       totalFiltrado: itemsFiltrados.length,
       tieneFiltrosActivos,
       formato: "Excel",
-      nombreModulo: tabActivo === "PLATOS" ? "platos" : "bebidas"
+      nombreModulo: "platos"
     });
 
     if (!decision) return;
 
     setExportando(true);
     try {
-      const registros = decision === "filtrados" ? itemsFiltrados : itemsPorPestana;
+      const registros = decision === "filtrados" ? itemsFiltrados : items;
 
       const datosFormateados = registros.map((p) => ({
         "ID": p.Id_Plato,
-        "Tipo": p.Tipo_Item || "PLATO",
-        "Clasificacion Bebida": p.Tipo_Item === "BEBIDA" ? p.Subtipo_Bebida : "N/A",
         "Nombre Oficial": p.Nom_Plato || "",
-        "Turno de Comida": p.Tip_Comida_Item || p.Tip_Plato || "Todas",
+        "Turno de Comida": p.Tip_Plato || "Almuerzo",
         "Descripcion": p.Des_Plato || "",
         "Archivo Imagen": p.Img_Plato || "Sin imagen",
         "Fecha Registro": p.createdAt ? new Date(p.createdAt).toLocaleString("es-CO") : ""
@@ -234,8 +208,8 @@ const CrudPlatos = () => {
       const fecha = new Date().toISOString().split("T")[0];
       exportarAExcel({
         datos: datosFormateados,
-        nombreArchivo: `Foodsys_${tabActivo}_${decision}_${fecha}.xlsx`,
-        nombreHoja: tabActivo === "PLATOS" ? "Platos" : "Bebidas"
+        nombreArchivo: `Foodsys_Platos_${decision}_${fecha}.xlsx`,
+        nombreHoja: "Platos"
       });
       toast.success("Archivo Excel descargado exitosamente");
     } catch (err) {
@@ -271,7 +245,7 @@ const CrudPlatos = () => {
       }
     },
     {
-      name: "Nombre Oficial",
+      name: "Nombre del Plato",
       selector: (row) => row.Nom_Plato,
       sortable: true,
       cell: (row) => (
@@ -281,7 +255,7 @@ const CrudPlatos = () => {
             <DescripcionExpandible
               texto={row.Des_Plato}
               limite={50}
-              color={row.Tipo_Item === "BEBIDA" ? "blue" : "emerald"}
+              color="emerald"
               className="mt-0.5"
             />
           )}
@@ -289,42 +263,19 @@ const CrudPlatos = () => {
       )
     },
     {
-      name: "Turno Comida",
-      selector: (row) => row.Tip_Comida_Item || row.Tip_Plato,
+      name: "Turno Asignado",
+      selector: (row) => row.Tip_Plato,
       sortable: true,
-      width: "140px",
+      width: "150px",
       cell: (row) => {
-        const comida = row.Tip_Comida_Item || row.Tip_Plato || "Todas";
+        const comida = row.Tip_Plato || "Almuerzo";
         return (
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${tipoBadge[comida] || "bg-gray-100 text-gray-700"}`}>
+          <span className={`text-xs font-bold px-3 py-1 rounded-full border ${tipoBadge[comida] || "bg-gray-100 text-gray-700"}`}>
             {comida}
           </span>
         );
       }
     },
-    ...(tabActivo === "BEBIDAS"
-      ? [
-          {
-            name: "Tipo Bebida",
-            selector: (row) => row.Subtipo_Bebida,
-            sortable: true,
-            width: "150px",
-            cell: (row) => (
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
-                row.Subtipo_Bebida === "CALIENTE"
-                  ? "bg-amber-100 text-amber-900 border-amber-300"
-                  : "bg-cyan-100 text-cyan-900 border-cyan-300"
-              }`}>
-                {row.Subtipo_Bebida === "CALIENTE" ? (
-                  <><Flame size={13} className="text-amber-600" /> Bebida Caliente</>
-                ) : (
-                  <><Snowflake size={13} className="text-cyan-600" /> Bebida Fria</>
-                )}
-              </span>
-            )
-          }
-        ]
-      : []),
     {
       name: "Acciones",
       width: "100px",
@@ -348,10 +299,10 @@ const CrudPlatos = () => {
             <UtensilsCrossed size={16} /> Catalogo Oficial del Comedor
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight m-0">
-            Platos y Bebidas
+            Administración de Platos
           </h1>
           <p className="text-sm text-slate-500 mt-1 m-0">
-            Administra los platos fuertes y bebidas (frias y calientes) para Desayuno, Almuerzo y Cena.
+            Administra los platos del comedor para Desayuno, Almuerzo y Cena con soporte de fotos e ingredientes.
           </p>
         </div>
 
@@ -371,52 +322,9 @@ const CrudPlatos = () => {
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
           >
             <Plus size={16} />
-            <span>{tabActivo === "PLATOS" ? "Nuevo Plato" : "Nueva Bebida"}</span>
+            <span>Nuevo Plato</span>
           </button>
         </div>
-      </div>
-
-      {/* Pestanas Superiores: Platos vs Bebidas */}
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-1">
-        <button
-          onClick={() => {
-            setTabActivo("PLATOS");
-            setFilterText("");
-          }}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm transition-all cursor-pointer ${
-            tabActivo === "PLATOS"
-              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
-              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
-          }`}
-        >
-          <UtensilsCrossed size={18} />
-          <span>Platos Fuertes</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full ${
-            tabActivo === "PLATOS" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
-          }`}>
-            {totalPlatos}
-          </span>
-        </button>
-
-        <button
-          onClick={() => {
-            setTabActivo("BEBIDAS");
-            setFilterText("");
-          }}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm transition-all cursor-pointer ${
-            tabActivo === "BEBIDAS"
-              ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
-          }`}
-        >
-          <Coffee size={18} />
-          <span>Bebidas (Frías y Calientes)</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full ${
-            tabActivo === "BEBIDAS" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
-          }`}>
-            {totalBebidas}
-          </span>
-        </button>
       </div>
 
       {/* Buscador y Exportaciones */}
@@ -425,7 +333,7 @@ const CrudPlatos = () => {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input
             type="text"
-            placeholder={`Buscar en ${tabActivo === "PLATOS" ? "platos" : "bebidas"} por nombre o turno...`}
+            placeholder="Buscar platos por nombre o turno..."
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
             className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
@@ -456,7 +364,7 @@ const CrudPlatos = () => {
       ) : itemsFiltrados.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-slate-100">
           <p className="text-slate-400 font-semibold text-sm m-0">
-            No se encontraron {tabActivo === "PLATOS" ? "platos" : "bebidas"} registrados.
+            No se encontraron platos registrados.
           </p>
         </div>
       ) : isMobile ? (
@@ -488,7 +396,6 @@ const CrudPlatos = () => {
               selectedPlato={selectedPlato}
               isEdit={isEdit}
               reload={getAllItems}
-              initialTipo={tabActivo === "BEBIDAS" ? "BEBIDA" : "PLATO"}
             />
           </div>
         </div>

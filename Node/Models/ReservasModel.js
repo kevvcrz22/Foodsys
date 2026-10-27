@@ -33,7 +33,17 @@ const ReservaModel = db.define('reservas', {
   Id_Solicitud_Campo: { type: DataTypes.INTEGER, allowNull: true },
   Hora_Limite_Extendida: { type: DataTypes.TIME, allowNull: true },
   Justificacion_Campo: { type: DataTypes.STRING(255), allowNull: true },
-  Unidad_Productiva_Campo: { type: DataTypes.STRING(80), allowNull: true }
+  Unidad_Productiva_Campo: { type: DataTypes.STRING(80), allowNull: true },
+  Tipo_Bebida: { 
+    type: DataTypes.ENUM('FRIA', 'CALIENTE', 'NINGUNA'), 
+    defaultValue: 'FRIA',
+    allowNull: false 
+  },
+  Lleva_Sopa: { 
+    type: DataTypes.BOOLEAN, 
+    defaultValue: true,
+    allowNull: false 
+  }
 }, {
   freezeTableName: true,
   timestamps: true

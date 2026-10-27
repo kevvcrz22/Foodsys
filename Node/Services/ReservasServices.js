@@ -267,13 +267,23 @@ class ReservasServices {
     return true;
   }
 
-  // Tipos de comida permitidos segun rol
-  ObtenerRolesPermitidos(roles) {
-    const esInterno = roles.some(r => r === "Aprendiz Interno" || r === "Pasante Interno");
+  // Tipos de comida permitidos segun rol y condicion de internado
+  ObtenerRolesPermitidos(roles, cenCon = "No") {
+    const esAdminOGestor = roles.some(r => 
+      r === "Administrador" || 
+      r === "SENA Empresa" || 
+      r === "Bienestar" || 
+      r === "Coordinador"
+    );
+    if (esAdminOGestor) return ["Desayuno", "Almuerzo", "Cena"];
+
+    const esInterno = roles.some(r => r === "Aprendiz Interno" || r === "Pasante Interno") || cenCon === "Si";
     if (esInterno) return ["Desayuno", "Almuerzo", "Cena"];
-    const esExterno = roles.some(r => r === "Aprendiz Externo" || r === "Pasante Externo");
+
+    const esExterno = roles.some(r => r === "Aprendiz Externo" || r === "Pasante Externo" || r === "Instructor" || r === "Vocero");
     if (esExterno) return ["Almuerzo"];
-    return [];
+
+    return ["Almuerzo"];
   }
 
   // Encriptacion AES-256-CBC para retrocompatibilidad
@@ -347,7 +357,18 @@ class ReservasServices {
    * Genera una reserva pass, firma el QR criptograficamente con Ed25519
    * y registra el evento en sync_outbox
    */
-  async generarReservaPass(Id_Usuario, rolesUsuario, Tip_Reserva, platoElegido, fechaReserva, esNovedad = false, Jus_Reserva = null, Id_Bebida = null) {
+  async generarReservaPass(
+    Id_Usuario,
+    rolesUsuario,
+    Tip_Reserva,
+    platoElegido,
+    fechaReserva,
+    esNovedad = false,
+    Jus_Reserva = null,
+    Id_Bebida = null,
+    Tipo_Bebida = "FRIA",
+    Lleva_Sopa = true
+  ) {
     const resultado = await db.transaction(async (transaction) => {
       await VencimientoService.procesarVencimientosUsuario(Id_Usuario, transaction);
 
@@ -363,7 +384,7 @@ class ReservasServices {
 
       await this.VerificarExpiracionEspecial(usuario, transaction);
 
-      const tiposPermitidos = this.ObtenerRolesPermitidos(rolesUsuario);
+      const tiposPermitidos = this.ObtenerRolesPermitidos(rolesUsuario, usuario.CenCon_Usuario);
       const TipoNormalizado = Tip_Reserva.charAt(0).toUpperCase() + Tip_Reserva.slice(1);
       if (!tiposPermitidos.includes(TipoNormalizado)) {
         throw new Error(`El tipo de comida "${Tip_Reserva}" no esta permitido para tu rol`);
@@ -375,7 +396,6 @@ class ReservasServices {
       let bebida = null;
       if (Id_Bebida) {
         bebida = await PlatosModels.findByPk(Id_Bebida, { transaction });
-        if (!bebida) throw new Error("La bebida seleccionada no existe");
       }
 
       // Validacion oficial de horarios y ciclos de 22:30 con excepcion del 27 de octubre
@@ -399,7 +419,7 @@ class ReservasServices {
 
       const uuidReserva = crypto.randomUUID();
 
-      // Crear reserva inicial con plato y bebida
+      // Crear reserva con plato, bebida caliente/fria y sopa
       const nuevaReserva = await ReservaModel.create({
         uuid_reserva: uuidReserva,
         nodo_origen: process.env.NODE_ROLE || "CLOUD",
@@ -411,6 +431,8 @@ class ReservasServices {
         Qr_Reserva: "",
         Id_Plato: platoElegido,
         Id_Bebida: Id_Bebida || null,
+        Tipo_Bebida: Tipo_Bebida || "FRIA",
+        Lleva_Sopa: Lleva_Sopa !== undefined ? Boolean(Lleva_Sopa) : true,
         Exc_Reserva: esNovedad ? "Si" : "No",
         Jus_Reserva: Jus_Reserva,
         sync_status: "PENDING"
@@ -1012,12 +1034,12 @@ class ReservasServices {
         motivo_cesion: motivo || "Solicitud de cesion voluntaria"
       }, { transaction: t });
 
-      // Notificacion interna en la aplicacion (campanita)
+      // Notificacion interna en la aplicacion (campanita y emergente)
       await NotificacionesService.crearNotificacion({
         Id_Usuario: idUsuarioReceptor,
         Titulo: `¡Te han ofrecido una racion de ${reserva.Tip_Reserva}!`,
         Mensaje: `${nombreCedente} te ha ofrecido cederte su reserva de ${reserva.Tip_Reserva} para el ${reserva.Fec_Reserva}. Revisa tus reservas para Aceptar o Rechazar.`,
-        Tipo: "info"
+        Tipo: "cesion"
       });
 
       // Enviar correo electronico
@@ -1286,6 +1308,16 @@ class ReservasServices {
         Mensaje: `Tu cupo de ${reserva.Tip_Reserva} ha sido liberado para la Bolsa Solidaria de Bienestar. ¡Gracias por tu solidaridad!`,
         Tipo: "exito"
       });
+
+      // Notificacion comunitaria para la campanita y ventana emergente
+      try {
+        await NotificacionesService.crearNotificacion({
+          Rol_Destino: "Todos",
+          Titulo: `¡Cupo disponible en Bolsa Solidaria! (${reserva.Tip_Reserva})`,
+          Mensaje: `Se ha liberado un cupo de ${reserva.Tip_Reserva} para el ${reserva.Fec_Reserva}. ¡Reclámalo ahora en la Bolsa Solidaria!`,
+          Tipo: "bolsa_solidaria"
+        });
+      } catch (_) {}
 
       return {
         exito: true,

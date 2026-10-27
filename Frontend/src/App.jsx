@@ -82,6 +82,7 @@ const Pasantes = lazy(() => import("./Tablas/Usuarios/Pasantes.jsx"));
 const PqrsfAdminDashboard = lazy(() => import("./Paginas/Admin/PqrsfAdminDashboard.jsx"));
 const PanelSincronizacion = lazy(() => import("./Paginas/Admin/PanelSincronizacion.jsx"));
 const ConfiguracionRaciones = lazy(() => import("./Paginas/Admin/ConfiguracionRaciones.jsx"));
+const InternadoTemporal = lazy(() => import("./Paginas/Admin/InternadoTemporal.jsx"));
 const ReservaForm = lazy(() => import("./Tablas/Reservas/ReservaForm.jsx"));
 const GuardarAlmuerzoCampo = lazy(() => import("./Paginas/Reservas/GuardarAlmuerzoCampo.jsx"));
 
@@ -600,11 +601,11 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* Reservas: visible para Administrador (vista de tabla, no el formulario personal) */}
+          {/* Reservas: visible para Administrador y SENA Empresa (vista de tabla y gestion general) */}
           <Route
             path="/reservas"
             element={
-              <ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}>
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "SENA Empresa"]}>
                 <LayoutConSidebar {...Props_Layout}>
                   <CrudReservas />
                 </LayoutConSidebar>
@@ -682,6 +683,21 @@ function App() {
               >
                 <LayoutConSidebar {...Props_Layout}>
                   <ConfiguracionRaciones />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Internado Temporal SENA Empresa: gestion de aprendices externos con estadia temporal */}
+          <Route
+            path="/internado-temporal"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={["Administrador", "SENA Empresa", "Bienestar", "Coordinador", "Coordinacion"]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <InternadoTemporal />
                 </LayoutConSidebar>
               </ProtectedRoute>
             }

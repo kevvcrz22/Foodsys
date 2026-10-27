@@ -35,6 +35,8 @@ import SyncRoute from './Routes/SyncRoute.js';
 import PqrsfRoute from './Routes/PqrsfRoute.js';
 import ConfigHorariosRoute from './Routes/ConfigHorariosRoute.js';
 import CampoRoute from './Routes/CampoRoute.js';
+import InternadoTemporalRoute from './Routes/InternadoTemporalRoute.js';
+import InternadoTemporalService from './Services/InternadoTemporalService.js';
 import { optimizarImagenesExistentes } from './Utils/imageOptimizer.js';
 
 // ---------- 3. IMPORTACIÓN DE MODELOS ----------
@@ -195,6 +197,8 @@ aplicacion.use('/api/ConfigHorarios', ConfigHorariosRoute);
 aplicacion.use('/api/config-horarios', ConfigHorariosRoute);
 aplicacion.use('/api/Campo', CampoRoute);
 aplicacion.use('/api/campo', CampoRoute);
+aplicacion.use('/api/internado-temporal', InternadoTemporalRoute);
+aplicacion.use('/api/InternadoTemporal', InternadoTemporalRoute);
 
 // ---------- 7. ARCHIVOS ESTÁTICOS ----------
 const rutaArchivo = fileURLToPath(import.meta.url);
@@ -439,50 +443,10 @@ try {
 }
 
 // ========== 9. ASOCIACIONES ENTRE MODELOS (RELACIONES) ==========
-FichasModel.hasMany(UsuariosModel, { foreignKey: 'Id_Ficha', as: 'usuarios' });
-UsuariosModel.belongsTo(FichasModel, { foreignKey: 'Id_Ficha', as: 'ficha' });
+import setupAssociations from './Models/associations.js';
+setupAssociations();
 
-ProgramaModel.hasMany(FichasModel, { foreignKey: 'Id_Programa', as: 'fichas' });
-FichasModel.belongsTo(ProgramaModel, { foreignKey: 'Id_Programa', as: 'programas' });
-
-UsuariosModel.hasMany(ReservasModel, { foreignKey: 'Id_Usuario', as: 'reservas' });
-ReservasModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' });
-
-UsuariosModel.hasMany(UsuariosRolModel, { foreignKey: "Id_Usuario", as: "rolesUsuario" });
-UsuariosRolModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario", as: "usuario" });
-UsuariosRolModel.belongsTo(RolesModel, { foreignKey: "Id_Rol", as: "rolUsuario" });
-
-RolesModel.hasMany(UsuariosRolModel, { foreignKey: "Id_Rol", as: "usuariosRol" });
-
-PlatosModel.hasMany(MenuModel, { foreignKey: "Id_Plato", as: "menus" });
-MenuModel.belongsTo(PlatosModel, { foreignKey: "Id_Plato", as: "plato" });
-
-ReservasModel.belongsTo(PlatosModel, { foreignKey: "Id_Plato", as: "plato" });
-PlatosModel.hasMany(ReservasModel, { foreignKey: "Id_Plato", as: "reservas" });
-ReservasModel.belongsTo(PlatosModel, { foreignKey: "Id_Bebida", as: "bebida" });
-PlatosModel.hasMany(ReservasModel, { foreignKey: "Id_Bebida", as: "reservasBebida" });
-ReservasModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario_Cedente", as: "usuarioCedente" });
-ReservasModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario_Receptor_Pendiente", as: "usuarioReceptor" });
-
-UsuariosModel.hasMany(TurnosModel, { foreignKey: "Id_Usuario", as: "turnos" });
-TurnosModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario", as: "supervisor" });
-
-UsuariosModel.hasMany(NotificacionesModel, { foreignKey: "Id_Usuario", as: "notificaciones" });
-NotificacionesModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario", as: "usuario" });
-
-UsuariosModel.hasMany(PqrsfModel, { foreignKey: 'Id_Usuario', as: 'pqrsfs' });
-PqrsfModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' });
-
-PlatosModel.hasMany(PqrsfModel, { foreignKey: 'Id_Plato_Relacionado', as: 'pqrsfs' });
-PqrsfModel.belongsTo(PlatosModel, { foreignKey: 'Id_Plato_Relacionado', as: 'plato' });
-PqrsfModel.belongsTo(PlatosModel, { foreignKey: 'Id_Plato_Relacionado', as: 'platoRelacionado' });
-
-SolicitudesCampoModel.hasMany(ReservasModel, { foreignKey: 'Id_Solicitud_Campo', as: 'reservasGuardadas' });
-ReservasModel.belongsTo(SolicitudesCampoModel, { foreignKey: 'Id_Solicitud_Campo', as: 'solicitudCampo' });
-SolicitudesCampoModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario_Solicitante', as: 'solicitante' });
-SolicitudesCampoModel.belongsTo(FichasModel, { foreignKey: 'Id_Ficha', as: 'ficha' });
-
-// ========== 10. TAREA DE MANTENIMIENTO: ESTADOS ESPECIALES EXPIRADOS ==========
+// ========== 10. TAREA DE MANTENIMIENTO: ESTADOS ESPECIALES E INTERNADO TEMPORAL ==========
 try {
   const resultadoReversion = await NovedadesService.RevertirEspecialesExpirados();
   if (resultadoReversion.revertidos > 0) {
@@ -493,8 +457,13 @@ try {
   } else {
     console.log('[Mantenimiento] No hay estados Especiales expirados al arrancar.');
   }
+
+  const resInternado = await InternadoTemporalService.revisarYRevertirVencidos();
+  if (resInternado.activados > 0 || resInternado.revertidos > 0) {
+    console.log(`[Mantenimiento] Internado temporal: ${resInternado.activados} activados, ${resInternado.revertidos} revertidos a Externo.`);
+  }
 } catch (errorMantenimiento) {
-  console.error('[Mantenimiento] Error al revertir estados Especiales:', errorMantenimiento.message);
+  console.error('[Mantenimiento] Error al revertir estados:', errorMantenimiento.message);
 }
 
 // Sincronizar fichas vencidas despues de que las asociaciones de Sequelize esten listas
@@ -513,6 +482,10 @@ setInterval(async () => {
     const resultado = await NovedadesService.RevertirEspecialesExpirados();
     if (resultado.revertidos > 0) {
       console.log(`[Mantenimiento] Reversión programada: ${resultado.revertidos} usuarios revertidos.`);
+    }
+    const resInternado = await InternadoTemporalService.revisarYRevertirVencidos();
+    if (resInternado.activados > 0 || resInternado.revertidos > 0) {
+      console.log(`[Mantenimiento] Internado temporal intervalo: ${resInternado.activados} activados, ${resInternado.revertidos} revertidos.`);
     }
   } catch (errorIntervalo) {
     console.error('[Mantenimiento] Error en reversión programada:', errorIntervalo.message);

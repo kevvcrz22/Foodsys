@@ -74,3 +74,18 @@ export const entregarAlmuerzoCampo = async (req, res) => {
     return res.status(400).json({ message: error.message || "Error al registrar la entrega de almuerzo" });
   }
 };
+
+export const programarSemanaCampo = async (req, res) => {
+  try {
+    const usuarioSolicitante = {
+      id: req.user?.id || req.user?.Id_Usuario,
+      rol: req.user?.rol || req.user?.Rol || "SENA Empresa"
+    };
+
+    const resultado = await CampoService.programarSemanaTurnoSenaEmpresa(req.body, usuarioSolicitante);
+    return res.status(201).json(resultado);
+  } catch (error) {
+    console.error("[CampoController] Error en programarSemanaCampo:", error);
+    return res.status(400).json({ message: error.message || "Error al programar turnos semanales" });
+  }
+};

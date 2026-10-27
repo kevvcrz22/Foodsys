@@ -133,8 +133,13 @@ export const triggerSync = async (req, res) => {
   try {
     const resultado = await syncWorkerInstance.ejecutarCicloSincronizacion();
     return res.status(200).json({
-      mensaje: "Ciclo de sincronizacion ejecutado",
-      resultado
+      mensaje: resultado?.mensaje || "Ciclo de sincronizacion ejecutado",
+      resultado,
+      push: { totalSincronizados: resultado?.totalPushed || 0 },
+      pull: { totalAplicados: resultado?.totalPulled || 0 },
+      totalPushed: resultado?.totalPushed || 0,
+      totalPulled: resultado?.totalPulled || 0,
+      conexion: resultado?.conexion
     });
   } catch (error) {
     console.error("[SyncController] Error en triggerSync:", error);
@@ -172,11 +177,12 @@ export const exportSyncPackage = async (req, res) => {
 
 export const importSyncPackage = async (req, res) => {
   try {
-    if (!req.file) {
+    const file = req.file || (Array.isArray(req.files) ? req.files[0] : null);
+    if (!file) {
       return res.status(400).json({ message: "Archivo de sincronizacion requerido" });
     }
 
-    const contenido = JSON.parse(req.file.buffer.toString("utf8"));
+    const contenido = JSON.parse(file.buffer.toString("utf8"));
     const eventos = contenido.eventos || [];
     let procesados = 0;
 

@@ -182,9 +182,29 @@ class CocinaService {
           Documento: r.usuario?.NumDoc_Usuario || '--',
           Estado: r.Est_Reserva,
           Plato: r.plato?.Nom_Plato || 'Sin datos',
-          Bebida: r.bebida?.Nom_Plato || 'Sin datos',
+          Bebida: r.bebida?.Nom_Plato || (r.Tipo_Bebida === 'CALIENTE' ? 'Bebida Caliente' : 'Bebida Fría'),
+          Tipo_Bebida: r.Tipo_Bebida || (r.bebida?.Subtipo_Bebida === 'CALIENTE' ? 'CALIENTE' : 'FRIA'),
+          Lleva_Sopa: r.Lleva_Sopa !== undefined ? Boolean(r.Lleva_Sopa) : true,
           EsExcepcional: r.Exc_Reserva === 'Si'
         });
+      }
+    });
+
+    // Contadores de Bebidas (Calientes / Frias) y Sopa para cocina
+    let totalBebidasCalientes = 0;
+    let totalBebidasFrias = 0;
+    let totalConSopa = 0;
+    let totalSinSopa = 0;
+
+    reservas.forEach(r => {
+      const estadoActivo = ['Generado', 'Verificado', 'Consumido'].includes(r.Est_Reserva);
+      if (estadoActivo) {
+        const esCaliente = r.Tipo_Bebida === 'CALIENTE' || r.bebida?.Subtipo_Bebida === 'CALIENTE';
+        if (esCaliente) totalBebidasCalientes++;
+        else totalBebidasFrias++;
+
+        if (r.Lleva_Sopa === false || r.Lleva_Sopa === 0) totalSinSopa++;
+        else totalConSopa++;
       }
     });
 
@@ -208,6 +228,8 @@ class CocinaService {
       totalesPorEstado: porEstado,
       cantidadesPorPlato: Object.values(porPlato).sort((a, b) => b.total - a.total),
       cantidadesPorBebida: Object.values(porBebida).sort((a, b) => b.total - a.total),
+      resumenBebidas: { calientes: totalBebidasCalientes, frias: totalBebidasFrias },
+      resumenSopa: { conSopa: totalConSopa, sinSopa: totalSinSopa },
       almuerzosGuardadosCampo: solicitudesCampo,
       excepcionales,
       detallePorTipo,

@@ -57,9 +57,11 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
   const [platoElegido, setPlatoElegido] = useState(reserva?.Id_Plato || "");
   const [platoSeleccionado, setPlatoSeleccionado] = useState(reserva?.plato || null);
 
-  // Seleccion de Bebida (Fria o Caliente)
-  const [bebidaElegida, setBebidaElegida] = useState(reserva?.Id_Bebida || "");
-  const [bebidaSeleccionada, setBebidaSeleccionada] = useState(reserva?.bebida || null);
+  // Seleccion de Tipo de Bebida (FRIA o CALIENTE) segun requerimiento oficial
+  const [tipoBebida, setTipoBebida] = useState(reserva?.Tipo_Bebida || "FRIA");
+
+  // Opcion de incluir Sopa en la reserva
+  const [llevaSopa, setLlevaSopa] = useState(reserva?.Lleva_Sopa !== undefined ? Boolean(reserva.Lleva_Sopa) : true);
 
   // Modal interactivo de confirmacion de tiempos
   const [modalConfirmacionVisible, setModalConfirmacionVisible] = useState(false);
@@ -163,8 +165,6 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
     setMenuItems([]);
     setPlatoElegido("");
     setPlatoSeleccionado(null);
-    setBebidaElegida("");
-    setBebidaSeleccionada(null);
     setQrData(null);
     setError("");
 
@@ -173,7 +173,7 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
       const lista = Array.isArray(res.data) ? res.data : [];
       setMenuItems(lista);
 
-      // Preseleccionar primer plato si existe
+      // Preseleccionar primer plato fuerte (max 2 opciones)
       const platosF = lista.filter((it) => {
         const p = it.plato || it;
         return p.Tipo_Item !== "BEBIDA";
@@ -184,36 +184,21 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
         setPlatoElegido(id);
         setPlatoSeleccionado(primerPlato);
       }
-
-      // Preseleccionar primera bebida si existe
-      const bebidasF = lista.filter((it) => {
-        const p = it.plato || it;
-        return p.Tipo_Item === "BEBIDA";
-      });
-      if (bebidasF.length > 0) {
-        const primeraBebida = bebidasF[0].plato || bebidasF[0];
-        const idBeb = bebidasF[0].Id_Plato || primeraBebida.Id_Plato;
-        setBebidaElegida(idBeb);
-        setBebidaSeleccionada(primeraBebida);
-      }
     } catch (err) {
       setError(err.response?.data?.message || "No hay menu programado para este turno.");
     }
   };
 
-  // Separar platos y bebidas del menu cargado
-  const { platosDisponibles, bebidasDisponibles } = useMemo(() => {
+  // Platos disponibles del menu cargado (max 2)
+  const platosDisponibles = useMemo(() => {
     const pF = [];
-    const bF = [];
     menuItems.forEach((it) => {
       const p = it.plato || it;
-      if (p.Tipo_Item === "BEBIDA") {
-        bF.push(p);
-      } else {
+      if (p.Tipo_Item !== "BEBIDA") {
         pF.push(p);
       }
     });
-    return { platosDisponibles: pF, bebidasDisponibles: bF };
+    return pF.slice(0, 2);
   }, [menuItems]);
 
   const abrirModalConfirmacion = () => {
@@ -223,10 +208,6 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
     }
     if (!platoElegido) {
       toast.error("Debes seleccionar un plato de la lista");
-      return;
-    }
-    if (bebidasDisponibles.length > 0 && !bebidaElegida) {
-      toast.error("Debes seleccionar una bebida para tu reserva");
       return;
     }
     setModalConfirmacionVisible(true);
@@ -240,8 +221,8 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
     const body = {
       Tip_Reserva: tipReserva,
       platoElegido: platoElegido,
-      Id_Bebida: bebidaElegida || null,
-      idBebida: bebidaElegida || null,
+      Tipo_Bebida: tipoBebida,
+      Lleva_Sopa: llevaSopa ? 1 : 0,
       fechaReserva: fechaReserva,
     };
 
@@ -483,75 +464,88 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
               </div>
             )}
 
-            {/* 3. Seleccion de Bebida (Fria o Caliente) */}
-            {tipReserva && bebidasDisponibles.length > 0 && (
+            {/* 3. Seleccion de Preferencia de Bebida (Enum FRIA o CALIENTE) */}
+            {tipReserva && platoElegido && (
               <div className="space-y-2.5 pt-3 border-t border-slate-100">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
-                    <Coffee size={14} className="text-blue-600" /> 3. Elige tu Bebida (Fría o Caliente)
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Coffee size={14} className="text-blue-600" /> 3. Preferencia de Bebida
                   </label>
-                  {bebidaSeleccionada && (
-                    <span className="text-[11px] font-bold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full">
-                      Seleccionada
-                    </span>
-                  )}
+                  <span className="text-[11px] font-bold text-blue-700 bg-blue-100/70 px-2.5 py-0.5 rounded-full">
+                    {tipoBebida === "CALIENTE" ? "Caliente" : "Fría"}
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {bebidasDisponibles.map((b) => {
-                    const isSelected = bebidaElegida === b.Id_Plato;
-                    const esCaliente = b.Subtipo_Bebida === "CALIENTE";
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setTipoBebida("FRIA")}
+                    className={`cursor-pointer rounded-2xl border-2 p-3.5 transition-all flex items-center justify-center gap-2.5 text-xs font-bold ${
+                      tipoBebida === "FRIA"
+                        ? "border-cyan-500 bg-cyan-50 text-cyan-900 shadow-xs ring-2 ring-cyan-500/20"
+                        : "border-slate-200 hover:border-slate-300 bg-white text-slate-600"
+                    }`}
+                  >
+                    <Snowflake size={18} className={tipoBebida === "FRIA" ? "text-cyan-600" : "text-slate-400"} />
+                    <span>Bebida Fría</span>
+                  </button>
 
-                    return (
-                      <div
-                        key={b.Id_Plato}
-                        onClick={() => {
-                          setBebidaElegida(b.Id_Plato);
-                          setBebidaSeleccionada(b);
-                        }}
-                        className={`cursor-pointer rounded-2xl border p-3 transition-all flex items-start gap-3 ${
-                          isSelected
-                            ? "border-blue-500 bg-blue-50/70 shadow-xs ring-2 ring-blue-500/20"
-                            : "border-slate-200 hover:border-slate-300 bg-white"
-                        }`}
-                      >
-                        {b.Img_Plato ? (
-                          <img src={urlImagen(b.Img_Plato)} alt={b.Nom_Plato} className="w-12 h-12 rounded-xl object-cover shrink-0 mt-0.5" />
-                        ) : (
-                          <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-500 mt-0.5">
-                            <Coffee size={18} />
-                          </div>
-                        )}
+                  <button
+                    type="button"
+                    onClick={() => setTipoBebida("CALIENTE")}
+                    className={`cursor-pointer rounded-2xl border-2 p-3.5 transition-all flex items-center justify-center gap-2.5 text-xs font-bold ${
+                      tipoBebida === "CALIENTE"
+                        ? "border-amber-500 bg-amber-50 text-amber-900 shadow-xs ring-2 ring-amber-500/20"
+                        : "border-slate-200 hover:border-slate-300 bg-white text-slate-600"
+                    }`}
+                  >
+                    <Flame size={18} className={tipoBebida === "CALIENTE" ? "text-amber-600" : "text-slate-400"} />
+                    <span>Bebida Caliente</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                              esCaliente
-                                ? "bg-amber-50 text-amber-800 border-amber-200"
-                                : "bg-sky-50 text-sky-800 border-sky-200"
-                            }`}>
-                              {esCaliente ? "Caliente" : "Fría"}
-                            </span>
-                            <p className="text-xs font-bold text-slate-800 m-0 truncate">{b.Nom_Plato}</p>
-                          </div>
-                          {b.Des_Plato && (
-                            <DescripcionExpandible
-                              texto={b.Des_Plato}
-                              limite={45}
-                              color="blue"
-                              className="mt-0.5"
-                            />
-                          )}
-                        </div>
+            {/* 4. Opcion de Sopa Incluida */}
+            {tipReserva && platoElegido && (
+              <div className="space-y-2.5 pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <UtensilsCrossed size={14} className="text-emerald-600" /> 4. ¿Deseas llevar sopa incluida?
+                  </label>
+                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                    llevaSopa ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
+                  }`}>
+                    {llevaSopa ? "Con Sopa" : "Sin Sopa"}
+                  </span>
+                </div>
 
-                        {isSelected && (
-                          <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 text-[10px] mt-1">
-                            ✓
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setLlevaSopa(true)}
+                    className={`cursor-pointer rounded-2xl border-2 p-3.5 transition-all flex items-center justify-center gap-2 text-xs font-bold ${
+                      llevaSopa
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-900 shadow-xs ring-2 ring-emerald-500/20"
+                        : "border-slate-200 hover:border-slate-300 bg-white text-slate-600"
+                    }`}
+                  >
+                    <CheckCircle2 size={16} className={llevaSopa ? "text-emerald-600" : "text-slate-400"} />
+                    <span>Sí, con sopa</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setLlevaSopa(false)}
+                    className={`cursor-pointer rounded-2xl border-2 p-3.5 transition-all flex items-center justify-center gap-2 text-xs font-bold ${
+                      !llevaSopa
+                        ? "border-slate-400 bg-slate-100 text-slate-900 shadow-xs ring-2 ring-slate-400/20"
+                        : "border-slate-200 hover:border-slate-300 bg-white text-slate-600"
+                    }`}
+                  >
+                    <X size={16} className={!llevaSopa ? "text-slate-700" : "text-slate-400"} />
+                    <span>No, sin sopa</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -576,14 +570,18 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
                     {platoSeleccionado.Nom_Plato}
                   </span>
                 </div>
-                {bebidaSeleccionada && (
-                  <div className="flex justify-between text-slate-600">
-                    <span>Bebida:</span>
-                    <span className="font-bold text-blue-700 truncate max-w-[220px]">
-                      {bebidaSeleccionada.Nom_Plato} ({bebidaSeleccionada.Subtipo_Bebida === "CALIENTE" ? "Caliente" : "Fria"})
-                    </span>
-                  </div>
-                )}
+                <div className="flex justify-between text-slate-600">
+                  <span>Bebida:</span>
+                  <span className="font-bold text-blue-700">
+                    {tipoBebida === "CALIENTE" ? "Bebida Caliente" : "Bebida Fría"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Sopa:</span>
+                  <span className={`font-bold ${llevaSopa ? "text-emerald-700" : "text-slate-500"}`}>
+                    {llevaSopa ? "Incluida (Sí)" : "Sin sopa (No)"}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -686,14 +684,18 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
                   {platoSeleccionado?.Nom_Plato}
                 </span>
               </div>
-              {bebidaSeleccionada && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500 font-medium">Bebida seleccionada:</span>
-                  <span className="font-bold text-blue-800 truncate max-w-[200px]">
-                    {bebidaSeleccionada?.Nom_Plato}
-                  </span>
-                </div>
-              )}
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Preferencia de bebida:</span>
+                <span className="font-bold text-blue-800">
+                  {tipoBebida === "CALIENTE" ? "Bebida Caliente" : "Bebida Fría"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Sopa:</span>
+                <span className={`font-bold ${llevaSopa ? "text-emerald-800" : "text-slate-600"}`}>
+                  {llevaSopa ? "Con sopa" : "Sin sopa"}
+                </span>
+              </div>
             </div>
 
             <div className="flex gap-2.5 pt-2">

@@ -8,7 +8,8 @@ import {
   crearSolicitudCampo,
   listarSolicitudesCampo,
   detalleSolicitudCampo,
-  entregarAlmuerzoCampo
+  entregarAlmuerzoCampo,
+  programarSemanaCampo
 } from "../Controllers/CampoController.js";
 
 const router = express.Router();
@@ -18,6 +19,9 @@ router.get("/ficha/:numFicha", authMiddleware, obtenerAprendicesFicha);
 
 // 2. Crear solicitud / acta de almuerzos guardados por jornada de campo
 router.post("/solicitud", authMiddleware, crearSolicitudCampo);
+
+// 2.1 Programar turnos de almuerzo para toda la semana (Lunes a Viernes)
+router.post("/programar-semana", authMiddleware, programarSemanaCampo);
 
 // 3. Listar solicitudes registradas con filtros (fecha, unidad, ficha, estado)
 router.get("/solicitudes", authMiddleware, listarSolicitudesCampo);

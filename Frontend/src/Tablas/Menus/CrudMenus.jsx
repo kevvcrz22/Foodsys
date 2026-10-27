@@ -57,38 +57,24 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
   const [Fec_Menu, setFec_Menu] = useState("");
   const [Tip_Menu, setTip_Menu] = useState("Almuerzo");
   const [platosSeleccionados, setPlatosSeleccionados] = useState([]);
-  const [bebidasSeleccionadas, setBebidasSeleccionadas] = useState([]);
   const [enviando, setEnviando] = useState(false);
 
-  /* Separar platos fuertes y bebidas segun tipo de comida */
+  /* Filtrar solo platos fuertes asignables al turno seleccionado */
   const platosFuertes = platosDisponibles.filter(
     (p) =>
       p.Tipo_Item !== "BEBIDA" &&
-      (p.Tip_Comida_Item === Tip_Menu || p.Tip_Comida_Item === "Todas" || p.Tip_Plato === Tip_Menu || p.Tip_Plato === "Todas")
-  );
-
-  const bebidasDisponibles = platosDisponibles.filter(
-    (p) =>
-      p.Tipo_Item === "BEBIDA" &&
-      (p.Tip_Comida_Item === Tip_Menu || p.Tip_Comida_Item === "Todas" || p.Tip_Plato === Tip_Menu || p.Tip_Plato === "Todas")
+      (p.Tip_Plato === Tip_Menu || p.Tip_Comida_Item === Tip_Menu)
   );
 
   useEffect(() => {
     if (isEdit && selectedMenu) {
       setFec_Menu(selectedMenu.Fec_Menu?.slice(0, 10) || "");
       setTip_Menu(selectedMenu.Tip_Menu || "Almuerzo");
-      if (selectedMenu.plato?.Tipo_Item === "BEBIDA") {
-        setBebidasSeleccionadas(selectedMenu.Id_Plato ? [selectedMenu.Id_Plato] : []);
-        setPlatosSeleccionados([]);
-      } else {
-        setPlatosSeleccionados(selectedMenu.Id_Plato ? [selectedMenu.Id_Plato] : []);
-        setBebidasSeleccionadas([]);
-      }
+      setPlatosSeleccionados(selectedMenu.Id_Plato ? [selectedMenu.Id_Plato] : []);
     } else {
       setFec_Menu("");
       setTip_Menu("Almuerzo");
       setPlatosSeleccionados([]);
-      setBebidasSeleccionadas([]);
     }
   }, [selectedMenu, isEdit]);
 
@@ -96,20 +82,20 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
   useEffect(() => {
     if (!isEdit) {
       setPlatosSeleccionados([]);
-      setBebidasSeleccionadas([]);
     }
   }, [Tip_Menu, isEdit]);
 
   const togglePlato = (id) => {
-    setPlatosSeleccionados((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const toggleBebida = (id) => {
-    setBebidasSeleccionadas((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setPlatosSeleccionados((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((x) => x !== id);
+      }
+      if (prev.length >= 2) {
+        toast.error("El menú solo permite un máximo de 2 opciones de plato.");
+        return prev;
+      }
+      return [...prev, id];
+    });
   };
 
   const gestionarForm = async (e) => {
@@ -127,9 +113,13 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
       return;
     }
 
-    const totalElegidos = [...platosSeleccionados, ...bebidasSeleccionadas];
-    if (totalElegidos.length === 0) {
-      toast.error("Debes seleccionar al menos un plato o bebida para el menu");
+    if (platosSeleccionados.length === 0) {
+      toast.error("Debes seleccionar al menos una opción de plato (máximo 2)");
+      return;
+    }
+
+    if (platosSeleccionados.length > 2) {
+      toast.error("El menú solo permite un máximo de 2 opciones de plato.");
       return;
     }
 
@@ -139,14 +129,14 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
         await apiAxios.post("/api/Menus", {
           Fec_Menu,
           Tip_Menu,
-          platos: totalElegidos,
+          platos: platosSeleccionados,
         });
-        toast.success(`Menu creado con ${totalElegidos.length} opciones (platos y bebidas)`);
+        toast.success(`Menu creado con ${platosSeleccionados.length} opciones de plato`);
       } else {
         await apiAxios.put(`/api/Menus/${selectedMenu.Id_Menu}`, {
           Fec_Menu,
           Tip_Menu,
-          Id_Plato: totalElegidos[0],
+          Id_Plato: platosSeleccionados[0],
         });
         toast.success("Menu actualizado correctamente");
       }
@@ -158,8 +148,6 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
       setEnviando(false);
     }
   };
-
-  const cfg = tipoConfig[Tip_Menu];
 
   return (
     <form onSubmit={gestionarForm} className="space-y-4">
@@ -204,14 +192,18 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
         </div>
       </div>
 
-      {/* 1. SELECCION DE PLATOS FUERTES (ILIMITADA) */}
+      {/* SELECCION DE PLATOS FUERTES (MAXIMO 2 OPCIONES) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wide">
-            Platos Fuertes Disponibles
+            Platos Disponibles (Máximo 2 Opciones)
           </label>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-            {platosSeleccionados.length} seleccionados
+          <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+            platosSeleccionados.length === 2
+              ? "bg-amber-100 text-amber-800 border border-amber-300"
+              : "bg-emerald-100 text-emerald-800"
+          }`}>
+            {platosSeleccionados.length} / 2 seleccionados
           </span>
         </div>
 
@@ -220,7 +212,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
             <p className="text-xs text-slate-500 m-0">No hay platos registrados para {Tip_Menu}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
             {platosFuertes.map((p) => {
               const sel = platosSeleccionados.includes(p.Id_Plato);
               const imgSrc = p.Img_Plato ? `${API_URL}/uploads/${p.Img_Plato}` : null;
@@ -266,76 +258,6 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
         )}
       </div>
 
-      {/* 2. SELECCION DE BEBIDAS FRIAS Y CALIENTES (ILIMITADA) */}
-      <div className="space-y-2 pt-2 border-t border-slate-100">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-bold text-blue-900 flex items-center gap-1.5 uppercase tracking-wide">
-            Bebidas Disponibles (Frías y Calientes)
-          </label>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-            {bebidasSeleccionadas.length} seleccionadas
-          </span>
-        </div>
-
-        {bebidasDisponibles.length === 0 ? (
-          <div className="rounded-xl p-3 text-center bg-blue-50/50 border border-blue-100">
-            <p className="text-xs text-blue-600 m-0">No hay bebidas registradas para {Tip_Menu} en el catalogo</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-            {bebidasDisponibles.map((b) => {
-              const sel = bebidasSeleccionadas.includes(b.Id_Plato);
-              const imgSrc = b.Img_Plato ? `${API_URL}/uploads/${b.Img_Plato}` : null;
-              const esCaliente = b.Subtipo_Bebida === "CALIENTE";
-
-              return (
-                <button
-                  key={b.Id_Plato}
-                  type="button"
-                  onClick={() => toggleBebida(b.Id_Plato)}
-                  className={`flex items-center gap-2.5 p-2 rounded-xl border-2 text-left transition-all cursor-pointer ${
-                    sel
-                      ? "border-blue-500 bg-blue-50 shadow-xs"
-                      : "border-gray-200 bg-white hover:border-gray-300"
-                  }`}
-                >
-                  {imgSrc ? (
-                    <img src={imgSrc} alt={b.Nom_Plato} className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                      <Coffee className="w-4 h-4 text-blue-400" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${
-                        esCaliente ? "bg-amber-100 text-amber-800 border-amber-200" : "bg-cyan-100 text-cyan-800 border-cyan-200"
-                      }`}>
-                        {esCaliente ? "Caliente" : "Fría"}
-                      </span>
-                      <p className="text-xs font-bold text-gray-800 m-0 leading-snug">{b.Nom_Plato}</p>
-                    </div>
-                    {b.Des_Plato && (
-                      <DescripcionExpandible
-                        texto={b.Des_Plato}
-                        limite={35}
-                        color="blue"
-                        className="mt-0.5"
-                      />
-                    )}
-                  </div>
-                  {sel && (
-                    <div className="shrink-0 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold">
-                      ✓
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
       {/* Botones de accion */}
       <div className="flex gap-3 pt-3 border-t border-gray-100">
         <button
@@ -347,13 +269,13 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
         </button>
         <button
           type="submit"
-          disabled={enviando || (platosSeleccionados.length === 0 && bebidasSeleccionadas.length === 0)}
+          disabled={enviando || platosSeleccionados.length === 0}
           className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer border-0 shadow-md shadow-emerald-600/20"
         >
           {enviando && (
             <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
           )}
-          {isEdit ? "Actualizar Menu" : `Crear Menu (${platosSeleccionados.length + bebidasSeleccionadas.length} items)`}
+          {isEdit ? "Actualizar Menu" : `Crear Menu (${platosSeleccionados.length} plato${platosSeleccionados.length === 1 ? "" : "s"})`}
         </button>
       </div>
     </form>

@@ -46,14 +46,21 @@ const PanelSincronizacion = () => {
     setSincronizando(true);
     try {
       const respuesta = await apiAxios.post("/api/Sync/trigger");
-      const { push, pull } = respuesta.data || {};
-      const totalPush = push?.totalSincronizados || 0;
-      const totalPull = pull?.totalAplicados || 0;
+      const { push, pull, conexion, mensaje } = respuesta.data || {};
+      const totalPush = push?.totalSincronizados ?? respuesta.data?.totalPushed ?? 0;
+      const totalPull = pull?.totalAplicados ?? respuesta.data?.totalPulled ?? 0;
 
-      toast.success(
-        `Sincronizacion completada: ${totalPush} eventos subidos, ${totalPull} novedades descargadas`,
-        { duration: 6000 }
-      );
+      if (conexion === false) {
+        toast(mensaje || "Sin conexión con la nube. El nodo opera en contingencia local segura.", {
+          icon: "⚠️",
+          duration: 6000
+        });
+      } else {
+        toast.success(
+          `Sincronización completada: ${totalPush} eventos subidos, ${totalPull} novedades descargadas`,
+          { duration: 6000 }
+        );
+      }
       cargarEstado();
     } catch (err) {
       console.error("Error al forzar sync:", err.message);

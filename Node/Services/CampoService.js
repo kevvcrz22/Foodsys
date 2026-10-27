@@ -51,7 +51,7 @@ class CampoService {
         Id_Ficha: ficha.Id_Ficha,
         Est_Usuario: { [Op.ne]: "Inactivo" }
       },
-      attributes: ["Id_Usuario", "Nom_Usuario", "Ape_Usuario", "NumDoc_Usuario", "TipDoc_Usuario", "Tel_Usuario", "Cor_Usuario", "CenCon_Usuario"],
+      attributes: ["Id_Usuario", "Nom_Usuario", "Ape_Usuario", "NumDoc_Usuario", "TipDoc_Usuario", "Tel_Usuario", "Cor_Usuario", "CenCon_Usuario", "Est_Usuario"],
       order: [["Ape_Usuario", "ASC"]]
     });
 
@@ -90,6 +90,8 @@ class CampoService {
         Tel_Usuario: a.Tel_Usuario || "--",
         Cor_Usuario: a.Cor_Usuario || "--",
         CenCon_Usuario: a.CenCon_Usuario,
+        Est_Usuario: a.Est_Usuario || "En Formacion",
+        esTurnoSenaEmpresa: a.Est_Usuario === "Turno Sena Empresa" || a.Est_Usuario === "Sena Empresa",
         tieneReserva: Boolean(res),
         Id_Reserva: res ? res.Id_Reserva : null,
         Est_Reserva: res ? res.Est_Reserva : null,
@@ -406,6 +408,153 @@ class CampoService {
         entregados,
         total,
         estado: nuevoEstado
+      };
+    } catch (err) {
+      await t.rollback();
+      throw err;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 5. PROGRAMAR TURNOS DE ALMUERZO DE CAMPO PARA LA SEMANA (LUNES A VIERNES)
+  // ─────────────────────────────────────────────────────────────────────────────
+  async programarSemanaTurnoSenaEmpresa(datos, usuarioSolicitante = {}) {
+    const { idFicha, idsUsuarios, fechaInicioLunes, unidadProductiva, detalleLugar, justificacion, modalidad } = datos;
+    if (!idFicha || !Array.isArray(idsUsuarios) || idsUsuarios.length === 0) {
+      throw new Error("Debe seleccionar la ficha y al menos un aprendiz para programar el turno semanal.");
+    }
+
+    const ficha = await FichasModel.findByPk(idFicha, {
+      include: [{ model: ProgramaModel, as: "programas" }]
+    });
+    if (!ficha) throw new Error("Ficha no encontrada.");
+
+    // Calcular dias de la semana (Lunes a Viernes) a partir de fechaInicioLunes
+    const fechaBase = fechaInicioLunes ? new Date(fechaInicioLunes + "T12:00:00") : new Date();
+    // Si no es lunes, retroceder al lunes de esa semana
+    const diaSem = fechaBase.getDay(); // 0 = Domingo, 1 = Lunes
+    const diffLunes = diaSem === 0 ? -6 : 1 - diaSem;
+    const lunes = new Date(fechaBase);
+    lunes.setDate(fechaBase.getDate() + diffLunes);
+
+    const diasSemana = [];
+    for (let i = 0; i < 5; i++) { // Lunes a Viernes
+      const d = new Date(lunes);
+      d.setDate(lunes.getDate() + i);
+      diasSemana.push(d.toISOString().slice(0, 10));
+    }
+
+    const t = await db.transaction();
+    try {
+      let totalReservasCreadas = 0;
+      const solicitudesPorDia = [];
+
+      for (const fServicio of diasSemana) {
+        // 1. Obtener o crear plato generico para el almuerzo
+        let platoAlm = await PlatosModel.findOne({ where: { Tip_Plato: "Almuerzo" }, transaction: t });
+        if (!platoAlm) platoAlm = await PlatosModel.findOne({ transaction: t });
+
+        const idsReservasDelDia = [];
+
+        for (const idUsu of idsUsuarios) {
+          const usuario = await UsuariosModel.findByPk(idUsu, { transaction: t });
+          if (!usuario) continue;
+
+          // Verificar si ya tiene reserva para este dia
+          let resExistente = await ReservaModel.findOne({
+            where: {
+              Id_Usuario: idUsu,
+              Fec_Reserva: fServicio,
+              Tip_Reserva: "Almuerzo"
+            },
+            transaction: t
+          });
+
+          if (!resExistente) {
+            const uuidR = uuidv4();
+            resExistente = await ReservaModel.create({
+              uuid_reserva: uuidR,
+              nodo_origen: "LOCAL",
+              Id_Usuario: idUsu,
+              Fec_Reserva: fServicio,
+              Vec_Reserva: `${fServicio} 14:30:00`,
+              Tip_Reserva: "Almuerzo",
+              Est_Reserva: "Generado",
+              Qr_Reserva: `SENAGRANJA-CAMPO-${idUsu}-${fServicio}`,
+              Id_Plato: platoAlm?.Id_Plato || 1,
+              Tipo_Bebida: "FRIA",
+              Lleva_Sopa: true,
+              Es_Guardado_Campo: true,
+              Hora_Limite_Extendida: "14:30:00",
+              Justificacion_Campo: justificacion || "Turno SENA Empresa programado semanal",
+              Unidad_Productiva_Campo: unidadProductiva || "SENA_EMPRESA_GENERAL"
+            }, { transaction: t });
+            totalReservasCreadas++;
+          } else {
+            await resExistente.update({
+              Es_Guardado_Campo: true,
+              Hora_Limite_Extendida: "14:30:00",
+              Justificacion_Campo: justificacion || "Turno SENA Empresa programado semanal",
+              Unidad_Productiva_Campo: unidadProductiva || "SENA_EMPRESA_GENERAL"
+            }, { transaction: t });
+          }
+
+          idsReservasDelDia.push(resExistente.Id_Reserva);
+        }
+
+        // 2. Crear solicitud de guardado de campo para ese dia
+        const conteoMes = await SolicitudesCampoModel.count({ transaction: t });
+        const codigoActa = `CAMPO-${fServicio.replace(/-/g, "").slice(0, 6)}-${String(conteoMes + 1).padStart(4, "0")}`;
+        const uuidSol = uuidv4();
+
+        const nuevaSolicitud = await SolicitudesCampoModel.create({
+          uuid_solicitud: uuidSol,
+          Codigo_Acta: codigoActa,
+          Id_Ficha: ficha.Id_Ficha,
+          Num_Ficha: ficha.Num_Ficha,
+          Nom_Programa: ficha.programas?.Nom_Programa || "Programa sin nombre asignado",
+          Fec_Servicio: fServicio,
+          Tip_Comida: "Almuerzo",
+          Unidad_Productiva: unidadProductiva || "SENA_EMPRESA_GENERAL",
+          Detalle_Lugar_Practica: detalleLugar || "Turno SENA Empresa Semana (Lunes a Viernes)",
+          Justificacion: justificacion || "Turno semanal programado por SENA Empresa",
+          Hora_Estimada_Llegada: "14:30:00",
+          Modalidad_Guardado: modalidad || "GUARDAR_EN_COMEDOR",
+          Total_Aprendices_Guardados: idsReservasDelDia.length,
+          Total_Almuerzos_Entregados: 0,
+          Id_Usuario_Solicitante: usuarioSolicitante.id || 1,
+          Rol_Solicitante: usuarioSolicitante.rol || "SENA Empresa",
+          Estado_Solicitud: "ACTIVA_GUARDADA"
+        }, { transaction: t });
+
+        // Asociar reservas a la solicitud creada
+        await ReservaModel.update(
+          { Id_Solicitud_Campo: nuevaSolicitud.Id_Solicitud_Campo },
+          { where: { Id_Reserva: { [Op.in]: idsReservasDelDia } }, transaction: t }
+        );
+
+        solicitudesPorDia.push({ fecha: fServicio, codigoActa, total: idsReservasDelDia.length });
+      }
+
+      // Marcar usuarios con estado "Turno Sena Empresa" si no lo tienen
+      await UsuariosModel.update(
+        { Est_Usuario: "Turno Sena Empresa" },
+        {
+          where: {
+            Id_Usuario: { [Op.in]: idsUsuarios },
+            Est_Usuario: { [Op.ne]: "Instructor" }
+          },
+          transaction: t
+        }
+      );
+
+      await t.commit();
+
+      return {
+        mensaje: "Turnos semanales de Almuerzo de Campo (Lunes a Viernes) programados exitosamente.",
+        diasSemana,
+        totalReservasCreadas,
+        solicitudesPorDia
       };
     } catch (err) {
       await t.rollback();

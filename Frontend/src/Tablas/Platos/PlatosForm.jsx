@@ -64,13 +64,11 @@ const comprimirImagenAWebp = (archivo, maxDim = 600, calidad = 0.78) => {
   });
 };
 
-const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "PLATO" }) => {
+const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload }) => {
   const [Id_Plato, setId_Plato] = useState("");
   const [Nom_Plato, setNom_Plato] = useState("");
   const [Des_Plato, setDes_Plato] = useState("");
-  const [Tip_Plato, setTip_Plato] = useState("Todas");
-  const [Tipo_Item, setTipo_Item] = useState(initialTipo);
-  const [Subtipo_Bebida, setSubtipo_Bebida] = useState("FRIA");
+  const [Tip_Plato, setTip_Plato] = useState("Almuerzo");
   const [Img_Plato, setImg_Plato] = useState(null);
   const [vistaPrevia, setVistaPrevia] = useState(null);
   const [comprimiendo, setComprimiendo] = useState(false);
@@ -81,9 +79,7 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "P
       setId_Plato(selectedPlato.Id_Plato);
       setNom_Plato(selectedPlato.Nom_Plato || "");
       setDes_Plato(selectedPlato.Des_Plato || "");
-      setTip_Plato(selectedPlato.Tip_Comida_Item || selectedPlato.Tip_Plato || "Todas");
-      setTipo_Item(selectedPlato.Tipo_Item || "PLATO");
-      setSubtipo_Bebida(selectedPlato.Subtipo_Bebida || "FRIA");
+      setTip_Plato(selectedPlato.Tip_Plato || "Almuerzo");
       if (selectedPlato.Img_Plato) {
         const apiUrl = import.meta.env.VITE_API_URL || "";
         setVistaPrevia(`${apiUrl}/uploads/${selectedPlato.Img_Plato}`);
@@ -92,13 +88,11 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "P
       setId_Plato("");
       setNom_Plato("");
       setDes_Plato("");
-      setTip_Plato("Todas");
-      setTipo_Item(initialTipo);
-      setSubtipo_Bebida("FRIA");
+      setTip_Plato("Almuerzo");
       setImg_Plato(null);
       setVistaPrevia(null);
     }
-  }, [selectedPlato, isEdit, initialTipo]);
+  }, [selectedPlato, isEdit]);
 
   const handleSeleccionarArchivo = async (e) => {
     const file = e.target.files[0];
@@ -123,7 +117,7 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "P
     e.preventDefault();
 
     if (!Nom_Plato.trim()) {
-      toast.error("Ingresa el nombre del plato o bebida");
+      toast.error("Ingresa el nombre del plato");
       return;
     }
 
@@ -133,8 +127,8 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "P
       formData.append("Nom_Plato", Nom_Plato.trim());
       formData.append("Des_Plato", Des_Plato.trim());
       formData.append("Tip_Plato", Tip_Plato);
-      formData.append("Tipo_Item", Tipo_Item);
-      formData.append("Subtipo_Bebida", Tipo_Item === "BEBIDA" ? Subtipo_Bebida : "NINGUNA");
+      formData.append("Tipo_Item", "PLATO");
+      formData.append("Subtipo_Bebida", "NINGUNA");
       formData.append("Tip_Comida_Item", Tip_Plato);
 
       if (Img_Plato) {
@@ -145,19 +139,19 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "P
         await apiAxios.post("/api/platos", formData, {
           headers: { "Content-Type": "multipart/form-data" }
         });
-        toast.success(Tipo_Item === "PLATO" ? "Plato creado exitosamente" : "Bebida creada exitosamente");
+        toast.success("Plato creado exitosamente");
       } else {
         await apiAxios.put(`/api/platos/${Id_Plato}`, formData, {
           headers: { "Content-Type": "multipart/form-data" }
         });
-        toast.success(Tipo_Item === "PLATO" ? "Plato actualizado correctamente" : "Bebida actualizada correctamente");
+        toast.success("Plato actualizado correctamente");
       }
 
       reload();
       hideModal();
     } catch (error) {
       console.error("Error al guardar item:", error);
-      const msg = error.response?.data?.message || "Error al guardar el registro en la base de datos";
+      const msg = error.response?.data?.message || "Error al guardar el plato en la base de datos";
       toast.error(msg);
     } finally {
       setEnviando(false);
@@ -168,80 +162,10 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "P
     <form onSubmit={gestionarForm} className="space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-slate-100">
         <h2 className="text-lg font-bold text-slate-800 m-0 flex items-center gap-2">
-          {Tipo_Item === "PLATO" ? (
-            <Utensils className="w-5 h-5 text-emerald-600" />
-          ) : (
-            <Coffee className="w-5 h-5 text-blue-600" />
-          )}
-          {isEdit
-            ? `Editar ${Tipo_Item === "PLATO" ? "Plato" : "Bebida"}`
-            : `Nuevo ${Tipo_Item === "PLATO" ? "Plato" : "Bebida"}`}
+          <Utensils className="w-5 h-5 text-emerald-600" />
+          {isEdit ? "Editar Plato" : "Nuevo Plato"}
         </h2>
       </div>
-
-      {/* Selector de Tipo (Plato vs Bebida) */}
-      <div>
-        <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-          Tipo de Elemento
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setTipo_Item("PLATO")}
-            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-              Tipo_Item === "PLATO"
-                ? "bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm"
-                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            <Utensils size={14} /> Plato Fuerte / Comida
-          </button>
-          <button
-            type="button"
-            onClick={() => setTipo_Item("BEBIDA")}
-            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-              Tipo_Item === "BEBIDA"
-                ? "bg-blue-50 border-blue-300 text-blue-800 shadow-sm"
-                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            <Coffee size={14} /> Bebida
-          </button>
-        </div>
-      </div>
-
-      {/* Subtipo de Bebida si es BEBIDA */}
-      {Tipo_Item === "BEBIDA" && (
-        <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-xl space-y-2">
-          <label className="block text-xs font-bold text-blue-900">
-            Clasificacion de la Bebida
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setSubtipo_Bebida("FRIA")}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                Subtipo_Bebida === "FRIA"
-                  ? "bg-cyan-100 border-cyan-400 text-cyan-900 shadow-xs"
-                  : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-              }`}
-            >
-              <Snowflake size={14} className="text-cyan-600" /> Bebida Fria
-            </button>
-            <button
-              type="button"
-              onClick={() => setSubtipo_Bebida("CALIENTE")}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                Subtipo_Bebida === "CALIENTE"
-                  ? "bg-amber-100 border-amber-400 text-amber-900 shadow-xs"
-                  : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-              }`}
-            >
-              <Flame size={14} className="text-amber-600" /> Bebida Caliente
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Nombre */}
       <div>
@@ -286,10 +210,9 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "P
           value={Tip_Plato}
           onChange={(e) => setTip_Plato(e.target.value)}
         >
-          <option value="Todas">Aplica para Todas las Comidas</option>
-          <option value="Desayuno">Exclusivo de Desayuno</option>
-          <option value="Almuerzo">Exclusivo de Almuerzo</option>
-          <option value="Cena">Exclusivo de Cena</option>
+          <option value="Desayuno">Desayuno</option>
+          <option value="Almuerzo">Almuerzo</option>
+          <option value="Cena">Cena</option>
         </select>
       </div>
 

@@ -36,7 +36,10 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload }) => {
   const getPlatos = async () => {
     try {
       const res = await apiAxios.get("/api/platos");
-      setPlatos(Array.isArray(res.data) ? res.data : []);
+      const soloPlatos = (Array.isArray(res.data) ? res.data : []).filter(
+        (p) => p.Tipo_Item !== "BEBIDA"
+      );
+      setPlatos(soloPlatos);
     } catch (error) {
       console.error(error);
       toast.error("Error al cargar la lista de platos");

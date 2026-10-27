@@ -53,6 +53,8 @@ export default function GuardarAlmuerzoCampo() {
   const [guardando, setGuardando] = useState(false);
   const [mostrarGuia, setMostrarGuia] = useState(false);
   const [modalConfirmar, setModalConfirmar] = useState(false);
+  const [modalSemanaSenaEmpresa, setModalSemanaSenaEmpresa] = useState(false);
+  const [programandoSemana, setProgramandoSemana] = useState(false);
 
   // Listado de actas existentes
   const [actas, setActas] = useState([]);
@@ -130,6 +132,62 @@ export default function GuardarAlmuerzoCampo() {
     } else {
       const todos = new Set(datosFicha.aprendicesConReserva.map(a => a.Id_Reserva));
       setSeleccionados(todos);
+    }
+  };
+
+  // Seleccionar solo aprendices en estado Turno SENA Empresa
+  const handleSeleccionarSoloTurnoSenaEmpresa = () => {
+    if (!datosFicha?.aprendicesConReserva) return;
+    const soloTurno = datosFicha.aprendicesConReserva.filter(
+      (a) => a.esTurnoSenaEmpresa || a.Est_Usuario === "Turno Sena Empresa" || a.Est_Usuario === "Sena Empresa"
+    );
+    if (soloTurno.length === 0) {
+      FoodsysToast.warning("No hay aprendices en 'Turno Sena Empresa' con reserva en esta ficha.");
+      return;
+    }
+    const ids = new Set(soloTurno.map((a) => a.Id_Reserva));
+    setSeleccionados(ids);
+    FoodsysToast.success(`Seleccionados ${ids.size} aprendices en Turno SENA Empresa.`);
+  };
+
+  // Programar turnos semanales de Lunes a Viernes para Turno SENA Empresa
+  const handleProgramarSemanaSenaEmpresa = async () => {
+    if (!datosFicha) return;
+    // Si no hay seleccion manual, tomar todos los que esten en Turno SENA Empresa
+    let idsUsuarios = [];
+    if (seleccionados.size > 0) {
+      idsUsuarios = datosFicha.aprendicesConReserva
+        .filter((a) => seleccionados.has(a.Id_Reserva))
+        .map((a) => a.Id_Usuario);
+    } else {
+      idsUsuarios = (datosFicha.aprendicesConReserva || [])
+        .filter((a) => a.esTurnoSenaEmpresa || a.Est_Usuario === "Turno Sena Empresa" || a.Est_Usuario === "Sena Empresa")
+        .map((a) => a.Id_Usuario);
+    }
+
+    if (idsUsuarios.length === 0) {
+      FoodsysToast.warning("Selecciona al menos un aprendiz en Turno SENA Empresa.");
+      return;
+    }
+
+    setProgramandoSemana(true);
+    try {
+      const res = await apiAxios.post("/api/Campo/programar-semana", {
+        Num_Ficha: datosFicha.ficha.Num_Ficha,
+        idsUsuarios,
+        unidadProductiva,
+        detalleLugar: detalleLugar || "Turno SENA Empresa Semanal (Lunes a Viernes)",
+        justificacion: justificacion || "Turno SENA Empresa programado para toda la semana",
+        horaLlegadaEstimada: horaLlegada || "14:30"
+      });
+      FoodsysToast.success(res.data?.mensaje || "Turnos semanales programados y protegidos con éxito.");
+      setModalSemanaSenaEmpresa(false);
+      cargarActas();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Error al programar turnos semanales";
+      FoodsysToast.error(msg);
+    } finally {
+      setProgramandoSemana(false);
     }
   };
 
@@ -500,21 +558,43 @@ export default function GuardarAlmuerzoCampo() {
               </div>
 
               {datosFicha.aprendicesConReserva?.length > 0 && (
-                <button
-                  type="button"
-                  onClick={toggleTodos}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 transition"
-                >
-                  {seleccionados.size === datosFicha.aprendicesConReserva.length ? (
-                    <>
-                      <Square size={14} /> Desmarcar todos
-                    </>
-                  ) : (
-                    <>
-                      <CheckSquare size={14} /> Seleccionar todos ({datosFicha.aprendicesConReserva.length})
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={toggleTodos}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 transition cursor-pointer"
+                  >
+                    {seleccionados.size === datosFicha.aprendicesConReserva.length ? (
+                      <>
+                        <Square size={14} /> Desmarcar todos
+                      </>
+                    ) : (
+                      <>
+                        <CheckSquare size={14} /> Seleccionar todos ({datosFicha.aprendicesConReserva.length})
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSeleccionarSoloTurnoSenaEmpresa}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 transition cursor-pointer shadow-xs"
+                    title="Selecciona solo los aprendices con estado Turno Sena Empresa"
+                  >
+                    <Sparkles size={13} className="text-amber-600" />
+                    Solo Turno SENA Empresa
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalSemanaSenaEmpresa(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-1.5 rounded-xl border border-emerald-400 bg-emerald-600 hover:bg-emerald-700 text-white transition cursor-pointer shadow-sm"
+                    title="Programa y protege los almuerzos de toda la semana (Lunes a Viernes) para aprendices de turno"
+                  >
+                    <Calendar size={13} />
+                    Programar Semana (Lun - Vie) Turno
+                  </button>
+                </div>
               )}
             </div>
 
@@ -530,15 +610,17 @@ export default function GuardarAlmuerzoCampo() {
                       <th className="py-3 px-3 w-10 text-center">Sel.</th>
                       <th className="py-3 px-3">Aprendiz</th>
                       <th className="py-3 px-3">Documento</th>
+                      <th className="py-3 px-3">Estado / Turno</th>
                       <th className="py-3 px-3">Tipo</th>
                       <th className="py-3 px-3">Plato Elegido</th>
-                      <th className="py-3 px-3">Bebida Elegida</th>
                       <th className="py-3 px-3 text-center">Estado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {datosFicha.aprendicesConReserva.map(a => {
                       const isSel = seleccionados.has(a.Id_Reserva);
+                      const esTurno = a.esTurnoSenaEmpresa || a.Est_Usuario === "Turno Sena Empresa" || a.Est_Usuario === "Sena Empresa";
+
                       return (
                         <tr
                           key={a.Id_Reserva}
@@ -562,6 +644,18 @@ export default function GuardarAlmuerzoCampo() {
                             {a.TipDoc_Usuario} {a.NumDoc_Usuario}
                           </td>
                           <td className="py-3 px-3">
+                            {esTurno ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs">
+                                <Sparkles size={11} className="text-amber-600" />
+                                Turno SENA Empresa
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                {a.Est_Usuario || "En Formacion"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
                             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                               a.CenCon_Usuario === "Si"
                                 ? "bg-purple-100 text-purple-700 border border-purple-200"
@@ -572,18 +666,6 @@ export default function GuardarAlmuerzoCampo() {
                           </td>
                           <td className="py-3 px-3 text-slate-700 font-medium">
                             {a.Nom_Plato}
-                          </td>
-                          <td className="py-3 px-3">
-                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-700">
-                              <span className={`text-[10px] px-1.5 py-0.2 rounded border ${
-                                a.Subtipo_Bebida === "CALIENTE"
-                                  ? "bg-amber-50 text-amber-800 border-amber-200"
-                                  : "bg-sky-50 text-sky-800 border-sky-200"
-                              }`}>
-                                {a.Subtipo_Bebida === "CALIENTE" ? "Caliente" : "Fría"}
-                              </span>
-                              {a.Nom_Bebida}
-                            </span>
                           </td>
                           <td className="py-3 px-3 text-center">
                             <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
@@ -940,6 +1022,79 @@ export default function GuardarAlmuerzoCampo() {
         type="primary"
         loading={guardando}
       />
+
+      {/* ============================================================
+          MODAL DE PROGRAMACION SEMANAL PARA TURNO SENA EMPRESA
+      ============================================================ */}
+      {modalSemanaSenaEmpresa && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+              <div className="p-3 bg-emerald-100 text-emerald-800 rounded-2xl">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 m-0">
+                  Programar Turno Semanal (Lunes a Viernes)
+                </h3>
+                <p className="text-xs text-slate-500 m-0">
+                  Ficha #{datosFicha?.ficha?.Num_Ficha} - {datosFicha?.ficha?.Nom_Programa}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 text-xs text-emerald-900 leading-relaxed space-y-1.5">
+              <p className="m-0 font-bold">
+                ¿Qué realizará esta acción?
+              </p>
+              <ul className="list-disc pl-4 space-y-1 m-0 text-slate-700">
+                <li>Creará y protegerá automáticamente las reservas de Almuerzo de <strong>Lunes a Viernes</strong> de la semana en curso.</li>
+                <li>Habilitará la hora límite extendida de recogida hasta las <strong>{horaLlegada}</strong> para evitar inasistencias.</li>
+                <li>Generará las actas de guardado diarias en Comedor y Cocina para auditoría.</li>
+              </ul>
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-4 text-xs space-y-2 border border-slate-200">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Aprendices objetivo:</span>
+                <span className="font-bold text-slate-800">
+                  {seleccionados.size > 0
+                    ? `${seleccionados.size} seleccionados actualmente`
+                    : "Todos los aprendices en Turno SENA Empresa de la ficha"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Unidad Productiva:</span>
+                <span className="font-bold text-slate-800">{unidadProductiva}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Horario Extendido:</span>
+                <span className="font-bold text-emerald-700">{horaLlegada} PM</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setModalSemanaSenaEmpresa(false)}
+                disabled={programandoSemana}
+                className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleProgramarSemanaSenaEmpresa}
+                disabled={programandoSemana}
+                className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-bold rounded-xl text-xs transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {programandoSemana && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>{programandoSemana ? "Programando Semana..." : "Confirmar y Programar"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

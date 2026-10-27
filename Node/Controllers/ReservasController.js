@@ -18,6 +18,7 @@
 import ReservaModel from "../Models/ReservasModel.js";
 import MenuModel from "../Models/MenusModels.js";
 import PlatosModel from "../Models/PlatosModels.js";
+import UsuariosModel from "../Models/UsuariosModel.js";
 import ReservasServices from "../Services/ReservasServices.js";
 import VencimientoService from "../Services/VencimientoService.js";
 import { notificarCambioReservas } from "../Services/SocketService.js";
@@ -33,6 +34,8 @@ export const generarAlimentoTomorrow = async (req, res) => {
     const Tip_Reserva = req.body.Tip_Reserva?.trim();
     const { platoElegido, fechaReserva } = req.body;
     const Id_Bebida = req.body.Id_Bebida || req.body.idBebida || null;
+    const Tipo_Bebida = req.body.Tipo_Bebida || req.body.tipoBebida || "FRIA";
+    const Lleva_Sopa = req.body.Lleva_Sopa !== undefined ? req.body.Lleva_Sopa : (req.body.llevaSopa !== undefined ? req.body.llevaSopa : true);
 
     if (!Tip_Reserva) {
       return res.status(400).json({ message: "El tipo de comida es obligatorio" });
@@ -54,7 +57,9 @@ export const generarAlimentoTomorrow = async (req, res) => {
       fechaReserva,
       false,
       null,
-      Id_Bebida
+      Id_Bebida,
+      Tipo_Bebida,
+      Lleva_Sopa
     );
 
     notificarCambioReservas({ accion: "creada", Id_Usuario });
@@ -201,8 +206,14 @@ export const consumirQRSupervisor = async (req, res) => {
 // ReservaForm.jsx la llama al montar para saber que opciones mostrar en el select.
 export const ObtenerTiposPermitidos = async (req, res) => {
   try {
-    const Roles_Usuario = req.user.roles || [];
-    const Tipos_Permitidos = ReservasServices.ObtenerRolesPermitidos(Roles_Usuario);
+    const Id_Usuario = req.user?.id;
+    const Roles_Usuario = req.user?.roles || [];
+    let CenCon = "No";
+    if (Id_Usuario) {
+      const u = await UsuariosModel.findByPk(Id_Usuario, { attributes: ["CenCon_Usuario"] });
+      if (u?.CenCon_Usuario) CenCon = u.CenCon_Usuario;
+    }
+    const Tipos_Permitidos = ReservasServices.ObtenerRolesPermitidos(Roles_Usuario, CenCon);
     return res.status(200).json({ tiposPermitidos: Tipos_Permitidos });
   } catch (Err) {
     console.error("[ReservasController] ObtenerTiposPermitidos:", Err.message);

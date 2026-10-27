@@ -22,10 +22,14 @@ router.get("/health", health);
 router.post("/push", push);
 router.get("/pull", pull);
 
-// Endpoints de administracion y contingencia
+// Endpoints de administracion y contingencia (soporta rutas directas y con /package)
 router.get("/status", authMiddleware, status);
 router.post("/trigger", authMiddleware, triggerSync);
+
 router.get("/export-package", authMiddleware, exportSyncPackage);
-router.post("/import-package", authMiddleware, uploadMemoria.single("syncFile"), importSyncPackage);
+router.get("/package/export", authMiddleware, exportSyncPackage);
+
+router.post("/import-package", authMiddleware, uploadMemoria.any(), importSyncPackage);
+router.post("/package/import", authMiddleware, uploadMemoria.any(), importSyncPackage);
 
 export default router;

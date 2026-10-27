@@ -52,7 +52,11 @@ class MenusService {
       throw new Error("Debes seleccionar los platos para el menú");
     }
 
-    // Se permite cantidad ilimitada de platos y bebidas por turno y fecha segun la minuta oficial
+    // Regla de negocio Foodsys: El menu debe tener un maximo de 2 opciones de plato por turno
+    const conteoExistentes = await MenuModel.count({ where: { Fec_Menu, Tip_Menu } });
+    if (conteoExistentes + platosArray.length > 2) {
+      throw new Error(`El menú de ${Tip_Menu} solo puede tener un máximo de 2 opciones de plato.`);
+    }
 
     const creados = [];
     for (const Id_Plato of platosArray) {

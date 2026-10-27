@@ -23,9 +23,14 @@ class NotificacionesService {
 
       const io = getIO();
       if (io) {
-        io.emit('notificacion:nueva', {
-          notificacion: notif.toJSON ? notif.toJSON() : notif
-        });
+        const payload = notif.toJSON ? notif.toJSON() : notif;
+        io.emit('notificacion:nueva', { notificacion: payload });
+
+        if (Tipo === 'bolsa_solidaria') {
+          io.emit('notificacion:bolsa_solidaria', { notificacion: payload });
+        } else if (Tipo === 'cesion') {
+          io.emit('notificacion:cesion', { notificacion: payload });
+        }
       }
 
       return notif;

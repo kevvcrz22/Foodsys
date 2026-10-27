@@ -45,6 +45,7 @@ import ProgramaModel from "../Models/ProgramaModel.js";
 import SolicitudesCampoModel from "../Models/SolicitudesCampoModel.js";
 import VencimientoService from "./VencimientoService.js";
 import { obtenerFechaColombia } from "../Utils/dateUtils.js";
+import "../Models/associations.js";
 
 class ReportesService {
 
