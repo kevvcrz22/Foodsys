@@ -1347,7 +1347,7 @@ class ReservasServices {
     // Consultar roles del usuario
     const [rolesRows] = await db.query(
       `SELECT r.Nom_Rol FROM roles r
-       INNER JOIN usuariosrol ur ON ur.Id_Rol = r.Id_Rol
+       INNER JOIN UsuariosRol ur ON ur.Id_Rol = r.Id_Rol
        WHERE ur.Id_Usuario = ?`,
       { replacements: [idUsuario] }
     );
@@ -1466,7 +1466,7 @@ class ReservasServices {
 
       const [rolesRows] = await db.query(
         `SELECT r.Nom_Rol FROM roles r
-         INNER JOIN usuariosrol ur ON ur.Id_Rol = r.Id_Rol
+         INNER JOIN UsuariosRol ur ON ur.Id_Rol = r.Id_Rol
          WHERE ur.Id_Usuario = ?`,
         { replacements: [idUsuarioReceptor], transaction: t }
       );
