@@ -11,7 +11,7 @@ const apiNode = axios.create({
 
 
 apiNode.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token"); // ✅ directo, sin JSON.parse
+  const token = localStorage.getItem("token"); // directo, sin JSON.parse
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

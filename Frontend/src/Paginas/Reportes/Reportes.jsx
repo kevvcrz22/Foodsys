@@ -271,7 +271,7 @@ const Reportes = () => {
               }`}
             >
               <Tractor className="w-4 h-4 text-emerald-500" />
-              <span>Tab 4 — 🌾 Jornada de Campo & SENA Empresa</span>
+              <span>Tab 4 — Jornada de Campo & SENA Empresa</span>
             </button>
           </>
         )}

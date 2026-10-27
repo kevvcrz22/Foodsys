@@ -94,7 +94,7 @@ const SemaforoAforoCard = () => {
                 Aforo del Comedor en Vivo
               </span>
               <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full border ${colorConfig.badge}`}>
-                <span>{datos?.icono || "⚪"}</span>
+                <span className={`w-2 h-2 rounded-full ${colorConfig.dot}`} />
                 <span>{datos?.nivel || "Consultando..."}</span>
               </span>
             </div>

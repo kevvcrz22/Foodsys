@@ -304,12 +304,12 @@ export default function ValidarReservas() {
           NumDoc: val
         });
         setResultadoExitoQR(resp.data);
-        setExitoManual(`✅ Reserva verificada con éxito para ${resp.data.Aprendiz || 'el aprendiz'}.`);
+        setExitoManual(`Reserva verificada con éxito para ${resp.data.Aprendiz || 'el aprendiz'}.`);
         reproducirBeep("exito");
       } else {
         const resp = await apiAxios.patch(`/api/Reservas/verificar/${val}/cocina`);
         setResultadoExitoQR(resp.data);
-        setExitoManual(`✅ Reserva verificada con éxito en Cocina.`);
+        setExitoManual(`Reserva verificada con éxito en Cocina.`);
         reproducirBeep("exito");
       }
       setValorBusqueda('');
@@ -328,7 +328,7 @@ export default function ValidarReservas() {
 
     try {
       const resp = await apiAxios.patch(`/api/Reservas/verificar/${idReserva}/cocina`);
-      setExitoManual('✅ Reserva verificada correctamente en Cocina. El aprendiz ya puede consumir con el Supervisor.');
+      setExitoManual('Reserva verificada correctamente en Cocina. El aprendiz ya puede consumir con el Supervisor.');
       setResultadoExitoQR(resp.data);
       setReservaEncontrada(prev => prev ? { ...prev, Est_Reserva: 'Verificado' } : prev);
       reproducirBeep("exito");

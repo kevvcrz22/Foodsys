@@ -261,7 +261,7 @@ const ReporteCampo = () => {
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-                🌾 Tab 4 — Fichas en Jornada de Campo y SENA Empresa
+                Tab 4 — Fichas en Jornada de Campo y SENA Empresa
               </h2>
               <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
                 Control de almuerzos guardados por actividades agropecuarias con autorizacion y hora extendida.

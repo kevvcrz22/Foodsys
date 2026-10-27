@@ -405,11 +405,11 @@ const ImportarFichas = ({ onClose, reload }) => {
                               )}
                               {esValido ? (
                                 <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
-                                  ✓ Programa registrado
+                                  Programa registrado
                                 </span>
                               ) : (
                                 <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
-                                  ⚠️ Programa NO existe
+                                  Programa no existe
                                 </span>
                               )}
                               {Fila.Nivel_Formacion && (

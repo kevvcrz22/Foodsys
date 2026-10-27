@@ -225,7 +225,7 @@ class CampoService {
       for (const r of reservasAfectadas) {
         await NotificacionesModel.create({
           Id_Usuario: r.Id_Usuario,
-          Titulo: "🌾 Almuerzo Guardado por Jornada de Campo",
+          Titulo: "Almuerzo Guardado por Jornada de Campo",
           Mensaje: `Tu instructor/vocero ha registrado tu almuerzo para ser guardado hoy (${Unidad_Productiva}). Podras reclamarlo hasta las ${horaLimiteExtendida.substring(0, 5)}. No te preocupes, tu reserva no vencera a la 1:30 PM.`,
           Tipo: "INFO",
           Leido: 0

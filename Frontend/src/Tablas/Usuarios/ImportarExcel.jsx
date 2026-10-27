@@ -431,11 +431,11 @@ const ImportarExcel = ({ onClose, reload }) => {
                             <span className="font-bold">Ficha #{fila.Num_Ficha || "—"}</span>
                             {esValido ? (
                               <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
-                                ✓ Ficha registrada
+                                Ficha registrada
                               </span>
                             ) : (
                               <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded" title={fila.errorFicha}>
-                                ⚠️ Ficha NO registrada
+                                Ficha no registrada
                               </span>
                             )}
                           </div>

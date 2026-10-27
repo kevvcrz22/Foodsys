@@ -325,13 +325,13 @@ export const GenerarTicketQR = async ({ reserva, usuario, qrUrl, urlImagen }) =>
     ctx.fill();
 
     const filas = [
-        { icono: "📅", label: "Fecha de reserva", valor: FormatearFechaLarga(reserva.Fec_Reserva) },
-        { icono: "⏰", label: "Vence a las", valor: FormatearHora(reserva.Vec_Reserva) },
-        { icono: "📋", label: "Tipo de reserva", valor: reserva.Exc_Reserva === "Si" ? "Novedad del dia" : "Reserva normal" },
+        { icono: "•", label: "Fecha de reserva", valor: FormatearFechaLarga(reserva.Fec_Reserva) },
+        { icono: "•", label: "Vence a las", valor: FormatearHora(reserva.Vec_Reserva) },
+        { icono: "•", label: "Tipo de reserva", valor: reserva.Exc_Reserva === "Si" ? "Novedad del dia" : "Reserva normal" },
     ];
 
     if (reserva.Exc_Reserva === "Si" && reserva.Jus_Reserva) {
-        filas.push({ icono: "💬", label: "Justificacion", valor: reserva.Jus_Reserva });
+        filas.push({ icono: "•", label: "Justificacion", valor: reserva.Jus_Reserva });
     }
 
     let yFila = Y + 20;

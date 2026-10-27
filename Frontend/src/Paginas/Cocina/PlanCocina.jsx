@@ -8,7 +8,7 @@
 //      - Cena:     servicio 18:00 – 19:30 -> Preparacion inicia 13:00 / 01:00 PM (-5h). Vence a las 19:30 PM.
 //   2. Selector rapido [ Hoy ], [ Mañana ] y selector de fecha para planificar produccion de cualquier dia.
 //   3. Tarjetas detalladas de Platos a Preparar y Bebidas (Frias y Calientes).
-//   4. Bloque exclusivo: "🌾 Almuerzos por Guardar — Jornada de Campo / SENA Empresa".
+//   4. Bloque exclusivo: "Almuerzos por Guardar — Jornada de Campo / SENA Empresa".
 //   5. Modal nominal al hacer clic sobre cualquier plato, bebida o acta de campo.
 //   6. Exportacion consolidada a Excel y PDF con firmas oficiales institucionales.
 
@@ -698,7 +698,7 @@ const PlanCocina = () => {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
-                    🌾 Almuerzos por Guardar — Jornada de Campo / SENA Empresa ({resumen.almuerzosGuardadosCampo?.length || 0} actas)
+                    Almuerzos por Guardar — Jornada de Campo / SENA Empresa ({resumen.almuerzosGuardadosCampo?.length || 0} actas)
                   </h3>
                   <p className="text-xs text-slate-500">
                     Fichas con autorización de llegada tardía y raciones guardadas para hoy

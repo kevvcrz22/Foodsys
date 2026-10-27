@@ -180,12 +180,13 @@ const ConfiguracionRaciones = () => {
                       <h2 className="text-xl font-black text-slate-800 m-0">
                         {racion.Tip_Racion}
                       </h2>
-                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border inline-block mt-0.5 ${
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1.5 mt-0.5 ${
                         estaActiva
                           ? "bg-emerald-100 text-emerald-900 border-emerald-300"
                           : "bg-rose-100 text-rose-900 border-rose-300"
                       }`}>
-                        {estaActiva ? "🟢 SERVICIO EN ON" : "🔴 SERVICIO EN OFF"}
+                        <span className={`w-1.5 h-1.5 rounded-full ${estaActiva ? "bg-emerald-600" : "bg-rose-600"}`} />
+                        {estaActiva ? "SERVICIO EN ON" : "SERVICIO EN OFF"}
                       </span>
                     </div>
                   </div>

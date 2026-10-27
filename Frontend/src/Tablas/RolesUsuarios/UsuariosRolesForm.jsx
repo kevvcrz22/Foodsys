@@ -211,12 +211,12 @@ const UsuariosRolForm = ({ hideModal, data, Edit, reload }) => {
                         required
                     />
 
-                    {/* ✅ Icono verde si ya está seleccionado */}
+                    {/* Icono si ya esta seleccionado */}
                     {usuarioSeleccionado && (
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-sm">✓</span>
                     )}
 
-                    {/* ✅ Dropdown de resultados */}
+                    {/* Dropdown de resultados */}
                     {mostrarDropdown && usuariosFiltrados.length > 0 && (
                         <ul
                             ref={dropdownRef}

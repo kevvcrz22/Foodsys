@@ -362,7 +362,7 @@ class TurnosService {
         ritmoMinuto: 0,
         color: "GRIS",
         nivel: "Comedor en receso",
-        icono: "⚪",
+        icono: "",
         mensaje: "No hay turno de servicio abierto en este momento.",
         tiempoEsperaEstimado: "N/A"
       };
@@ -386,20 +386,20 @@ class TurnosService {
 
     let color = "VERDE";
     let nivel = "Fila fluida";
-    let icono = "🟢";
+    let icono = "";
     let mensaje = "Comedor con paso agil y sin esperas prolongadas.";
     let tiempoEsperaEstimado = "< 2 minutos";
 
     if (ritmoMinuto > 5) {
       color = "ROJO";
       nivel = "Hora pico (Alta congestion)";
-      icono = "🔴";
+      icono = "";
       mensaje = "Fila con alta afluencia. Te sugerimos esperar unos minutos si no tienes prisa.";
       tiempoEsperaEstimado = "8 - 15 minutos";
     } else if (ritmoMinuto >= 2) {
       color = "AMARILLO";
       nivel = "Flujo moderado";
-      icono = "🟡";
+      icono = "";
       mensaje = "Fila con flujo constante y avance rapido.";
       tiempoEsperaEstimado = "3 - 6 minutos";
     }
