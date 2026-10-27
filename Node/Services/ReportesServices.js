@@ -42,6 +42,7 @@ import RolesModel from "../Models/RolesModel.js";
 import PlatosModel from "../Models/PlatosModels.js";
 import FichasModel from "../Models/FichasModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
+import SolicitudesCampoModel from "../Models/SolicitudesCampoModel.js";
 import VencimientoService from "./VencimientoService.js";
 import { obtenerFechaColombia } from "../Utils/dateUtils.js";
 
@@ -915,11 +916,20 @@ class ReportesService {
   // Parametros:
   //   Documento    - numero de documento del aprendiz
   //   Fecha_Inicio - string YYYY-MM-DD opcional
+  //   Documento    - numero de documento del aprendiz
+  //   Fecha_Inicio - string YYYY-MM-DD opcional
   //   Fecha_Fin    - string YYYY-MM-DD opcional
-  async getAprendizReporte(Documento, Fecha_Inicio = null, Fecha_Fin = null) {
+  //   Id_Usuario   - ID numerico opcional
+  async getAprendizReporte(Documento, Fecha_Inicio = null, Fecha_Fin = null, Id_Usuario = null) {
+    const whereUser = Id_Usuario
+      ? { Id_Usuario }
+      : (Documento ? { NumDoc_Usuario: Documento } : null);
+
+    if (!whereUser) return null;
+
     // Buscar el usuario con toda la informacion de relaciones
     const Usuario = await UsuariosModel.findOne({
-      where: { NumDoc_Usuario: Documento },
+      where: whereUser,
       include: [
         {
           model: FichasModel,
@@ -957,11 +967,18 @@ class ReportesService {
 
     const Reservas = await ReservaModel.findAll({
       where: Condicion_Reservas,
-      include: [{
-        model: PlatosModel,
-        as: "plato",
-        attributes: ["Nom_Plato", "Tip_Plato"]
-      }],
+      include: [
+        {
+          model: PlatosModel,
+          as: "plato",
+          attributes: ["Nom_Plato", "Tip_Plato"]
+        },
+        {
+          model: PlatosModel,
+          as: "bebida",
+          attributes: ["Nom_Plato", "Tipo_Item", "Subtipo_Bebida"]
+        }
+      ],
       order: [["Fec_Reserva", "DESC"], ["createdAt", "DESC"]]
     });
 
@@ -974,29 +991,52 @@ class ReportesService {
       )
     ];
 
+    const roles = Usuario.rolesUsuario?.map((UR) => UR.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+    const totalReservas = Reservas.length;
+    const consumidas = Reservas.filter((R) => R.Est_Reserva === "Consumido").length;
+    const canceladas = Reservas.filter((R) => R.Est_Reserva === "Cancelado").length;
+    const vencidas = Reservas.filter((R) => R.Est_Reserva === "Vencido").length;
+    const porcentajeCumplimiento = totalReservas > 0 ? Number(((consumidas / totalReservas) * 100).toFixed(1)) : 0;
+
     // Perfil con datos del usuario para la cabecera del panel de aprendiz
     const Perfil = {
       id: Usuario.Id_Usuario,
-      nombre: `${Usuario.Nom_Usuario} ${Usuario.Ape_Usuario}`,
-      documento: `${Usuario.TipDoc_Usuario} ${Usuario.NumDoc_Usuario}`,
-      correo: Usuario.Cor_Usuario,
-      telefono: Usuario.Tel_Usuario,
-      estado: Usuario.Est_Usuario,
+      Id_Usuario: Usuario.Id_Usuario,
+      nombre: `${Usuario.Nom_Usuario || ''} ${Usuario.Ape_Usuario || ''}`.trim(),
+      nombreCompleto: `${Usuario.Nom_Usuario || ''} ${Usuario.Ape_Usuario || ''}`.trim(),
+      Nom_Usuario: Usuario.Nom_Usuario,
+      Ape_Usuario: Usuario.Ape_Usuario,
+      documento: `${Usuario.TipDoc_Usuario || 'CC'} ${Usuario.NumDoc_Usuario || ''}`.trim(),
+      TipDoc_Usuario: Usuario.TipDoc_Usuario || 'CC',
+      NumDoc_Usuario: Usuario.NumDoc_Usuario || '',
+      correo: Usuario.Cor_Usuario || 'Sin correo',
+      Cor_Usuario: Usuario.Cor_Usuario || 'Sin correo',
+      telefono: Usuario.Tel_Usuario || 'Sin teléfono',
+      Tel_Usuario: Usuario.Tel_Usuario || 'Sin teléfono',
+      estado: Usuario.Est_Usuario || 'En Formación',
+      Est_Usuario: Usuario.Est_Usuario || 'En Formación',
+      cenCon: Usuario.CenCon_Usuario || 'No',
+      CenCon_Usuario: Usuario.CenCon_Usuario || 'No',
       sancionado: Usuario.San_Usuario === "Si",
-      ficha: Usuario.ficha?.Num_Ficha || null,
-      programa: Usuario.ficha?.programas?.Nom_Programa || null,
-      roles: Usuario.rolesUsuario?.map((UR) => UR.rolUsuario?.Nom_Rol).filter(Boolean) || [],
-      // Totales agregados de reservas para las tarjetas de estadisticas del aprendiz
-      totalReservas: Reservas.length,
-      consumidas: Reservas.filter((R) => R.Est_Reserva === "Consumido").length,
-      canceladas: Reservas.filter((R) => R.Est_Reserva === "Cancelado").length,
-      vencidas: Reservas.filter((R) => R.Est_Reserva === "Vencido").length,
+      San_Usuario: Usuario.San_Usuario || 'No',
+      ficha: Usuario.ficha ? { Num_Ficha: Usuario.ficha.Num_Ficha } : null,
+      Num_Ficha: Usuario.ficha?.Num_Ficha || 'Sin ficha',
+      programa: Usuario.ficha?.programas?.Nom_Programa || 'Sin programa',
+      Nom_Programa: Usuario.ficha?.programas?.Nom_Programa || 'Sin programa',
+      roles: roles,
+      rol: roles.join(", ") || (Usuario.CenCon_Usuario === "Si" ? "Aprendiz Interno" : "Aprendiz Externo"),
+      totalReservas,
+      consumidas,
+      canceladas,
+      vencidas,
+      porcentajeCumplimiento,
       excepcionales: Reservas.filter((R) => R.Exc_Reserva === "Si").length,
       diasAsistidos: Dias_Con_Consumo.length
     };
 
     return {
       perfil: Perfil,
+      aprendiz: Perfil,
       roles: Perfil.roles,
       historial: Reservas
     };
@@ -1311,6 +1351,147 @@ class ReportesService {
   }
 
   /**
+   * Obtiene datos completos de auditoria para exportacion de reportes (Estadisticas + Nominal 100%)
+   */
+  async getPorPeriodo(periodo = "mensual", filtros = {}) {
+    const { inicioStr, finStr } = this.resolverRangoFechas({
+      periodo,
+      fecha: filtros.fecha,
+      anio: filtros.anio,
+      semana: filtros.semana,
+      mes: filtros.mes,
+      fechaInicio: filtros.fechaInicio,
+      fechaFin: filtros.fechaFin
+    });
+
+    const whereClause = {
+      Fec_Reserva: { [Op.between]: [inicioStr, finStr] }
+    };
+
+    if (filtros.tipoAlimento && filtros.tipoAlimento !== "Todos") {
+      whereClause.Tip_Reserva = filtros.tipoAlimento;
+    }
+
+    const reservas = await ReservaModel.findAll({
+      where: whereClause,
+      include: [
+        {
+          model: UsuariosModel,
+          as: "usuario",
+          attributes: [
+            "Id_Usuario", "Nom_Usuario", "Ape_Usuario", "TipDoc_Usuario", "NumDoc_Usuario",
+            "Tel_Usuario", "Cor_Usuario", "CenCon_Usuario", "San_Usuario", "Est_Usuario"
+          ],
+          include: [
+            {
+              model: FichasModel,
+              as: "ficha",
+              attributes: ["Num_Ficha"],
+              include: [{
+                model: ProgramaModel,
+                as: "programas",
+                attributes: ["Nom_Programa"]
+              }]
+            },
+            {
+              model: UsuariosRolModel,
+              as: "rolesUsuario",
+              include: [{
+                model: RolesModel,
+                as: "rolUsuario",
+                attributes: ["Nom_Rol"]
+              }]
+            }
+          ]
+        },
+        {
+          model: PlatosModel,
+          as: "plato",
+          attributes: ["Id_Plato", "Nom_Plato", "Img_Plato", "Tip_Plato"]
+        },
+        {
+          model: PlatosModel,
+          as: "bebida",
+          attributes: ["Id_Plato", "Nom_Plato", "Tipo_Item", "Subtipo_Bebida"]
+        }
+      ],
+      order: [["Fec_Reserva", "ASC"], ["createdAt", "ASC"]]
+    });
+
+    let totalGeneradas = 0;
+    let totalConsumidas = 0;
+    let totalVerificadas = 0;
+    let totalCanceladas = 0;
+    let totalVencidas = 0;
+    let desayunos = 0;
+    let almuerzos = 0;
+    let cenas = 0;
+    let internos = 0;
+    let externos = 0;
+
+    const registros = reservas.map((r) => {
+      const roles = r.usuario?.rolesUsuario?.map((ru) => ru.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+      const esInterno = roles.some(rol => String(rol).toLowerCase().includes("interno")) || String(r.usuario?.CenCon_Usuario).toLowerCase() === "si";
+      const rolStr = roles.join(", ") || (esInterno ? "Aprendiz Interno" : "Aprendiz Externo");
+
+      if (r.Est_Reserva === "Generado") totalGeneradas++;
+      else if (r.Est_Reserva === "Consumido") totalConsumidas++;
+      else if (r.Est_Reserva === "Verificado") totalVerificadas++;
+      else if (r.Est_Reserva === "Cancelado") totalCanceladas++;
+      else if (r.Est_Reserva === "Vencido") totalVencidas++;
+
+      if (r.Tip_Reserva === "Desayuno") desayunos++;
+      else if (r.Tip_Reserva === "Almuerzo") almuerzos++;
+      else if (r.Tip_Reserva === "Cena") cenas++;
+
+      if (esInterno) internos++;
+      else externos++;
+
+      return {
+        Id_Reserva: r.Id_Reserva,
+        Fecha: r.Fec_Reserva,
+        Hora_Consumo: r.updatedAt,
+        TipDoc: r.usuario?.TipDoc_Usuario || "CC",
+        NumDoc: r.usuario?.NumDoc_Usuario || "N/A",
+        NombreCompleto: `${r.usuario?.Nom_Usuario || ""} ${r.usuario?.Ape_Usuario || ""}`.trim(),
+        Rol: rolStr,
+        CenCon_Usuario: r.usuario?.CenCon_Usuario || "No",
+        Num_Ficha: r.usuario?.ficha?.Num_Ficha || "Sin ficha",
+        Programa: r.usuario?.ficha?.programas?.Nom_Programa || "Sin programa",
+        Tipo_Comida: r.Tip_Reserva,
+        Plato: r.plato?.Nom_Plato || "Plato del Día",
+        Bebida: r.bebida?.Nom_Plato || "Ninguna",
+        Estado: r.Est_Reserva,
+        Tel_Usuario: r.usuario?.Tel_Usuario || "Sin teléfono",
+        Cor_Usuario: r.usuario?.Cor_Usuario || "Sin correo"
+      };
+    });
+
+    const totalReservas = reservas.length;
+    const porcentajeAsistencia = totalReservas > 0 ? Number(((totalConsumidas / totalReservas) * 100).toFixed(1)) : 0;
+
+    return {
+      periodo,
+      rango: { inicio: inicioStr, fin: finStr },
+      resumen: {
+        totalReservas,
+        totalGeneradas,
+        totalConsumidas,
+        totalVerificadas,
+        totalCanceladas,
+        totalVencidas,
+        desayunos,
+        almuerzos,
+        cenas,
+        internos,
+        externos,
+        porcentajeAsistencia
+      },
+      registros
+    };
+  }
+
+  /**
    * Obtiene la tabla nominal de consumidores que efectivamente consumieron alimentos en el periodo filtrado
    */
   async getConsumidoresNominales(filtros = {}) {
@@ -1379,6 +1560,11 @@ class ReportesService {
           model: PlatosModel,
           as: "plato",
           attributes: ["Id_Plato", "Nom_Plato", "Img_Plato", "Tip_Plato"]
+        },
+        {
+          model: PlatosModel,
+          as: "bebida",
+          attributes: ["Id_Plato", "Nom_Plato", "Tipo_Item", "Subtipo_Bebida"]
         }
       ],
       order: [["Fec_Reserva", "DESC"], ["updatedAt", "DESC"]]
@@ -1400,8 +1586,13 @@ class ReportesService {
         Num_Ficha: r.usuario?.ficha?.Num_Ficha || "Sin ficha",
         Programa: r.usuario?.ficha?.programas?.Nom_Programa || "Sin programa",
         Tipo_Comida: r.Tip_Reserva,
-        Plato: r.plato?.Nom_Plato || "Plato del Dia",
+        Plato: r.plato?.Nom_Plato || "Plato del Día",
         Id_Plato: r.plato?.Id_Plato,
+        Bebida: r.bebida?.Nom_Plato || "Ninguna",
+        Id_Bebida: r.bebida?.Id_Plato,
+        Subtipo_Bebida: r.bebida?.Subtipo_Bebida || "NINGUNA",
+        Tel_Usuario: r.usuario?.Tel_Usuario || "Sin teléfono",
+        Cor_Usuario: r.usuario?.Cor_Usuario || "Sin correo",
         Estado: r.Est_Reserva
       };
     });
@@ -1554,6 +1745,165 @@ class ReportesService {
       totalInternosAfectados: alertas.filter(a => a.CenCon_Usuario === "Si").length,
       totalExternosAfectados: alertas.filter(a => a.CenCon_Usuario !== "Si").length,
       registros: alertas
+    };
+  }
+
+  // ===========================================================================
+  // TAB 4: REPORTE DE FICHAS EN JORNADA DE CAMPO Y SENA EMPRESA
+  // ===========================================================================
+  async getReporteCampo(filtros = {}) {
+    const { periodo, fechaInicio, fechaFin, unidad, numFicha } = filtros;
+    let inicioStr = fechaInicio;
+    let finStr = fechaFin;
+
+    if (!inicioStr || !finStr) {
+      const hoy = obtenerFechaColombia();
+      if (periodo === 'diario') {
+        inicioStr = hoy;
+        finStr = hoy;
+      } else if (periodo === 'semanal') {
+        const { inicioSemanaStr, finSemanaStr } = VencimientoService.getRangoSemana();
+        inicioStr = inicioSemanaStr;
+        finStr = finSemanaStr;
+      } else if (periodo === 'mensual') {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const ultimoDia = new Date(y, d.getMonth() + 1, 0).getDate();
+        inicioStr = `${y}-${m}-01`;
+        finStr = `${y}-${m}-${String(ultimoDia).padStart(2, '0')}`;
+      } else if (periodo === 'anual') {
+        const y = new Date().getFullYear();
+        inicioStr = `${y}-01-01`;
+        finStr = `${y}-12-31`;
+      } else {
+        inicioStr = hoy;
+        finStr = hoy;
+      }
+    }
+
+    const whereActas = {
+      Fec_Servicio: { [Op.between]: [inicioStr, finStr] }
+    };
+
+    if (unidad && unidad !== 'TODAS') {
+      whereActas.Unidad_Productiva = unidad;
+    }
+
+    if (numFicha && String(numFicha).trim()) {
+      whereActas.Num_Ficha = { [Op.like]: `%${String(numFicha).trim()}%` };
+    }
+
+    const actas = await SolicitudesCampoModel.findAll({
+      where: whereActas,
+      include: [
+        {
+          model: UsuariosModel,
+          as: 'solicitante',
+          attributes: ['Id_Usuario', 'Nom_Usuario', 'Ape_Usuario', 'NumDoc_Usuario', 'Tel_Usuario', 'Cor_Usuario']
+        }
+      ],
+      order: [['Fec_Servicio', 'DESC'], ['createdAt', 'DESC']]
+    });
+
+    const idsFichasSet = new Set();
+    const unidadesSet = new Set();
+    let totalAprendices = 0;
+    let totalEntregados = 0;
+
+    const distribucionMap = new Map();
+
+    actas.forEach(a => {
+      idsFichasSet.add(a.Id_Ficha);
+      unidadesSet.add(a.Unidad_Productiva);
+      totalAprendices += Number(a.Total_Aprendices_Guardados || 0);
+      totalEntregados += Number(a.Total_Almuerzos_Entregados || 0);
+
+      const u = a.Unidad_Productiva;
+      if (!distribucionMap.has(u)) {
+        distribucionMap.set(u, { unidad: u, totalFichas: 0, totalAprendices: 0, totalEntregados: 0 });
+      }
+      const item = distribucionMap.get(u);
+      item.totalFichas++;
+      item.totalAprendices += Number(a.Total_Aprendices_Guardados || 0);
+      item.totalEntregados += Number(a.Total_Almuerzos_Entregados || 0);
+    });
+
+    const totalNoReclamados = Math.max(0, totalAprendices - totalEntregados);
+    const distribucionUnidades = Array.from(distribucionMap.values());
+
+    const idsActas = actas.map(a => a.Id_Solicitud_Campo);
+    let aprendicesNominal = [];
+
+    if (idsActas.length > 0) {
+      const reservas = await ReservaModel.findAll({
+        where: {
+          Id_Solicitud_Campo: { [Op.in]: idsActas }
+        },
+        include: [
+          {
+            model: UsuariosModel,
+            as: 'usuario',
+            attributes: ['Id_Usuario', 'Nom_Usuario', 'Ape_Usuario', 'NumDoc_Usuario', 'TipDoc_Usuario', 'Tel_Usuario', 'Cor_Usuario', 'CenCon_Usuario'],
+            include: [
+              {
+                model: FichasModel,
+                as: 'ficha',
+                attributes: ['Num_Ficha'],
+                include: [{ model: ProgramaModel, as: 'programas', attributes: ['Nom_Programa'] }]
+              }
+            ]
+          },
+          { model: PlatosModel, as: 'plato', attributes: ['Id_Plato', 'Nom_Plato'] },
+          { model: PlatosModel, as: 'bebida', attributes: ['Id_Plato', 'Nom_Plato', 'Subtipo_Bebida'] },
+          {
+            model: SolicitudesCampoModel,
+            as: 'solicitudCampo',
+            attributes: ['Codigo_Acta', 'Unidad_Productiva', 'Detalle_Lugar_Practica', 'Hora_Estimada_Llegada'],
+            include: [{ model: UsuariosModel, as: 'solicitante', attributes: ['Nom_Usuario', 'Ape_Usuario'] }]
+          }
+        ],
+        order: [['Fec_Reserva', 'DESC'], ['createdAt', 'ASC']]
+      });
+
+      aprendicesNominal = reservas.map(r => ({
+        Id_Reserva: r.Id_Reserva,
+        Id_Usuario: r.usuario?.Id_Usuario,
+        Fecha: r.Fec_Reserva,
+        Codigo_Acta: r.solicitudCampo?.Codigo_Acta || '--',
+        NumDoc: r.usuario?.NumDoc_Usuario || '--',
+        TipDoc: r.usuario?.TipDoc_Usuario || 'CC',
+        NombreCompleto: `${r.usuario?.Nom_Usuario || ''} ${r.usuario?.Ape_Usuario || ''}`.trim(),
+        Rol: r.usuario?.CenCon_Usuario === 'Si' ? 'Aprendiz Interno' : 'Aprendiz Externo',
+        Num_Ficha: r.usuario?.ficha?.Num_Ficha || '--',
+        Nom_Programa: r.usuario?.ficha?.programas?.Nom_Programa || '--',
+        Unidad_Productiva: r.solicitudCampo?.Unidad_Productiva || '--',
+        Lugar_Practica: r.solicitudCampo?.Detalle_Lugar_Practica || '--',
+        Nom_Plato: r.plato?.Nom_Plato || 'Plato General',
+        Nom_Bebida: r.bebida?.Nom_Plato || 'Bebida General',
+        Subtipo_Bebida: r.bebida?.Subtipo_Bebida || 'NINGUNA',
+        Instructor_Solicitante: r.solicitudCampo?.solicitante ? `${r.solicitudCampo.solicitante.Nom_Usuario} ${r.solicitudCampo.solicitante.Ape_Usuario}` : 'Instructor',
+        Hora_Recogida: r.Hora_Limite_Extendida || r.solicitudCampo?.Hora_Estimada_Llegada || '14:30',
+        Estado: r.Est_Reserva,
+        Tel_Usuario: r.usuario?.Tel_Usuario || 'Sin teléfono',
+        Cor_Usuario: r.usuario?.Cor_Usuario || 'Sin correo'
+      }));
+    }
+
+    return {
+      periodo: periodo || 'personalizado',
+      rango: { inicio: inicioStr, fin: finStr },
+      resumen: {
+        totalFichas: idsFichasSet.size,
+        totalAprendices,
+        totalEntregados,
+        totalNoReclamados,
+        totalUnidades: unidadesSet.size,
+        porcentajeCumplimiento: totalAprendices > 0 ? Number(((totalEntregados / totalAprendices) * 100).toFixed(1)) : 0
+      },
+      distribucionUnidades,
+      actas,
+      aprendicesNominal
     };
   }
 

@@ -4,6 +4,7 @@
 
 import PlatoModel from "../Models/PlatosModels.js";
 import { encolarEventoSync } from "./SyncOutboxService.js";
+import { normalizarTexto } from "../Utils/textUtils.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -37,6 +38,21 @@ class PlatosService {
   }
 
   async create(data) {
+    // Validacion de duplicados normalizando nombre y descripcion
+    const nombreNorm = normalizarTexto(data.Nom_Plato);
+    const descNorm = normalizarTexto(data.Des_Plato);
+    const tipoItem = data.Tipo_Item || "PLATO";
+
+    const existentes = await PlatoModel.findAll({ where: { Tipo_Item: tipoItem } });
+    const esDuplicado = existentes.some(item => 
+      normalizarTexto(item.Nom_Plato) === nombreNorm &&
+      normalizarTexto(item.Des_Plato) === descNorm
+    );
+
+    if (esDuplicado) {
+      throw new Error("Ya existe un registro con el mismo nombre y descripcion en la base de datos");
+    }
+
     const plato = await PlatoModel.create(data);
     const imgBase64 = obtenerBase64Imagen(plato.Img_Plato);
 
@@ -49,6 +65,9 @@ class PlatosService {
         Nom_Plato: plato.Nom_Plato,
         Des_Plato: plato.Des_Plato,
         Tip_Plato: plato.Tip_Plato,
+        Tipo_Item: plato.Tipo_Item,
+        Subtipo_Bebida: plato.Subtipo_Bebida,
+        Tip_Comida_Item: plato.Tip_Comida_Item,
         Img_Plato: plato.Img_Plato,
         Img_Base64: imgBase64
       }
@@ -58,11 +77,31 @@ class PlatosService {
   }
 
   async update(id, data) {
+    const platoExistente = await PlatoModel.findByPk(id);
+    if (!platoExistente) throw new Error("Plato no encontrado");
+
+    // Validacion de duplicados al actualizar
+    if (data.Nom_Plato) {
+      const nombreNorm = normalizarTexto(data.Nom_Plato);
+      const descNorm = normalizarTexto(data.Des_Plato !== undefined ? data.Des_Plato : platoExistente.Des_Plato);
+      const tipoItem = data.Tipo_Item || platoExistente.Tipo_Item;
+
+      const existentes = await PlatoModel.findAll({ where: { Tipo_Item: tipoItem } });
+      const esDuplicado = existentes.some(item => 
+        item.Id_Plato !== id &&
+        normalizarTexto(item.Nom_Plato) === nombreNorm &&
+        normalizarTexto(item.Des_Plato) === descNorm
+      );
+
+      if (esDuplicado) {
+        throw new Error("Ya existe un registro con el mismo nombre y descripcion en la base de datos");
+      }
+    }
+
     const [updated] = await PlatoModel.update(data, { where: { Id_Plato: id } });
-    if (updated === 0) {
-      const existe = await PlatoModel.findByPk(id);
-      if (!existe) throw new Error("Plato no encontrado");
-      throw new Error("No hubo cambios en el plato");
+    if (updated === 0 && data.Img_Plato === platoExistente.Img_Plato) {
+      // Si no hubo cambios de campos
+      return true;
     }
 
     const platoActualizado = await PlatoModel.findByPk(id);
@@ -77,6 +116,9 @@ class PlatosService {
         Nom_Plato: platoActualizado.Nom_Plato,
         Des_Plato: platoActualizado.Des_Plato,
         Tip_Plato: platoActualizado.Tip_Plato,
+        Tipo_Item: platoActualizado.Tipo_Item,
+        Subtipo_Bebida: platoActualizado.Subtipo_Bebida,
+        Tip_Comida_Item: platoActualizado.Tip_Comida_Item,
         Img_Plato: platoActualizado.Img_Plato,
         Img_Base64: imgBase64
       }

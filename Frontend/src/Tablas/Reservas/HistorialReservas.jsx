@@ -16,84 +16,100 @@ import ModalCederReserva from "../../Paginas/Reservas/ModalCederReserva.jsx";
 
 const CONFIG_ESTADO = {
     Generado: {
-        label: "Pendiente",
-        icon: Clock,
-        clases: "bg-amber-50 text-amber-700 border-amber-200",
-        dot: "bg-amber-400",
-        borde: "border-l-amber-400",
-        modalBanner: "from-amber-400 to-orange-400",
+        label: "Generado",
+        icon: CheckCircle2,
+        clases: "bg-emerald-100 text-emerald-800 border-emerald-300",
+        dot: "bg-emerald-500",
+        borde: "border-l-emerald-500",
+        modalBanner: "from-emerald-500 to-teal-600",
     },
     Generada: {
+        label: "Generado",
+        icon: CheckCircle2,
+        clases: "bg-emerald-100 text-emerald-800 border-emerald-300",
+        dot: "bg-emerald-500",
+        borde: "border-l-emerald-500",
+        modalBanner: "from-emerald-500 to-teal-600",
+    },
+    Pendiente: {
         label: "Pendiente",
         icon: Clock,
-        clases: "bg-amber-50 text-amber-700 border-amber-200",
-        dot: "bg-amber-400",
-        borde: "border-l-amber-400",
-        modalBanner: "from-amber-400 to-orange-400",
+        clases: "bg-amber-100 text-amber-800 border-amber-300",
+        dot: "bg-amber-500",
+        borde: "border-l-amber-500",
+        modalBanner: "from-amber-400 to-orange-500",
     },
     Verificado: {
         label: "Verificado",
         icon: ShieldCheck,
-        clases: "bg-blue-50 text-blue-700 border-blue-200",
-        dot: "bg-blue-400",
-        borde: "border-l-blue-400",
-        modalBanner: "from-blue-400 to-indigo-400",
+        clases: "bg-amber-100 text-amber-800 border-amber-300",
+        dot: "bg-amber-500",
+        borde: "border-l-amber-500",
+        modalBanner: "from-amber-400 to-orange-500",
     },
     Verificada: {
         label: "Verificado",
         icon: ShieldCheck,
-        clases: "bg-blue-50 text-blue-700 border-blue-200",
-        dot: "bg-blue-400",
-        borde: "border-l-blue-400",
-        modalBanner: "from-blue-400 to-indigo-400",
+        clases: "bg-amber-100 text-amber-800 border-amber-300",
+        dot: "bg-amber-500",
+        borde: "border-l-amber-500",
+        modalBanner: "from-amber-400 to-orange-500",
+    },
+    Pendiente_Cesion: {
+        label: "Cesión Pendiente",
+        icon: Clock,
+        clases: "bg-amber-100 text-amber-800 border-amber-300",
+        dot: "bg-amber-500",
+        borde: "border-l-amber-500",
+        modalBanner: "from-amber-400 to-orange-500",
     },
     Consumido: {
         label: "Consumido",
         icon: CheckCircle2,
-        clases: "bg-emerald-50 text-emerald-700 border-emerald-200",
-        dot: "bg-emerald-400",
-        borde: "border-l-emerald-400",
-        modalBanner: "from-emerald-400 to-teal-400",
+        clases: "bg-slate-200 text-slate-700 border-slate-400",
+        dot: "bg-slate-500",
+        borde: "border-l-slate-400",
+        modalBanner: "from-slate-500 to-slate-600",
     },
     Consumida: {
         label: "Consumido",
         icon: CheckCircle2,
-        clases: "bg-emerald-50 text-emerald-700 border-emerald-200",
-        dot: "bg-emerald-400",
-        borde: "border-l-emerald-400",
-        modalBanner: "from-emerald-400 to-teal-400",
+        clases: "bg-slate-200 text-slate-700 border-slate-400",
+        dot: "bg-slate-500",
+        borde: "border-l-slate-400",
+        modalBanner: "from-slate-500 to-slate-600",
     },
     Vencido: {
-        label: "Vencida",
+        label: "Vencido",
         icon: XCircle,
-        clases: "bg-red-50 text-red-700 border-red-200",
-        dot: "bg-red-400",
-        borde: "border-l-red-400",
-        modalBanner: "from-red-400 to-rose-500",
+        clases: "bg-rose-100 text-rose-800 border-rose-300",
+        dot: "bg-rose-500",
+        borde: "border-l-rose-500",
+        modalBanner: "from-rose-500 to-red-600",
     },
     Vencida: {
-        label: "Vencida",
+        label: "Vencido",
         icon: XCircle,
-        clases: "bg-red-50 text-red-700 border-red-200",
-        dot: "bg-red-400",
-        borde: "border-l-red-400",
-        modalBanner: "from-red-400 to-rose-500",
+        clases: "bg-rose-100 text-rose-800 border-rose-300",
+        dot: "bg-rose-500",
+        borde: "border-l-rose-500",
+        modalBanner: "from-rose-500 to-red-600",
     },
     Cancelado: {
         label: "Cancelado",
         icon: XCircle,
-        clases: "bg-slate-100 text-slate-500 border-slate-200",
-        dot: "bg-slate-300",
-        borde: "border-l-slate-300",
-        modalBanner: "from-slate-300 to-slate-400",
+        clases: "bg-rose-100 text-rose-800 border-rose-300",
+        dot: "bg-rose-500",
+        borde: "border-l-rose-500",
+        modalBanner: "from-rose-500 to-red-600",
     },
     Cancelada: {
-        label: "Cancelada",
+        label: "Cancelado",
         icon: XCircle,
-        clases: "bg-slate-100 text-slate-500 border-slate-200",
-        dot: "bg-slate-300",
-        borde: "border-l-slate-300",
-        modalBanner: "from-slate-300 to-slate-400",
+        clases: "bg-rose-100 text-rose-800 border-rose-300",
+        dot: "bg-rose-500",
+        borde: "border-l-rose-500",
+        modalBanner: "from-rose-500 to-red-600",
     },
 };
 
@@ -414,15 +430,34 @@ function TarjetaReserva({ reserva, onCancelar, cancelando, onVerQR, onCeder }) {
 
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-2">
-                        <p className="text-sm font-semibold text-slate-800 leading-snug truncate">
-                            {reserva.plato?.Nom_Plato ?? "Plato no disponible"}
-                        </p>
+                        <div>
+                            <p className="text-sm font-semibold text-slate-800 leading-snug truncate">
+                                {reserva.plato?.Nom_Plato ?? "Plato no disponible"}
+                            </p>
+                            {reserva.bebida?.Nom_Plato && (
+                                <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                                    <span>🥤 {reserva.bebida.Nom_Plato}</span>
+                                    {reserva.bebida.Subtipo_Bebida && (
+                                        <span className="text-[10px] text-slate-400">
+                                            ({reserva.bebida.Subtipo_Bebida === 'FRIA' ? 'Bebida Fría' : reserva.bebida.Subtipo_Bebida === 'CALIENTE' ? 'Bebida Caliente' : ''})
+                                        </span>
+                                    )}
+                                </p>
+                            )}
+                        </div>
                         <span className={`inline-flex items-center gap-1 shrink-0 text-[11px] font-semibold
                              px-2 py-0.5 rounded-full border ${estado.clases}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${estado.dot}`} />
                             {estado.label}
                         </span>
                     </div>
+
+                    {reserva.Estado_Cesion === 'PENDIENTE_ACEPTACION' && (
+                        <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>Solicitud de cesión enviada (esperando que tu compañero acepte). Tu código QR sigue activo a tu nombre.</span>
+                        </div>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-2 mb-3">
                         <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-lg border ${claseTipo}`}>
@@ -541,6 +576,8 @@ export default function HistorialReservas() {
     const usuario = JSON.parse(localStorage.getItem("usuario") || "null");
 
     const [Reservas, SetReservas] = useState([]);
+    const [solicitudesCesion, setSolicitudesCesion] = useState([]);
+    const [procesandoCesion, setProcesandoCesion] = useState(null);
     const [Cargando, SetCargando] = useState(true);
     const [Error, SetError] = useState(null);
     const [Completo, SetCompleto] = useState(false);
@@ -550,6 +587,36 @@ export default function HistorialReservas() {
     const [MensajeErr, SetMensajeErr] = useState(null);
     const [ReservaQR, SetReservaQR] = useState(null);
     const [reservaParaCeder, SetReservaParaCeder] = useState(null);
+
+    const CargarSolicitudesCesion = useCallback(async () => {
+        try {
+            const { data } = await apiAxios.get("/api/Reservas/ceder/pendientes");
+            setSolicitudesCesion(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("Error al consultar cesiones pendientes:", err.message);
+        }
+    }, []);
+
+    const ResponderSolicitudCesion = async (idReserva, accion) => {
+        setProcesandoCesion(idReserva);
+        try {
+            const { data } = await apiAxios.post("/api/Reservas/ceder/responder", {
+                Id_Reserva: idReserva,
+                idReserva: idReserva,
+                accion: accion
+            });
+            SetMensajeOk(data?.mensaje || (accion === "ACEPTAR" ? "¡Reserva aceptada exitosamente!" : "Solicitud de cesión rechazada."));
+            setTimeout(() => SetMensajeOk(null), 5000);
+            await CargarHistorial();
+            await CargarSolicitudesCesion();
+            window.dispatchEvent(new Event("reservasActualizadas"));
+        } catch (err) {
+            SetMensajeErr(err?.response?.data?.mensaje || err?.response?.data?.message || "No se pudo procesar la solicitud de cesión");
+            setTimeout(() => SetMensajeErr(null), 5000);
+        } finally {
+            setProcesandoCesion(null);
+        }
+    };
 
     const CargarHistorial = useCallback(async () => {
         SetCargando(true);
@@ -607,14 +674,16 @@ export default function HistorialReservas() {
 
     useEffect(() => {
         CargarHistorial();
+        CargarSolicitudesCesion();
         const alActualizarReservas = () => {
             CargarHistorial();
+            CargarSolicitudesCesion();
         };
         window.addEventListener("reservasActualizadas", alActualizarReservas);
         return () => {
             window.removeEventListener("reservasActualizadas", alActualizarReservas);
         };
-    }, [CargarHistorial]);
+    }, [CargarHistorial, CargarSolicitudesCesion]);
 
     return (
         <>
@@ -681,6 +750,63 @@ export default function HistorialReservas() {
                           text-red-700 text-sm font-medium px-4 py-3 rounded-xl">
                         <XCircle className="w-4 h-4 shrink-0" />
                         {MensajeErr}
+                    </div>
+                )}
+
+                {/* Tarjetas de ofertas de cesion recibidas (Pendientes de Aceptacion) */}
+                {solicitudesCesion.length > 0 && (
+                    <div className="space-y-3">
+                        {solicitudesCesion.map((sol) => (
+                            <div
+                                key={sol.Id_Reserva}
+                                className="p-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border-2 border-emerald-500/40 rounded-2xl shadow-sm relative overflow-hidden"
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                                        <HeartHandshake className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+                                                ¡Te ofrecen cederte una reserva!
+                                            </span>
+                                            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                                                {sol.Tip_Reserva}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm font-bold text-slate-800 mt-1">
+                                            {sol.cedente ? `${sol.cedente.Nom_Usuario || ''} ${sol.cedente.Ape_Usuario || ''}`.trim() : "Un compañero"} te está cediendo su ración
+                                        </p>
+                                        <p className="text-xs text-slate-600 mt-0.5">
+                                            Fecha: <span className="font-semibold text-slate-800">{FormatearFecha(sol.Fec_Reserva)}</span> · Plato: <span className="font-semibold text-slate-800">{sol.plato?.Nom_Plato || "Plato del día"}</span>
+                                            {sol.bebida?.Nom_Plato && <span> · Bebida: <span className="font-semibold text-slate-800">{sol.bebida.Nom_Plato}</span></span>}
+                                        </p>
+                                        <div className="mt-3 flex items-center gap-2 flex-wrap">
+                                            <button
+                                                onClick={() => ResponderSolicitudCesion(sol.Id_Reserva, "ACEPTAR")}
+                                                disabled={procesandoCesion === sol.Id_Reserva}
+                                                className="px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                                            >
+                                                {procesandoCesion === sol.Id_Reserva ? (
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                )}
+                                                Aceptar Reserva
+                                            </button>
+                                            <button
+                                                onClick={() => ResponderSolicitudCesion(sol.Id_Reserva, "RECHAZAR")}
+                                                disabled={procesandoCesion === sol.Id_Reserva}
+                                                className="px-3.5 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all flex items-center gap-1.5 disabled:opacity-50"
+                                            >
+                                                <XCircle className="w-3.5 h-3.5" />
+                                                No aceptar / Rechazar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 

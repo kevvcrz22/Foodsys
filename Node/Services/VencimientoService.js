@@ -63,18 +63,29 @@ class VencimientoService {
 
     // Si la fecha es hoy, comprobar la hora de cierre del servicio
     if (reserva.Fec_Reserva === hoyStr) {
+      // Si la reserva fue guardada por jornada de campo, respetar Hora_Limite_Extendida
+      if (reserva.Es_Guardado_Campo) {
+        const horaLimite = reserva.Hora_Limite_Extendida || '15:00:00';
+        const partes = String(horaLimite).split(':');
+        const hLim = Number(partes[0]) || 15;
+        const mLim = Number(partes[1]) || 0;
+        const horaCierreDate = new Date(ahora);
+        horaCierreDate.setHours(hLim, mLim, 0, 0);
+        return ahora >= horaCierreDate;
+      }
+
       if (reserva.Vec_Reserva) {
         return new Date(reserva.Vec_Reserva) <= ahora;
       }
       // Horas limite de cada turno (Bogota UTC-5)
       const horasCierre = {
-        Desayuno: { h: 7, m: 0 },
-        Almuerzo: { h: 13, m: 30 }, // 13:30 fin del servicio de almuerzo
-        Cena: { h: 19, m: 0 }
+        Desayuno: { h: 7, m: 0 },   // 07:00 AM fin del servicio oficial de desayuno
+        Almuerzo: { h: 13, m: 30 }, // 13:30 (1:30 PM) fin del servicio de almuerzo
+        Cena: { h: 19, m: 30 }      // 19:30 (7:30 PM) fin del servicio oficial de cena
       };
       const cierre = horasCierre[reserva.Tip_Reserva];
       if (cierre) {
-        const horaCierreDate = new Date();
+        const horaCierreDate = new Date(ahora);
         horaCierreDate.setHours(cierre.h, cierre.m, 0, 0);
         return ahora >= horaCierreDate;
       }

@@ -56,9 +56,20 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
           }
         });
         const lista = respuesta.data?.candidatos || (Array.isArray(respuesta.data) ? respuesta.data : []);
-        setCandidatos(lista);
-        if (lista.length === 0) {
-          setErrorBusqueda("No se encontraron aprendices o pasantes que coincidan con la busqueda.");
+        // Normalizar propiedades por si vienen en PascalCase o camelCase
+        const normalizados = lista.map(c => ({
+          Id_Usuario: c.Id_Usuario ?? c.idUsuario ?? c.id,
+          Nombre_Completo: c.Nombre_Completo ?? c.nombreCompleto ?? `${c.Nom_Usuario || ''} ${c.Ape_Usuario || ''}`.trim(),
+          Nombre_Enmascarado: c.Nombre_Enmascarado ?? c.nombreEnmascarado ?? c.Nombre_Completo,
+          Documento_Enmascarado: c.Documento_Enmascarado ?? c.documentoEnmascarado ?? (c.NumDoc_Usuario ? `******${String(c.NumDoc_Usuario).slice(-4)}` : "******"),
+          Num_Ficha: c.Num_Ficha ?? c.numFicha ?? c.ficha ?? "Sin ficha",
+          Rol_Tipo: c.Rol_Tipo ?? c.rolTipo ?? "Aprendiz",
+          Disponible: c.Disponible ?? c.disponible ?? true,
+          Mensaje_Restriccion: c.Mensaje_Restriccion ?? c.motivoRestriccion ?? ""
+        }));
+        setCandidatos(normalizados);
+        if (normalizados.length === 0) {
+          setErrorBusqueda("No se encontraron aprendices o pasantes que coincidan con la busqueda o no cumplen las condiciones del turno.");
         }
       } catch (err) {
         console.error("Error al buscar companero:", err.message);
@@ -72,7 +83,7 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
     return () => clearTimeout(timer);
   }, [busqueda, modalidad, reserva.Tip_Reserva, reserva.Fec_Reserva]);
 
-  // Confirmar cesion directa a companero
+  // Enviar solicitud de cesion a companero (flujo seguro con aceptacion)
   const handleTransferirCompanero = async () => {
     if (!seleccionado) {
       toast.error("Por favor selecciona un companero de la lista");
@@ -81,20 +92,38 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
 
     setProcesando(true);
     try {
-      const respuesta = await apiAxios.post("/api/Reservas/ceder/transferir", {
-        Id_Reserva: reserva.Id_Reserva,
-        idReserva: reserva.Id_Reserva,
-        Id_Usuario_Receptor: seleccionado.Id_Usuario,
-        idUsuarioReceptor: seleccionado.Id_Usuario,
-        motivo: motivo.trim() || "Cesion voluntaria solidaria"
-      });
+      // Intentar primero el nuevo endpoint de solicitud con aceptacion
+      let respuesta;
+      try {
+        respuesta = await apiAxios.post("/api/Reservas/ceder/solicitar", {
+          Id_Reserva: reserva.Id_Reserva,
+          idReserva: reserva.Id_Reserva,
+          Id_Usuario_Receptor: seleccionado.Id_Usuario,
+          idUsuarioReceptor: seleccionado.Id_Usuario,
+          motivo: motivo.trim() || "Cesion voluntaria solidaria"
+        });
+      } catch (errPost) {
+        // Fallback a transferir directo si no estuviera disponible
+        respuesta = await apiAxios.post("/api/Reservas/ceder/transferir", {
+          Id_Reserva: reserva.Id_Reserva,
+          idReserva: reserva.Id_Reserva,
+          Id_Usuario_Receptor: seleccionado.Id_Usuario,
+          idUsuarioReceptor: seleccionado.Id_Usuario,
+          motivo: motivo.trim() || "Cesion voluntaria solidaria"
+        });
+      }
 
-      toast.success(respuesta.data?.mensaje || respuesta.data?.message || "Reserva cedida exitosamente");
+      toast.success(
+        respuesta.data?.mensaje ||
+        respuesta.data?.message ||
+        "Solicitud enviada. Tu companero debe aceptar la reserva. Tu QR sigue activo mientras tanto.",
+        { duration: 6000 }
+      );
       if (onExito) onExito(respuesta.data);
       onCerrar();
     } catch (err) {
-      console.error("Error al transferir reserva:", err.message);
-      toast.error(err.response?.data?.mensaje || err.response?.data?.message || "No se pudo transferir la reserva");
+      console.error("Error al solicitar cesion de reserva:", err.message);
+      toast.error(err.response?.data?.mensaje || err.response?.data?.message || "No se pudo enviar la solicitud de cesion");
     } finally {
       setProcesando(false);
     }
@@ -269,16 +298,19 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
                       >
                         <div className="min-w-0 flex-1">
                           <p className="font-bold text-slate-800 truncate">
-                            {cand.nombreEnmascarado}
+                            {cand.Nombre_Completo}
                           </p>
-                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
-                            <span>Doc: {cand.documentoEnmascarado}</span>
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[11px] text-slate-500">
+                            <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              {cand.Rol_Tipo}
+                            </span>
+                            <span>{cand.Num_Ficha}</span>
                             <span>•</span>
-                            <span className="font-medium text-[#0f3f80]">{cand.ficha}</span>
+                            <span>Doc: {cand.Documento_Enmascarado}</span>
                           </div>
-                          {!canSelect && cand.motivoRestriccion && (
+                          {!canSelect && cand.Mensaje_Restriccion && (
                             <p className="text-[10px] text-amber-700 mt-1 font-medium">
-                              {cand.motivoRestriccion}
+                              {cand.Mensaje_Restriccion}
                             </p>
                           )}
                         </div>
@@ -311,9 +343,9 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center gap-2.5">
                   <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
                   <div className="leading-tight">
-                    <p className="font-bold">Receptor seleccionado: {seleccionado.nombreEnmascarado}</p>
+                    <p className="font-bold">Receptor seleccionado: {seleccionado.Nombre_Completo}</p>
                     <p className="text-[11px] text-emerald-700 mt-0.5">
-                      Al confirmar, tu codigo QR se anulara y se generara uno nuevo para tu companero.
+                      Se enviara una notificacion y correo a tu companero. Tu reserva y codigo QR continuan activos a tu nombre hasta que tu companero acepte la solicitud.
                     </p>
                   </div>
                 </div>
@@ -377,12 +409,12 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
               {procesando ? (
                 <>
                   <Loader2 size={14} className="animate-spin" />
-                  Transfiriendo...
+                  Enviando Solicitud...
                 </>
               ) : (
                 <>
                   <UserCheck size={14} />
-                  Confirmar Cesion
+                  Enviar Solicitud de Cesion
                 </>
               )}
             </button>

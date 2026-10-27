@@ -7,7 +7,7 @@ import {
   Home, User, Edit, BarChart3, LogOut, Menu, X,
   CalendarCheck, Users, FileText, GraduationCap,
   Database, ShieldCheck, Utensils, ClipboardList,
-  Phone, Info, ChefHat, BookOpen, ExternalLink, MessageSquare, ArrowUpDown,
+  Phone, Info, ChefHat, BookOpen, ExternalLink, MessageSquare, ArrowUpDown, Clock, Wheat
 } from 'lucide-react';
 import { useNavBar } from "./CerrarSesion";
 import NavRolSelector from "./NavBar/NavRolSelector";
@@ -18,12 +18,37 @@ const NAV_POR_ROL = {
     { to: "/Administrador/Perfil",  label: "Mi Perfil", icon: User         },
     { to: "/Administrador/Reportes",label: "Reportes",  icon: BarChart3    },
     { to: "/Administrador/Novedades",label: "Novedades",icon: ClipboardList },
+    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
+  ],
+  Instructor: [
+    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
+    { to: "/Administrador/Perfil",  label: "Mi Perfil", icon: User         },
+    { to: "/Administrador/Reportes",label: "Reportes",  icon: BarChart3    },
+  ],
+  Vocero: [
+    { to: "/Interno",               label: "Inicio",    icon: Home         },
+    { to: "/Interno/Perfil",        label: "Mi Perfil", icon: User         },
+    { to: "/Interno/Reservar",      label: "Reservar",  icon: CalendarCheck },
+    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
+  ],
+  "SENA Empresa": [
+    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
+    { to: "/Administrador/Perfil",  label: "Mi Perfil", icon: User         },
+    { to: "/Administrador/Reportes",label: "Reportes",  icon: BarChart3    },
+  ],
+  Coordinacion: [
+    { to: "/coordinador",            label: "Inicio",     icon: Home         },
+    { to: "/coordinador/Perfil",     label: "Mi Perfil",  icon: User         },
+    { to: "/coordinador/Novedades",  label: "Novedades",  icon: ClipboardList },
+    { to: "/coordinador/Reportes",   label: "Reportes",   icon: BarChart3    },
+    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
   ],
   Supervisor: [
     { to: "/supervisor",            label: "Inicio",     icon: Home         },
     { to: "/supervisor/Perfil",     label: "Mi Perfil",  icon: User         },
     { to: "/supervisor/Registrar",  label: "Registrar",  icon: Edit         },
     { to: "/supervisor/Reportes",   label: "Reportes",   icon: BarChart3    },
+    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
   ],
   "Aprendiz Externo": [
     { to: "/Externo",               label: "Inicio",    icon: Home         },
@@ -50,6 +75,7 @@ const NAV_POR_ROL = {
     { to: "/coordinador/Perfil",     label: "Mi Perfil",  icon: User         },
     { to: "/coordinador/Novedades",  label: "Novedades",  icon: ClipboardList },
     { to: "/coordinador/Reportes",   label: "Reportes",   icon: BarChart3    },
+    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
   ],
   Cocina: [
     { to: '/Cocina',                 label: 'Inicio',          icon: Home         },
@@ -57,6 +83,7 @@ const NAV_POR_ROL = {
     { to: '/Cocina/Verificar',       label: 'Verificar QR',    icon: ShieldCheck  },
     { to: '/Cocina/Plan',            label: 'Plan del Día',    icon: ChefHat      },
     { to: '/Cocina/Reportes',        label: 'Reportes',        icon: BarChart3    },
+    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
   ],
   Bienestar: [
     { to: "/Bienestar",              label: "Inicio",       icon: Home          },
@@ -64,6 +91,7 @@ const NAV_POR_ROL = {
     { to: "/Bienestar/Plan",         label: "Plan del Día", icon: ChefHat       },
     { to: "/Bienestar/Reportes",     label: "Reportes",     icon: BarChart3     },
     { to: "/Bienestar/Novedades",    label: "Novedades",    icon: ClipboardList },
+    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
   ],
 };
 
@@ -72,6 +100,7 @@ const TABLAS_POR_ROL = {
     { to: "/usuarios", label: "Usuarios", icon: Users },
     { to: "/aprendices", label: "Aprendices", icon: User },
     { to: "/pasantes", label: "Pasantes", icon: Users },
+    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzos en Campo", icon: Wheat },
     { to: "/pqrsf-admin", label: "PQRSF Interventoría", icon: MessageSquare },
     { to: "/sincronizacion", label: "Sincronización Offline", icon: ArrowUpDown },
     { to: "/UsuariosRoles", label: "Asignar Roles", icon: ShieldCheck },
@@ -79,8 +108,9 @@ const TABLAS_POR_ROL = {
     { to: "/fichas", label: "Fichas", icon: FileText },
     { to: "/programas", label: "Programas", icon: GraduationCap },
     { to: "/reservas", label: "Reservas", icon: Database },
-    { to: "/platos", label: "Platos", icon: Utensils },
+    { to: "/platos", label: "Platos y Bebidas", icon: Utensils },
     { to: "/menus", label: "Menús", icon: ClipboardList },
+    { to: "/configuracion-raciones", label: "Horarios y Raciones", icon: Clock },
   ],
   Coordinador: [
     { to: '/aprendices', label: 'Aprendices', icon: User },
@@ -93,7 +123,7 @@ const TABLAS_POR_ROL = {
   ],
   Cocina: [
     { to: '/menus',  label: 'Menús',  icon: ClipboardList },
-    { to: '/platos', label: 'Platos', icon: Utensils      },
+    { to: '/platos', label: 'Platos y Bebidas', icon: Utensils },
   ],
 };
 

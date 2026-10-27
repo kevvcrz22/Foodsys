@@ -33,6 +33,9 @@ import TurnosRoute from './Routes/TurnosRoute.js';
 import NotificacionesRoute from './Routes/NotificacionesRoute.js';
 import SyncRoute from './Routes/SyncRoute.js';
 import PqrsfRoute from './Routes/PqrsfRoute.js';
+import ConfigHorariosRoute from './Routes/ConfigHorariosRoute.js';
+import CampoRoute from './Routes/CampoRoute.js';
+import { optimizarImagenesExistentes } from './Utils/imageOptimizer.js';
 
 // ---------- 3. IMPORTACIÓN DE MODELOS ----------
 import FichasModel from './Models/FichasModel.js';
@@ -47,6 +50,8 @@ import TurnosModel from './Models/TurnosModel.js';
 import NotificacionesModel from './Models/NotificacionesModel.js';
 import PqrsfModel from './Models/PqrsfModel.js';
 import CentrosSenaConfigModel from './Models/CentrosSenaConfigModel.js';
+import ConfigHorariosModel from './Models/ConfigHorariosModel.js';
+import SolicitudesCampoModel from './Models/SolicitudesCampoModel.js';
 import NovedadesService from './Services/NovedadesService.js';
 import { syncWorkerInstance } from './Jobs/SyncWorker.js';
 
@@ -184,6 +189,10 @@ aplicacion.use('/api/Sync', SyncRoute);
 aplicacion.use('/api/sync', SyncRoute);
 aplicacion.use('/api/Pqrsf', PqrsfRoute);
 aplicacion.use('/api/pqrsf', PqrsfRoute);
+aplicacion.use('/api/config-raciones', ConfigHorariosRoute);
+aplicacion.use('/api/ConfigRaciones', ConfigHorariosRoute);
+aplicacion.use('/api/Campo', CampoRoute);
+aplicacion.use('/api/campo', CampoRoute);
 
 // ---------- 7. ARCHIVOS ESTÁTICOS ----------
 const rutaArchivo = fileURLToPath(import.meta.url);
@@ -393,6 +402,7 @@ try {
 
     await PqrsfModel.sync({ alter: false });
     await CentrosSenaConfigModel.sync({ alter: false });
+    await ConfigHorariosModel.sync({ alter: false });
 
     // Sembrar configuracion base del Centro Agropecuario La Granja si no existe
     const conteoCentros = await CentrosSenaConfigModel.count();
@@ -447,6 +457,10 @@ MenuModel.belongsTo(PlatosModel, { foreignKey: "Id_Plato", as: "plato" });
 
 ReservasModel.belongsTo(PlatosModel, { foreignKey: "Id_Plato", as: "plato" });
 PlatosModel.hasMany(ReservasModel, { foreignKey: "Id_Plato", as: "reservas" });
+ReservasModel.belongsTo(PlatosModel, { foreignKey: "Id_Bebida", as: "bebida" });
+PlatosModel.hasMany(ReservasModel, { foreignKey: "Id_Bebida", as: "reservasBebida" });
+ReservasModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario_Cedente", as: "usuarioCedente" });
+ReservasModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario_Receptor_Pendiente", as: "usuarioReceptor" });
 
 UsuariosModel.hasMany(TurnosModel, { foreignKey: "Id_Usuario", as: "turnos" });
 TurnosModel.belongsTo(UsuariosModel, { foreignKey: "Id_Usuario", as: "supervisor" });
@@ -460,6 +474,11 @@ PqrsfModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' })
 PlatosModel.hasMany(PqrsfModel, { foreignKey: 'Id_Plato_Relacionado', as: 'pqrsfs' });
 PqrsfModel.belongsTo(PlatosModel, { foreignKey: 'Id_Plato_Relacionado', as: 'plato' });
 PqrsfModel.belongsTo(PlatosModel, { foreignKey: 'Id_Plato_Relacionado', as: 'platoRelacionado' });
+
+SolicitudesCampoModel.hasMany(ReservasModel, { foreignKey: 'Id_Solicitud_Campo', as: 'reservasGuardadas' });
+ReservasModel.belongsTo(SolicitudesCampoModel, { foreignKey: 'Id_Solicitud_Campo', as: 'solicitudCampo' });
+SolicitudesCampoModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario_Solicitante', as: 'solicitante' });
+SolicitudesCampoModel.belongsTo(FichasModel, { foreignKey: 'Id_Ficha', as: 'ficha' });
 
 // ========== 10. TAREA DE MANTENIMIENTO: ESTADOS ESPECIALES EXPIRADOS ==========
 try {
@@ -521,6 +540,15 @@ const PUERTO = process.env.PORT || 8000;
 const servidorHttp = http.createServer(aplicacion);
 initSocket(servidorHttp, opcionesCors);
 
-servidorHttp.listen(PUERTO, '0.0.0.0', () => console.log(`Servidor ejecutándose en http://0.0.0.0:${PUERTO}`));
+servidorHttp.listen(PUERTO, '0.0.0.0', () => {
+  console.log(`Servidor ejecutándose en http://0.0.0.0:${PUERTO}`);
+  optimizarImagenesExistentes()
+    .then(res => {
+      if (res && res.totalOptimizados > 0) {
+        console.log(`✅ [imageOptimizer] Optimizadas ${res.totalOptimizados} imagenes (${res.bytesAhorradosKB} KB ahorrados)`);
+      }
+    })
+    .catch(err => console.warn('Nota optimizador de imagenes:', err.message));
+});
 
 export default aplicacion;

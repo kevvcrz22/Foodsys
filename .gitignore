@@ -5,6 +5,7 @@ Node/node_modules/
 
 # Variables de entorno y secretos
 .env
+Frontend/.env
 Node/.env
 *.env.local
 
@@ -34,4 +35,6 @@ Node/backup_uploads/
 *.sql
 !Node/Database/indices_optimizacion.sql
 !Node/Database/migration_v2.sql
-!Node/Database/migration_v3_innovacion.sql
+!Node/Database/migration_v3_innovacion.sql
+!Node/Database/migration_v4_platos_bebidas_horarios.sql
+!Node/Database/migration_v5_campo_sena_empresa.sql

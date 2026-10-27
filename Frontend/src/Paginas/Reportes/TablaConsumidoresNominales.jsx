@@ -122,6 +122,7 @@ const TablaConsumidoresNominales = ({
       { header: "Programa de Formacion", key: "Programa" },
       { header: "Tipo de Comida", key: "Tipo_Comida" },
       { header: "Plato Consumido", key: "Plato" },
+      { header: "Bebida", key: "Bebida" },
       { header: "Estado", key: "Estado" }
     ];
 
@@ -160,6 +161,7 @@ const TablaConsumidoresNominales = ({
       { header: "Ficha", key: "Num_Ficha" },
       { header: "Comida", key: "Tipo_Comida" },
       { header: "Plato", key: "Plato" },
+      { header: "Bebida", key: "Bebida" },
       { header: "Estado", key: "Estado" }
     ];
 
@@ -250,7 +252,8 @@ const TablaConsumidoresNominales = ({
                 <th className="px-4 py-3">Ficha</th>
                 <th className="px-4 py-3">Programa</th>
                 <th className="px-4 py-3">Comida</th>
-                <th className="px-4 py-3">Plato Consumido</th>
+                <th className="px-4 py-3">Plato</th>
+                <th className="px-4 py-3">Bebida</th>
                 <th className="px-4 py-3">Estado</th>
               </tr>
             </thead>
@@ -294,16 +297,19 @@ const TablaConsumidoresNominales = ({
                   <td className="px-4 py-3 max-w-xs truncate text-gray-600 font-medium">
                     {item.Plato}
                   </td>
+                  <td className="px-4 py-3 max-w-xs truncate text-gray-600 font-medium">
+                    {item.Bebida || "Ninguna"}
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                        item.Estado === "Consumido"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : item.Estado === "Verificado"
-                          ? "bg-blue-100 text-blue-700"
-                          : item.Estado === "Vencido"
-                          ? "bg-rose-100 text-rose-700"
-                          : "bg-amber-100 text-amber-700"
+                      className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${
+                        item.Estado === "Generado"
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                          : item.Estado === "Consumido"
+                          ? "bg-slate-200 text-slate-700 border-slate-400"
+                          : item.Estado === "Verificado" || item.Estado === "Pendiente"
+                          ? "bg-amber-100 text-amber-800 border-amber-300"
+                          : "bg-rose-100 text-rose-800 border-rose-300"
                       }`}
                     >
                       {item.Estado}
@@ -347,8 +353,10 @@ const TablaConsumidoresNominales = ({
       {/* Modal de Historial Individual del Aprendiz */}
       {aprendizSeleccionado && (
         <ModalHistorialAprendiz
+          documento={aprendizSeleccionado.NumDoc}
           aprendizId={aprendizSeleccionado.Id_Usuario}
           nombreAprendiz={aprendizSeleccionado.NombreCompleto}
+          aprendizInicial={aprendizSeleccionado}
           onClose={() => setAprendizSeleccionado(null)}
         />
       )}

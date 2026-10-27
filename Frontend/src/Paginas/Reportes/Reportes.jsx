@@ -11,7 +11,7 @@
 // sobre cualquier aprendiz para revisar su historial individual y exportar a Excel y PDF.
 
 import React, { useState, useEffect, useCallback } from "react";
-import { BarChart3, TrendingUp, PieChart, UserX, HeartHandshake } from "lucide-react";
+import { BarChart3, TrendingUp, PieChart, UserX, HeartHandshake, Tractor } from "lucide-react";
 import apiAxios from "../../api/axiosConfig";
 import { useSocketListener } from "../../api/socket";
 
@@ -25,6 +25,7 @@ import ReporteDiario from "./ReporteDiario";
 import ReporteNoConsumidos from "./ReporteNoConsumidos";
 import TablaConsumidoresNominales from "./TablaConsumidoresNominales";
 import ReporteSeguimientoBienestar from "./ReporteSeguimientoBienestar";
+import ReporteCampo from "./ReporteCampo";
 import { descargarBlobUniversal, confirmarExportacion } from "../../utils/exportUtils";
 
 const Reportes = () => {
@@ -260,6 +261,18 @@ const Reportes = () => {
               <HeartHandshake className="w-4 h-4 text-purple-300" />
               <span>Tab 3 — Alerta Seguimiento Bienestar</span>
             </button>
+
+            <button
+              onClick={() => Set_VistaActiva("campo")}
+              className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
+                VistaActiva === "campo"
+                  ? "bg-emerald-700 text-white border-emerald-700 shadow-sm shadow-emerald-200"
+                  : "bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-50"
+              }`}
+            >
+              <Tractor className="w-4 h-4 text-emerald-500" />
+              <span>Tab 4 — 🌾 Jornada de Campo & SENA Empresa</span>
+            </button>
           </>
         )}
       </div>
@@ -269,6 +282,8 @@ const Reportes = () => {
         <ReporteNoConsumidos />
       ) : VistaActiva === "seguimiento_bienestar" ? (
         <ReporteSeguimientoBienestar />
+      ) : VistaActiva === "campo" ? (
+        <ReporteCampo />
       ) : (
         <>
           {/* Selector de periodo ISO / fechas */}

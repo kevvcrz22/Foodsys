@@ -1,27 +1,28 @@
 // Frontend/src/Paginas/Cocina/PlanCocina.jsx
+// Modulo de planificacion de alimentos para el personal de Cocina, Supervisor y Bienestar al Aprendiz.
 //
-// Modulo de planificacion de alimentos para el personal de Cocina y Bienestar al Aprendiz.
-//
-// CARACTERISTICAS PRINCIPALES:
-//   1. Horarios de Preparacion (-5 Horas antes de cada servicio):
-//      - Desayuno: servicio 06:00 -> Preparacion inicia 01:00 AM (-5h)
-//      - Almuerzo: servicio 11:30 -> Preparacion inicia 06:30 AM (-5h)
-//      - Cena: servicio 18:00 -> Preparacion inicia 13:00 / 01:00 PM (-5h)
-//   2. Exportacion a PDF y Excel del Plan del Dia con consolidado de platos y firmas.
-//   3. Vista exclusiva para Bienestar al Aprendiz:
-//      - Al hacer clic encima de cada plato, se despliega un modal con los nombres,
-//        documentos y fichas de los aprendices que solicitaron ese plato.
-//   4. Guia de usuario paso a paso y diseno 100% responsivo para cualquier dispositivo.
+// CARACTERISTICAS PRINCIPALES V5.0:
+//   1. Horarios Oficiales de Preparacion (-5 Horas antes de cada servicio):
+//      - Desayuno: servicio 06:00 – 07:00 -> Preparacion inicia 01:00 AM (-5h). Vence a las 07:00 AM.
+//      - Almuerzo: servicio 11:30 – 13:30 -> Preparacion inicia 06:30 AM (-5h). Vence a las 13:30 PM.
+//      - Cena:     servicio 18:00 – 19:30 -> Preparacion inicia 13:00 / 01:00 PM (-5h). Vence a las 19:30 PM.
+//   2. Selector rapido [ Hoy ], [ Mañana ] y selector de fecha para planificar produccion de cualquier dia.
+//   3. Tarjetas detalladas de Platos a Preparar y Bebidas (Frias y Calientes).
+//   4. Bloque exclusivo: "🌾 Almuerzos por Guardar — Jornada de Campo / SENA Empresa".
+//   5. Modal nominal al hacer clic sobre cualquier plato, bebida o acta de campo.
+//   6. Exportacion consolidada a Excel y PDF con firmas oficiales institucionales.
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Utensils, BarChart3, Clock, AlertTriangle, RefreshCw,
   CheckCircle, XCircle, ChefHat, Calendar, Bell, Info,
   Sun, Coffee, Moon, TrendingUp, Loader2, FileSpreadsheet,
-  FileText, Users, Eye, HelpCircle, ChevronDown, ChevronUp, X
+  FileText, Users, Eye, HelpCircle, ChevronDown, ChevronUp, X,
+  Wheat, Sparkles, CupSoda
 } from 'lucide-react';
 import apiAxios from '../../api/axiosConfig';
-import { exportarAExcel, exportarAPDF, confirmarExportacion } from '../../utils/exportUtils';
+import { exportarAExcel, exportarAPDF } from '../../utils/exportUtils';
+import FoodsysToast from '../../Components/UI/FoodsysToast';
 
 const API_BASE = '/api/Cocina';
 
@@ -33,8 +34,8 @@ const CONFIG_TURNO = {
     bg: '#fff7ed',
     border: '#fed7aa',
     badge: 'bg-orange-100 text-orange-700',
-    consumo: '06:00 – 07:00',
-    cierre: '07:00',
+    consumo: '06:00 – 07:00 AM',
+    cierre: '07:00 AM',
     inicioPrep: '01:00 AM (Inicio de Preparación -5h)'
   },
   Almuerzo: {
@@ -43,8 +44,8 @@ const CONFIG_TURNO = {
     bg: '#f0fdfa',
     border: '#99f6e4',
     badge: 'bg-teal-100 text-teal-700',
-    consumo: '11:30 – 13:30',
-    cierre: '13:30',
+    consumo: '11:30 AM – 01:30 PM',
+    cierre: '13:30 PM',
     inicioPrep: '06:30 AM (Inicio de Preparación -5h)'
   },
   Cena: {
@@ -53,16 +54,16 @@ const CONFIG_TURNO = {
     bg: '#eef2ff',
     border: '#c7d2fe',
     badge: 'bg-indigo-100 text-indigo-700',
-    consumo: '18:00 – 19:00',
-    cierre: '19:00',
+    consumo: '18:00 – 19:30 PM',
+    cierre: '19:30 PM',
     inicioPrep: '01:00 PM / 13:00 (Inicio de Preparación -5h)'
   },
 };
 
-// Modal de detalle de aprendices para un plato (vista de Bienestar y Administracion)
-const ModalDetalleAprendicesPlato = ({ plato, onClose }) => {
+// Modal de detalle de aprendices para un plato, bebida o ficha guardada
+const ModalDetalleAprendicesItem = ({ item, titulo, subtitulo, tipo, onClose }) => {
   const [busqueda, setBusqueda] = useState('');
-  const aprendices = plato.aprendices || [];
+  const aprendices = item.aprendices || [];
 
   const aprendicesFiltrados = useMemo(() => {
     if (!busqueda.trim()) return aprendices;
@@ -71,24 +72,24 @@ const ModalDetalleAprendicesPlato = ({ plato, onClose }) => {
       a.NombreCompleto?.toLowerCase().includes(q) ||
       String(a.NumDoc).includes(q) ||
       String(a.Num_Ficha).includes(q) ||
-      a.Nom_Programa?.toLowerCase().includes(q)
+      a.Programa?.toLowerCase().includes(q)
     );
   }, [aprendices, busqueda]);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Cabecera del modal */}
         <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-teal-50/50">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-teal-100 text-teal-800">
-                {plato.tipo}
+                {tipo || 'Detalle'}
               </span>
-              <h2 className="text-lg font-bold text-gray-900">{plato.Nom_Plato}</h2>
+              <h2 className="text-lg font-bold text-gray-900">{titulo || item.Nom_Plato}</h2>
             </div>
             <p className="text-xs text-gray-500 mt-0.5">
-              Lista nominal de aprendices que reservaron este plato ({aprendices.length} aprendices)
+              {subtitulo || `Lista nominal de aprendices asignados (${aprendices.length} personas)`}
             </p>
           </div>
           <button
@@ -99,14 +100,14 @@ const ModalDetalleAprendicesPlato = ({ plato, onClose }) => {
           </button>
         </div>
 
-        {/* Buscador rapido */}
-        <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+        {/* Buscador dentro del modal */}
+        <div className="p-3 bg-gray-50 border-b border-gray-100">
           <input
             type="text"
             placeholder="Buscar por nombre, documento o ficha..."
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
-            className="w-full text-xs sm:text-sm px-3.5 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+            className="w-full text-xs sm:text-sm px-3.5 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 outline-hidden bg-white"
           />
         </div>
 
@@ -114,7 +115,7 @@ const ModalDetalleAprendicesPlato = ({ plato, onClose }) => {
         <div className="overflow-y-auto p-4 flex-1">
           {aprendicesFiltrados.length === 0 ? (
             <div className="text-center py-10 text-gray-400 text-xs">
-              No se encontraron aprendices con ese criterio de busqueda
+              No se encontraron aprendices con ese criterio de búsqueda
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -125,35 +126,27 @@ const ModalDetalleAprendicesPlato = ({ plato, onClose }) => {
                     <th className="px-3 py-2.5">Aprendiz</th>
                     <th className="px-3 py-2.5">Ficha</th>
                     <th className="px-3 py-2.5">Programa</th>
-                    <th className="px-3 py-2.5">Convivencia</th>
                     <th className="px-3 py-2.5">Estado</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {aprendicesFiltrados.map((item, idx) => (
+                  {aprendicesFiltrados.map((itemA, idx) => (
                     <tr key={idx} className="hover:bg-teal-50/30 transition">
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
-                        {item.TipDoc || "CC"} {item.NumDoc}
+                        {itemA.NumDoc}
                       </td>
                       <td className="px-3 py-2 font-semibold text-gray-900 whitespace-nowrap">
-                        {item.NombreCompleto}
+                        {itemA.NombreCompleto}
                       </td>
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
-                        {item.Num_Ficha}
+                        {itemA.Num_Ficha}
                       </td>
-                      <td className="px-3 py-2 text-gray-600 truncate max-w-xs" title={item.Nom_Programa}>
-                        {item.Nom_Programa}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                          item.CenCon_Usuario === "Si" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"
-                        }`}>
-                          {item.CenCon_Usuario === "Si" ? "Interno" : "Externo"}
-                        </span>
+                      <td className="px-3 py-2 text-gray-600 truncate max-w-xs" title={itemA.Programa}>
+                        {itemA.Programa}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                          {item.Est_Reserva}
+                          {itemA.Estado}
                         </span>
                       </td>
                     </tr>
@@ -178,59 +171,67 @@ const ModalDetalleAprendicesPlato = ({ plato, onClose }) => {
   );
 };
 
-// Tarjeta de cantidad por plato (con click habilitado para ver detalle)
-const TarjetaPlato = ({ plato, total, puedeVerDetalle, onVerDetalle }) => {
+// Tarjeta de item (Plato o Bebida)
+const TarjetaItemCocina = ({ item, esBebida, puedeVerDetalle, onVerDetalle }) => {
   const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
   return (
     <div
-      onClick={() => puedeVerDetalle && onVerDetalle && onVerDetalle(plato)}
-      className={`flex items-center gap-3 bg-white rounded-xl border border-gray-100 p-3 shadow-sm transition ${
+      onClick={() => puedeVerDetalle && onVerDetalle && onVerDetalle(item)}
+      className={`flex items-center gap-3 bg-white rounded-xl border border-gray-100 p-3 shadow-xs transition ${
         puedeVerDetalle ? 'hover:border-teal-400 hover:shadow-md cursor-pointer' : ''
       }`}
-      title={puedeVerDetalle ? 'Haz clic para ver listado nominal de aprendices que pidieron este plato' : ''}
+      title={puedeVerDetalle ? 'Haz clic para ver listado nominal de aprendices' : ''}
     >
-      {plato.Img_Plato ? (
+      {item.Img_Plato ? (
         <img
-          src={`${baseUrl}/uploads/${plato.Img_Plato}`}
-          alt={plato.Nom_Plato}
+          src={`${baseUrl}/uploads/${item.Img_Plato}`}
+          alt={item.Nom_Plato}
           className="w-12 h-12 rounded-lg object-cover shrink-0 border border-gray-100"
           onError={e => { e.target.style.display = 'none'; }}
         />
       ) : (
         <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-          <Utensils className="w-5 h-5 text-gray-300" />
+          {esBebida ? <CupSoda className="w-5 h-5 text-teal-600" /> : <Utensils className="w-5 h-5 text-gray-400" />}
         </div>
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="font-semibold text-gray-800 text-sm truncate">{plato.Nom_Plato}</p>
+          <p className="font-semibold text-gray-800 text-sm truncate">{item.Nom_Plato}</p>
+          {esBebida && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+              item.Subtipo_Bebida === 'CALIENTE' ? 'bg-orange-100 text-orange-800' : 'bg-sky-100 text-sky-800'
+            }`}>
+              {item.Subtipo_Bebida === 'CALIENTE' ? '☕ Caliente' : '🧊 Fría'}
+            </span>
+          )}
           {puedeVerDetalle && (
             <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-200">
               <Eye className="w-3 h-3" /> Ver lista
             </span>
           )}
         </div>
-        {plato.Des_Plato && (
-          <p className="text-xs text-gray-400 truncate">{plato.Des_Plato}</p>
+        {item.Des_Plato && (
+          <p className="text-xs text-gray-400 truncate">{item.Des_Plato}</p>
         )}
       </div>
       <div className="shrink-0 text-center">
-        <p className="text-2xl font-extrabold text-teal-700 leading-none">{total}</p>
-        <p className="text-xs text-gray-400 mt-0.5">platos</p>
+        <p className="text-2xl font-extrabold text-teal-700 leading-none">{item.total}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{esBebida ? 'bebidas' : 'platos'}</p>
       </div>
     </div>
   );
 };
 
-// Tarjeta de turno con totales, hora limite de preparacion (-5h) y lista de platos
-const TarjetaTurno = ({ tipo, datos, conteoEstado, puedeVerDetalle, onVerDetalle }) => {
+// Tarjeta de turno con platos y bebidas
+const TarjetaTurno = ({ tipo, platos, bebidas, conteoEstado, puedeVerDetalle, onVerDetalleItem }) => {
   const cfg = CONFIG_TURNO[tipo];
   const IconoTurno = cfg.icono;
-  const platosTurno = datos?.filter(p => p.tipo === tipo) || [];
+  const platosTurno = platos?.filter(p => p.tipo === tipo) || [];
+  const bebidasTurno = bebidas?.filter(b => b.tipo === tipo) || [];
 
   return (
     <div
-      className="rounded-2xl border shadow-sm overflow-hidden"
+      className="rounded-2xl border shadow-xs overflow-hidden"
       style={{ borderColor: cfg.border, background: cfg.bg }}
     >
       {/* Encabezado del turno */}
@@ -251,94 +252,106 @@ const TarjetaTurno = ({ tipo, datos, conteoEstado, puedeVerDetalle, onVerDetalle
             </div>
           </div>
 
-          {/* Badge obligatorio de preparacion 5 horas antes */}
-          <div className="flex items-center gap-1.5 bg-white/90 border border-orange-300 text-orange-950 px-3 py-1.5 rounded-xl text-xs font-bold shadow-2xs self-start sm:self-auto">
-            <Clock className="w-3.5 h-3.5 text-orange-600" />
-            <span>{cfg.inicioPrep}</span>
-          </div>
-
-          <div className="text-right">
-            <p className="text-3xl font-extrabold leading-none" style={{ color: cfg.color }}>
-              {conteoEstado?.total || 0}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">reservas activas</p>
+          <div className="flex items-center gap-2 flex-wrap text-xs">
+            <span className="bg-white/80 border border-slate-200 px-3 py-1 rounded-xl text-slate-700 font-semibold">
+              <Clock className="w-3.5 h-3.5 inline mr-1 text-slate-500" />
+              {cfg.inicioPrep}
+            </span>
+            <span className="bg-white/80 border border-slate-200 px-3 py-1 rounded-xl text-slate-700 font-semibold">
+              Vence: <strong>{cfg.cierre}</strong>
+            </span>
           </div>
         </div>
-
-        {/* Barra de estados */}
-        {conteoEstado && (
-          <div className="flex gap-2 mt-3 flex-wrap">
-            {[
-              { key: 'Generado', label: 'Generado', bg: '#dbeafe', color: '#1d4ed8' },
-              { key: 'Verificado', label: 'Verificado', bg: '#fef3c7', color: '#b45309' },
-              { key: 'Consumido', label: 'Consumido', bg: '#d1fae5', color: '#065f46' },
-              { key: 'Cancelado', label: 'Cancelado', bg: '#fee2e2', color: '#991b1b' },
-              { key: 'Vencido', label: 'Vencido', bg: '#f1f5f9', color: '#475569' },
-            ].map(est => (
-              <span
-                key={est.key}
-                className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                style={{ background: est.bg, color: est.color }}
-              >
-                {est.label}: {conteoEstado[est.key] ?? 0}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Lista de platos del turno */}
-      <div className="p-4 space-y-2">
-        {platosTurno.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-4">
-            Sin platos asignados para este turno
-          </p>
-        ) : (
-          platosTurno.map(p => (
-            <TarjetaPlato
-              key={p.Nom_Plato}
-              plato={p}
-              total={p.total}
-              puedeVerDetalle={puedeVerDetalle}
-              onVerDetalle={onVerDetalle}
-            />
-          ))
+      {/* Contenido del turno */}
+      <div className="p-5 space-y-4">
+        {/* Platos Fuertes */}
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <Utensils className="w-3.5 h-3.5 text-teal-600" /> Platos a Cocinar ({platosTurno.reduce((acc, p) => acc + p.total, 0)} raciones)
+          </h4>
+          {platosTurno.length === 0 ? (
+            <p className="text-xs text-gray-400 italic bg-white/50 p-3 rounded-xl border border-gray-100">
+              No hay platos registrados para {tipo} en esta fecha.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {platosTurno.map(plato => (
+                <TarjetaItemCocina
+                  key={plato.Nom_Plato}
+                  item={plato}
+                  esBebida={false}
+                  puedeVerDetalle={puedeVerDetalle}
+                  onVerDetalle={(p) => onVerDetalleItem({ item: p, tipo, esBebida: false })}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Bebidas */}
+        {bebidasTurno.length > 0 && (
+          <div className="space-y-2 pt-2 border-t border-slate-200/60">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <CupSoda className="w-3.5 h-3.5 text-sky-600" /> Bebidas a Servir ({bebidasTurno.reduce((acc, b) => acc + b.total, 0)} raciones)
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {bebidasTurno.map(bebida => (
+                <TarjetaItemCocina
+                  key={bebida.Nom_Plato}
+                  item={bebida}
+                  esBebida={true}
+                  puedeVerDetalle={puedeVerDetalle}
+                  onVerDetalle={(b) => onVerDetalleItem({ item: b, tipo, esBebida: true })}
+                />
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>
   );
 };
 
-// Componente principal: PlanCocina
+// Componente principal PlanCocina
 const PlanCocina = () => {
+  const hoyBogotaStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
+
+  // Fecha seleccionada (default hoy)
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(hoyBogotaStr);
+
   const [resumen, setResumen] = useState(null);
   const [excepcionales, setExcepcionales] = useState(null);
+  const [conteosTurnos, setConteosTurnos] = useState({ Desayuno: {}, Almuerzo: {}, Cena: {} });
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [nuevaExcepcional, setNuevaExcepcional] = useState(false);
-  const [conteosTurnos, setConteosTurnos] = useState({});
   const [mostrarGuia, setMostrarGuia] = useState(false);
 
-  // Modal para ver los aprendices de un plato seleccionado
-  const [platoSeleccionado, setPlatoSeleccionado] = useState(null);
+  // Modal para ver los aprendices
+  const [modalItem, setModalItem] = useState(null);
 
-  // Identificar rol del usuario actual
-  const rolActivo = localStorage.getItem('rol') || '';
-  const puedeVerDetalle = ['Bienestar', 'Administrador', 'Coordinador'].includes(rolActivo);
+  // Rol activo
+  const rolActivo = localStorage.getItem('rol') || localStorage.getItem('rolActivo') || '';
+  const puedeVerDetalle = ['Bienestar', 'Administrador', 'Coordinador', 'Supervisor', 'Cocina'].includes(rolActivo);
 
-  // Fecha de hoy formateada
-  const hoy = new Date().toLocaleDateString('es-CO', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
-  const fechaHoyStr = new Date().toISOString().split('T')[0];
+  // Helpers para fechas rapidas
+  const getMananaStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(d);
+  };
 
-  // Carga el resumen del dia y las excepcionales
+  const mananaBogotaStr = getMananaStr();
+
+  // Carga de datos de la fecha seleccionada
   const CargarDatos = useCallback(async () => {
     setCargando(true);
     setError('');
     try {
       const [resRes, excRes] = await Promise.all([
-        apiAxios.get(`${API_BASE}/plan-hoy`),
+        apiAxios.get(`${API_BASE}/plan/${fechaSeleccionada}`),
         apiAxios.get(`${API_BASE}/excepcionales-hoy`),
       ]);
       setResumen(resRes.data);
@@ -356,11 +369,11 @@ const PlanCocina = () => {
         Cena:     { ...cenRes.data.conteos, total: (cenRes.data.conteos?.Generado || 0) + (cenRes.data.conteos?.Verificado || 0) + (cenRes.data.conteos?.Consumido || 0) },
       });
     } catch (err) {
-      setError(err?.response?.data?.message || 'Error al cargar los datos. Verifica tu conexion.');
+      setError(err?.response?.data?.message || 'Error al cargar los datos del plan de cocina.');
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [fechaSeleccionada]);
 
   useEffect(() => {
     CargarDatos();
@@ -372,7 +385,6 @@ const PlanCocina = () => {
       try {
         const excRes = await apiAxios.get(`${API_BASE}/excepcionales-hoy`);
         const nuevaData = excRes.data;
-        
         setExcepcionales(prev => {
           if (prev && nuevaData.total > prev.total) {
             setNuevaExcepcional(true);
@@ -380,145 +392,212 @@ const PlanCocina = () => {
           }
           return nuevaData;
         });
-      } catch { /* ignorar errores de polling */ }
+      } catch { /* ignorar */ }
     }, 60_000);
     return () => clearInterval(intervalo);
   }, []);
 
   // Exportar consolidado a Excel
   const manejarExportarExcel = () => {
-    if (!resumen || !resumen.cantidadesPorPlato || resumen.cantidadesPorPlato.length === 0) {
-      alert('No hay platos programados en el plan de hoy para exportar.');
-      return;
-    }
+    if (!resumen) return;
 
-    const columnas = [
-      { header: 'Turno de Comida', key: 'tipo' },
-      { header: 'Hora Consumo', key: 'horarioConsumo' },
-      { header: 'Inicio de Preparación (-5h)', key: 'inicioPrep' },
-      { header: 'Nombre del Plato', key: 'Nom_Plato' },
-      { header: 'Descripción del Plato', key: 'Des_Plato' },
-      { header: 'Cantidad de Platos Requeridos', key: 'total' }
-    ];
-
-    const datosFormateados = resumen.cantidadesPorPlato.map(p => {
+    const platosDatos = (resumen.cantidadesPorPlato || []).map(p => {
       const cfg = CONFIG_TURNO[p.tipo] || {};
       return {
         tipo: p.tipo,
-        horarioConsumo: cfg.consumo || '--',
+        categoria: 'PLATO FUERTE',
+        nombreItem: p.Nom_Plato,
+        subtipo: '--',
+        horario: cfg.consumo || '--',
         inicioPrep: cfg.inicioPrep || '--',
-        Nom_Plato: p.Nom_Plato,
-        Des_Plato: p.Des_Plato || '',
         total: p.total
       };
     });
 
+    const bebidasDatos = (resumen.cantidadesPorBebida || []).map(b => {
+      const cfg = CONFIG_TURNO[b.tipo] || {};
+      return {
+        tipo: b.tipo,
+        categoria: 'BEBIDA',
+        nombreItem: b.Nom_Plato,
+        subtipo: b.Subtipo_Bebida === 'CALIENTE' ? 'Caliente' : 'Fría',
+        horario: cfg.consumo || '--',
+        inicioPrep: cfg.inicioPrep || '--',
+        total: b.total
+      };
+    });
+
+    const datosFormateados = [...platosDatos, ...bebidasDatos];
+
+    if (datosFormateados.length === 0) {
+      FoodsysToast.warning('No hay platos ni bebidas programadas en esta fecha para exportar.');
+      return;
+    }
+
+    const columnas = [
+      { header: 'Turno', key: 'tipo' },
+      { header: 'Categoría', key: 'categoria' },
+      { header: 'Ítem / Menú', key: 'nombreItem' },
+      { header: 'Temperatura', key: 'subtipo' },
+      { header: 'Horario Consumo', key: 'horario' },
+      { header: 'Inicio Preparación (-5h)', key: 'inicioPrep' },
+      { header: 'Cantidad Requerida', key: 'total' }
+    ];
+
     exportarAExcel({
       columnas,
       datos: datosFormateados,
-      nombreArchivo: `Plan_Cocina_${fechaHoyStr}`,
+      nombreArchivo: `Plan_Cocina_${fechaSeleccionada}`,
       tituloHoja: 'Plan de Cocina'
     });
   };
 
   // Exportar consolidado a PDF
   const manejarExportarPDF = () => {
-    if (!resumen || !resumen.cantidadesPorPlato || resumen.cantidadesPorPlato.length === 0) {
-      alert('No hay platos programados en el plan de hoy para exportar.');
+    if (!resumen) return;
+
+    const platosDatos = (resumen.cantidadesPorPlato || []).map(p => {
+      const cfg = CONFIG_TURNO[p.tipo] || {};
+      return {
+        tipo: p.tipo,
+        item: `[Plato] ${p.Nom_Plato}`,
+        horario: cfg.consumo || '--',
+        prep: cfg.inicioPrep || '--',
+        cantidad: `${p.total} raciones`
+      };
+    });
+
+    const bebidasDatos = (resumen.cantidadesPorBebida || []).map(b => {
+      const cfg = CONFIG_TURNO[b.tipo] || {};
+      return {
+        tipo: b.tipo,
+        item: `[Bebida ${b.Subtipo_Bebida === 'CALIENTE' ? 'Caliente' : 'Fría'}] ${b.Nom_Plato}`,
+        horario: cfg.consumo || '--',
+        prep: cfg.inicioPrep || '--',
+        cantidad: `${b.total} raciones`
+      };
+    });
+
+    const datos = [...platosDatos, ...bebidasDatos];
+
+    if (datos.length === 0) {
+      FoodsysToast.warning('No hay datos para exportar en esta fecha.');
       return;
     }
 
     const columnas = [
       { header: 'Turno', key: 'tipo' },
-      { header: 'Horario', key: 'horarioConsumo' },
-      { header: 'Preparación (-5h)', key: 'inicioPrep' },
-      { header: 'Plato', key: 'Nom_Plato' },
-      { header: 'Cantidad', key: 'total' }
+      { header: 'Plato / Bebida', key: 'item' },
+      { header: 'Horario', key: 'horario' },
+      { header: 'Preparación (-5h)', key: 'prep' },
+      { header: 'Cantidad', key: 'cantidad' }
     ];
-
-    const datosFormateados = resumen.cantidadesPorPlato.map(p => {
-      const cfg = CONFIG_TURNO[p.tipo] || {};
-      return {
-        tipo: p.tipo,
-        horarioConsumo: cfg.consumo || '--',
-        inicioPrep: cfg.inicioPrep || '--',
-        Nom_Plato: p.Nom_Plato,
-        total: `${p.total} platos`
-      };
-    });
 
     exportarAPDF({
       columnas,
-      datos: datosFormateados,
-      nombreArchivo: `Plan_Cocina_${fechaHoyStr}`,
-      titulo: 'Plan y Consolidado de Cocina Foodsys',
-      subtitulo: `Fecha: ${fechaHoyStr} · Total de Platos Programados: ${resumen.totalReservasActivas}`
+      datos,
+      nombreArchivo: `Plan_Cocina_${fechaSeleccionada}`,
+      titulo: 'Plan Diario y Consolidado de Cocina Foodsys',
+      subtitulo: `Fecha de Producción: ${fechaSeleccionada} · Centro Agropecuario La Granja`
     });
   };
 
   if (cargando) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
-        <p className="text-gray-500 text-sm">Cargando plan de cocina...</p>
+        <p className="text-gray-500 text-sm font-semibold">Cargando plan diario de cocina...</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full min-h-screen bg-gray-50 px-4 py-6 md:px-8">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="w-full min-h-screen bg-gray-50 px-4 py-6 md:px-8 space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* ── Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* ── Encabezado y Selector de Fecha ── */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-gray-200 shadow-xs">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-orange-500 flex items-center justify-center shadow-md shrink-0">
-              <ChefHat className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center shadow-md shrink-0 text-white">
+              <ChefHat className="w-7 h-7" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900">Plan de Cocina</h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900">Plan Diario de Cocina</h1>
                 {puedeVerDetalle && (
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-100 text-purple-800">
-                    Vista Bienestar / Auditoría
+                    Auditoría / Bienestar
                   </span>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-gray-500 capitalize mt-0.5">{hoy}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Consolidado de preparación (-5h antes), platos, bebidas y raciones de campo
+              </p>
             </div>
           </div>
 
-          {/* Botones de accion: Actualizar, Exportar Excel y PDF */}
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {/* Selectores rápidos de fecha */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setFechaSeleccionada(hoyBogotaStr)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs ${
+                fechaSeleccionada === hoyBogotaStr
+                  ? 'bg-orange-500 text-white shadow-orange-200'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+            >
+              [ Hoy ]
+            </button>
+
+            <button
+              onClick={() => setFechaSeleccionada(mananaBogotaStr)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs ${
+                fechaSeleccionada === mananaBogotaStr
+                  ? 'bg-orange-500 text-white shadow-orange-200'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+            >
+              [ Mañana ]
+            </button>
+
+            <div className="relative">
+              <input
+                type="date"
+                value={fechaSeleccionada}
+                onChange={(e) => setFechaSeleccionada(e.target.value)}
+                className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-orange-400"
+              />
+            </div>
+
             <button
               onClick={manejarExportarExcel}
-              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs"
-              title="Descargar plan de hoy en Excel"
+              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition shadow-xs"
+              title="Descargar Excel"
             >
-              <FileSpreadsheet className="w-4 h-4" />
+              <FileSpreadsheet className="w-3.5 h-3.5" />
               <span>Excel</span>
             </button>
 
             <button
               onClick={manejarExportarPDF}
-              className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs"
-              title="Descargar plan de hoy en PDF"
+              className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition shadow-xs"
+              title="Descargar PDF"
             >
-              <FileText className="w-4 h-4" />
+              <FileText className="w-3.5 h-3.5" />
               <span>PDF</span>
             </button>
 
             <button
               onClick={CargarDatos}
-              className="flex items-center gap-1.5 bg-white border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-600 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs"
+              className="flex items-center gap-1 bg-white border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-600 px-3 py-2 rounded-xl text-xs font-semibold transition"
+              title="Recargar"
             >
-              <RefreshCw className="w-4 h-4" />
-              <span>Actualizar</span>
+              <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {/* Guia de usuario paso a paso */}
+        {/* Guía didáctica desplegable */}
         <div className="bg-white rounded-2xl border border-gray-200 p-3.5 shadow-xs">
           <button
             type="button"
@@ -527,17 +606,16 @@ const PlanCocina = () => {
           >
             <span className="flex items-center gap-1.5">
               <HelpCircle className="w-4 h-4 text-orange-500" />
-              ¿Como funciona el Plan de Cocina? (Guia paso a paso)
+              ¿Cómo funciona el Plan de Cocina? (Guía de preparación -5 horas)
             </span>
             {mostrarGuia ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
           {mostrarGuia && (
             <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600 space-y-1.5 leading-relaxed">
-              <p><strong>1. Regla de 5 Horas:</strong> El equipo de cocina prepara los alimentos con 5 horas de antelacion (Desayuno: 01:00 AM, Almuerzo: 06:30 AM, Cena: 01:00 PM).</p>
-              <p><strong>2. Consolidado de Platos:</strong> Cada tarjeta muestra la cantidad exacta de porciones necesarias de cada opcion de comida.</p>
-              <p><strong>3. Novedades y Excepcionales:</strong> Las reservas excepcionales de Almuerzo registradas antes de las 9:00 AM alertan inmediatamente con sonido y campana.</p>
-              <p><strong>4. Vista Exclusiva Bienestar:</strong> Los coordinadores y personal de Bienestar pueden hacer clic encima de cualquier plato para ver la lista nominal de aprendices que lo pidieron.</p>
-              <p><strong>5. Exportacion:</strong> Descarga la orden consolidada en PDF o Excel con fecha y horario oficial.</p>
+              <p><strong>1. Regla de -5 Horas:</strong> El personal de cocina inicia preparación 5 horas antes: Desayuno a las 01:00 AM, Almuerzo a las 06:30 AM y Cena a la 01:00 PM (13:00).</p>
+              <p><strong>2. Platos y Bebidas:</strong> Cada tarjeta muestra la cantidad consolidada de cada plato y de cada bebida (indicando si es Fría o Caliente).</p>
+              <p><strong>3. Jornadas de Campo:</strong> El bloque especial de abajo lista las raciones autorizadas para guardar a fichas que están en labores agrícolas o pecuarias lejanas.</p>
+              <p><strong>4. Lista Nominal al Clic:</strong> Haz clic sobre cualquier plato, bebida o acta para ver el listado de aprendices.</p>
             </div>
           )}
         </div>
@@ -547,121 +625,152 @@ const PlanCocina = () => {
           <div className="flex items-start gap-3 bg-amber-50 border-2 border-amber-400 rounded-2xl px-5 py-4 animate-pulse">
             <Bell className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-amber-800 text-sm">
-                ¡Nueva reserva excepcional detectada!
-              </p>
-              <p className="text-xs text-amber-700 mt-0.5">
-                El coordinador acaba de agregar una novedad de Almuerzo. Revisa el panel de excepcionales.
-              </p>
+              <p className="font-bold text-amber-800 text-sm">¡Nueva reserva excepcional detectada!</p>
+              <p className="text-xs text-amber-700 mt-0.5">El coordinador acaba de registrar una novedad de Almuerzo.</p>
             </div>
           </div>
         )}
 
-        {/* Error */}
-        {error && (
-          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-red-700">
-            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-            <p className="text-sm font-medium">{error}</p>
-          </div>
-        )}
-
+        {/* Totales generales */}
         {resumen && (
-          <>
-            {/* Totales generales */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { label: 'Total del dia', valor: resumen.totalReservasActivas, icono: BarChart3, bg: 'bg-teal-50', color: 'text-teal-700', iconColor: 'text-teal-500' },
-                { label: 'Canceladas', valor: resumen.totalesPorEstado?.Cancelado || 0, icono: XCircle, bg: 'bg-red-50', color: 'text-red-700', iconColor: 'text-red-500' },
-                { label: 'Vencidas', valor: resumen.totalesPorEstado?.Vencido || 0, icono: Clock, bg: 'bg-slate-50', color: 'text-slate-700', iconColor: 'text-slate-500' },
-                { label: 'Excepcionales', valor: excepcionales?.total || 0, icono: AlertTriangle, bg: 'bg-amber-50', color: 'text-amber-700', iconColor: 'text-amber-500' },
-              ].map(m => {
-                const IconoComp = m.icono;
-                return (
-                  <div key={m.label} className={`${m.bg} rounded-2xl p-4 flex items-center gap-3`}>
-                    <div className="w-10 h-10 bg-white/70 rounded-xl flex items-center justify-center shrink-0">
-                      <IconoComp className={`w-5 h-5 ${m.iconColor}`} />
-                    </div>
-                    <div>
-                      <p className={`text-3xl font-extrabold ${m.color} leading-none`}>{m.valor}</p>
-                      <p className={`text-xs font-medium ${m.color} opacity-75 mt-1`}>{m.label}</p>
-                    </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: 'Total Reservas Activas', valor: resumen.totalReservasActivas, icono: BarChart3, bg: 'bg-teal-50', color: 'text-teal-700', iconColor: 'text-teal-500' },
+              { label: 'Almuerzos en Campo', valor: (resumen.almuerzosGuardadosCampo || []).reduce((acc, a) => acc + a.Total_Aprendices_Guardados, 0), icono: Wheat, bg: 'bg-emerald-50', color: 'text-emerald-700', iconColor: 'text-emerald-500' },
+              { label: 'Canceladas / Vencidas', valor: (resumen.totalesPorEstado?.Cancelado || 0) + (resumen.totalesPorEstado?.Vencido || 0), icono: XCircle, bg: 'bg-rose-50', color: 'text-rose-700', iconColor: 'text-rose-500' },
+              { label: 'Excepcionales (Novedades)', valor: excepcionales?.total || 0, icono: AlertTriangle, bg: 'bg-amber-50', color: 'text-amber-700', iconColor: 'text-amber-500' },
+            ].map(m => {
+              const IconoComp = m.icono;
+              return (
+                <div key={m.label} className={`${m.bg} rounded-2xl p-4 flex items-center gap-3 border border-slate-200/50`}>
+                  <div className="w-10 h-10 bg-white/80 rounded-xl flex items-center justify-center shrink-0 shadow-xs">
+                    <IconoComp className={`w-5 h-5 ${m.iconColor}`} />
                   </div>
-                );
-              })}
+                  <div>
+                    <p className={`text-2xl font-extrabold ${m.color} leading-none`}>{m.valor}</p>
+                    <p className={`text-xs font-semibold ${m.color} opacity-80 mt-1`}>{m.label}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Turnos con platos, bebidas y calculo de 5 horas antes */}
+        {resumen && (
+          <div className="space-y-4">
+            {['Desayuno', 'Almuerzo', 'Cena'].map(tipo => (
+              <TarjetaTurno
+                key={tipo}
+                tipo={tipo}
+                platos={resumen.cantidadesPorPlato}
+                bebidas={resumen.cantidadesPorBebida}
+                conteoEstado={conteosTurnos[tipo]}
+                puedeVerDetalle={puedeVerDetalle}
+                onVerDetalleItem={({ item, tipo, esBebida }) => {
+                  setModalItem({
+                    aprendices: item.aprendices,
+                    titulo: item.Nom_Plato,
+                    subtitulo: esBebida ? `Bebida: ${item.Nom_Plato}` : `Plato: ${item.Nom_Plato}`,
+                    tipo: `${tipo} · ${esBebida ? 'Bebida' : 'Plato'}`
+                  });
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ============================================================
+            NUEVO BLOQUE: ALMUERZOS POR GUARDAR — JORNADA DE CAMPO / SENA EMPRESA
+        ============================================================ */}
+        {resumen && (
+          <div className="bg-white rounded-3xl p-6 border border-emerald-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap border-b border-emerald-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+                  <Wheat size={18} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
+                    🌾 Almuerzos por Guardar — Jornada de Campo / SENA Empresa ({resumen.almuerzosGuardadosCampo?.length || 0} actas)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Fichas con autorización de llegada tardía y raciones guardadas para hoy
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-3 py-1 rounded-xl">
+                {(resumen.almuerzosGuardadosCampo || []).reduce((acc, a) => acc + a.Total_Aprendices_Guardados, 0)} Raciones Guardadas
+              </span>
             </div>
 
-            {/* Panel de excepcionales del dia */}
-            {excepcionales?.total > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-amber-200 flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-amber-500" />
-                  <h2 className="font-bold text-amber-800 text-sm">
-                    Reservas Excepcionales Hoy ({excepcionales.total})
-                  </h2>
-                </div>
-                <div className="divide-y divide-amber-100">
-                  {excepcionales.reservas.map(r => (
-                    <div key={r.Id_Reserva} className="px-5 py-3 flex items-center gap-3 flex-wrap">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-800 text-sm truncate">{r.Aprendiz}</p>
-                        <p className="text-xs text-gray-500">Doc: {r.Documento} · {r.Tipo} · {r.Plato}</p>
-                        {r.Jus_Reserva && (
-                          <p className="text-xs text-amber-700 italic mt-0.5">{r.Jus_Reserva}</p>
-                        )}
+            {(!resumen.almuerzosGuardadosCampo || resumen.almuerzosGuardadosCampo.length === 0) ? (
+              <p className="text-xs text-slate-400 italic bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200 text-center">
+                No hay solicitudes de jornada de campo registradas para esta fecha ({fechaSeleccionada}).
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {resumen.almuerzosGuardadosCampo.map(acta => (
+                  <div
+                    key={acta.Id_Solicitud_Campo}
+                    className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-4 space-y-2 text-xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-mono font-bold text-emerald-800 bg-emerald-200/80 px-2 py-0.5 rounded-md text-[10px]">
+                          {acta.Codigo_Acta}
+                        </span>
+                        <h4 className="font-bold text-slate-900 text-sm mt-1">Ficha #{acta.Num_Ficha}</h4>
                       </div>
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
-                        r.Estado === 'Consumido' ? 'bg-green-100 text-green-700 border-green-200' :
-                        r.Estado === 'Cancelado' ? 'bg-red-100 text-red-700 border-red-200' :
-                        'bg-yellow-100 text-yellow-700 border-yellow-200'
-                      }`}>
-                        {r.Estado}
+                      <span className="text-[10px] font-bold bg-white text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
+                        {acta.Total_Aprendices_Guardados} raciones
                       </span>
                     </div>
-                  ))}
-                </div>
+
+                    <p className="text-slate-600 truncate font-medium" title={acta.Nom_Programa}>
+                      {acta.Nom_Programa}
+                    </p>
+
+                    <div className="bg-white p-2.5 rounded-xl border border-emerald-100 space-y-1 text-slate-700">
+                      <p><strong>Unidad:</strong> {acta.Unidad_Productiva}</p>
+                      <p><strong>Lugar:</strong> {acta.Detalle_Lugar_Practica}</p>
+                      <p><strong>Hora Recogida:</strong> {acta.Hora_Estimada_Llegada ? acta.Hora_Estimada_Llegada.substring(0, 5) : '14:30'}</p>
+                      <p><strong>Entregados:</strong> {acta.Total_Almuerzos_Entregados} de {acta.Total_Aprendices_Guardados}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-
-            {/* Turnos con platos y calculo de 5 horas antes */}
-            <div className="space-y-4">
-              {['Desayuno', 'Almuerzo', 'Cena'].map(tipo => (
-                <TarjetaTurno
-                  key={tipo}
-                  tipo={tipo}
-                  datos={resumen.cantidadesPorPlato}
-                  conteoEstado={conteosTurnos[tipo]}
-                  puedeVerDetalle={puedeVerDetalle}
-                  onVerDetalle={(plato) => setPlatoSeleccionado({ ...plato, tipo })}
-                />
-              ))}
-            </div>
-
-            {/* Nota informativa de horarios */}
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Info className="w-4 h-4 text-blue-500" />
-                <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">
-                  Horarios oficiales de preparacion y vencimiento automatico
-                </p>
-              </div>
-              <p className="text-xs text-blue-600">
-                El equipo de cocina inicia la preparacion <strong>5 horas antes</strong> de cada servicio. Las reservas no consumidas se marcan como <strong>Vencidas</strong> automaticamente al finalizar el turno:
-                Desayuno a las <strong>07:00</strong>, Almuerzo a las <strong>13:30</strong>, Cena a las <strong>19:00</strong>.
-              </p>
-              <p className="text-xs text-blue-500 mt-2">
-                <strong>Cancelaciones:</strong> los aprendices solo pueden cancelar hasta 9 horas antes del inicio del turno.
-                Desayuno: antes de las 21:00 del dia anterior · Almuerzo: antes de las 02:30 AM · Cena: antes de las 09:00 AM.
-              </p>
-            </div>
-          </>
+          </div>
         )}
+
+        {/* Nota informativa de horarios oficiales V5.0 */}
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-blue-600" />
+            <p className="text-xs font-bold text-blue-800 uppercase tracking-wider">
+              Horarios Oficiales Coordinados y Políticas Foodsys (V5.0)
+            </p>
+          </div>
+          <p className="text-xs text-blue-700 leading-relaxed">
+            • <strong>Desayuno:</strong> Servicio de 06:00 a 07:00 AM (vence 07:00 AM). Inicio de preparación cocina 01:00 AM (-5h). Solo Internos.<br />
+            • <strong>Almuerzo:</strong> Servicio de 11:30 AM a 01:30 PM (vence 13:30 PM, salvo raciones con jornada de campo autorizada que vencen en su hora extendida). Inicio cocina 06:30 AM (-5h).<br />
+            • <strong>Cena:</strong> Servicio de 18:00 a 19:30 PM (vence 19:30 PM). Inicio de preparación cocina 13:00 PM (-5h). Solo Internos.<br />
+            • <strong>Cancelación de reservas:</strong> Permitida para todas las comidas hasta las 10:30 PM (22:30:00) del día anterior.<br />
+            • <strong>Reserva Excepcional (Novedades):</strong> Hasta las 09:00 AM del mismo día (exclusivo para Almuerzo).<br />
+            • <strong>Ceder Reserva:</strong> Desayuno hasta las 05:30 AM, Almuerzo hasta las 10:30 AM, Cena hasta las 17:00 PM.
+          </p>
+        </div>
       </div>
 
-      {/* Modal de Detalle de Aprendices por Plato (Bienestar) */}
-      {platoSeleccionado && (
-        <ModalDetalleAprendicesPlato
-          plato={platoSeleccionado}
-          onClose={() => setPlatoSeleccionado(null)}
+      {/* Modal de Detalle de Aprendices por Item */}
+      {modalItem && (
+        <ModalDetalleAprendicesItem
+          item={modalItem}
+          titulo={modalItem.titulo}
+          subtitulo={modalItem.subtitulo}
+          tipo={modalItem.tipo}
+          onClose={() => setModalItem(null)}
         />
       )}
     </div>

@@ -17,11 +17,23 @@ const ReservaModel = db.define('reservas', {
   Exc_Reserva: { type: DataTypes.STRING, allowNull: true }, // Texto para excepciones
   Jus_Reserva: { type: DataTypes.STRING, allowNull: true }, // Justificacion para excepciones
   Id_Plato: { type: DataTypes.INTEGER },
+  Id_Bebida: { type: DataTypes.INTEGER, allowNull: true },
   Id_Usuario: { type: DataTypes.INTEGER },
   Id_Usuario_Cedente: { type: DataTypes.INTEGER, allowNull: true },
+  Id_Usuario_Receptor_Pendiente: { type: DataTypes.INTEGER, allowNull: true },
+  Estado_Cesion: { 
+    type: DataTypes.ENUM('NINGUNA', 'PENDIENTE_ACEPTACION', 'ACEPTADA', 'RECHAZADA'), 
+    defaultValue: 'NINGUNA' 
+  },
+  Token_Aceptacion_Cesion: { type: DataTypes.STRING(80), allowNull: true },
   Fec_Cesion: { type: DataTypes.DATE, allowNull: true },
   motivo_cesion: { type: DataTypes.STRING(180), allowNull: true },
-  sync_status: { type: DataTypes.ENUM('PENDING', 'SYNCED'), defaultValue: 'PENDING' }
+  sync_status: { type: DataTypes.ENUM('PENDING', 'SYNCED'), defaultValue: 'PENDING' },
+  Es_Guardado_Campo: { type: DataTypes.BOOLEAN, defaultValue: false },
+  Id_Solicitud_Campo: { type: DataTypes.INTEGER, allowNull: true },
+  Hora_Limite_Extendida: { type: DataTypes.TIME, allowNull: true },
+  Justificacion_Campo: { type: DataTypes.STRING(255), allowNull: true },
+  Unidad_Productiva_Campo: { type: DataTypes.STRING(80), allowNull: true }
 }, {
   freezeTableName: true,
   timestamps: true

@@ -304,6 +304,149 @@ export const cambiarPassword = async (req, res) => {
   }
 };
 
+// Obtiene el perfil completo del usuario autenticado (cualquier rol)
+export const getMiPerfil = async (req, res) => {
+  try {
+    const Id_Usuario = req.user?.id || req.user?.Id_Usuario;
+    if (!Id_Usuario) {
+      return res.status(401).json({ message: "No autenticado" });
+    }
+
+    const usuario = await UsuariosModel.findByPk(Id_Usuario, {
+      attributes: { exclude: ["password"] },
+      include: [
+        {
+          model: FichasModel,
+          as: "ficha",
+          include: [{ model: ProgramaModel, as: "programas" }]
+        },
+        {
+          model: UsuariosRolModel,
+          as: "rolesUsuario",
+          include: [{ model: RolesModel, as: "rolUsuario" }]
+        }
+      ]
+    });
+
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    const roles = (usuario.rolesUsuario || [])
+      .map(r => r.rolUsuario?.Nom_Rol)
+      .filter(Boolean);
+
+    const perfil = {
+      ...usuario.toJSON(),
+      roles,
+      nombreCompleto: `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim(),
+      nombrePrograma: usuario.ficha?.programas?.Nom_Programa || null,
+      numeroFicha: usuario.ficha?.Num_Ficha || null
+    };
+
+    return res.status(200).json(perfil);
+  } catch (error) {
+    console.error("[UsuariosControllers] getMiPerfil:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// Actualiza correo y telefono del usuario autenticado (Seccion 1 de Mi Perfil)
+export const actualizarContactoPerfil = async (req, res) => {
+  try {
+    const Id_Usuario = req.user?.id || req.user?.Id_Usuario;
+    if (!Id_Usuario) {
+      return res.status(401).json({ message: "No autenticado" });
+    }
+
+    const { Cor_Usuario, Tel_Usuario } = req.body;
+    const updates = {};
+
+    if (Cor_Usuario !== undefined) {
+      const emailTrim = String(Cor_Usuario).trim();
+      if (emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+        return res.status(400).json({ message: "El formato del correo electronico es invalido" });
+      }
+      updates.Cor_Usuario = emailTrim;
+    }
+
+    if (Tel_Usuario !== undefined) {
+      const telTrim = String(Tel_Usuario).trim();
+      if (telTrim && !/^\d{7,15}$/.test(telTrim.replace(/\D/g, ""))) {
+        return res.status(400).json({ message: "El telefono debe contener entre 7 y 15 digitos numericos" });
+      }
+      updates.Tel_Usuario = telTrim;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: "Debe ingresar al menos un dato de contacto para actualizar" });
+    }
+
+    await UsuariosModel.update(updates, { where: { Id_Usuario } });
+
+    encolarEventoSync({
+      entidad: "usuarios",
+      operacion: "UPDATE",
+      entity_uuid: Id_Usuario,
+      payload: updates
+    });
+
+    const usuarioActualizado = await UsuariosModel.findByPk(Id_Usuario, {
+      attributes: { exclude: ["password"] }
+    });
+
+    return res.status(200).json({
+      message: "Informacion de contacto actualizada exitosamente",
+      usuario: usuarioActualizado
+    });
+  } catch (error) {
+    console.error("[UsuariosControllers] actualizarContactoPerfil:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// Actualiza la contrasena del usuario autenticado validando la contrasena actual (Seccion 2 de Mi Perfil)
+export const cambiarPasswordPerfil = async (req, res) => {
+  try {
+    const Id_Usuario = req.user?.id || req.user?.Id_Usuario;
+    if (!Id_Usuario) {
+      return res.status(401).json({ message: "No autenticado" });
+    }
+
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!currentPassword) {
+      return res.status(400).json({ message: "Debe ingresar su contrasena actual" });
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ message: "La nueva contrasena debe tener al menos 8 caracteres" });
+    }
+
+    if (confirmPassword && newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "La confirmacion de contrasena no coincide con la nueva" });
+    }
+
+    const usuario = await UsuariosModel.findByPk(Id_Usuario);
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    const esValida = await bcrypt.compare(currentPassword, usuario.password);
+    if (!esValida) {
+      return res.status(400).json({ message: "La contrasena actual es incorrecta" });
+    }
+
+    const nuevoHash = await bcrypt.hash(newPassword, 10);
+    await UsuariosModel.update({ password: nuevoHash }, { where: { Id_Usuario } });
+
+    return res.status(200).json({ message: "Contrasena actualizada exitosamente" });
+  } catch (error) {
+    console.error("[UsuariosControllers] cambiarPasswordPerfil:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 // ─────────────────────────────────────────────────────────────
 // IMPORTACION MASIVA LEGACY — CSV
 // Se mantiene por compatibilidad con integraciones anteriores.
@@ -670,21 +813,29 @@ export const previewImport = async (req, res) => {
       const esInterno = /si|sí|cabaña|alojamiento|interno|1|true/i.test(cenConRaw) && !/no|ninguno/i.test(cenConRaw);
 
       const rolRaw = extractExcelField(Fila, ["ROL", "TIP_USUARIO", "ROL_USUARIO", "ROL_ASIGNADO"]).toLowerCase();
+      const estadoFilaRaw = extractExcelField(Fila, ["ESTADO", "EST_USUARIO", "ESTADO APRENDIZ"]).toLowerCase();
+      const esInstructor = rolRaw.includes("instructor") || estadoFilaRaw.includes("instructor");
       const esPasante = rolRaw.includes("pasante");
-      const rolAsignado = esPasante
-        ? (esInterno ? "Pasante Interno" : "Pasante Externo")
-        : (esInterno ? "Aprendiz Interno" : "Aprendiz Externo");
+      
+      let rolAsignado = "Aprendiz Externo";
+      let estUsuario = "En Formacion";
+      if (esInstructor) {
+        rolAsignado = "Instructor";
+        estUsuario = "Instructor";
+      } else if (esPasante) {
+        rolAsignado = esInterno ? "Pasante Interno" : "Pasante Externo";
+      } else {
+        rolAsignado = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
+      }
 
       // Nombres y apellidos siempre en MAYUSCULAS
       const nombresMayus = (nombres || "SIN NOMBRE").trim().toUpperCase();
       const apellidosMayus = (apellidos || "").trim().toUpperCase();
 
-      // Validar si la ficha existe en el sistema (Obligatorio: Primero Programa, luego Ficha, luego Usuarios)
+      // Validar si la ficha existe en el sistema (Obligatorio para aprendices, opcional para instructores)
       const numFichaLimpio = String(numFichaRaw || "").trim().replace(/\D/g, "");
       const fichaEncontrada = numFichaLimpio ? (mapaFichas.get(numFichaLimpio) || mapaFichas.get(String(parseInt(numFichaLimpio, 10)))) : null;
-      const tieneFichaValida = Boolean(fichaEncontrada && fichaEncontrada.Id_Ficha);
-
-      const estUsuario = "En Formacion";
+      const tieneFichaValida = esInstructor ? true : Boolean(fichaEncontrada && fichaEncontrada.Id_Ficha);
 
       Datos.push({
         TipDoc_Usuario: tipDoc,
@@ -695,11 +846,11 @@ export const previewImport = async (req, res) => {
         Tel_Usuario: telFinal || null,
         Gen_Usuario: genRaw ? (genRaw.toUpperCase().startsWith("M") ? "Masculino" : "Femenino") : "No especificado",
         CenCon_Usuario: esInterno ? "Si" : "No",
-        Num_Ficha: tieneFichaValida ? fichaEncontrada.Num_Ficha : (numFichaLimpio || "Sin ficha"),
-        Id_Ficha: tieneFichaValida ? fichaEncontrada.Id_Ficha : null,
-        Nom_Programa: tieneFichaValida
+        Num_Ficha: fichaEncontrada ? fichaEncontrada.Num_Ficha : (numFichaLimpio || (esInstructor ? "Instructor" : "Sin ficha")),
+        Id_Ficha: fichaEncontrada ? fichaEncontrada.Id_Ficha : null,
+        Nom_Programa: fichaEncontrada
           ? String(fichaEncontrada.Nom_Programa || "").toUpperCase()
-          : "PROGRAMA NO REGISTRADO",
+          : (esInstructor ? "PLANTA INSTRUCTORES" : "PROGRAMA NO REGISTRADO"),
         fichaValida: tieneFichaValida,
         errorFicha: tieneFichaValida
           ? null
@@ -800,28 +951,34 @@ export const importarSeleccionados = async (req, res) => {
             const nomUsuarioFinal = String(Fila.Nom_Usuario).trim().toUpperCase();
             const apeUsuarioFinal = Fila.Ape_Usuario ? String(Fila.Ape_Usuario).trim().toUpperCase() : "";
 
-            // REGLA OBLIGATORIA: La ficha DEBE existir previamente en el sistema. Si no existe, NO SE PERMITE SUBIR.
+            const estadoFilaRaw = String(Fila.Est_Usuario || Fila.Estado || Fila.Rol_Asignado || Fila.Rol || "").toLowerCase().trim();
+            const esInstructor = estadoFilaRaw.includes("instructor");
+
+            // REGLA OBLIGATORIA: La ficha DEBE existir previamente en el sistema para aprendices.
+            // Para instructores la ficha es opcional.
             const numFichaBuscada = String(Fila.Num_Ficha || Fila.Id_Ficha || "").trim().replace(/\D/g, "");
             const fichaAsociada = numFichaBuscada
               ? (mapaFichas.get(numFichaBuscada) || mapaFichas.get(String(parseInt(numFichaBuscada, 10))))
               : null;
 
-            if (!fichaAsociada || !fichaAsociada.Id_Ficha) {
+            if (!esInstructor && (!fichaAsociada || !fichaAsociada.Id_Ficha)) {
               Omitidos++;
               Errores.push(`Aprendiz ${numDocStr} (${nomUsuarioFinal} ${apeUsuarioFinal}) rechazado: La ficha #${numFichaBuscada || 'No especificada'} no existe en el sistema. Primero debe registrar o importar la ficha.`);
               return;
             }
 
-            const idFichaFinal = fichaAsociada.Id_Ficha;
+            const idFichaFinal = fichaAsociada?.Id_Ficha || null;
 
-            // Determinar rol segun CenCon_Usuario
+            // Determinar rol segun CenCon_Usuario o si es Instructor
             const cenConStr = String(Fila.CenCon_Usuario || "").toLowerCase().trim();
             const esInterno = ["si", "sí", "1", "true", "cabaña", "alojamiento"].includes(cenConStr);
             const rolRaw = String(Fila.Rol_Asignado || Fila.Rol || "").toLowerCase();
             const esPasante = rolRaw.includes("pasante");
 
             let nombreRolAsignar = "Aprendiz Externo";
-            if (esPasante) {
+            if (esInstructor) {
+              nombreRolAsignar = "Instructor";
+            } else if (esPasante) {
               nombreRolAsignar = esInterno ? "Pasante Interno" : "Pasante Externo";
             } else {
               nombreRolAsignar = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
@@ -842,7 +999,11 @@ export const importarSeleccionados = async (req, res) => {
               if (Fila.Cor_Usuario) datosActualizar.Cor_Usuario = Fila.Cor_Usuario;
               if (Fila.Tel_Usuario) datosActualizar.Tel_Usuario = Fila.Tel_Usuario;
 
-              if (Fila.Est_Usuario === "Inactivo") {
+              const estadosBaja = ["inactivo", "cancelado", "retiro voluntario", "trasladado", "aplazado", "certificado", "etapa productiva", "baja"];
+              const estadoFila = String(Fila.Est_Usuario || Fila.Estado || "").toLowerCase().trim();
+              const esBaja = estadosBaja.some(e => estadoFila.includes(e));
+
+              if (esBaja) {
                 datosActualizar.Est_Usuario = "Inactivo";
                 const hoyStr = obtenerFechaColombia();
                 await ReservaModel.update(
@@ -856,7 +1017,7 @@ export const importarSeleccionados = async (req, res) => {
                   }
                 );
               } else {
-                datosActualizar.Est_Usuario = "En Formacion";
+                datosActualizar.Est_Usuario = esInstructor ? "Instructor" : "En Formacion";
               }
 
               await UsuariosModel.update(datosActualizar, { where: { Id_Usuario: usuarioEx.Id_Usuario } });
@@ -909,7 +1070,7 @@ export const importarSeleccionados = async (req, res) => {
               Tel_Usuario: Fila.Tel_Usuario ? String(Fila.Tel_Usuario).trim() : null,
               CenCon_Usuario: esInterno ? "Si" : "No",
               Id_Ficha: idFichaFinal,
-              Est_Usuario: "En Formacion",
+              Est_Usuario: esInstructor ? "Instructor" : "En Formacion",
               San_Usuario: Fila.San_Usuario || "No",
               Pol_Usuario: "No",
               password: HashPwd,
@@ -1083,5 +1244,157 @@ export const aplicarConciliacionSofiaPlus = async (req, res) => {
   } catch (error) {
     console.error("[UsuariosControllers] Error en aplicarConciliacionSofiaPlus:", error);
     return res.status(400).json({ message: error.message || "Error al aplicar conciliacion SOFIA Plus." });
+  }
+};
+
+/*
+  descargarPlantillaInstructores
+  Descarga un archivo Excel modelo para importar instructores facilmente
+*/
+export const descargarPlantillaInstructores = async (req, res) => {
+  try {
+    const wb = XLSX.utils.book_new();
+    const headers = [
+      "TipDoc_Usuario",
+      "NumDoc_Usuario",
+      "Nom_Usuario",
+      "Ape_Usuario",
+      "Gen_Usuario",
+      "Cor_Usuario",
+      "Tel_Usuario",
+      "Num_Ficha"
+    ];
+    const dataEjemplo = [
+      {
+        TipDoc_Usuario: "CC",
+        NumDoc_Usuario: "10000001",
+        Nom_Usuario: "CARLOS ANDRES",
+        Ape_Usuario: "RODRIGUEZ PEREZ",
+        Gen_Usuario: "Masculino",
+        Cor_Usuario: "crodriguez@sena.edu.co",
+        Tel_Usuario: "3101234567",
+        Num_Ficha: "2994856"
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(dataEjemplo, { header: headers });
+    XLSX.utils.book_append_sheet(wb, ws, "Instructores");
+    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Disposition", 'attachment; filename="Plantilla_Instructores_Foodsys.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.status(200).send(buffer);
+  } catch (err) {
+    return res.status(500).json({ message: "Error al generar plantilla de instructores" });
+  }
+};
+
+/*
+  importarInstructoresExcel
+  Procesa archivo Excel para registrar o actualizar instructores asignando el rol y estado Instructor
+*/
+export const importarInstructoresExcel = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No se subio ningun archivo Excel." });
+    }
+    const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+    const sheetName = wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({ message: "El archivo no contiene filas de datos." });
+    }
+
+    const rolInstructor = await RolesModel.findOne({ where: { Nom_Rol: "Instructor" } });
+    if (!rolInstructor) {
+      return res.status(500).json({ message: "El rol 'Instructor' no existe en la base de datos." });
+    }
+
+    let creados = 0;
+    let actualizados = 0;
+    let omitidos = 0;
+    const errores = [];
+
+    for (const r of rows) {
+      const tipDoc = extractExcelField(r, ["TIPDOC", "TIPO DOCUMENTO", "TIPO", "TIPDOC_USUARIO"]) || "CC";
+      const numDoc = String(extractExcelField(r, ["NUMDOC", "DOCUMENTO", "NUMERO DOCUMENTO", "CEDULA", "NUMDOC_USUARIO"]) || "").trim().replace(/\D/g, "");
+      const nombres = extractExcelField(r, ["NOMBRE", "NOMBRES", "NOM_USUARIO"]);
+      const apellidos = extractExcelField(r, ["APELLIDO", "APELLIDOS", "APE_USUARIO"]);
+      const correo = extractExcelField(r, ["CORREO", "EMAIL", "COR_USUARIO"]);
+      const telefono = extractExcelField(r, ["TELEFONO", "CELULAR", "TEL_USUARIO"]);
+      const genero = extractExcelField(r, ["GENERO", "GEN_USUARIO"]);
+      const numFichaRaw = extractExcelField(r, ["FICHA", "NUM_FICHA", "ID_FICHA"]);
+
+      if (!numDoc || !nombres) {
+        omitidos++;
+        errores.push(`Fila omitida por falta de documento o nombre: ${JSON.stringify(r)}`);
+        continue;
+      }
+
+      let idFichaFinal = null;
+      if (numFichaRaw) {
+        const nfLimpio = String(numFichaRaw).trim().replace(/\D/g, "");
+        if (nfLimpio) {
+          const f = await FichasModel.findOne({ where: { Num_Ficha: nfLimpio } });
+          if (f) idFichaFinal = f.Id_Ficha;
+        }
+      }
+
+      const existe = await UsuariosModel.findOne({ where: { NumDoc_Usuario: numDoc } });
+      if (existe) {
+        await existe.update({
+          Nom_Usuario: String(nombres).trim().toUpperCase(),
+          Ape_Usuario: String(apellidos || "").trim().toUpperCase(),
+          Cor_Usuario: correo || existe.Cor_Usuario,
+          Tel_Usuario: telefono || existe.Tel_Usuario,
+          Est_Usuario: "Instructor",
+          ...(idFichaFinal ? { Id_Ficha: idFichaFinal } : {})
+        });
+        const tieneRol = await UsuariosRolModel.findOne({
+          where: { Id_Usuario: existe.Id_Usuario, Id_Rol: rolInstructor.Id_Rol }
+        });
+        if (!tieneRol) {
+          await UsuariosRolModel.create({
+            Id_Usuario: existe.Id_Usuario,
+            Id_Rol: rolInstructor.Id_Rol
+          });
+        }
+        actualizados++;
+      } else {
+        const hashPwd = await bcrypt.hash(numDoc, 8);
+        const nuevo = await UsuariosModel.create({
+          TipDoc_Usuario: tipDoc,
+          NumDoc_Usuario: numDoc,
+          Nom_Usuario: String(nombres).trim().toUpperCase(),
+          Ape_Usuario: String(apellidos || "").trim().toUpperCase(),
+          Gen_Usuario: genero || "No especificado",
+          Cor_Usuario: correo || null,
+          Tel_Usuario: telefono || null,
+          CenCon_Usuario: "No",
+          Est_Usuario: "Instructor",
+          San_Usuario: "No",
+          Pol_Usuario: "No",
+          Id_Ficha: idFichaFinal,
+          password: hashPwd,
+          uuid: uuidv4()
+        });
+        await UsuariosRolModel.create({
+          Id_Usuario: nuevo.Id_Usuario,
+          Id_Rol: rolInstructor.Id_Rol
+        });
+        creados++;
+      }
+    }
+
+    return res.status(200).json({
+      message: `Proceso completado. ${creados} instructores creados, ${actualizados} actualizados, ${omitidos} omitidos.`,
+      creados,
+      actualizados,
+      omitidos,
+      errores
+    });
+  } catch (error) {
+    console.error("[UsuariosControllers] Error en importarInstructoresExcel:", error);
+    return res.status(500).json({ message: error.message || "Error al importar instructores." });
   }
 };

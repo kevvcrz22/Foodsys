@@ -64,6 +64,7 @@ import {
   exportarNoConsumidosExcel,
   getConsumidoresNominales,
   getSeguimientoBienestar,
+  getReporteCampo,
 } from "../Controllers/ReportesController.js";
 
 const router = Router();
@@ -165,5 +166,9 @@ router.get("/consumidores-nominales", authMiddleware, getConsumidoresNominales);
 // Tab 3 Bienestar: Aprendices activos sin consumos o sin reservas en el periodo
 // Ejemplo: GET /api/Reportes/seguimiento-bienestar?periodo=semanal
 router.get("/seguimiento-bienestar", authMiddleware, getSeguimientoBienestar);
+
+// Tab 4: Fichas en Jornada de Campo y SENA Empresa (Almuerzos Guardados)
+// Ejemplo: GET /api/Reportes/campo?periodo=diario&unidad=GANADERIA
+router.get("/campo", authMiddleware, getReporteCampo);
 
 export default router;

@@ -56,34 +56,59 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
   const [Fec_Menu, setFec_Menu] = useState("");
   const [Tip_Menu, setTip_Menu] = useState("Almuerzo");
   const [platosSeleccionados, setPlatosSeleccionados] = useState([]);
+  const [bebidasSeleccionadas, setBebidasSeleccionadas] = useState([]);
   const [enviando, setEnviando] = useState(false);
 
-  /* Filtrar platos por tipo */
-  const platosFiltrados = platosDisponibles.filter((p) => p.Tip_Plato === Tip_Menu);
+  /* Separar platos fuertes y bebidas segun tipo de comida */
+  const platosFuertes = platosDisponibles.filter(
+    (p) =>
+      p.Tipo_Item !== "BEBIDA" &&
+      (p.Tip_Comida_Item === Tip_Menu || p.Tip_Comida_Item === "Todas" || p.Tip_Plato === Tip_Menu || p.Tip_Plato === "Todas")
+  );
+
+  const bebidasDisponibles = platosDisponibles.filter(
+    (p) =>
+      p.Tipo_Item === "BEBIDA" &&
+      (p.Tip_Comida_Item === Tip_Menu || p.Tip_Comida_Item === "Todas" || p.Tip_Plato === Tip_Menu || p.Tip_Plato === "Todas")
+  );
 
   useEffect(() => {
     if (isEdit && selectedMenu) {
       setFec_Menu(selectedMenu.Fec_Menu?.slice(0, 10) || "");
       setTip_Menu(selectedMenu.Tip_Menu || "Almuerzo");
-      setPlatosSeleccionados(selectedMenu.Id_Plato ? [selectedMenu.Id_Plato] : []);
+      if (selectedMenu.plato?.Tipo_Item === "BEBIDA") {
+        setBebidasSeleccionadas(selectedMenu.Id_Plato ? [selectedMenu.Id_Plato] : []);
+        setPlatosSeleccionados([]);
+      } else {
+        setPlatosSeleccionados(selectedMenu.Id_Plato ? [selectedMenu.Id_Plato] : []);
+        setBebidasSeleccionadas([]);
+      }
     } else {
       setFec_Menu("");
       setTip_Menu("Almuerzo");
       setPlatosSeleccionados([]);
+      setBebidasSeleccionadas([]);
     }
   }, [selectedMenu, isEdit]);
 
-  /* Limpiar seleccion cuando cambia el tipo */
+  /* Limpiar seleccion al cambiar de turno */
   useEffect(() => {
-    setPlatosSeleccionados([]);
-  }, [Tip_Menu]);
+    if (!isEdit) {
+      setPlatosSeleccionados([]);
+      setBebidasSeleccionadas([]);
+    }
+  }, [Tip_Menu, isEdit]);
 
   const togglePlato = (id) => {
-    setPlatosSeleccionados((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 2) return prev;
-      return [...prev, id];
-    });
+    setPlatosSeleccionados((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleBebida = (id) => {
+    setBebidasSeleccionadas((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   const gestionarForm = async (e) => {
@@ -94,25 +119,16 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
       return;
     }
 
-    const fechaHoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    const fechaHoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
 
     if (Fec_Menu < fechaHoy) {
       toast.error("No se pueden crear menus para fechas pasadas");
       return;
     }
 
-    if (Tip_Menu === 'Almuerzo' && Fec_Menu <= fechaHoy) {
-      toast.error("No se permite programar ni crear menu de Almuerzo para el mismo dia");
-      return;
-    }
-
-    if (!isEdit && platosSeleccionados.length < 2) {
-      toast.error("Debes seleccionar 2 platos para este menu");
-      return;
-    }
-
-    if (isEdit && platosSeleccionados.length === 0) {
-      toast.error("Selecciona un plato para actualizar el menu");
+    const totalElegidos = [...platosSeleccionados, ...bebidasSeleccionadas];
+    if (totalElegidos.length === 0) {
+      toast.error("Debes seleccionar al menos un plato o bebida para el menu");
       return;
     }
 
@@ -122,14 +138,14 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
         await apiAxios.post("/api/Menus", {
           Fec_Menu,
           Tip_Menu,
-          platos: platosSeleccionados,
+          platos: totalElegidos,
         });
-        toast.success("Menu creado con 2 opciones de plato correctamente");
+        toast.success(`Menu creado con ${totalElegidos.length} opciones (platos y bebidas)`);
       } else {
         await apiAxios.put(`/api/Menus/${selectedMenu.Id_Menu}`, {
           Fec_Menu,
           Tip_Menu,
-          Id_Plato: platosSeleccionados[0],
+          Id_Plato: totalElegidos[0],
         });
         toast.success("Menu actualizado correctamente");
       }
@@ -155,13 +171,13 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
           type="date"
           value={Fec_Menu}
           onChange={(e) => setFec_Menu(e.target.value)}
-          min={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })}
+          min={new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" })}
           required
           className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
         />
       </div>
 
-      {/* Tipo */}
+      {/* Tipo de comida */}
       <div>
         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
           Tipo de comida
@@ -187,64 +203,52 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
         </div>
       </div>
 
-      {/* Seleccion de platos */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            Platos — {Tip_Menu} (2 opciones requeridas)
+      {/* 1. SELECCION DE PLATOS FUERTES (ILIMITADA) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wide">
+            🍽️ Platos Fuertes Disponibles
           </label>
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cfg.badge}`}>
-            {platosSeleccionados.length}/2 seleccionados
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+            {platosSeleccionados.length} seleccionados
           </span>
         </div>
 
-        {platosFiltrados.length === 0 ? (
-          <div className={`rounded-xl p-4 text-center ${cfg.bg} border ${cfg.border}`}>
-            <p className={`text-sm ${cfg.color}`}>
-              No hay platos de {Tip_Menu} registrados en el catalogo
-            </p>
+        {platosFuertes.length === 0 ? (
+          <div className="rounded-xl p-3 text-center bg-slate-50 border border-slate-200">
+            <p className="text-xs text-slate-500 m-0">No hay platos registrados para {Tip_Menu}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
-            {platosFiltrados.map((p) => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+            {platosFuertes.map((p) => {
               const sel = platosSeleccionados.includes(p.Id_Plato);
               const imgSrc = p.Img_Plato ? `${API_URL}/uploads/${p.Img_Plato}` : null;
-              const lleno = !sel && platosSeleccionados.length >= 2;
 
               return (
                 <button
                   key={p.Id_Plato}
                   type="button"
-                  disabled={lleno}
                   onClick={() => togglePlato(p.Id_Plato)}
-                  className={`flex items-center gap-3 p-2.5 rounded-xl border-2 text-left transition-all ${
-                    lleno
-                      ? "opacity-40 cursor-not-allowed border-gray-200 bg-gray-50"
-                      : sel
-                      ? `border-green-500 ${cfg.bg} shadow-sm ring-2 ring-green-500/20`
-                      : "border-gray-200 bg-white hover:border-gray-300 cursor-pointer"
+                  className={`flex items-center gap-2.5 p-2 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                    sel
+                      ? "border-emerald-500 bg-emerald-50 shadow-xs"
+                      : "border-gray-200 bg-white hover:border-gray-300"
                   }`}
                 >
                   {imgSrc ? (
-                    <img
-                      src={imgSrc}
-                      alt={p.Nom_Plato}
-                      className="w-12 h-12 rounded-lg object-cover shrink-0"
-                    />
+                    <img src={imgSrc} alt={p.Nom_Plato} className="w-10 h-10 rounded-lg object-cover shrink-0" />
                   ) : (
-                    <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                      <ChefHat className="w-5 h-5 text-gray-300" />
+                    <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                      <ChefHat className="w-4 h-4 text-gray-400" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 truncate m-0">{p.Nom_Plato}</p>
-                    {p.Des_Plato && (
-                      <p className="text-xs text-gray-400 truncate m-0">{p.Des_Plato}</p>
-                    )}
+                    <p className="text-xs font-bold text-gray-800 truncate m-0">{p.Nom_Plato}</p>
+                    {p.Des_Plato && <p className="text-[11px] text-gray-400 truncate m-0">{p.Des_Plato}</p>}
                   </div>
                   {sel && (
-                    <div className="shrink-0 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">✓</span>
+                    <div className="shrink-0 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[10px] font-bold">
+                      ✓
                     </div>
                   )}
                 </button>
@@ -252,32 +256,89 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
             })}
           </div>
         )}
+      </div>
 
-        {platosSeleccionados.length === 2 && (
-          <p className="text-xs text-green-600 font-medium mt-1.5 m-0">
-            ✓ 2 opciones seleccionadas para este menu
-          </p>
+      {/* 2. SELECCION DE BEBIDAS FRIAS Y CALIENTES (ILIMITADA) */}
+      <div className="space-y-2 pt-2 border-t border-slate-100">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-blue-900 flex items-center gap-1.5 uppercase tracking-wide">
+            🥤☕ Bebidas Disponibles (Frias y Calientes)
+          </label>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+            {bebidasSeleccionadas.length} seleccionadas
+          </span>
+        </div>
+
+        {bebidasDisponibles.length === 0 ? (
+          <div className="rounded-xl p-3 text-center bg-blue-50/50 border border-blue-100">
+            <p className="text-xs text-blue-600 m-0">No hay bebidas registradas para {Tip_Menu} en el catalogo</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+            {bebidasDisponibles.map((b) => {
+              const sel = bebidasSeleccionadas.includes(b.Id_Plato);
+              const imgSrc = b.Img_Plato ? `${API_URL}/uploads/${b.Img_Plato}` : null;
+              const esCaliente = b.Subtipo_Bebida === "CALIENTE";
+
+              return (
+                <button
+                  key={b.Id_Plato}
+                  type="button"
+                  onClick={() => toggleBebida(b.Id_Plato)}
+                  className={`flex items-center gap-2.5 p-2 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                    sel
+                      ? "border-blue-500 bg-blue-50 shadow-xs"
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
+                >
+                  {imgSrc ? (
+                    <img src={imgSrc} alt={b.Nom_Plato} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                      <Coffee className="w-4 h-4 text-blue-400" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                        esCaliente ? "bg-amber-100 text-amber-800" : "bg-cyan-100 text-cyan-800"
+                      }`}>
+                        {esCaliente ? "☕ Caliente" : "🧊 Fria"}
+                      </span>
+                      <p className="text-xs font-bold text-gray-800 truncate m-0">{b.Nom_Plato}</p>
+                    </div>
+                    {b.Des_Plato && <p className="text-[11px] text-gray-400 truncate m-0">{b.Des_Plato}</p>}
+                  </div>
+                  {sel && (
+                    <div className="shrink-0 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold">
+                      ✓
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
 
-      {/* Botones */}
-      <div className="flex gap-3 pt-2 border-t border-gray-100">
+      {/* Botones de accion */}
+      <div className="flex gap-3 pt-3 border-t border-gray-100">
         <button
           type="button"
           onClick={hideModal}
-          className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-sm cursor-pointer border-0"
+          className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-xs cursor-pointer border-0"
         >
           Cancelar
         </button>
         <button
           type="submit"
-          disabled={enviando || (!isEdit && platosSeleccionados.length < 2) || (isEdit && platosSeleccionados.length === 0)}
-          className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer border-0"
+          disabled={enviando || (platosSeleccionados.length === 0 && bebidasSeleccionadas.length === 0)}
+          className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer border-0 shadow-md shadow-emerald-600/20"
         >
-          {enviando ? (
+          {enviando && (
             <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-          ) : null}
-          {isEdit ? "Actualizar" : "Crear Menu (2 platos)"}
+          )}
+          {isEdit ? "Actualizar Menu" : `Crear Menu (${platosSeleccionados.length + bebidasSeleccionadas.length} items)`}
         </button>
       </div>
     </form>

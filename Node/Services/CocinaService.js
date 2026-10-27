@@ -19,6 +19,7 @@ import PlatosModels from '../Models/PlatosModels.js';
 import MenusModel from '../Models/MenusModels.js';
 import FichasModel from '../Models/FichasModel.js';
 import ProgramaModel from '../Models/ProgramaModel.js';
+import SolicitudesCampoModel from '../Models/SolicitudesCampoModel.js';
 
 class CocinaService {
 
@@ -58,6 +59,11 @@ class CocinaService {
           model: PlatosModels,
           as: 'plato',
           attributes: ['Id_Plato', 'Nom_Plato', 'Img_Plato', 'Des_Plato']
+        },
+        {
+          model: PlatosModels,
+          as: 'bebida',
+          attributes: ['Id_Plato', 'Nom_Plato', 'Img_Plato', 'Des_Plato', 'Subtipo_Bebida']
         }
       ],
       order: [['Tip_Reserva', 'ASC'], ['createdAt', 'ASC']]
@@ -71,6 +77,9 @@ class CocinaService {
 
     // Contadores por plato con lista nominal de aprendices
     const porPlato = {};
+
+    // Contadores por bebida con lista nominal de aprendices
+    const porBebida = {};
 
     // Reservas excepcionales del dia
     const excepcionales = [];
@@ -119,6 +128,33 @@ class CocinaService {
         }
       }
 
+      // Conteo por bebida (solo activos para saber cuantas bebidas servir)
+      if (estadoActivo && r.bebida) {
+        const nomBebida = r.bebida.Nom_Plato;
+        if (!porBebida[nomBebida]) {
+          porBebida[nomBebida] = {
+            total: 0,
+            Id_Plato: r.bebida.Id_Plato,
+            Nom_Plato: nomBebida,
+            Subtipo_Bebida: r.bebida.Subtipo_Bebida || 'NINGUNA',
+            tipo: r.Tip_Reserva,
+            aprendices: []
+          };
+        }
+        porBebida[nomBebida].total++;
+
+        if (r.usuario) {
+          porBebida[nomBebida].aprendices.push({
+            Id_Usuario: r.usuario.Id_Usuario,
+            NombreCompleto: `${r.usuario.Nom_Usuario || ''} ${r.usuario.Ape_Usuario || ''}`.trim(),
+            NumDoc: r.usuario.NumDoc_Usuario || '--',
+            Num_Ficha: r.usuario.ficha?.Num_Ficha || 'Sin ficha',
+            Programa: r.usuario.ficha?.programas?.Nom_Programa || 'Sin programa',
+            Estado: r.Est_Reserva
+          });
+        }
+      }
+
       // Reservas excepcionales del dia
       if (r.Exc_Reserva === 'Si') {
         excepcionales.push({
@@ -129,6 +165,7 @@ class CocinaService {
           Documento: r.usuario?.NumDoc_Usuario || '--',
           Tipo: r.Tip_Reserva,
           Plato: r.plato?.Nom_Plato || 'Sin datos',
+          Bebida: r.bebida?.Nom_Plato || 'Sin datos',
           Estado: r.Est_Reserva,
           Jus_Reserva: r.Jus_Reserva || 'Sin justificacion',
           HoraCreacion: r.createdAt
@@ -145,18 +182,33 @@ class CocinaService {
           Documento: r.usuario?.NumDoc_Usuario || '--',
           Estado: r.Est_Reserva,
           Plato: r.plato?.Nom_Plato || 'Sin datos',
+          Bebida: r.bebida?.Nom_Plato || 'Sin datos',
           EsExcepcional: r.Exc_Reserva === 'Si'
         });
       }
     });
+
+    // Consultar solicitudes de almuerzos guardados por jornada de campo para esa fecha
+    const solicitudesCampo = await SolicitudesCampoModel.findAll({
+      where: { Fec_Servicio: fecha },
+      include: [
+        {
+          model: UsuariosModel,
+          as: 'solicitante',
+          attributes: ['Nom_Usuario', 'Ape_Usuario', 'Tel_Usuario']
+        }
+      ],
+      order: [['Hora_Estimada_Llegada', 'ASC']]
+    }).catch(() => []);
 
     return {
       fecha,
       generadoEn: new Date().toISOString(),
       totalesPorTipo: porTipo,
       totalesPorEstado: porEstado,
-      // Convierte el objeto a array ordenado de mayor a menor cantidad
       cantidadesPorPlato: Object.values(porPlato).sort((a, b) => b.total - a.total),
+      cantidadesPorBebida: Object.values(porBebida).sort((a, b) => b.total - a.total),
+      almuerzosGuardadosCampo: solicitudesCampo,
       excepcionales,
       detallePorTipo,
       totalReservasActivas: porTipo.Desayuno + porTipo.Almuerzo + porTipo.Cena

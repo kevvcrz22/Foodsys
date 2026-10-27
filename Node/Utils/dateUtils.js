@@ -14,6 +14,14 @@ export function obtenerFechaColombia(fecha = new Date()) {
   }).format(d);
 }
 
+// Retorna la fecha de manana en Colombia en formato YYYY-MM-DD
+export function obtenerFechaMananaColombia(fecha = new Date()) {
+  const hoyStr = obtenerFechaColombia(fecha);
+  const [anio, mes, dia] = hoyStr.split('-').map(Number);
+  const fechaMananaUtc = new Date(Date.UTC(anio, mes - 1, dia + 1, 12, 0, 0));
+  return obtenerFechaColombia(fechaMananaUtc);
+}
+
 // Retorna la hora actual en Colombia en formato HH:mm:ss
 export function obtenerHoraColombia(fecha = new Date()) {
   const d = fecha instanceof Date ? fecha : new Date(fecha);
@@ -29,6 +37,28 @@ export function obtenerHoraColombia(fecha = new Date()) {
 // Retorna fecha y hora combinada en Colombia en formato YYYY-MM-DD HH:mm:ss
 export function obtenerFechaHoraColombia(fecha = new Date()) {
   return `${obtenerFechaColombia(fecha)} ${obtenerHoraColombia(fecha)}`;
+}
+
+// Retorna la fecha de pasado manana en Colombia en formato YYYY-MM-DD
+export function obtenerFechaPasadoMananaColombia(fecha = new Date()) {
+  const hoyStr = obtenerFechaColombia(fecha);
+  const [anio, mes, dia] = hoyStr.split('-').map(Number);
+  const fechaUtc = new Date(Date.UTC(anio, mes - 1, dia + 2, 12, 0, 0));
+  return obtenerFechaColombia(fechaUtc);
+}
+
+// Retorna la fecha objetivo de reserva segun el ciclo oficial de las 10:30 PM (22:30:00):
+// - Si hora <= 22:30:59 -> reserva para manana
+// - Si hora >= 22:31:00 -> reserva para pasado manana (hoy + 2 dias)
+export function obtenerFechaObjetivoReserva(fecha = new Date()) {
+  const horaStr = obtenerHoraColombia(fecha);
+  const [hh, mm] = horaStr.split(':').map(Number);
+  const minutos = hh * 60 + mm;
+  if (minutos <= 1350) {
+    return obtenerFechaMananaColombia(fecha);
+  } else {
+    return obtenerFechaPasadoMananaColombia(fecha);
+  }
 }
 
 // Determina el turno actual de comida segun la hora oficial en Colombia
@@ -55,6 +85,9 @@ export function obtenerTurnoActualColombia() {
 
 export default {
   obtenerFechaColombia,
+  obtenerFechaMananaColombia,
+  obtenerFechaPasadoMananaColombia,
+  obtenerFechaObjetivoReserva,
   obtenerHoraColombia,
   obtenerFechaHoraColombia,
   obtenerTurnoActualColombia

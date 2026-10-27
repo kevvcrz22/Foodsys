@@ -47,6 +47,7 @@ import {
   cancelarReserva,
   verificarCocina,
   verificarQRCocina,
+  verificarPorDocumentoCocina,
   consumirQRSupervisor,
   ObtenerTiposPermitidos,
   ObtenerMenuPorFechaYTipo,
@@ -59,6 +60,9 @@ import {
   obtenerEstadoInasistencias,
   buscarCompaneroParaCeder,
   cederReserva,
+  solicitarCesionReserva,
+  responderCesionReserva,
+  obtenerCesionesPendientes,
   liberarBolsaSolidaria
 } from "../Controllers/ReservasController.js";
 const router = Router();
@@ -122,6 +126,14 @@ router.post(
   verificarQRCocina
 );
 
+// Ruta: POST /api/Reservas/verificar/documento-cocina
+router.post(
+  '/verificar/documento-cocina',
+  authMiddleware,
+  CocinaMiddleware,
+  verificarPorDocumentoCocina
+);
+
 router.get('/canceladas/count', authMiddleware, ContarCanceladas);
 
 // Escaneo final del supervisor. Desencripta el QR, valida el estado y marca
@@ -181,6 +193,9 @@ router.get(
 // Rutas para Ceder Reserva y Bolsa Solidaria (Habeas Data)
 router.get('/ceder/buscar-companero', authMiddleware, buscarCompaneroParaCeder);
 router.post('/ceder/transferir', authMiddleware, cederReserva);
+router.post('/ceder/solicitar', authMiddleware, solicitarCesionReserva);
+router.get('/ceder/pendientes', authMiddleware, obtenerCesionesPendientes);
+router.post('/ceder/responder', authMiddleware, responderCesionReserva);
 router.post('/ceder/liberar-bolsa', authMiddleware, liberarBolsaSolidaria);
 
 export default router;

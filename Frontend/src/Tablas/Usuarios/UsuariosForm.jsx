@@ -237,7 +237,7 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
               <option value="">Seleccionar...</option>
               {[
                 "Aplazado", "Apoyo de Sostenimiento", "Cancelado", "Condicionado",
-                "En Formacion", "En Induccion", "Etapa Productiva", "Retiro Voluntario",
+                "En Formacion", "En Induccion", "Etapa Productiva", "Instructor", "Retiro Voluntario",
                 "Sena Empresa", "Traslado", "Visitantes", "Turno Sena Empresa",
               ].map((v) => <option key={v} value={v}>{v}</option>)}
             </select>

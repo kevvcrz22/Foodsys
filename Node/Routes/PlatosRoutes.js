@@ -12,6 +12,7 @@ import {
   createPlato,
   updatePlato,
   deletePlato,
+  optimizarImagenes,
 } from "../Controllers/PlatosControllers.js";
 
 const router = express.Router();
@@ -28,6 +29,9 @@ const Subida = multer({ storage: Almacenamiento });
 // Lectura publica de platos
 router.get("/", getAllPlatos);
 router.get("/:id", getPlato);
+
+// Optimizacion automatica de imagenes existentes
+router.post("/optimizar-imagenes", authMiddleware, optimizarImagenes);
 
 // Escritura protegida con auth
 router.post(

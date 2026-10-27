@@ -104,11 +104,11 @@ export const getReportePersonalizado = async (req, res) => {
 // Query params: periodo (default: mensual), fechaInicio, fechaFin, tipoAlimento
 export const exportarPDF = async (req, res) => {
   try {
-    const { periodo = "mensual", fechaInicio, fechaFin, tipoAlimento } = req.query;
+    const { periodo = "mensual", fechaInicio, fechaFin, tipoAlimento, fecha, anio, semana, mes } = req.query;
 
     // Obtener los datos del periodo usando el enrutador interno del servicio
-    const datos = await ReportesService.getPorPeriodo(periodo, { fechaInicio, fechaFin, tipoAlimento });
-    const pdfBuffer = await ExportService.generarPDF(datos, periodo);
+    const datos = await ReportesService.getPorPeriodo(periodo, { fechaInicio, fechaFin, tipoAlimento, fecha, anio, semana, mes });
+    const pdfBuffer = await ExportService.generarPDF(datos, periodo, { tipoAlimento, fechaInicio, fechaFin });
 
     // Indicar al navegador que es un archivo PDF descargable
     res.set({
@@ -117,19 +117,20 @@ export const exportarPDF = async (req, res) => {
     });
     res.send(pdfBuffer);
   } catch (error) {
+    console.error("[ReportesController] exportarPDF:", error.message);
     res.status(500).json({ message: error.message });
   }
 };
 
 // GET /api/Reportes/exportar/excel
 // Genera y envia un archivo Excel (.xlsx) con el reporte del periodo indicado.
-// Query params: periodo (default: mensual), fechaInicio, fechaFin, tipoAlimento
+// Query params: periodo (default: mensual), fechaInicio, fechaFin, tipoAlimento, fecha, anio, semana, mes
 export const exportarExcel = async (req, res) => {
   try {
-    const { periodo = "mensual", fechaInicio, fechaFin, tipoAlimento } = req.query;
+    const { periodo = "mensual", fechaInicio, fechaFin, tipoAlimento, fecha, anio, semana, mes } = req.query;
 
-    const datos = await ReportesService.getPorPeriodo(periodo, { fechaInicio, fechaFin, tipoAlimento });
-    const buffer = await ExportService.generarExcel(datos, periodo);
+    const datos = await ReportesService.getPorPeriodo(periodo, { fechaInicio, fechaFin, tipoAlimento, fecha, anio, semana, mes });
+    const buffer = await ExportService.generarExcel(datos, periodo, { tipoAlimento, fechaInicio, fechaFin });
 
     // Indicar al navegador que es un archivo Excel descargable
     res.set({
@@ -138,6 +139,7 @@ export const exportarExcel = async (req, res) => {
     });
     res.send(buffer);
   } catch (error) {
+    console.error("[ReportesController] exportarExcel:", error.message);
     res.status(500).json({ message: error.message });
   }
 };
@@ -309,17 +311,19 @@ export const getTiempoReal = async (req, res) => {
 //   5. Retornar el objeto con perfil, roles e historial.
 export const getAprendizReporte = async (req, res) => {
   try {
-    const { documento, fechaInicio, fechaFin } = req.query;
+    const { documento, idUsuario, id, fechaInicio, fechaFin } = req.query;
+    const doc = documento || null;
+    const uid = idUsuario || id || null;
 
-    if (!documento) {
-      return res.status(400).json({ message: "El numero de documento es obligatorio" });
+    if (!doc && !uid) {
+      return res.status(400).json({ message: "El numero de documento o ID de usuario es obligatorio" });
     }
 
-    const data = await ReportesService.getAprendizReporte(documento, fechaInicio, fechaFin);
+    const data = await ReportesService.getAprendizReporte(doc, fechaInicio, fechaFin, uid);
 
     // El servicio retorna null si no existe el aprendiz; en ese caso responder 404
     if (!data) {
-      return res.status(404).json({ message: "No se encontro ningun aprendiz con ese documento" });
+      return res.status(404).json({ message: "No se encontro ningun aprendiz con ese documento o ID" });
     }
 
     res.status(200).json(data);
@@ -544,5 +548,17 @@ export const getSeguimientoBienestar = async (req, res) => {
   } catch (error) {
     console.error("[ReportesController] getSeguimientoBienestar:", error.message);
     res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/Reportes/campo
+// Tab 4: Fichas en Jornada de Campo y SENA Empresa (Almuerzos Guardados)
+export const getReporteCampo = async (req, res) => {
+  try {
+    const data = await ReportesService.getReporteCampo(req.query);
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error("[ReportesController] getReporteCampo:", error.message);
+    return res.status(500).json({ message: error.message });
   }
 };

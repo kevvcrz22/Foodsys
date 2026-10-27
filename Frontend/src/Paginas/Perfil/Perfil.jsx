@@ -148,22 +148,23 @@ const Perfil = () => {
   const [Guardandocontraseña, setGuardandocontraseña] = useState(false);
   const [Mensajecontraseña, setMensajecontraseña] = useState({ Texto: "", Tipo: "" });
 
-  // Al montar el componente: lee el ID del localStorage y carga datos frescos de la API
+  // Al montar el componente: carga datos desde localStorage para respuesta instantanea y sincroniza con API
   useEffect(() => {
     const UsuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
-
-    // Los roles pueden estar guardados en clave "roles" o dentro del objeto usuario
     const RolesGuardados = JSON.parse(localStorage.getItem("roles") || "[]");
-    const RolesFinales =
-      RolesGuardados.length > 0
-        ? RolesGuardados
-        : UsuarioLocal?.roles || [];
+    const RolesFinales = RolesGuardados.length > 0 ? RolesGuardados : (UsuarioLocal?.roles || []);
 
-    setRoles(RolesFinales);
-
-    if (UsuarioLocal?.Id_Usuario) {
-      CargarUsuario(UsuarioLocal.Id_Usuario);
+    if (RolesFinales.length > 0) {
+      setRoles(RolesFinales);
     }
+
+    if (UsuarioLocal && (UsuarioLocal.Nom_Usuario || UsuarioLocal.nombreCompleto)) {
+      setUsuario(UsuarioLocal);
+      setCorreo(UsuarioLocal.Cor_Usuario || "");
+      setTelefono(UsuarioLocal.Tel_Usuario || "");
+    }
+
+    CargarUsuario();
   }, []);
 
   // Sincroniza los campos del formulario de contacto cuando el usuario se actualiza
@@ -174,14 +175,32 @@ const Perfil = () => {
     }
   }, [Usuario]);
 
-  // Obtiene datos actualizados del usuario desde la base de datos y guarda en localStorage
-  const CargarUsuario = async (Id) => {
+  // Obtiene datos actualizados del usuario autenticado (sirve para cualquier rol: Admin, Cocina, Aprendiz)
+  const CargarUsuario = async () => {
     try {
-      const Res = await apiAxios.get(`/api/Usuarios/${Id}`);
-      setUsuario(Res.data);
-      localStorage.setItem("usuario", JSON.stringify(Res.data));
+      const Res = await apiAxios.get("/api/Usuarios/perfil/me");
+      if (Res.data) {
+        setUsuario(Res.data);
+        if (Res.data.roles && Res.data.roles.length > 0) {
+          setRoles(Res.data.roles);
+        }
+        setCorreo(Res.data.Cor_Usuario || "");
+        setTelefono(Res.data.Tel_Usuario || "");
+        localStorage.setItem("usuario", JSON.stringify(Res.data));
+      }
     } catch (Err) {
-      console.error("Error al cargar el perfil del usuario:", Err);
+      console.warn("Fallo /api/Usuarios/perfil/me, intentando endpoint por ID:", Err?.message);
+      const UsuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
+      const id = UsuarioLocal?.Id_Usuario || UsuarioLocal?.id;
+      if (id) {
+        try {
+          const ResId = await apiAxios.get(`/api/Usuarios/${id}`);
+          setUsuario(ResId.data);
+          localStorage.setItem("usuario", JSON.stringify(ResId.data));
+        } catch (e) {
+          console.error("Error en fallback:", e);
+        }
+      }
     }
   };
 
@@ -191,7 +210,7 @@ const Perfil = () => {
   // La cuenta se considera activa cuando San_Usuario es distinto de "Si"
   const CuentaActiva = Usuario?.San_Usuario !== "Si";
 
-  // Envia los cambios de correo y telefono al backend con validacion previa
+  // Envia los cambios de correo y telefono al endpoint dedicado /api/Usuarios/perfil/contacto
   const GuardarContacto = async () => {
     if (!Correo.trim() && !Telefono.trim()) {
       setMensajeContacto({
@@ -202,21 +221,19 @@ const Perfil = () => {
     }
     setGuardandoContacto(true);
     try {
-      await apiAxios.put(`/api/Usuarios/${Usuario.Id_Usuario}`, {
+      await apiAxios.put("/api/Usuarios/perfil/contacto", {
         Cor_Usuario: Correo,
         Tel_Usuario: Telefono,
       });
-      // Recarga los datos desde la API para reflejar el cambio en tiempo real
-      await CargarUsuario(Usuario.Id_Usuario);
+      await CargarUsuario();
       setMensajeContacto({
         Texto: "Informacion de contacto actualizada correctamente",
         Tipo: "exito",
       });
-      // El mensaje desaparece automaticamente despues de 4 segundos
       setTimeout(() => setMensajeContacto({ Texto: "", Tipo: "" }), 4000);
-    } catch {
+    } catch (err) {
       setMensajeContacto({
-        Texto: "Error al guardar los cambios. Intente nuevamente",
+        Texto: err.response?.data?.message || "Error al guardar los cambios. Intente nuevamente",
         Tipo: "error",
       });
     } finally {
@@ -225,7 +242,6 @@ const Perfil = () => {
   };
 
   // Paso 1 del flujo: valida la contraseña actual contra la base de datos
-  // Solo si es correcta se avanza al paso 2
   const ValidarcontraseñaActual = async () => {
     if (!contraseñaActual.trim()) {
       setMensajecontraseña({
@@ -236,8 +252,9 @@ const Perfil = () => {
     }
     setGuardandocontraseña(true);
     try {
+      const idUser = Usuario?.Id_Usuario || Usuario?.id;
       await apiAxios.post(
-        `/api/Usuarios/${Usuario.Id_Usuario}/validar-password`,
+        `/api/Usuarios/${idUser}/validar-password`,
         { currentPassword: contraseñaActual }
       );
       setPaso(2);
@@ -252,7 +269,7 @@ const Perfil = () => {
     }
   };
 
-  // Paso 2 del flujo: envia la nueva contraseña al backend donde se encripta con bcrypt
+  // Paso 2 del flujo: envia la nueva contraseña al backend (/api/Usuarios/perfil/password)
   const Guardarcontraseña = async () => {
     if (!contraseñaNueva.trim()) {
       setMensajecontraseña({ Texto: "Ingrese la nueva contraseña", Tipo: "error" });
@@ -267,26 +284,26 @@ const Perfil = () => {
     }
     if (contraseñaNueva !== contraseñaConfirmar) {
       setMensajecontraseña({
-        Texto: "Las contrasenias no coinciden",
+        Texto: "Las contrasenas no coinciden",
         Tipo: "error",
       });
       return;
     }
     setGuardandocontraseña(true);
     try {
-      // El backend recibe ambas contrasenias: la actual para verificar y la nueva para guardar
-      await apiAxios.put(`/api/Usuarios/${Usuario.Id_Usuario}/password`, {
+      await apiAxios.put("/api/Usuarios/perfil/password", {
         currentPassword: contraseñaActual,
         newPassword: contraseñaNueva,
+        confirmPassword: contraseñaConfirmar
       });
       setPaso(3);
       setMensajecontraseña({
-        Texto: "contraseña actualizada correctamente",
+        Texto: "Contraseña actualizada correctamente",
         Tipo: "exito",
       });
-    } catch {
+    } catch (err) {
       setMensajecontraseña({
-        Texto: "Error al actualizar la contraseña",
+        Texto: err.response?.data?.message || "Error al actualizar la contraseña",
         Tipo: "error",
       });
     } finally {
@@ -474,36 +491,44 @@ const Perfil = () => {
             </div>
           </div>
 
-          {/* Tarjeta 3: datos de vinculacion — visible exclusivamente para aprendices y pasantes */}
-          {EsAprendiz && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
-              <CabeceraTarjeta
-                Color="bg-violet-600"
-                Icono={BookOpen}
-                Titulo="Datos de Vinculacion"
+          {/* Tarjeta 3: Vinculacion y Roles en el Sistema (visible para todos los roles) */}
+          <div className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+            <CabeceraTarjeta
+              Color="bg-violet-600"
+              Icono={BookOpen}
+              Titulo="Roles y Vinculacion"
+            />
+            <div className="space-y-3">
+              <CampoEntrada
+                Icono={Shield}
+                Etiqueta="Rol(es) Asignados"
+                Valor={Roles.length > 0 ? Roles.join(", ") : "Sin rol asignado"}
+                Deshabilitado
               />
-              <div className="space-y-3">
-                <CampoEntrada
-                  Icono={Building2}
-                  Etiqueta="Ficha"
-                  Valor={Usuario.ficha?.Num_Ficha || "No asignada"}
-                  Deshabilitado
-                />
-                <CampoEntrada
-                  Icono={BookOpen}
-                  Etiqueta="Programa"
-                  Valor={Usuario.ficha?.programas?.Nom_Programa || "No asignado"}
-                  Deshabilitado
-                />
-                <CampoEntrada
-                  Icono={Shield}
-                  Etiqueta="Estado del Usuario"
-                  Valor={Usuario.Est_Usuario || "Sin estado registrado"}
-                  Deshabilitado
-                />
-              </div>
+              {EsAprendiz && (
+                <>
+                  <CampoEntrada
+                    Icono={Building2}
+                    Etiqueta="Ficha de Formacion"
+                    Valor={Usuario.ficha?.Num_Ficha || Usuario.numeroFicha || "No asignada"}
+                    Deshabilitado
+                  />
+                  <CampoEntrada
+                    Icono={BookOpen}
+                    Etiqueta="Programa de Formacion"
+                    Valor={Usuario.ficha?.programas?.Nom_Programa || Usuario.nombrePrograma || "No asignado"}
+                    Deshabilitado
+                  />
+                </>
+              )}
+              <CampoEntrada
+                Icono={CheckCircle}
+                Etiqueta="Estado de la Cuenta"
+                Valor={Usuario.Est_Usuario || "Activo"}
+                Deshabilitado
+              />
             </div>
-          )}
+          </div>
 
           {/* Tarjeta 4: seguridad — flujo de 3 pasos para cambio seguro de contraseña */}
           <div className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
@@ -585,7 +610,7 @@ const Perfil = () => {
                 </>
               )}
 
-              {/* Paso 2: el usuario ingresa y confirma la nueva contraseña */}
+              {/* Paso 2: el usuario ingresa y confirma la nueva contraseña con indicador de fortaleza */}
               {Paso === 2 && (
                 <>
                   <Campocontraseña
@@ -596,6 +621,38 @@ const Perfil = () => {
                     OnToggle={() => setVisNueva(!VisNueva)}
                     Placeholder="Minimo 8 caracteres"
                   />
+                  {/* Indicador de fortaleza visual de la contraseña */}
+                  {contraseñaNueva.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-400">Fortaleza:</span>
+                        <span className={
+                          contraseñaNueva.length < 8
+                            ? "font-bold text-rose-500"
+                            : (/[0-9]/.test(contraseñaNueva) && /[A-Z]/.test(contraseñaNueva) && /[^A-Za-z0-9]/.test(contraseñaNueva))
+                            ? "font-bold text-emerald-600"
+                            : "font-bold text-amber-500"
+                        }>
+                          {contraseñaNueva.length < 8
+                            ? "Débil (< 8 caracteres)"
+                            : (/[0-9]/.test(contraseñaNueva) && /[A-Z]/.test(contraseñaNueva) && /[^A-Za-z0-9]/.test(contraseñaNueva))
+                            ? "Fuerte (Segura)"
+                            : "Media"}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            contraseñaNueva.length < 8
+                              ? "w-1/3 bg-rose-500"
+                              : (/[0-9]/.test(contraseñaNueva) && /[A-Z]/.test(contraseñaNueva) && /[^A-Za-z0-9]/.test(contraseñaNueva))
+                              ? "w-full bg-emerald-500"
+                              : "w-2/3 bg-amber-500"
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  )}
                   <Campocontraseña
                     Etiqueta="Confirmar contraseña"
                     Valor={contraseñaConfirmar}

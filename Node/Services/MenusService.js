@@ -52,16 +52,7 @@ class MenusService {
       throw new Error("Debes seleccionar los platos para el menú");
     }
 
-    // Validar que no se superen los 2 platos por tipo de comida por día
-    const countExistentes = await MenuModel.count({
-      where: { Fec_Menu, Tip_Menu }
-    });
-
-    if (countExistentes + platosArray.length > 2) {
-      throw new Error(
-        `El menú de ${Tip_Menu} para la fecha ${Fec_Menu} solo permite un máximo de 2 platos (actualmente tiene ${countExistentes}).`
-      );
-    }
+    // Se permite cantidad ilimitada de platos y bebidas por turno y fecha segun la minuta oficial
 
     const creados = [];
     for (const Id_Plato of platosArray) {

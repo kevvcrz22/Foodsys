@@ -310,17 +310,23 @@ const PqrsfAdminDashboard = () => {
               <div className="space-y-3">
                 {(rankingData?.topCausasFrecuentes || []).length > 0 ? (
                   rankingData.topCausasFrecuentes.slice(0, 6).map((causa, idx) => {
-                    const totalCasos = rankingData.totalPqrsf || 1;
-                    const porcentaje = Math.round((Number(causa.total) / totalCasos) * 100);
+                    const totalCasos = Number(rankingData?.totalPqrsf || rankingData?.totales?.total || 1);
+                    const totalReportes = Number(causa.total ?? causa.totalReportes ?? 0);
+                    const porcentaje = causa.porcentaje !== undefined && !isNaN(causa.porcentaje)
+                      ? Number(causa.porcentaje)
+                      : (totalCasos > 0 ? Math.round((totalReportes / totalCasos) * 100) : 0);
+                    const subcatNombre = causa.Subcategoria || causa.subcategoria || "General";
+                    const catNombre = causa.Categoria_Estandar || causa.categoria || "General";
+                    const impacto = Math.round(Number(causa.impacto_promedio ?? causa.impactoPromedio ?? causa.prioridadPromedio ?? 50));
 
                     return (
                       <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-bold text-slate-800">
-                            #{idx + 1} {causa.Subcategoria}
+                            #{idx + 1} {subcatNombre}
                           </span>
                           <span className="font-extrabold text-[#0f3f80]">
-                            {causa.total} reportes ({porcentaje}%)
+                            {totalReportes} reportes ({isNaN(porcentaje) ? 0 : porcentaje}%)
                           </span>
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
@@ -328,11 +334,11 @@ const PqrsfAdminDashboard = () => {
                             className={`h-full rounded-full transition-all duration-500 ${
                               idx === 0 ? "bg-rose-500" : idx === 1 ? "bg-amber-500" : "bg-[#0f3f80]"
                             }`}
-                            style={{ width: `${Math.min(100, Math.max(8, porcentaje))}%` }}
+                            style={{ width: `${Math.min(100, Math.max(8, isNaN(porcentaje) ? 0 : porcentaje))}%` }}
                           />
                         </div>
                         <p className="text-[10px] text-slate-400">
-                          Categoria: {causa.Categoria_Estandar} · Impacto promedio: {Math.round(causa.impacto_promedio || 50)} pts
+                          Categoria: {catNombre} · Impacto promedio: {impacto} pts
                         </p>
                       </div>
                     );
@@ -353,19 +359,22 @@ const PqrsfAdminDashboard = () => {
               </h3>
 
               <div className="space-y-2.5">
-                {(rankingData?.resumenCategorias || []).map((cat, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50/70 transition-colors">
-                    <div>
-                      <p className="text-xs font-bold text-slate-800">{cat.Categoria_Estandar}</p>
-                      <p className="text-[10px] text-slate-400">
-                        {cat.pendientes} pendientes · {cat.resueltas} resueltas
-                      </p>
+                {(rankingData?.resumenCategorias || []).map((cat, idx) => {
+                  const nombreCategoria = cat.Categoria_Estandar || cat.categoria || "Area General";
+                  return (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50/70 transition-colors">
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">{nombreCategoria}</p>
+                        <p className="text-[10px] text-slate-400">
+                          {cat.pendientes || 0} pendientes · {cat.resueltas || 0} resueltas
+                        </p>
+                      </div>
+                      <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
+                        {cat.total || 0}
+                      </span>
                     </div>
-                    <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
-                      {cat.total}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

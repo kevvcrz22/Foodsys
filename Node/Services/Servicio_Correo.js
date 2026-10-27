@@ -137,10 +137,57 @@ export const notificarFinTurno = async (supervisor, turno) => {
   return await Enviar_Correo(correoAdmin, `[Foodsys] Turno Finalizado por ${nombre}`, html);
 };
 
+/**
+ * Notificación de solicitud de cesión de reserva al aprendiz receptor.
+ */
+export const enviarCorreoSolicitudCesion = async ({
+  correoDestinatario,
+  nombreDestinatario,
+  nombreCedente,
+  tipoComida,
+  fechaReserva,
+  nombrePlato,
+  nombreBebida
+}) => {
+  if (!correoDestinatario) return null;
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+      <div style="background: linear-gradient(135deg, #10B981, #059669); padding: 24px; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 22px;">Foodsys — Centro Agropecuario La Granja</h1>
+        <p style="color: #ecfdf5; margin: 6px 0 0 0; font-size: 14px;">Solicitud de Cesion Solidaria de Racion</p>
+      </div>
+      <div style="padding: 24px; background-color: #ffffff;">
+        <h2 style="color: #0f172a; font-size: 18px; margin-top: 0;">¡Hola, ${nombreDestinatario}!</h2>
+        <p style="font-size: 15px; line-height: 1.6; color: #334155;">
+          Tu companero <strong>${nombreCedente}</strong> te ha ofrecido cederte su reserva de alimentacion.
+        </p>
+        <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; margin: 20px 0;">
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Tipo de Comida:</strong> ${tipoComida}</p>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Fecha del Servicio:</strong> ${fechaReserva}</p>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Plato:</strong> ${nombrePlato || 'Plato del menu'}</p>
+          ${nombreBebida ? `<p style="margin: 4px 0; font-size: 14px;"><strong>Bebida:</strong> ${nombreBebida}</p>` : ''}
+        </div>
+        <p style="font-size: 14px; color: #64748b;">
+          Para aceptar o rechazar esta reserva, ingresa a tu cuenta en Foodsys en la seccion <strong>"Mis Reservas"</strong> o revisa la campanita de notificaciones.
+        </p>
+        <p style="font-size: 12px; color: #94a3b8; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+          Si no realizas ninguna accion o rechazas la solicitud, la reserva se mantendra a nombre del titular original.
+        </p>
+      </div>
+    </div>
+  `;
+  return await enviarCorreo({
+    to: correoDestinatario,
+    subject: `¡Te han ofrecido cederte una racion de ${tipoComida}! — Foodsys`,
+    html
+  });
+};
+
 export default {
   Enviar_Correo,
   enviarCorreo,
   sendPasswordResetEmail,
   notificarInicioTurno,
   notificarFinTurno,
+  enviarCorreoSolicitudCesion,
 };

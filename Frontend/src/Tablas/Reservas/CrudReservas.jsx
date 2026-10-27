@@ -34,17 +34,18 @@ const useIsMobile = () => {
 };
 
 const estadoConfig = {
-  Generado:   { cls: "bg-blue-100 text-blue-800 border-blue-300",   Icon: AlertCircle  },
-  Generada:   { cls: "bg-blue-100 text-blue-800 border-blue-300",   Icon: AlertCircle  },
-  Verificado: { cls: "bg-purple-100 text-purple-800 border-purple-300", Icon: CheckCircle },
-  Verificada: { cls: "bg-purple-100 text-purple-800 border-purple-300", Icon: CheckCircle },
-  Consumido:  { cls: "bg-green-100 text-green-800 border-green-300", Icon: CheckCircle  },
-  Consumida:  { cls: "bg-green-100 text-green-800 border-green-300", Icon: CheckCircle  },
-  Usada:      { cls: "bg-green-100 text-green-800 border-green-300", Icon: CheckCircle  },
-  Vencido:    { cls: "bg-red-100 text-red-800 border-red-300",      Icon: XCircle      },
-  Vencida:    { cls: "bg-red-100 text-red-800 border-red-300",      Icon: XCircle      },
-  Cancelado:  { cls: "bg-gray-100 text-gray-600 border-gray-300",   Icon: XCircle      },
-  Cancelada:  { cls: "bg-gray-100 text-gray-600 border-gray-300",   Icon: XCircle      },
+  Generado:   { cls: "bg-emerald-100 text-emerald-800 border-emerald-300", Icon: CheckCircle },
+  Generada:   { cls: "bg-emerald-100 text-emerald-800 border-emerald-300", Icon: CheckCircle },
+  Pendiente:  { cls: "bg-amber-100 text-amber-800 border-amber-300",       Icon: AlertCircle },
+  Verificado: { cls: "bg-amber-100 text-amber-800 border-amber-300",       Icon: AlertCircle },
+  Verificada: { cls: "bg-amber-100 text-amber-800 border-amber-300",       Icon: AlertCircle },
+  Consumido:  { cls: "bg-slate-200 text-slate-700 border-slate-400",       Icon: CheckCircle },
+  Consumida:  { cls: "bg-slate-200 text-slate-700 border-slate-400",       Icon: CheckCircle },
+  Usada:      { cls: "bg-slate-200 text-slate-700 border-slate-400",       Icon: CheckCircle },
+  Vencido:    { cls: "bg-rose-100 text-rose-800 border-rose-300",          Icon: XCircle     },
+  Vencida:    { cls: "bg-rose-100 text-rose-800 border-rose-300",          Icon: XCircle     },
+  Cancelado:  { cls: "bg-rose-100 text-rose-800 border-rose-300",          Icon: XCircle     },
+  Cancelada:  { cls: "bg-rose-100 text-rose-800 border-rose-300",          Icon: XCircle     },
 };
 
 const EstadoBadge = ({ estado }) => {

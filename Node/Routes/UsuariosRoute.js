@@ -21,12 +21,17 @@ import {
   descargarPlantilla,
   previewImport,
   importarSeleccionados,
+  descargarPlantillaInstructores,
+  importarInstructoresExcel,
   ActualizarSancion,
   GetSancionados,
   getResetPassword,
   setNewPassword,
   diagnosticarSofiaPlus,
-  aplicarConciliacionSofiaPlus
+  aplicarConciliacionSofiaPlus,
+  getMiPerfil,
+  actualizarContactoPerfil,
+  cambiarPasswordPerfil
 } from '../Controllers/UsuariosControllers.js';
 
 const Router = express.Router();
@@ -101,9 +106,20 @@ Router.post("/preview-import", Upload.single("file"), previewImport);
 */
 Router.post("/importar-seleccionados", importarSeleccionados);
 
+// Importacion especifica de Instructores desde Excel
+Router.get("/plantilla-instructores", descargarPlantillaInstructores);
+Router.post("/importar-instructores", authMiddleware, Upload.single("file"), importarInstructoresExcel);
+
 // Motor de Conciliacion Inteligente SOFIA Plus en 1 Clic
 Router.post("/sofia/diagnostico", authMiddleware, Upload.single("file"), diagnosticarSofiaPlus);
 Router.post("/sofia/conciliar", authMiddleware, aplicarConciliacionSofiaPlus);
+
+// ─────────────────────────────────────────────────────────────
+// RUTAS DE PERFIL PROPIO (Cualquier rol autenticado)
+// ─────────────────────────────────────────────────────────────
+Router.get("/perfil/me", authMiddleware, getMiPerfil);
+Router.put("/perfil/contacto", authMiddleware, actualizarContactoPerfil);
+Router.put("/perfil/password", authMiddleware, cambiarPasswordPerfil);
 
 // ─────────────────────────────────────────────────────────────
 // RUTAS CON PARAMETRO DINAMICO /:Id

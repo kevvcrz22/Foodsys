@@ -8,163 +8,333 @@ class ExportService {
      PDF  —  usa pdfkit
      npm install pdfkit
   ═══════════════════════════════════════ */
-  async generarPDF(datos, periodo) {
+  /* ═══════════════════════════════════════
+     PDF  —  usa pdfkit institucional
+     npm install pdfkit
+  ═══════════════════════════════════════ */
+  async generarPDF(datos, periodo = "mensual", filtros = {}) {
     return new Promise((resolve, reject) => {
-      const doc     = new PDFDocument({ margin: 50, size: "A4" });
-      const chunks  = [];
+      const doc = new PDFDocument({ margin: 36, size: "A4", bufferPages: true });
+      const chunks = [];
 
-      doc.on("data",  (chunk) => chunks.push(chunk));
-      doc.on("end",   ()      => resolve(Buffer.concat(chunks)));
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      /* ── Encabezado ── */
+      const esNuevoFormato = datos && datos.resumen && Array.isArray(datos.registros);
+      const res = esNuevoFormato ? datos.resumen : {};
+      const registros = esNuevoFormato ? datos.registros : (Array.isArray(datos) ? datos : []);
+      const rango = esNuevoFormato && datos.rango ? `${datos.rango.inicio} a ${datos.rango.fin}` : "";
+
+      /* ── Encabezado Institucional ── */
       doc
-        .fontSize(20)
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .fillColor("#0f3f80")
+        .text("SENA — CENTRO AGROPECUARIO 'LA GRANJA'", { align: "center" });
+
+      doc
+        .fontSize(9.5)
+        .font("Helvetica")
+        .fillColor("#374151")
+        .text("Foodsys — Sistema Integral de Gestión Alimentaria · Regional Tolima", { align: "center" });
+
+      doc
+        .fontSize(11)
+        .font("Helvetica-Bold")
         .fillColor("#1e3a8a")
-        .text("FOODSYS — Reporte de Reservas", { align: "center" });
+        .text(`Reporte de Auditoría y Reservas — Período: ${periodo.toUpperCase()}${rango ? ` (${rango})` : ""}`, { align: "center" });
 
       doc
-        .fontSize(12)
+        .fontSize(8.5)
+        .font("Helvetica")
         .fillColor("#6b7280")
-        .text(`Período: ${periodo.charAt(0).toUpperCase() + periodo.slice(1)}`, { align: "center" });
+        .text(`Generado: ${new Date().toLocaleString("es-CO")}  |  Filtro Alimento: ${filtros.tipoAlimento || "Todos"}`, { align: "center" })
+        .moveDown(0.8);
 
-      doc
-        .fontSize(10)
-        .text(`Generado: ${new Date().toLocaleString("es-CO")}`, { align: "center" })
-        .moveDown(1.5);
+      /* ── Tarjetas y Métricas Resumen ── */
+      const startX = 36;
+      const widthTotal = doc.page.width - 72;
+      let y = doc.y;
 
-      /* ── Tabla ── */
-      const cols  = ["Período", "Total", "Desayunos", "Almuerzos", "Cenas"];
-      const widths = [160, 70, 80, 80, 80];
-      const startX = 50;
-      let   y      = doc.y;
+      if (esNuevoFormato) {
+        doc.rect(startX, y, widthTotal, 44).fill("#f8fafc").stroke("#e2e8f0");
+        doc.fillColor("#0f172a");
 
-      // Cabecera
-      doc.rect(startX, y, widths.reduce((a, b) => a + b, 0), 20).fill("#1e3a8a");
+        const colW = widthTotal / 5;
+        const metricas = [
+          { label: "Total Reservas", val: res.totalReservas || 0 },
+          { label: "Consumidas", val: res.totalConsumidas || 0 },
+          { label: "Verificadas", val: res.totalVerificadas || 0 },
+          { label: "Inasistencias / Venc.", val: res.totalVencidas || 0 },
+          { label: "% Cumplimiento", val: `${res.porcentajeAsistencia || 0}%` },
+        ];
+
+        metricas.forEach((m, idx) => {
+          const mx = startX + idx * colW;
+          doc.fontSize(8).font("Helvetica").fillColor("#64748b").text(m.label, mx + 2, y + 6, { width: colW - 4, align: "center" });
+          doc.fontSize(11).font("Helvetica-Bold").fillColor("#0f3f80").text(String(m.val), mx + 2, y + 22, { width: colW - 4, align: "center" });
+        });
+
+        y += 52;
+
+        /* ── Gráfica Vectorial Integrada de Estados ── */
+        doc.fontSize(9).font("Helvetica-Bold").fillColor("#1e293b").text("Distribución Comparativa por Estado de Reserva:", startX, y);
+        y += 14;
+
+        const estadosGrafica = [
+          { label: "Generadas", count: res.totalGeneradas || 0, color: "#10B981" },
+          { label: "Consumidas", count: res.totalConsumidas || 0, color: "#64748B" },
+          { label: "Verificadas", count: res.totalVerificadas || 0, color: "#F59E0B" },
+          { label: "Canceladas / Vencidas", count: (res.totalCanceladas || 0) + (res.totalVencidas || 0), color: "#EF4444" }
+        ];
+
+        const maxCount = Math.max(...estadosGrafica.map(g => g.count), 1);
+        const barMaxW = 280;
+
+        estadosGrafica.forEach(item => {
+          const barW = Math.max((item.count / maxCount) * barMaxW, 4);
+          doc.fontSize(8).font("Helvetica").fillColor("#334155").text(item.label, startX, y + 2, { width: 110 });
+          doc.rect(startX + 115, y, barW, 10).fill(item.color);
+          doc.fontSize(8).font("Helvetica-Bold").fillColor("#0f172a").text(String(item.count), startX + 120 + barW, y + 1);
+          y += 14;
+        });
+
+        y += 10;
+        doc.y = y;
+      }
+
+      /* ── Tabla Nominal Detallada (100% de los registros del periodo) ── */
+      y = doc.y;
+      doc.fontSize(10).font("Helvetica-Bold").fillColor("#0f3f80").text(`Detalle Nominal Completo de Reservas (${registros.length} registros):`, startX, y);
+      y += 16;
+
+      const cols = ["Fecha", "Documento", "Aprendiz / Pasante", "Rol", "Ficha", "Comida", "Plato", "Bebida", "Estado"];
+      const widths = [52, 62, 110, 48, 48, 48, 70, 52, 44];
+      const tableW = widths.reduce((a, b) => a + b, 0);
+
+      // Cabecera de la tabla nominal
+      doc.rect(startX, y, tableW, 18).fill("#0f3f80");
       let x = startX;
       cols.forEach((col, i) => {
-        doc
-          .fontSize(9)
-          .fillColor("#ffffff")
-          .text(col, x + 4, y + 5, { width: widths[i] - 8, align: "center" });
+        doc.fontSize(7.5).font("Helvetica-Bold").fillColor("#ffffff").text(col, x + 2, y + 4, { width: widths[i] - 4, align: i === 2 || i === 6 ? "left" : "center" });
         x += widths[i];
       });
-      y += 20;
+      y += 18;
 
-      // Filas
-      datos.forEach((row, idx) => {
-        const bg = idx % 2 === 0 ? "#f0f9ff" : "#ffffff";
-        doc.rect(startX, y, widths.reduce((a, b) => a + b, 0), 18).fill(bg);
+      registros.forEach((row, idx) => {
+        const bg = idx % 2 === 0 ? "#f8fafc" : "#ffffff";
+        doc.rect(startX, y, tableW, 16).fill(bg);
 
         const values = [
-          row.label || row.periodo,
-          row.total,
-          row.desayunos,
-          row.almuerzos,
-          row.cenas,
+          row.Fecha || row.periodo || "—",
+          String(row.NumDoc || "—"),
+          row.NombreCompleto || row.label || "—",
+          row.Rol ? (row.Rol.includes("Interno") ? "Interno" : "Externo") : "—",
+          String(row.Num_Ficha || "—"),
+          row.Tipo_Comida || "—",
+          row.Plato || "—",
+          row.Bebida || "Ninguna",
+          row.Estado || "—"
         ];
+
         x = startX;
         values.forEach((val, i) => {
-          doc
-            .fontSize(9)
-            .fillColor("#1f2937")
-            .text(String(val ?? 0), x + 4, y + 4, { width: widths[i] - 8, align: i === 0 ? "left" : "center" });
+          let textCol = "#1f2937";
+          if (i === 8) {
+            if (val === "Generado") textCol = "#059669";
+            else if (val === "Consumido") textCol = "#475569";
+            else if (val === "Verificado") textCol = "#d97706";
+            else if (val === "Cancelado" || val === "Vencido") textCol = "#dc2626";
+          }
+
+          doc.fontSize(7).font(i === 8 ? "Helvetica-Bold" : "Helvetica").fillColor(textCol).text(String(val), x + 2, y + 4, {
+            width: widths[i] - 4,
+            align: i === 2 || i === 6 ? "left" : "center",
+            ellipsis: true
+          });
           x += widths[i];
         });
-        y += 18;
+        y += 16;
 
-        // Nueva página si es necesario
-        if (y > doc.page.height - 80) { doc.addPage(); y = 50; }
+        if (y > doc.page.height - 45) {
+          doc.addPage();
+          y = 36;
+          // Repetir cabecera en nueva página
+          doc.rect(startX, y, tableW, 18).fill("#0f3f80");
+          let xHeader = startX;
+          cols.forEach((col, i) => {
+            doc.fontSize(7.5).font("Helvetica-Bold").fillColor("#ffffff").text(col, xHeader + 2, y + 4, { width: widths[i] - 4, align: i === 2 || i === 6 ? "left" : "center" });
+            xHeader += widths[i];
+          });
+          y += 18;
+        }
       });
 
-      /* ── Totales ── */
-      const total = datos.reduce((acc, r) => acc + Number(r.total || 0), 0);
-      doc.moveDown(1)
-        .fontSize(11)
-        .fillColor("#1e3a8a")
-        .text(`Total general de reservas: ${total}`, startX, y + 10);
+      if (registros.length === 0) {
+        doc.rect(startX, y, tableW, 20).fill("#f9fafb");
+        doc.fontSize(8).font("Helvetica").fillColor("#6b7280").text("No se registraron reservas para este período y filtros.", startX, y + 6, { width: tableW, align: "center" });
+      }
 
       doc.end();
     });
   }
 
   /* ═══════════════════════════════════════
-     EXCEL  —  usa exceljs
+     EXCEL  —  usa exceljs institucional
      npm install exceljs
   ═══════════════════════════════════════ */
-  async generarExcel(datos, periodo) {
-    const wb  = new ExcelJS.Workbook();
-    const ws  = wb.addWorksheet(`Reporte ${periodo}`);
+  async generarExcel(datos, periodo = "mensual", filtros = {}) {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "Foodsys - Centro Agropecuario La Granja";
+    wb.created = new Date();
 
-    /* Metadatos */
-    wb.creator  = "Foodsys";
-    wb.created  = new Date();
-    wb.modified = new Date();
+    const ws = wb.addWorksheet(`Reporte ${periodo.toUpperCase()}`);
 
-    /* ── Título ── */
-    ws.mergeCells("A1:E1");
-    ws.getCell("A1").value     = `FOODSYS — Reporte ${periodo.charAt(0).toUpperCase() + periodo.slice(1)}`;
-    ws.getCell("A1").font      = { bold: true, size: 14, color: { argb: "FF1E3A8A" } };
-    ws.getCell("A1").alignment = { horizontal: "center" };
+    const esNuevoFormato = datos && datos.resumen && Array.isArray(datos.registros);
+    const res = esNuevoFormato ? datos.resumen : {};
+    const registros = esNuevoFormato ? datos.registros : (Array.isArray(datos) ? datos : []);
+    const rango = esNuevoFormato && datos.rango ? `${datos.rango.inicio} a ${datos.rango.fin}` : "";
 
-    ws.mergeCells("A2:E2");
-    ws.getCell("A2").value     = `Generado: ${new Date().toLocaleString("es-CO")}`;
-    ws.getCell("A2").font      = { italic: true, size: 10, color: { argb: "FF6B7280" } };
-    ws.getCell("A2").alignment = { horizontal: "center" };
+    /* ── Títulos Institucionales ── */
+    ws.mergeCells("A1:O1");
+    ws.getCell("A1").value = "SENA — CENTRO AGROPECUARIO 'LA GRANJA' (REGIONAL TOLIMA)";
+    ws.getCell("A1").font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
+    ws.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F3F80" } };
+    ws.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
+    ws.getRow(1).height = 28;
+
+    ws.mergeCells("A2:O2");
+    ws.getCell("A2").value = `FOODSYS — REPORTE DE AUDITORÍA Y CONTROL DE RESERVAS (${periodo.toUpperCase()}${rango ? ` - ${rango}` : ""})`;
+    ws.getCell("A2").font = { bold: true, size: 11, color: { argb: "FF0F3F80" } };
+    ws.getCell("A2").alignment = { horizontal: "center", vertical: "middle" };
+    ws.getRow(2).height = 20;
+
+    ws.mergeCells("A3:O3");
+    ws.getCell("A3").value = `Fecha de Generación: ${new Date().toLocaleString("es-CO")}  |  Filtro Alimento: ${filtros.tipoAlimento || "Todos"}`;
+    ws.getCell("A3").font = { italic: true, size: 9, color: { argb: "FF4B5563" } };
+    ws.getCell("A3").alignment = { horizontal: "center", vertical: "middle" };
 
     ws.addRow([]);
 
-    /* ── Cabecera de tabla ── */
-    const headerRow = ws.addRow(["Período", "Total", "Desayunos", "Almuerzos", "Cenas"]);
+    /* ── Bloque Resumen Ejecutivo ── */
+    if (esNuevoFormato) {
+      ws.mergeCells("A5:O5");
+      ws.getCell("A5").value = "RESUMEN EJECUTIVO Y ESTADÍSTICAS DEL PERÍODO";
+      ws.getCell("A5").font = { bold: true, size: 10, color: { argb: "FF1E3A8A" } };
+      ws.getCell("A5").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF0F9FF" } };
+
+      const filaMetricas = ws.addRow([
+        `Total: ${res.totalReservas || 0}`,
+        `Consumidas: ${res.totalConsumidas || 0}`,
+        `Verificadas: ${res.totalVerificadas || 0}`,
+        `Generadas: ${res.totalGeneradas || 0}`,
+        `Inasistencias: ${res.totalVencidas || 0}`,
+        `Canceladas: ${res.totalCanceladas || 0}`,
+        `Desayunos: ${res.desayunos || 0}`,
+        `Almuerzos: ${res.almuerzos || 0}`,
+        `Cenas: ${res.cenas || 0}`,
+        `Internos: ${res.internos || 0}`,
+        `Externos: ${res.externos || 0}`,
+        `Cumplimiento: ${res.porcentajeAsistencia || 0}%`,
+        "", "", ""
+      ]);
+      filaMetricas.font = { bold: true, size: 9, color: { argb: "FF0F172A" } };
+      ws.addRow([]);
+    }
+
+    /* ── Cabecera Tabla Nominal ── */
+    const cabeceras = [
+      "#",
+      "Fecha",
+      "Tipo Doc",
+      "Documento",
+      "Nombre Completo del Aprendiz / Pasante",
+      "Rol",
+      "Centro Convivencia",
+      "N° Ficha",
+      "Programa de Formación",
+      "Tipo de Comida",
+      "Plato",
+      "Bebida",
+      "Estado",
+      "Teléfono",
+      "Correo Electrónico"
+    ];
+
+    const headerRow = ws.addRow(cabeceras);
+    headerRow.height = 24;
     headerRow.eachCell((cell) => {
-      cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A8A" } };
-      cell.font      = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
-      cell.alignment = { horizontal: "center" };
-      cell.border    = {
-        top:    { style: "thin" },
-        left:   { style: "thin" },
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F3F80" } };
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 9.5 };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
         bottom: { style: "thin" },
-        right:  { style: "thin" },
+        right: { style: "thin" },
       };
     });
 
-    /* ── Filas de datos ── */
-    datos.forEach((row, idx) => {
+    /* ── 100% de los Registros Nominales ── */
+    registros.forEach((r, idx) => {
       const dataRow = ws.addRow([
-        row.label || row.periodo,
-        Number(row.total      || 0),
-        Number(row.desayunos  || 0),
-        Number(row.almuerzos  || 0),
-        Number(row.cenas      || 0),
+        idx + 1,
+        r.Fecha || r.periodo || "",
+        r.TipDoc || "CC",
+        r.NumDoc || "",
+        r.NombreCompleto || r.label || "",
+        r.Rol || "",
+        r.CenCon_Usuario || "No",
+        r.Num_Ficha || "",
+        r.Programa || "",
+        r.Tipo_Comida || "",
+        r.Plato || "",
+        r.Bebida || "Ninguna",
+        r.Estado || "",
+        r.Tel_Usuario || "",
+        r.Cor_Usuario || ""
       ]);
-      const bg = idx % 2 === 0 ? "FFF0F9FF" : "FFFFFFFF";
+
+      const bg = idx % 2 === 0 ? "FFF8FAFC" : "FFFFFFFF";
       dataRow.eachCell((cell, col) => {
-        cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
-        cell.alignment = { horizontal: col === 1 ? "left" : "center" };
-        cell.border    = {
-          top:    { style: "hair" },
-          left:   { style: "hair" },
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
+        cell.alignment = {
+          horizontal: [1, 2, 3, 4, 7, 8, 10, 13].includes(col) ? "center" : "left",
+          vertical: "middle"
+        };
+        cell.font = { size: 9 };
+        cell.border = {
+          top: { style: "hair" },
+          left: { style: "hair" },
           bottom: { style: "hair" },
-          right:  { style: "hair" },
+          right: { style: "hair" },
         };
       });
     });
 
-    /* ── Fila de total ── */
-    const totalReservas = datos.reduce((acc, r) => acc + Number(r.total || 0), 0);
-    ws.addRow([]);
-    const totalRow = ws.addRow(["TOTAL GENERAL", totalReservas, "", "", ""]);
-    totalRow.getCell(1).font = { bold: true };
-    totalRow.getCell(2).font = { bold: true };
-
-    /* ── Anchos de columna ── */
     ws.columns = [
-      { width: 22 },
-      { width: 10 },
+      { width: 5 },
       { width: 13 },
-      { width: 13 },
-      { width: 10 },
+      { width: 9 },
+      { width: 14 },
+      { width: 28 },
+      { width: 18 },
+      { width: 14 },
+      { width: 12 },
+      { width: 26 },
+      { width: 14 },
+      { width: 24 },
+      { width: 18 },
+      { width: 14 },
+      { width: 14 },
+      { width: 26 },
     ];
+
+    ws.autoFilter = {
+      from: { row: headerRow.number, column: 1 },
+      to: { row: headerRow.number, column: cabeceras.length }
+    };
 
     return wb.xlsx.writeBuffer();
   }

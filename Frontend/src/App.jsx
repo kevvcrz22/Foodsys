@@ -81,7 +81,9 @@ const Aprendices = lazy(() => import("./Tablas/Usuarios/Aprendices.jsx"));
 const Pasantes = lazy(() => import("./Tablas/Usuarios/Pasantes.jsx"));
 const PqrsfAdminDashboard = lazy(() => import("./Paginas/Admin/PqrsfAdminDashboard.jsx"));
 const PanelSincronizacion = lazy(() => import("./Paginas/Admin/PanelSincronizacion.jsx"));
+const ConfiguracionRaciones = lazy(() => import("./Paginas/Admin/ConfiguracionRaciones.jsx"));
 const ReservaForm = lazy(() => import("./Tablas/Reservas/ReservaForm.jsx"));
+const GuardarAlmuerzoCampo = lazy(() => import("./Paginas/Reservas/GuardarAlmuerzoCampo.jsx"));
 
 // ── Mapa de redireccion despues del login por rol ────────────────────────────
 // Cada rol tiene su propia ruta base. Si un usuario tiene dos roles,
@@ -90,12 +92,16 @@ const RUTAS_POR_ROL = {
   Administrador: "/Administrador",
   Supervisor: "/supervisor",
   Coordinador: "/coordinador",
+  Coordinacion: "/coordinador",
   "Aprendiz Interno": "/Interno",
   "Aprendiz Externo": "/Externo",
   "Pasante Interno": "/PasanteInterno",
   "Pasante Externo": "/PasanteExterno",
   Cocina: "/Cocina",
   Bienestar: "/Bienestar",
+  Instructor: "/guardar-almuerzo-campo",
+  Vocero: "/Interno",
+  "SENA Empresa": "/guardar-almuerzo-campo",
 };
 
 // ── Componente ProtectedRoute ────────────────────────────────────────────────
@@ -661,6 +667,46 @@ function App() {
               >
                 <LayoutConSidebar {...Props_Layout}>
                   <PanelSincronizacion />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Horarios y Control de Raciones: accesible para Administrador */}
+          <Route
+            path="/configuracion-raciones"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={["Administrador"]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <ConfiguracionRaciones />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Guardar Almuerzo por Jornada de Campo: accesible para roles autorizados */}
+          <Route
+            path="/guardar-almuerzo-campo"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={[
+                  "Instructor",
+                  "Vocero",
+                  "SENA Empresa",
+                  "Bienestar",
+                  "Coordinador",
+                  "Coordinacion",
+                  "Administrador",
+                  "Supervisor",
+                  "Cocina"
+                ]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <GuardarAlmuerzoCampo />
                 </LayoutConSidebar>
               </ProtectedRoute>
             }

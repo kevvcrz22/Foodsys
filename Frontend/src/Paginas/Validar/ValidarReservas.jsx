@@ -13,9 +13,10 @@ import {
   Camera, CameraOff, QrCode, Search, CheckCircle, XCircle,
   Loader2, Hash, FileText, AlertTriangle, User, Clock,
   Utensils, Info, RefreshCw, ShieldCheck, Sparkles, CheckCircle2,
-  Zap, HelpCircle, ChevronDown, ChevronUp
+  Zap, HelpCircle, ChevronDown, ChevronUp, Coffee
 } from 'lucide-react';
 import apiAxios from '../../api/axiosConfig';
+import { extraerDocumentoDeCodigoBarras } from '../../utils/barcodeUtils';
 
 const ID_CONTENEDOR_CAMARA = 'reader-cocina-qr';
 
@@ -46,6 +47,8 @@ export default function ValidarReservas() {
   const [modoFilaRapida, setModoFilaRapida] = useState(true);
   const [mostrarGuia, setMostrarGuia] = useState(false);
   const timerAutoContinuarRef = useRef(null);
+  const bufferPistolaRef = useRef("");
+  const timerPistolaRef = useRef(null);
   
   // ── Estados de Busqueda Manual ──
   const [tipoBusqueda, setTipoBusqueda] = useState('documento');
@@ -206,47 +209,113 @@ export default function ValidarReservas() {
     }, 150);
   };
 
+  // ── Verificar directamente por numero de documento (Pistola o Teclado) ──
+  const verificarPorDocumentoDirecto = useCallback(async (numDoc) => {
+    setProcesandoQR(true);
+    setErrorQR(null);
+    setResultadoExitoQR(null);
+    try {
+      const resp = await apiAxios.post('/api/Reservas/verificar/documento-cocina', {
+        NumDoc: numDoc
+      });
+      setResultadoExitoQR(resp.data);
+      reproducirBeep("exito");
+
+      if (modoFilaRapida) {
+        if (timerAutoContinuarRef.current) clearTimeout(timerAutoContinuarRef.current);
+        timerAutoContinuarRef.current = setTimeout(() => {
+          setResultadoExitoQR(null);
+          setErrorQR(null);
+          if (pestanaActiva === 'camara') {
+            setTimeout(() => {
+              iniciarScanner();
+            }, 150);
+          }
+        }, 2500);
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Error al verificar reserva por documento.';
+      setErrorQR(msg);
+      reproducirBeep("alerta");
+    } finally {
+      setProcesandoQR(false);
+    }
+  }, [modoFilaRapida, pestanaActiva]);
+
+  // ── Listener de Pistola Lectora de Codigos de Barras (USB / Bluetooth) ──
+  useEffect(() => {
+    const manejarTecla = (e) => {
+      const tag = e.target?.tagName?.toUpperCase();
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      if (e.key === "Enter") {
+        const contenido = bufferPistolaRef.current.trim();
+        bufferPistolaRef.current = "";
+        clearTimeout(timerPistolaRef.current);
+        if (contenido.length >= 6) {
+          if (contenido.includes("data=") || contenido.startsWith("ey") || contenido.length > 30) {
+            procesarCodigoQR(contenido);
+          } else {
+            const docExtraido = extraerDocumentoDeCodigoBarras(contenido);
+            if (docExtraido) {
+              verificarPorDocumentoDirecto(docExtraido);
+            }
+          }
+        }
+        return;
+      }
+
+      if (e.key.length === 1) {
+        bufferPistolaRef.current += e.key;
+        clearTimeout(timerPistolaRef.current);
+        timerPistolaRef.current = setTimeout(() => {
+          bufferPistolaRef.current = "";
+        }, 500);
+      }
+    };
+
+    window.addEventListener("keydown", manejarTecla);
+    return () => {
+      window.removeEventListener("keydown", manejarTecla);
+      clearTimeout(timerPistolaRef.current);
+    };
+  }, [procesarCodigoQR, verificarPorDocumentoDirecto]);
+
   // ── Busqueda Manual ──
   const buscarManual = async () => {
     setErrorManual('');
     setExitoManual('');
     setReservaEncontrada(null);
 
-    if (!valorBusqueda.trim()) {
+    const raw = valorBusqueda.trim();
+    if (!raw) {
       setErrorManual('Por favor ingresa un documento o ID de reserva.');
       return;
     }
 
-    const val = valorBusqueda.trim();
-    const esDoc = val.length >= 6 && !isNaN(Number(val));
-    const tipo = esDoc ? 'documento' : tipoBusqueda;
+    const docExtraido = extraerDocumentoDeCodigoBarras(raw);
+    const val = docExtraido || raw;
+    const esDoc = tipoBusqueda === 'documento' || (val.length >= 6 && !isNaN(Number(val)));
 
     setBuscandoManual(true);
     try {
-      const resp = await apiAxios.get('/api/Reservas/Todas');
-      const todas = resp.data || [];
-
-      let encontrada = null;
-      if (tipo === 'documento') {
-        encontrada = todas.find(
-          r => String(r.usuario?.NumDoc_Usuario) === val && r.Fec_Reserva === hoy
-        );
+      if (esDoc) {
+        const resp = await apiAxios.post('/api/Reservas/verificar/documento-cocina', {
+          NumDoc: val
+        });
+        setResultadoExitoQR(resp.data);
+        setExitoManual(`✅ Reserva verificada con éxito para ${resp.data.Aprendiz || 'el aprendiz'}.`);
+        reproducirBeep("exito");
       } else {
-        encontrada = todas.find(r => String(r.Id_Reserva) === val);
+        const resp = await apiAxios.patch(`/api/Reservas/verificar/${val}/cocina`);
+        setResultadoExitoQR(resp.data);
+        setExitoManual(`✅ Reserva verificada con éxito en Cocina.`);
+        reproducirBeep("exito");
       }
-
-      if (!encontrada) {
-        setErrorManual(
-          tipo === 'documento'
-            ? 'No se encontró reserva para el día de hoy con ese número de documento.'
-            : 'No se encontró ninguna reserva con ese ID.'
-        );
-        return;
-      }
-
-      setReservaEncontrada(encontrada);
+      setValorBusqueda('');
     } catch (err) {
-      setErrorManual(err?.response?.data?.message || 'Error al consultar la reserva.');
+      setErrorManual(err?.response?.data?.message || 'Error al validar la reserva en cocina.');
+      reproducirBeep("alerta");
     } finally {
       setBuscandoManual(false);
     }
@@ -258,11 +327,14 @@ export default function ValidarReservas() {
     setVerificandoManual(true);
 
     try {
-      await apiAxios.patch(`/api/Reservas/verificar/${idReserva}/cocina`);
+      const resp = await apiAxios.patch(`/api/Reservas/verificar/${idReserva}/cocina`);
       setExitoManual('✅ Reserva verificada correctamente en Cocina. El aprendiz ya puede consumir con el Supervisor.');
+      setResultadoExitoQR(resp.data);
       setReservaEncontrada(prev => prev ? { ...prev, Est_Reserva: 'Verificado' } : prev);
+      reproducirBeep("exito");
     } catch (err) {
       setErrorManual(err?.response?.data?.message || 'No se pudo verificar la reserva.');
+      reproducirBeep("alerta");
     } finally {
       setVerificandoManual(false);
     }
@@ -460,7 +532,7 @@ export default function ValidarReservas() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs bg-white/80 p-3 rounded-2xl border border-emerald-200/60">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs bg-white/80 p-3 rounded-2xl border border-emerald-200/60">
                   <div>
                     <span className="text-slate-400 block font-medium">Comida:</span>
                     <span className="font-bold text-slate-700">{resultadoExitoQR.Tipo}</span>
@@ -468,6 +540,10 @@ export default function ValidarReservas() {
                   <div>
                     <span className="text-slate-400 block font-medium">Plato a Servir:</span>
                     <span className="font-bold text-emerald-800">{resultadoExitoQR.Plato}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block font-medium">Bebida a Servir:</span>
+                    <span className="font-bold text-emerald-800">{resultadoExitoQR.Bebida || "Sin bebida"}</span>
                   </div>
                 </div>
 
@@ -613,7 +689,7 @@ export default function ValidarReservas() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs bg-white p-3 rounded-xl border border-slate-200">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs bg-white p-3 rounded-xl border border-slate-200">
                   <div>
                     <span className="text-slate-400">Tipo de Comida:</span>
                     <p className="font-bold text-slate-700">{reservaEncontrada.Tip_Reserva}</p>
@@ -621,6 +697,10 @@ export default function ValidarReservas() {
                   <div>
                     <span className="text-slate-400">Plato:</span>
                     <p className="font-bold text-slate-700">{reservaEncontrada.plato?.Nom_Plato || 'Sin plato'}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Bebida:</span>
+                    <p className="font-bold text-slate-700">{reservaEncontrada.bebida?.Nom_Plato || 'Sin bebida'}</p>
                   </div>
                 </div>
 

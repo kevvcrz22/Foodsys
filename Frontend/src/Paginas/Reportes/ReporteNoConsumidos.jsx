@@ -30,6 +30,7 @@ import {
   Moon,
 } from "lucide-react";
 import { useSocketListener } from "../../api/socket";
+import ModalHistorialAprendiz from "./ModalHistorialAprendiz";
 
 const PERIODOS = [
   { clave: "diario", etiqueta: "Diario" },
@@ -82,6 +83,7 @@ const ReporteNoConsumidos = () => {
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [exportando, setExportando] = useState(null); // "pdf" | "excel" | null
+  const [aprendizSeleccionado, setAprendizSeleccionado] = useState(null);
 
   // Cargar datos desde el backend
   const cargarDatos = useCallback(async () => {
@@ -528,13 +530,18 @@ const ReporteNoConsumidos = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {registrosFiltrados.map((item, idx) => (
-                  <tr key={item.Id_Reserva} className="hover:bg-red-50/20 transition">
+                  <tr
+                    key={item.Id_Reserva}
+                    onClick={() => setAprendizSeleccionado(item.aprendiz)}
+                    className="hover:bg-blue-50/60 cursor-pointer transition"
+                    title="Haz clic para ver el historial y trazabilidad individual de este aprendiz"
+                  >
                     <td className="py-3.5 px-3 text-center text-gray-400 font-medium">{idx + 1}</td>
                     <td className="py-3.5 px-4 text-gray-700 font-medium whitespace-nowrap">
                       {item.Fec_Reserva}
                     </td>
                     <td className="py-3.5 px-4">
-                      <p className="font-semibold text-gray-900 leading-tight">
+                      <p className="font-semibold text-gray-900 leading-tight hover:text-indigo-600 transition">
                         {item.aprendiz.nombreCompleto}
                       </p>
                       <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
@@ -598,7 +605,7 @@ const ReporteNoConsumidos = () => {
                       </div>
                     </td>
                     <td className="py-3.5 px-3 text-center">
-                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-100 text-red-700 border border-red-200">
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200">
                         {item.Est_Reserva || "Vencido"}
                       </span>
                     </td>
@@ -620,6 +627,17 @@ const ReporteNoConsumidos = () => {
           </div>
         )}
       </div>
+
+      {/* Modal interactivo de historial y trazabilidad individual */}
+      {aprendizSeleccionado && (
+        <ModalHistorialAprendiz
+          documento={aprendizSeleccionado.NumDoc_Usuario}
+          aprendizId={aprendizSeleccionado.Id_Usuario}
+          nombreAprendiz={aprendizSeleccionado.nombreCompleto}
+          aprendizInicial={aprendizSeleccionado}
+          onClose={() => setAprendizSeleccionado(null)}
+        />
+      )}
     </div>
   );
 };

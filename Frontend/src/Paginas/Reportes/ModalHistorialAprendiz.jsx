@@ -14,13 +14,14 @@ import {
 import { exportarAExcel, exportarAPDF } from "../../utils/exportUtils";
 
 const ColorEstado = (estado) => {
-  if (estado === "Consumido" || estado === "Consumida") return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (estado === "Verificado" || estado === "Verificada") return "bg-blue-50 text-blue-700 border-blue-200";
-  if (estado === "Vencido" || estado === "Vencida" || estado === "Cancelado") return "bg-rose-50 text-rose-700 border-rose-200";
-  return "bg-amber-50 text-amber-700 border-amber-200";
+  if (estado === "Generado" || estado === "Generada") return "bg-emerald-100 text-emerald-800 border-emerald-300";
+  if (estado === "Consumido" || estado === "Consumida") return "bg-slate-200 text-slate-700 border-slate-400";
+  if (estado === "Verificado" || estado === "Verificada" || estado === "Pendiente") return "bg-amber-100 text-amber-800 border-amber-300";
+  if (estado === "Vencido" || estado === "Vencida" || estado === "Cancelado" || estado === "Cancelada") return "bg-rose-100 text-rose-800 border-rose-300";
+  return "bg-amber-100 text-amber-800 border-amber-300";
 };
 
-const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) => {
+const ModalHistorialAprendiz = ({ documento, aprendizId, idUsuario, aprendizInicial = null, nombreAprendiz = "", onClose }) => {
   const [cargando, setCargando] = useState(true);
   const [aprendiz, setAprendiz] = useState(aprendizInicial);
   const [historial, setHistorial] = useState([]);
@@ -31,18 +32,25 @@ const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) 
   const [tipoComida, setTipoComida] = useState("Todos");
   const [exportando, setExportando] = useState(false);
 
-  useEffect(() => {
-    if (documento) {
-      cargarHistorial();
-    }
-  }, [documento]);
+  const docFinal = documento || aprendizInicial?.NumDoc || aprendizInicial?.NumDoc_Usuario || aprendiz?.NumDoc_Usuario;
+  const idFinal = aprendizId || idUsuario || aprendizInicial?.Id_Usuario || aprendiz?.Id_Usuario;
 
-  const cargarHistorial = async () => {
+  const cargarHistorial = useCallback(async () => {
     setCargando(true);
     try {
-      const res = await apiAxios.get(`/api/Reportes/aprendiz?documento=${documento}`);
-      if (res.data?.aprendiz) {
-        setAprendiz(res.data.aprendiz);
+      let queryParam = "";
+      if (docFinal) {
+        queryParam = `documento=${encodeURIComponent(docFinal)}`;
+      } else if (idFinal) {
+        queryParam = `idUsuario=${encodeURIComponent(idFinal)}`;
+      } else {
+        setCargando(false);
+        return;
+      }
+
+      const res = await apiAxios.get(`/api/Reportes/aprendiz?${queryParam}`);
+      if (res.data?.perfil || res.data?.aprendiz) {
+        setAprendiz(res.data.perfil || res.data.aprendiz);
       }
       setHistorial(Array.isArray(res.data?.historial) ? res.data.historial : []);
     } catch (err) {
@@ -51,7 +59,11 @@ const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) 
     } finally {
       setCargando(false);
     }
-  };
+  }, [docFinal, idFinal]);
+
+  useEffect(() => {
+    cargarHistorial();
+  }, [cargarHistorial]);
 
   // Filtrado de las reservas en memoria segun los filtros del modal
   const historialFiltrado = useMemo(() => {
@@ -64,6 +76,13 @@ const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) 
     });
   }, [historial, fechaInicio, fechaFin, tipoComida]);
 
+  // Calculo de metricas personales
+  const totalR = historial.length;
+  const consumidasR = historial.filter((h) => h.Est_Reserva === "Consumido").length;
+  const canceladasR = historial.filter((h) => h.Est_Reserva === "Cancelado").length;
+  const inasistenciasR = historial.filter((h) => h.Est_Reserva === "Vencido").length;
+  const porcentajeCumplimiento = totalR > 0 ? Number(((consumidasR / totalR) * 100).toFixed(1)) : 0;
+
   // Exportar este historial puntual a Excel
   const handleExportarExcel = () => {
     if (historialFiltrado.length === 0) {
@@ -72,12 +91,13 @@ const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) 
     }
     setExportando(true);
     try {
-      const nombreCompleto = `${aprendiz?.Nom_Usuario || ""} ${aprendiz?.Ape_Usuario || ""}`.trim() || `Aprendiz_${documento}`;
+      const nombreReal = aprendiz?.nombre || aprendiz?.nombreCompleto || nombreAprendiz || `Aprendiz_${docFinal || idFinal}`;
       const datos = historialFiltrado.map((h) => ({
         "ID Reserva": h.Id_Reserva,
         "Fecha": h.Fec_Reserva || "",
         "Tipo de Comida": h.Tip_Reserva || "",
         "Plato Consumido": h.plato?.Nom_Plato || "Sin plato",
+        "Bebida": h.bebida?.Nom_Plato || "Ninguna",
         "Estado": h.Est_Reserva || "Generado",
         "Excepcional": h.Exc_Reserva || "No",
         "Hora Registro": h.createdAt ? new Date(h.createdAt).toLocaleTimeString("es-CO") : ""
@@ -86,7 +106,7 @@ const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) 
       const fecha = new Date().toISOString().split("T")[0];
       exportarAExcel({
         datos,
-        nombreArchivo: `Foodsys_Historial_${documento}_${fecha}.xlsx`,
+        nombreArchivo: `Foodsys_Historial_${docFinal || idFinal}_${fecha}.xlsx`,
         nombreHoja: "Historial"
       });
       toast.success("Historial exportado a Excel.");
@@ -106,12 +126,13 @@ const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) 
     }
     setExportando(true);
     try {
-      const nombreCompleto = `${aprendiz?.Nom_Usuario || ""} ${aprendiz?.Ape_Usuario || ""}`.trim() || `Doc: ${documento}`;
+      const nombreReal = aprendiz?.nombre || aprendiz?.nombreCompleto || nombreAprendiz || `Doc: ${docFinal || idFinal}`;
       const columnas = [
         { header: "ID", dataKey: "id" },
         { header: "Fecha", dataKey: "fecha" },
         { header: "Tipo", dataKey: "tipo" },
         { header: "Plato Consumido", dataKey: "plato" },
+        { header: "Bebida", dataKey: "bebida" },
         { header: "Estado", dataKey: "estado" }
       ];
 
@@ -120,16 +141,17 @@ const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) 
         fecha: h.Fec_Reserva || "—",
         tipo: h.Tip_Reserva || "—",
         plato: h.plato?.Nom_Plato || "Sin plato",
+        bebida: h.bebida?.Nom_Plato || "Ninguna",
         estado: h.Est_Reserva || "Generado"
       }));
 
       const fecha = new Date().toISOString().split("T")[0];
       exportarAPDF({
-        titulo: `Historial de Consumo — ${nombreCompleto}`,
-        subtitulo: `Doc: ${documento} | Ficha: ${aprendiz?.ficha?.Num_Ficha || "N/A"} | Registros: ${historialFiltrado.length}`,
+        titulo: `Historial de Consumo — ${nombreReal}`,
+        subtitulo: `Doc: ${docFinal || "N/A"} | Ficha: ${aprendiz?.ficha?.Num_Ficha || aprendiz?.Num_Ficha || "N/A"} | Cumplimiento: ${porcentajeCumplimiento}% (${consumidasR}/${totalR})`,
         columnas,
         datos: filas,
-        nombreArchivo: `Foodsys_Historial_${documento}_${fecha}.pdf`,
+        nombreArchivo: `Foodsys_Historial_${docFinal || idFinal}_${fecha}.pdf`,
         orientacion: "portrait"
       });
       toast.success("Historial exportado a PDF.");
@@ -141,7 +163,7 @@ const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) 
     }
   };
 
-  const nombreCompleto = `${aprendiz?.Nom_Usuario || ""} ${aprendiz?.Ape_Usuario || ""}`.trim() || "Aprendiz";
+  const nombreCompleto = aprendiz?.nombre || aprendiz?.nombreCompleto || nombreAprendiz || "Aprendiz";
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -173,13 +195,15 @@ const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) 
             <span className="text-slate-400 font-semibold flex items-center gap-1">
               <Hash size={12} /> Documento
             </span>
-            <span className="font-bold text-slate-800">{documento || "—"}</span>
+            <span className="font-bold text-slate-800">{docFinal || aprendiz?.NumDoc_Usuario || "—"}</span>
           </div>
           <div className="flex flex-col">
             <span className="text-slate-400 font-semibold flex items-center gap-1">
-              <GraduationCap size={12} /> Ficha
+              <GraduationCap size={12} /> Ficha / Programa
             </span>
-            <span className="font-bold text-slate-800">{aprendiz?.ficha?.Num_Ficha || "Sin ficha"}</span>
+            <span className="font-bold text-slate-800 truncate" title={aprendiz?.programa || aprendiz?.Nom_Programa}>
+              {aprendiz?.ficha?.Num_Ficha || aprendiz?.Num_Ficha || "Sin ficha"}
+            </span>
           </div>
           <div className="flex flex-col">
             <span className="text-slate-400 font-semibold flex items-center gap-1">
@@ -192,6 +216,30 @@ const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) 
               <Mail size={12} /> Correo
             </span>
             <span className="font-bold text-slate-800 truncate" title={aprendiz?.Cor_Usuario}>{aprendiz?.Cor_Usuario || "—"}</span>
+          </div>
+        </div>
+
+        {/* Resumen estadístico personal */}
+        <div className="p-3 bg-white border-b border-slate-100 grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+          <div className="bg-slate-50 p-2 rounded-xl border border-slate-200">
+            <span className="block text-[10px] uppercase font-bold text-slate-400">Total Reservas</span>
+            <span className="text-base font-black text-slate-800">{totalR}</span>
+          </div>
+          <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-200">
+            <span className="block text-[10px] uppercase font-bold text-emerald-700">Consumidas</span>
+            <span className="text-base font-black text-emerald-700">{consumidasR}</span>
+          </div>
+          <div className="bg-amber-50 p-2 rounded-xl border border-amber-200">
+            <span className="block text-[10px] uppercase font-bold text-amber-700">Canceladas</span>
+            <span className="text-base font-black text-amber-700">{canceladasR}</span>
+          </div>
+          <div className="bg-rose-50 p-2 rounded-xl border border-rose-200">
+            <span className="block text-[10px] uppercase font-bold text-rose-700">Inasistencias</span>
+            <span className="text-base font-black text-rose-700">{inasistenciasR}</span>
+          </div>
+          <div className="bg-indigo-50 p-2 rounded-xl border border-indigo-200 col-span-2 sm:col-span-1">
+            <span className="block text-[10px] uppercase font-bold text-indigo-700">% Cumplimiento</span>
+            <span className="text-base font-black text-indigo-700">{porcentajeCumplimiento}%</span>
           </div>
         </div>
 
@@ -279,8 +327,18 @@ const ModalHistorialAprendiz = ({ documento, aprendizInicial = null, onClose }) 
                       )}
                     </div>
                     <p className="text-xs text-emerald-700 font-semibold m-0 mt-0.5 truncate">
-                      {item.plato?.Nom_Plato || "Plato del dia"}
+                      🍽️ {item.plato?.Nom_Plato || "Plato del día"}
                     </p>
+                    {item.bebida?.Nom_Plato && (
+                      <p className="text-[11px] text-slate-500 font-medium m-0 mt-0.5 truncate flex items-center gap-1">
+                        <span>🥤 {item.bebida.Nom_Plato}</span>
+                        {item.bebida.Subtipo_Bebida && (
+                          <span className="text-[10px] text-slate-400">
+                            ({item.bebida.Subtipo_Bebida === 'FRIA' ? 'Bebida Fría' : 'Bebida Caliente'})
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
 
                   <div className="text-right shrink-0">

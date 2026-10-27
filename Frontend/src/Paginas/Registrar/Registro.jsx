@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import apiAxios from "../../api/axiosConfig";
 import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
+import { extraerDocumentoDeCodigoBarras } from "../../utils/barcodeUtils";
 
 // URL base de la API
 const API_URL = import.meta.env.VITE_API_URL || "";
@@ -363,6 +364,18 @@ const TarjetaResultado = ({ resultado }) => {
                 <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-md border mt-0.5 ${configTipo.badge}`}>
                   {resultado.Tipo || "Almuerzo"}
                 </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 bg-white border border-green-100 p-2.5 rounded-xl">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <Coffee className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-gray-400 uppercase leading-none">Bebida Asignada</p>
+                <p className="text-sm font-bold text-emerald-950 truncate mt-0.5">
+                  {resultado.Bebida || "Sin bebida registrada"}
+                </p>
               </div>
             </div>
           </div>
@@ -863,6 +876,8 @@ const Registro = () => {
           Plato: datos.Plato || "Sin información",
           DescPlato: datos.DescPlato || "",
           ImgPlato: datos.ImgPlato || null,
+          Bebida: datos.Bebida || "Sin bebida asignada",
+          SubtipoBebida: datos.SubtipoBebida || null,
           FlujoEspecial: Boolean(datos.flujoEspecial),
           FlujoInterno: Boolean(datos.flujoInterno),
           Id_Reserva: datos.Id_Reserva,
@@ -915,14 +930,26 @@ const Registro = () => {
 
     const manejarTecla = (e) => {
       const tag = e.target?.tagName?.toUpperCase();
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      // Si el foco esta en un input de busqueda manual y se presiona Enter
+      if (tag === "INPUT" || tag === "TEXTAREA") {
+        return;
+      }
 
       if (e.key === "Enter") {
         const contenido = bufferPistolaRef.current.trim();
         bufferPistolaRef.current = "";
         clearTimeout(timerPistolaRef.current);
-        if (contenido.length > 10) {
-          procesarTextoQR(contenido);
+        if (contenido.length >= 6) {
+          // Si es un codigo QR de reserva
+          if (contenido.includes("data=") || contenido.startsWith("ey") || contenido.length > 30) {
+            procesarTextoQR(contenido);
+          } else {
+            // Es un codigo de barras de carnet o cedula
+            const docExtraido = extraerDocumentoDeCodigoBarras(contenido);
+            if (docExtraido) {
+              llamarAPIConsumo("documento", { NumDoc: docExtraido });
+            }
+          }
         }
         return;
       }
@@ -996,17 +1023,21 @@ const Registro = () => {
   const tipoBusquedaDetectada = useMemo(() => {
     const val = terminoBusqueda.trim();
     if (!val) return "doc";
-    if (isNaN(Number(val))) return "doc";
-    return val.length >= 6 ? "doc" : "id";
+    const docExtraido = extraerDocumentoDeCodigoBarras(val);
+    const candidato = docExtraido || val;
+    if (isNaN(Number(candidato))) return "doc";
+    return candidato.length >= 6 ? "doc" : "id";
   }, [terminoBusqueda]);
 
   const manejarBusquedaManual = async () => {
-    const termino = terminoBusqueda.trim();
-    if (!termino || cargandoManual || !turnoActivo) return;
+    const raw = terminoBusqueda.trim();
+    if (!raw || cargandoManual || !turnoActivo) return;
 
     setCargandoManual(true);
     setUltimoResultado(null);
 
+    const docExtraido = extraerDocumentoDeCodigoBarras(raw);
+    const termino = docExtraido || raw;
     const esID = !isNaN(Number(termino)) && termino.length < 6;
 
     if (esID) {

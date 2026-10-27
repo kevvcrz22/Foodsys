@@ -424,25 +424,46 @@ class PqrsfService {
     });
 
     return {
+      totalPqrsf,
+      totalPendientes,
+      totalCriticas,
       totales: {
         total: totalPqrsf,
         pendientes: totalPendientes,
         criticasPendientes: totalCriticas
       },
-      topCausasFrecuentes: topCausas.map(t => ({
-        categoria: t.Categoria_Estandar,
-        subcategoria: t.Subcategoria,
-        tipo: t.Tipo_Solicitud,
-        totalReportes: Number(t.totalReportes),
-        prioridadPromedio: Math.round(Number(t.prioridadPromedio || 0)),
-        calificacionPromedio: t.calificacionPromedio ? Number(Number(t.calificacionPromedio).toFixed(1)) : null
-      })),
-      resumenCategorias: resumenCategorias.map(r => ({
-        categoria: r.Categoria_Estandar,
-        total: Number(r.total),
-        pendientes: Number(r.pendientes || 0),
-        resueltas: Number(r.resueltas || 0)
-      })),
+      topCausasFrecuentes: topCausas.map(t => {
+        const total = Number(t.totalReportes) || 0;
+        const porcentaje = totalPqrsf > 0 ? Number(((total / totalPqrsf) * 100).toFixed(1)) : 0;
+        const impacto = Math.round(Number(t.prioridadPromedio || 50));
+        const cat = t.Categoria_Estandar || "General";
+        const sub = t.Subcategoria || "General";
+        return {
+          categoria: cat,
+          Categoria_Estandar: cat,
+          subcategoria: sub,
+          Subcategoria: sub,
+          tipo: t.Tipo_Solicitud,
+          Tipo_Solicitud: t.Tipo_Solicitud,
+          total: total,
+          totalReportes: total,
+          porcentaje: porcentaje,
+          prioridadPromedio: impacto,
+          impactoPromedio: impacto,
+          impacto_promedio: impacto,
+          calificacionPromedio: t.calificacionPromedio ? Number(Number(t.calificacionPromedio).toFixed(1)) : null
+        };
+      }),
+      resumenCategorias: resumenCategorias.map(r => {
+        const cat = r.Categoria_Estandar || "General";
+        return {
+          categoria: cat,
+          Categoria_Estandar: cat,
+          total: Number(r.total) || 0,
+          pendientes: Number(r.pendientes || 0),
+          resueltas: Number(r.resueltas || 0)
+        };
+      }),
       platosConMasQuejas: platosNegativos.map(p => ({
         idPlato: p.Id_Plato_Relacionado,
         nombrePlato: p.platoRelacionado?.Nom_Plato || "Plato no identificado",

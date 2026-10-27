@@ -10,13 +10,14 @@ import toast from "react-hot-toast";
 import apiAxios from "../../api/axiosConfig";
 import UsuariosForm from "./UsuariosForm.jsx";
 import ImportarExcel from "./ImportarExcel.jsx";
+import ModalImportarInstructores from "./ModalImportarInstructores.jsx";
 import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
 import GlobalLoader from "../../Components/GlobalLoader";
 import {
   Users, Pencil, Plus, Search, X, History,
   CheckCircle2, AlertCircle, Ban, ShieldCheck,
   Download, Upload, Undo2, HelpCircle, ChevronDown, ChevronUp,
-  FileText, Phone, Mail, Calendar
+  FileText, Phone, Mail, Calendar, Award
 } from "lucide-react";
 
 /* ============================================================
@@ -117,6 +118,7 @@ const CrudUsuarios = () => {
   const [isEdit, setIsEdit] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [importModal, setImportModal] = useState(false);
+  const [importInstructoresModal, setImportInstructoresModal] = useState(false);
 
   // Panel lateral o modal de detalle con historial real
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
@@ -699,7 +701,15 @@ const CrudUsuarios = () => {
                 className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl px-3.5 py-2 text-xs font-semibold cursor-pointer hover:bg-emerald-100 transition-colors"
                 title="Importar usuarios desde archivo Excel"
               >
-                <Download size={14} /> Importar Excel
+                <Download size={14} /> Importar Aprendices
+              </button>
+
+              <button
+                onClick={() => setImportInstructoresModal(true)}
+                className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl px-3.5 py-2 text-xs font-semibold cursor-pointer hover:bg-indigo-100 transition-colors"
+                title="Importar instructores desde archivo Excel"
+              >
+                <Award size={14} /> Importar Instructores
               </button>
 
               <button
@@ -981,6 +991,13 @@ const CrudUsuarios = () => {
           reload={getAllUsuarios}
         />
       )}
+
+      {/* Modal especializado para importacion de instructores */}
+      <ModalImportarInstructores
+        isOpen={importInstructoresModal}
+        onClose={() => setImportInstructoresModal(false)}
+        onImportSuccess={() => getAllUsuarios()}
+      />
     </div>
   );
 };

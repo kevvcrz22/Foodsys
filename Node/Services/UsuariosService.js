@@ -147,12 +147,19 @@ class UsuariosService {
     });
 
     // Asignar roles: si se enviaron roles especificos se asignan, de lo contrario se asigna por CenCon_Usuario
+    // Asignar roles: si se enviaron roles especificos se asignan, si es Instructor se asigna Instructor, de lo contrario por CenCon_Usuario
     let rolesNombres = [];
     if (Array.isArray(Roles) && Roles.length > 0) {
       for (const idRol of Roles) {
         await UsuariosRolModel.create({ Id_Usuario: usuarios.Id_Usuario, Id_Rol: idRol });
         const rObj = await RolesModel.findByPk(idRol);
         if (rObj) rolesNombres.push(rObj.Nom_Rol);
+      }
+    } else if (String(estUsuarioFinal).toLowerCase().includes("instructor")) {
+      const rolInstructor = await RolesModel.findOne({ where: { Nom_Rol: "Instructor" } });
+      if (rolInstructor) {
+        await UsuariosRolModel.create({ Id_Usuario: usuarios.Id_Usuario, Id_Rol: rolInstructor.Id_Rol });
+        rolesNombres.push("Instructor");
       }
     } else {
       const nombreRol = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
@@ -301,6 +308,19 @@ class UsuariosService {
 
     const result = await UsuariosModel.update(dataFiltrada, { where: { Id_Usuario } });
     if (result[0] === 0) throw new Error("Usuario No Encontrado o Sin Cambios");
+
+    // Si el estado cambio a Instructor, asignar automaticamente el rol de Instructor si no lo tiene
+    if (dataFiltrada.Est_Usuario && String(dataFiltrada.Est_Usuario).toLowerCase().includes("instructor")) {
+      const rolInstructor = await RolesModel.findOne({ where: { Nom_Rol: "Instructor" } });
+      if (rolInstructor) {
+        const tieneRol = await UsuariosRolModel.findOne({
+          where: { Id_Usuario, Id_Rol: rolInstructor.Id_Rol }
+        });
+        if (!tieneRol) {
+          await UsuariosRolModel.create({ Id_Usuario, Id_Rol: rolInstructor.Id_Rol });
+        }
+      }
+    }
 
     const usuarioAct = await UsuariosModel.findByPk(Id_Usuario, {
       include: [{ model: UsuariosRolModel, as: "rolesUsuario", include: [{ model: RolesModel, as: "rolUsuario" }] }]

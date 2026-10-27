@@ -32,6 +32,7 @@ export const generarAlimentoTomorrow = async (req, res) => {
     // Eliminar espacios en blanco por si el cliente envia datos con padding
     const Tip_Reserva = req.body.Tip_Reserva?.trim();
     const { platoElegido, fechaReserva } = req.body;
+    const Id_Bebida = req.body.Id_Bebida || req.body.idBebida || null;
 
     if (!Tip_Reserva) {
       return res.status(400).json({ message: "El tipo de comida es obligatorio" });
@@ -50,7 +51,10 @@ export const generarAlimentoTomorrow = async (req, res) => {
       rolesUsuario,
       Tip_Reserva,
       platoElegido,
-      fechaReserva
+      fechaReserva,
+      false,
+      null,
+      Id_Bebida
     );
 
     notificarCambioReservas({ accion: "creada", Id_Usuario });
@@ -146,6 +150,23 @@ export const verificarQRCocina = async (req, res) => {
     return res.status(200).json(resultado);
   } catch (err) {
     console.error("[ReservasController] verificarQRCocina:", err.message);
+    return res.status(400).json({ message: err.message });
+  }
+};
+
+// Verifica una reserva en Cocina buscando por documento (pistola lectora o busqueda manual)
+export const verificarPorDocumentoCocina = async (req, res) => {
+  try {
+    const { NumDoc } = req.body;
+    if (!NumDoc) {
+      return res.status(400).json({ message: "El numero de documento es obligatorio" });
+    }
+
+    const resultado = await ReservasServices.procesarVerificacionCocinaPorDocumento(NumDoc);
+    notificarCambioReservas({ accion: "verificada", Id_Reserva: resultado.Id_Reserva });
+    return res.status(200).json(resultado);
+  } catch (err) {
+    console.error("[ReservasController] verificarPorDocumentoCocina:", err.message);
     return res.status(400).json({ message: err.message });
   }
 };
@@ -398,7 +419,7 @@ export const buscarCompaneroParaCeder = async (req, res) => {
   }
 };
 
-// Ceder una reserva a un companero de forma atomica
+// Ceder una reserva a un companero (envia solicitud pendiente de aceptacion)
 export const cederReserva = async (req, res) => {
   try {
     const Id_Usuario_Cedente = req.user.id;
@@ -413,17 +434,57 @@ export const cederReserva = async (req, res) => {
       });
     }
 
-    const resultado = await ReservasServices.CederReservaACompanero(
+    const resultado = await ReservasServices.SolicitarCesionReserva(
       Number(Id_Reserva),
       Id_Usuario_Cedente,
       Number(Id_Usuario_Receptor),
       motivo
     );
-    notificarCambioReservas({ accion: "cedida", Id_Reserva });
+    notificarCambioReservas({ accion: "solicitud_cesion", Id_Reserva });
     return res.status(200).json(resultado);
   } catch (err) {
     console.error('[ReservasController] cederReserva:', err.message);
     return res.status(400).json({ message: err.message, mensaje: err.message });
+  }
+};
+
+export const solicitarCesionReserva = async (req, res) => {
+  return await cederReserva(req, res);
+};
+
+// Responder a una solicitud de cesion (Aceptar o Rechazar)
+export const responderCesionReserva = async (req, res) => {
+  try {
+    const Id_Usuario_Receptor = req.user.id;
+    const Id_Reserva = req.body.Id_Reserva || req.body.idReserva;
+    const accion = req.body.accion || req.body.Accion || "ACEPTAR";
+
+    if (!Id_Reserva) {
+      return res.status(400).json({ message: "Se requiere Id_Reserva" });
+    }
+
+    const resultado = await ReservasServices.ResponderCesionReserva(
+      Number(Id_Reserva),
+      Id_Usuario_Receptor,
+      accion
+    );
+    notificarCambioReservas({ accion: accion === "ACEPTAR" ? "cedida" : "rechazada", Id_Reserva });
+    return res.status(200).json(resultado);
+  } catch (err) {
+    console.error('[ReservasController] responderCesionReserva:', err.message);
+    return res.status(400).json({ message: err.message, mensaje: err.message });
+  }
+};
+
+// Obtener solicitudes de cesion pendientes que un companero envio al usuario autenticado
+export const obtenerCesionesPendientes = async (req, res) => {
+  try {
+    const Id_Usuario = req.user.id;
+    const solicitudes = await ReservasServices.ObtenerCesionesPendientes(Id_Usuario);
+    return res.status(200).json(solicitudes);
+  } catch (err) {
+    console.error('[ReservasController] obtenerCesionesPendientes:', err.message);
+    return res.status(500).json({ message: err.message });
   }
 };
 
