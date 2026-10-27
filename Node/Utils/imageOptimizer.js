@@ -5,15 +5,29 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import sharp from "sharp";
 import PlatoModel from "../Models/PlatosModels.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const UPLOADS_DIR = path.resolve(__dirname, "../uploads");
 
+let sharpModule = null;
+const obtenerSharp = async () => {
+  if (sharpModule !== null) return sharpModule;
+  try {
+    const mod = await import("sharp");
+    sharpModule = mod.default || mod;
+    return sharpModule;
+  } catch {
+    sharpModule = false;
+    return false;
+  }
+};
+
 export const optimizarBufferImagen = async (buffer) => {
   if (!buffer) return null;
+  const sharp = await obtenerSharp();
+  if (!sharp) return buffer;
   return await sharp(buffer)
     .resize(600, 600, {
       fit: "inside",
@@ -25,6 +39,8 @@ export const optimizarBufferImagen = async (buffer) => {
 
 export const optimizarArchivoUpload = async (nombreArchivo) => {
   if (!nombreArchivo) return null;
+  const sharp = await obtenerSharp();
+  if (!sharp) return nombreArchivo;
   const rutaOriginal = path.join(UPLOADS_DIR, nombreArchivo);
   if (!fs.existsSync(rutaOriginal)) return nombreArchivo;
 
@@ -56,6 +72,11 @@ export const optimizarArchivoUpload = async (nombreArchivo) => {
 };
 
 export const optimizarImagenesExistentes = async () => {
+  const sharp = await obtenerSharp();
+  if (!sharp) {
+    return { totalProcesados: 0, totalOptimizados: 0, bytesAhorradosKB: 0 };
+  }
+
   let totalProcesados = 0;
   let totalOptimizados = 0;
   let bytesAhorrados = 0;
