@@ -18,10 +18,18 @@ try {
   const gitPull = execSync('ssh -n root@foodsyslagranja.com "cd /var/www/Foodsys && git checkout . && git pull origin main"', { encoding: "utf8" });
   console.log("   ->", gitPull.trim());
 
-  // 3. Ejecutar migracion SQL V5 en la base de datos de Hetzner
-  console.log("3. Aplicando migracion V5 en MySQL de Hetzner...");
+  // 3. Ejecutar migraciones SQL V4 y V5 en la base de datos de Hetzner
+  console.log("3. Aplicando migraciones V4 y V5 en MySQL de Hetzner...");
+  const sqlV4Path = "./Node/Database/migration_v4_platos_bebidas_horarios.sql";
+  if (fs.existsSync(sqlV4Path)) {
+    console.log("   -> Aplicando migration_v4...");
+    execSync(`scp ${sqlV4Path} root@foodsyslagranja.com:/root/migration_v4.sql`);
+    execSync('ssh -n root@foodsyslagranja.com "mysql -u root foodsys_db < /root/migration_v4.sql || true"', { encoding: "utf8" });
+  }
+
   const sqlV5Path = "./Node/Database/migration_v5_campo_sena_empresa.sql";
   if (fs.existsSync(sqlV5Path)) {
+    console.log("   -> Aplicando migration_v5...");
     execSync(`scp ${sqlV5Path} root@foodsyslagranja.com:/root/migration_v5.sql`);
     const migResult = execSync('ssh -n root@foodsyslagranja.com "mysql -u root foodsys_db < /root/migration_v5.sql && echo MIGRACION_EXITOSA"', { encoding: "utf8" });
     console.log("   ->", migResult.trim());
