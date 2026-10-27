@@ -14,6 +14,7 @@ import {
 import toast from "react-hot-toast";
 import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
 import GlobalLoader from "../../Components/GlobalLoader";
+import DescripcionExpandible from "../../Components/DescripcionExpandible";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -207,7 +208,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wide">
-            🍽️ Platos Fuertes Disponibles
+            Platos Fuertes Disponibles
           </label>
           <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
             {platosSeleccionados.length} seleccionados
@@ -243,8 +244,15 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-gray-800 truncate m-0">{p.Nom_Plato}</p>
-                    {p.Des_Plato && <p className="text-[11px] text-gray-400 truncate m-0">{p.Des_Plato}</p>}
+                    <p className="text-xs font-bold text-gray-800 m-0 leading-snug">{p.Nom_Plato}</p>
+                    {p.Des_Plato && (
+                      <DescripcionExpandible
+                        texto={p.Des_Plato}
+                        limite={40}
+                        color="emerald"
+                        className="mt-0.5"
+                      />
+                    )}
                   </div>
                   {sel && (
                     <div className="shrink-0 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[10px] font-bold">
@@ -262,7 +270,7 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
       <div className="space-y-2 pt-2 border-t border-slate-100">
         <div className="flex items-center justify-between">
           <label className="text-xs font-bold text-blue-900 flex items-center gap-1.5 uppercase tracking-wide">
-            🥤☕ Bebidas Disponibles (Frias y Calientes)
+            Bebidas Disponibles (Frías y Calientes)
           </label>
           <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
             {bebidasSeleccionadas.length} seleccionadas
@@ -299,15 +307,22 @@ const MenusForm = ({ hideModal, selectedMenu, isEdit, reload, platosDisponibles 
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                        esCaliente ? "bg-amber-100 text-amber-800" : "bg-cyan-100 text-cyan-800"
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${
+                        esCaliente ? "bg-amber-100 text-amber-800 border-amber-200" : "bg-cyan-100 text-cyan-800 border-cyan-200"
                       }`}>
-                        {esCaliente ? "☕ Caliente" : "🧊 Fria"}
+                        {esCaliente ? "Caliente" : "Fría"}
                       </span>
-                      <p className="text-xs font-bold text-gray-800 truncate m-0">{b.Nom_Plato}</p>
+                      <p className="text-xs font-bold text-gray-800 m-0 leading-snug">{b.Nom_Plato}</p>
                     </div>
-                    {b.Des_Plato && <p className="text-[11px] text-gray-400 truncate m-0">{b.Des_Plato}</p>}
+                    {b.Des_Plato && (
+                      <DescripcionExpandible
+                        texto={b.Des_Plato}
+                        limite={35}
+                        color="blue"
+                        className="mt-0.5"
+                      />
+                    )}
                   </div>
                   {sel && (
                     <div className="shrink-0 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold">

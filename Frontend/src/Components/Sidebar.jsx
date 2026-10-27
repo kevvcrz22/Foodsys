@@ -14,116 +14,107 @@ import NavRolSelector from "./NavBar/NavRolSelector";
 
 const NAV_POR_ROL = {
   Administrador: [
-    { to: "/Administrador",         label: "Inicio",    icon: Home         },
-    { to: "/Administrador/Perfil",  label: "Mi Perfil", icon: User         },
-    { to: "/Administrador/Reportes",label: "Reportes",  icon: BarChart3    },
-    { to: "/Administrador/Novedades",label: "Novedades",icon: ClipboardList },
-    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
+    { to: "/Administrador",         label: "Inicio",         icon: Home         },
+    { to: "/Administrador/Perfil",  label: "Mi Perfil",      icon: User         },
+    { to: "/Administrador/Reportes",label: "Reportes",       icon: BarChart3    },
+    { to: "/Administrador/Novedades",label: "Novedades",     icon: ClipboardList },
+    { to: "/guardar-almuerzo-campo", label: "Almuerzo Campo", icon: Wheat        },
   ],
   Instructor: [
-    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
-    { to: "/Administrador/Perfil",  label: "Mi Perfil", icon: User         },
-    { to: "/Administrador/Reportes",label: "Reportes",  icon: BarChart3    },
+    { to: "/guardar-almuerzo-campo", label: "Almuerzo Campo", icon: Wheat        },
+    { to: "/Administrador/Perfil",  label: "Mi Perfil",      icon: User         },
+    { to: "/Administrador/Reportes",label: "Reportes",       icon: BarChart3    },
   ],
   Vocero: [
-    { to: "/Interno",               label: "Inicio",    icon: Home         },
-    { to: "/Interno/Perfil",        label: "Mi Perfil", icon: User         },
-    { to: "/Interno/Reservar",      label: "Reservar",  icon: CalendarCheck },
-    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
+    { to: "/Interno",               label: "Inicio",         icon: Home         },
+    { to: "/Interno/Perfil",        label: "Mi Perfil",      icon: User         },
+    { to: "/Interno/Reservar",      label: "Reservar",       icon: CalendarCheck },
+    { to: "/guardar-almuerzo-campo", label: "Almuerzo Campo", icon: Wheat        },
   ],
   "SENA Empresa": [
-    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
-    { to: "/Administrador/Perfil",  label: "Mi Perfil", icon: User         },
-    { to: "/Administrador/Reportes",label: "Reportes",  icon: BarChart3    },
-  ],
-  Coordinacion: [
-    { to: "/coordinador",            label: "Inicio",     icon: Home         },
-    { to: "/coordinador/Perfil",     label: "Mi Perfil",  icon: User         },
-    { to: "/coordinador/Novedades",  label: "Novedades",  icon: ClipboardList },
-    { to: "/coordinador/Reportes",   label: "Reportes",   icon: BarChart3    },
-    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
+    { to: "/guardar-almuerzo-campo", label: "Almuerzo Campo", icon: Wheat        },
+    { to: "/Administrador/Perfil",  label: "Mi Perfil",      icon: User         },
+    { to: "/Administrador/Reportes",label: "Reportes",       icon: BarChart3    },
   ],
   Supervisor: [
-    { to: "/supervisor",            label: "Inicio",     icon: Home         },
-    { to: "/supervisor/Perfil",     label: "Mi Perfil",  icon: User         },
-    { to: "/supervisor/Registrar",  label: "Registrar",  icon: Edit         },
-    { to: "/supervisor/Reportes",   label: "Reportes",   icon: BarChart3    },
-    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
+    { to: "/supervisor",            label: "Inicio",         icon: Home         },
+    { to: "/supervisor/Perfil",     label: "Mi Perfil",      icon: User         },
+    { to: "/supervisor/Registrar",  label: "Registrar",      icon: Edit         },
+    { to: "/supervisor/Reportes",   label: "Reportes",       icon: BarChart3    },
+    { to: "/guardar-almuerzo-campo", label: "Almuerzo Campo", icon: Wheat        },
   ],
   "Aprendiz Externo": [
-    { to: "/Externo",               label: "Inicio",    icon: Home         },
-    { to: "/Externo/Perfil",        label: "Mi Perfil", icon: User         },
-    { to: "/Externo/Reservar",      label: "Reservar",  icon: CalendarCheck },
+    { to: "/Externo",               label: "Inicio",         icon: Home         },
+    { to: "/Externo/Perfil",        label: "Mi Perfil",      icon: User         },
+    { to: "/Externo/Reservar",      label: "Reservar",       icon: CalendarCheck },
   ],
   "Aprendiz Interno": [
-    { to: "/Interno",               label: "Inicio",    icon: Home         },
-    { to: "/Interno/Perfil",        label: "Mi Perfil", icon: User         },
-    { to: "/Interno/Reservar",      label: "Reservar",  icon: CalendarCheck },
+    { to: "/Interno",               label: "Inicio",         icon: Home         },
+    { to: "/Interno/Perfil",        label: "Mi Perfil",      icon: User         },
+    { to: "/Interno/Reservar",      label: "Reservar",       icon: CalendarCheck },
   ],
   "Pasante Interno": [
-    { to: "/PasanteInterno",         label: "Inicio",    icon: Home         },
-    { to: "/PasanteInterno/Perfil",  label: "Mi Perfil", icon: User         },
-    { to: "/PasanteInterno/Reservar",label: "Reservar",  icon: CalendarCheck },
+    { to: "/PasanteInterno",         label: "Inicio",        icon: Home         },
+    { to: "/PasanteInterno/Perfil",  label: "Mi Perfil",     icon: User         },
+    { to: "/PasanteInterno/Reservar",label: "Reservar",      icon: CalendarCheck },
   ],
   "Pasante Externo": [
-    { to: "/PasanteExterno",         label: "Inicio",    icon: Home         },
-    { to: "/PasanteExterno/Perfil",  label: "Mi Perfil", icon: User         },
-    { to: "/PasanteExterno/Reservar",label: "Reservar",  icon: CalendarCheck },
+    { to: "/PasanteExterno",         label: "Inicio",        icon: Home         },
+    { to: "/PasanteExterno/Perfil",  label: "Mi Perfil",     icon: User         },
+    { to: "/PasanteExterno/Reservar",label: "Reservar",      icon: CalendarCheck },
   ],
   Coordinador: [
-    { to: "/coordinador",            label: "Inicio",     icon: Home         },
-    { to: "/coordinador/Perfil",     label: "Mi Perfil",  icon: User         },
-    { to: "/coordinador/Novedades",  label: "Novedades",  icon: ClipboardList },
-    { to: "/coordinador/Reportes",   label: "Reportes",   icon: BarChart3    },
-    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
+    { to: "/coordinador",            label: "Inicio",        icon: Home         },
+    { to: "/coordinador/Perfil",     label: "Mi Perfil",     icon: User         },
+    { to: "/coordinador/Novedades",  label: "Novedades",     icon: ClipboardList },
+    { to: "/coordinador/Reportes",   label: "Reportes",      icon: BarChart3    },
+    { to: "/guardar-almuerzo-campo", label: "Almuerzo Campo", icon: Wheat        },
   ],
   Cocina: [
-    { to: '/Cocina',                 label: 'Inicio',          icon: Home         },
-    { to: '/Cocina/Perfil',          label: 'Mi Perfil',       icon: User         },
-    { to: '/Cocina/Verificar',       label: 'Verificar QR',    icon: ShieldCheck  },
-    { to: '/Cocina/Plan',            label: 'Plan del Día',    icon: ChefHat      },
-    { to: '/Cocina/Reportes',        label: 'Reportes',        icon: BarChart3    },
-    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
+    { to: "/Cocina",                 label: "Inicio",        icon: Home         },
+    { to: "/Cocina/Perfil",          label: "Mi Perfil",     icon: User         },
+    { to: "/Cocina/Verificar",       label: "Verificar QR",  icon: ShieldCheck  },
+    { to: "/Cocina/Plan",            label: "Plan del Dia",  icon: ChefHat      },
+    { to: "/Cocina/Reportes",        label: "Reportes",      icon: BarChart3    },
+    { to: "/guardar-almuerzo-campo", label: "Almuerzo Campo", icon: Wheat        },
   ],
   Bienestar: [
-    { to: "/Bienestar",              label: "Inicio",       icon: Home          },
-    { to: "/Bienestar/Perfil",       label: "Mi Perfil",    icon: User          },
-    { to: "/Bienestar/Plan",         label: "Plan del Día", icon: ChefHat       },
-    { to: "/Bienestar/Reportes",     label: "Reportes",     icon: BarChart3     },
-    { to: "/Bienestar/Novedades",    label: "Novedades",    icon: ClipboardList },
-    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzo Campo", icon: Wheat },
+    { to: "/Bienestar",              label: "Inicio",        icon: Home          },
+    { to: "/Bienestar/Perfil",       label: "Mi Perfil",     icon: User          },
+    { to: "/Bienestar/Plan",         label: "Plan del Dia",  icon: ChefHat       },
+    { to: "/Bienestar/Reportes",     label: "Reportes",      icon: BarChart3     },
+    { to: "/Bienestar/Novedades",    label: "Novedades",     icon: ClipboardList },
+    { to: "/guardar-almuerzo-campo", label: "Almuerzo Campo", icon: Wheat        },
   ],
 };
 
 const TABLAS_POR_ROL = {
   Administrador: [
-    { to: "/usuarios", label: "Usuarios", icon: Users },
-    { to: "/aprendices", label: "Aprendices", icon: User },
-    { to: "/pasantes", label: "Pasantes", icon: Users },
-    { to: "/guardar-almuerzo-campo", label: "🌾 Almuerzos en Campo", icon: Wheat },
-    { to: "/pqrsf-admin", label: "PQRSF Interventoría", icon: MessageSquare },
-    { to: "/sincronizacion", label: "Sincronización Offline", icon: ArrowUpDown },
-    { to: "/UsuariosRoles", label: "Asignar Roles", icon: ShieldCheck },
-    { to: "/roles", label: "Roles", icon: ShieldCheck },
-    { to: "/fichas", label: "Fichas", icon: FileText },
-    { to: "/programas", label: "Programas", icon: GraduationCap },
-    { to: "/reservas", label: "Reservas", icon: Database },
-    { to: "/platos", label: "Platos y Bebidas", icon: Utensils },
-    { to: "/menus", label: "Menús", icon: ClipboardList },
-    { to: "/configuracion-raciones", label: "Horarios y Raciones", icon: Clock },
+    { to: "/usuarios",         label: "Usuarios",              icon: Users         },
+    { to: "/aprendices",       label: "Aprendices",            icon: User          },
+    { to: "/pasantes",         label: "Pasantes",              icon: Users         },
+    { to: "/pqrsf-admin",      label: "PQRSF Interventoria",   icon: MessageSquare },
+    { to: "/sincronizacion",   label: "Sincronizacion Offline", icon: ArrowUpDown   },
+    { to: "/UsuariosRoles",    label: "Asignar Roles",         icon: ShieldCheck   },
+    { to: "/roles",            label: "Roles",                 icon: ShieldCheck   },
+    { to: "/fichas",           label: "Fichas",                icon: FileText      },
+    { to: "/programas",        label: "Programas",             icon: GraduationCap },
+    { to: "/reservas",         label: "Reservas",              icon: Database      },
+    { to: "/platos",           label: "Platos y Bebidas",      icon: Utensils      },
+    { to: "/menus",            label: "Menus",                 icon: ClipboardList },
   ],
   Coordinador: [
-    { to: '/aprendices', label: 'Aprendices', icon: User },
-    { to: '/pasantes', label: 'Pasantes', icon: Users },
+    { to: "/aprendices",       label: "Aprendices",            icon: User          },
+    { to: "/pasantes",         label: "Pasantes",              icon: Users         },
   ],
   Bienestar: [
-    { to: '/aprendices', label: 'Aprendices', icon: User },
-    { to: '/pasantes', label: 'Pasantes', icon: Users },
-    { to: "/pqrsf-admin", label: "PQRSF Interventoría", icon: MessageSquare },
+    { to: "/aprendices",       label: "Aprendices",            icon: User          },
+    { to: "/pasantes",         label: "Pasantes",              icon: Users         },
+    { to: "/pqrsf-admin",      label: "PQRSF Interventoria",   icon: MessageSquare },
   ],
   Cocina: [
-    { to: '/menus',  label: 'Menús',  icon: ClipboardList },
-    { to: '/platos', label: 'Platos y Bebidas', icon: Utensils },
+    { to: "/menus",            label: "Menus",                 icon: ClipboardList },
+    { to: "/platos",           label: "Platos y Bebidas",      icon: Utensils      },
   ],
 };
 
@@ -160,10 +151,10 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
 
   const Obtener_Clase_Link = ({ isActive }) =>
     [
-      "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-sm font-bold tracking-wide",
+      "flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold",
       isActive
-        ? "bg-primario/10 text-primario-oscuro border border-primario/20 shadow-[inset_1px_1px_4px_rgba(255,255,255,0.7)]"
-        : "text-texto-secundario hover:bg-white/60 hover:text-primario",
+        ? "bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-xs"
+        : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900",
     ].join(" ");
 
   const Renderizar_Links = (Lista) =>
@@ -177,28 +168,28 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
           className={Obtener_Clase_Link}
           onClick={() => Set_SidebarAbierto(false)}
         >
-          <Icono_Comp className="w-[18px] h-[18px] flex-shrink-0" />
+          <Icono_Comp className="w-4 h-4 flex-shrink-0 text-slate-500 group-hover:text-slate-700" />
           <span>{Item.label}</span>
         </NavLink>
       );
     });
 
   const Renderizar_Interior = () => (
-    <div className="flex flex-col h-full bg-white/60 backdrop-blur-xl border-r border-white/60 shadow-[4px_0_24px_rgba(74,111,165,0.08)]">
+    <div className="flex flex-col h-full bg-white border-r border-slate-200 shadow-xs">
       
       {/* ── Encabezado ── */}
-      <div className="p-4 sm:p-5 border-b border-primario/10">
-        {/* Fila superior: Avatar, Nombre y Botón X de salir */}
+      <div className="p-4 sm:p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-slate-50">
+        {/* Fila superior: Avatar, Nombre y Boton X de salir */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center bg-gradient-to-br from-primario-suave to-primario-oscuro rounded-2xl text-white text-lg sm:text-xl font-black shadow-md shadow-primario/20 shrink-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-gradient-to-br from-emerald-600 to-teal-700 rounded-xl text-white text-base sm:text-lg font-bold shadow-sm shrink-0">
               {Inicial}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-texto-principal font-extrabold text-sm truncate" title={Nombre_Completo}>
+              <p className="text-slate-800 font-bold text-sm truncate" title={Nombre_Completo}>
                 {Nombre_Completo}
               </p>
-              <span className="hidden lg:inline-flex mt-0.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primario/10 text-primario-oscuro border border-primario/20">
+              <span className="hidden lg:inline-flex mt-0.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                 {Rol_Activo || "Sin rol"}
               </span>
             </div>
@@ -206,13 +197,13 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
           <button
             onClick={() => Set_SidebarAbierto(false)}
             className="lg:hidden p-2 rounded-xl bg-white border border-slate-200 shadow-xs text-slate-500 hover:text-slate-800 transition-colors shrink-0 cursor-pointer"
-            aria-label="Cerrar menú"
+            aria-label="Cerrar menu"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Fila inferior exclusiva para el selector de rol en móviles */}
+        {/* Fila inferior exclusiva para el selector de rol en moviles */}
         <div className="lg:hidden mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Rol:</span>
           <NavRolSelector
@@ -224,46 +215,46 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
         </div>
       </div>
 
-      {/* ── Navegación ── */}
-      <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-        <p className="text-texto-secundario/60 text-[10px] font-bold px-2 mb-3 uppercase tracking-widest">Menú Principal</p>
+      {/* ── Navegacion ── */}
+      <nav className="flex-1 px-3.5 py-4 space-y-1 overflow-y-auto">
+        <p className="text-slate-400 text-[10px] font-bold px-2 mb-2 uppercase tracking-wider">Menu Principal</p>
         {Links.length > 0 ? Renderizar_Links(Links) : (
-          <p className="text-texto-secundario text-sm px-4">Sin módulos disponibles</p>
+          <p className="text-slate-400 text-xs px-3">Sin modulos disponibles</p>
         )}
         {Tablas.length > 0 && (
           <>
-            <div className="separador-glass my-6" />
-            <p className="text-texto-secundario/60 text-[10px] font-bold px-2 mb-3 uppercase tracking-widest">
-              Administración
+            <div className="h-px bg-slate-100 my-3" />
+            <p className="text-slate-400 text-[10px] font-bold px-2 mb-2 uppercase tracking-wider">
+              Administracion
             </p>
             {Renderizar_Links(Tablas)}
           </>
         )}
 
-        <div className="separador-glass my-6" />
-        <p className="text-texto-secundario/60 text-[10px] font-bold px-2 mb-3 uppercase tracking-widest">
-          Recursos & Ayuda
+        <div className="h-px bg-slate-100 my-3" />
+        <p className="text-slate-400 text-[10px] font-bold px-2 mb-2 uppercase tracking-wider">
+          Recursos y Ayuda
         </p>
         <NavLink
           to="/manuales"
           className={Obtener_Clase_Link}
           onClick={() => Set_SidebarAbierto(false)}
         >
-          <BookOpen className="w-[18px] h-[18px] flex-shrink-0" />
+          <BookOpen className="w-4 h-4 flex-shrink-0 text-slate-500" />
           <span>Manuales</span>
         </NavLink>
         <a
           href="https://bienesoftlagranja.com/user/login"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-300 text-sm font-bold tracking-wide text-slate-700 hover:bg-sky-50 hover:text-sky-700 border border-sky-100/60 bg-sky-50/40 group shadow-xs"
-          title="Abrir portal oficial BIENESOFT en nueva pestaña"
+          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-sky-100/80 bg-sky-50/30 group shadow-xs"
+          title="Abrir portal oficial BIENESOFT en nueva pestana"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <img
               src="/LogoBienesoft.png"
               alt="Logo BIENESOFT"
-              className="w-5 h-5 object-contain rounded-md shadow-xs bg-white p-0.5 border border-sky-200 flex-shrink-0 group-hover:scale-105 transition-transform"
+              className="w-4 h-4 object-contain rounded bg-white p-0.5 border border-sky-200 flex-shrink-0 group-hover:scale-105 transition-transform"
             />
             <span className="font-bold text-xs uppercase tracking-wider text-sky-900 group-hover:text-sky-700">BIENESOFT</span>
           </div>
@@ -271,34 +262,34 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
         </a>
       </nav>
 
-      {/* ── Pie (Móvil) ── */}
-      <div className="lg:hidden border-t border-primario/10 bg-white/40">
-        <div className="px-4 py-4 space-y-1.5">
-          <p className="text-texto-secundario/60 text-[10px] font-bold px-2 mb-2 uppercase tracking-widest">Información</p>
+      {/* ── Pie (Movil) ── */}
+      <div className="lg:hidden border-t border-slate-100 bg-slate-50/50">
+        <div className="px-4 py-3 space-y-1">
+          <p className="text-slate-400 text-[10px] font-bold px-2 mb-1.5 uppercase tracking-wider">Informacion</p>
           <NavLink
             to="/contacto"
             onClick={() => Set_SidebarAbierto(false)}
             className={Obtener_Clase_Link}
           >
-            <Phone className="w-[18px] h-[18px] flex-shrink-0" />
-            <span>Contáctanos</span>
+            <Phone className="w-4 h-4 flex-shrink-0 text-slate-500" />
+            <span>Contactanos</span>
           </NavLink>
           <NavLink
             to="/about"
             onClick={() => Set_SidebarAbierto(false)}
             className={Obtener_Clase_Link}
           >
-            <Info className="w-[18px] h-[18px] flex-shrink-0" />
-            <span>¿Qué es FoodSys?</span>
+            <Info className="w-4 h-4 flex-shrink-0 text-slate-500" />
+            <span>Que es Foodsys</span>
           </NavLink>
         </div>
-        <div className="px-5 pb-6 pt-2">
+        <div className="px-4 pb-5 pt-1">
           <button
             onClick={handleCerrarSesion}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl text-sm font-bold text-error bg-white border border-error/20 hover:bg-error hover:text-white transition-all shadow-sm"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-rose-700 bg-white border border-rose-200 hover:bg-rose-50 transition shadow-xs"
           >
-            <LogOut size={16} />
-            Cerrar sesión
+            <LogOut size={15} />
+            Cerrar sesion
           </button>
         </div>
       </div>

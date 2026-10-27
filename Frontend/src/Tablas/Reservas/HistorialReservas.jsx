@@ -6,7 +6,7 @@ import {
     UtensilsCrossed, Clock, CheckCircle2, XCircle, ShieldCheck,
     CalendarDays, ChevronDown, Loader2, RefreshCw, Ban,
     AlertTriangle, Utensils, Star, QrCode, X, Download,
-    Hash, Timer, HeartHandshake, UserCheck,
+    Hash, Timer, HeartHandshake, UserCheck, Coffee,
 } from "lucide-react";
 import { GenerarTicketQR } from "./GenerarTicketQR";
 import apiAxios from "../../api/axiosConfig";
@@ -435,11 +435,12 @@ function TarjetaReserva({ reserva, onCancelar, cancelando, onVerQR, onCeder }) {
                                 {reserva.plato?.Nom_Plato ?? "Plato no disponible"}
                             </p>
                             {reserva.bebida?.Nom_Plato && (
-                                <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-0.5">
-                                    <span>🥤 {reserva.bebida.Nom_Plato}</span>
+                                <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
+                                    <Coffee className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span>{reserva.bebida.Nom_Plato}</span>
                                     {reserva.bebida.Subtipo_Bebida && (
                                         <span className="text-[10px] text-slate-400">
-                                            ({reserva.bebida.Subtipo_Bebida === 'FRIA' ? 'Bebida Fría' : reserva.bebida.Subtipo_Bebida === 'CALIENTE' ? 'Bebida Caliente' : ''})
+                                            ({reserva.bebida.Subtipo_Bebida === 'FRIA' ? 'Fría' : reserva.bebida.Subtipo_Bebida === 'CALIENTE' ? 'Caliente' : ''})
                                         </span>
                                     )}
                                 </p>

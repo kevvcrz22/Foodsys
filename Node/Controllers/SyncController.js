@@ -1,3 +1,4 @@
+
 // Node/Controllers/SyncController.js
 // Controlador para endpoints de sincronizacion offline-first entre La Granja y Hetzner
 // Soporta push, pull, monitor de estado, puente movil de 30s y exportacion USB

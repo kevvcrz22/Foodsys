@@ -191,6 +191,8 @@ aplicacion.use('/api/Pqrsf', PqrsfRoute);
 aplicacion.use('/api/pqrsf', PqrsfRoute);
 aplicacion.use('/api/config-raciones', ConfigHorariosRoute);
 aplicacion.use('/api/ConfigRaciones', ConfigHorariosRoute);
+aplicacion.use('/api/ConfigHorarios', ConfigHorariosRoute);
+aplicacion.use('/api/config-horarios', ConfigHorariosRoute);
 aplicacion.use('/api/Campo', CampoRoute);
 aplicacion.use('/api/campo', CampoRoute);
 

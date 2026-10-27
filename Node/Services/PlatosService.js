@@ -1,3 +1,4 @@
+
 // Node/Services/PlatosService.js
 // Servicio de gestion de platos con sincronizacion bidireccional automatica (La Granja <-> Hetzner)
 // Comentarios didacticos sin tildes ni emojis para aprendices de primer semestre.
@@ -44,7 +45,7 @@ class PlatosService {
     const tipoItem = data.Tipo_Item || "PLATO";
 
     const existentes = await PlatoModel.findAll({ where: { Tipo_Item: tipoItem } });
-    const esDuplicado = existentes.some(item => 
+    const esDuplicado = existentes.some(item =>
       normalizarTexto(item.Nom_Plato) === nombreNorm &&
       normalizarTexto(item.Des_Plato) === descNorm
     );
@@ -87,7 +88,7 @@ class PlatosService {
       const tipoItem = data.Tipo_Item || platoExistente.Tipo_Item;
 
       const existentes = await PlatoModel.findAll({ where: { Tipo_Item: tipoItem } });
-      const esDuplicado = existentes.some(item => 
+      const esDuplicado = existentes.some(item =>
         item.Id_Plato !== id &&
         normalizarTexto(item.Nom_Plato) === nombreNorm &&
         normalizarTexto(item.Des_Plato) === descNorm

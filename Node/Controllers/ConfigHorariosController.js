@@ -63,7 +63,15 @@ export const updateConfigRacion = async (req, res) => {
 export const toggleRacion = async (req, res) => {
   try {
     const { id } = req.params;
-    const configExistente = await ConfigHorariosModel.findByPk(id);
+    let configExistente = null;
+    if (!isNaN(Number(id))) {
+      configExistente = await ConfigHorariosModel.findByPk(Number(id));
+    }
+    if (!configExistente) {
+      configExistente = await ConfigHorariosModel.findOne({
+        where: { Tip_Racion: id }
+      });
+    }
     if (!configExistente) {
       return res.status(404).json({ message: "Configuracion de racion no encontrada" });
     }

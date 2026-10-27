@@ -1,261 +1,284 @@
-// Paginas/Inicio/Inicio.jsx
-// Dashboard principal del sistema Foodsys.
-// Muestra un manual de instrucciones especifico segun el rol activo del usuario.
-// El layout es completamente responsive y no tiene centrado excesivo.
+// Frontend/src/Paginas/Inicio/Inicio.jsx
+//
+// Dashboard principal de inicio segun el rol activo en Foodsys.
+// Estilo suave, moderno y homogeneo alineado con los modulos de Reportes y Usuarios.
+// Incluye el Control Rapido de Raciones para Administradores y guias interactivas por rol.
+// Codigo sin tildes ni emojis para aprendices de ADSO.
 
 import { useState, useEffect } from "react";
 import {
   Users, CalendarCheck, BarChart3, ClipboardList,
   QrCode, Edit, Utensils, BookOpen, ShieldCheck,
-  ArrowRight,
+  ArrowRight, Wheat, ChefHat, Sparkles
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import SemaforoAforoCard from "../../Components/SemaforoAforoCard.jsx";
+import ControlRacionesRapido from "../../Components/Admin/ControlRacionesRapido.jsx";
 
-// Prefijo de ruta segun el rol activo.
-// ⚠️ MODIFICABLE: si cambias el nombre de un rol en la BD, actualiza aqui.
-const PREFIJO_POR_ROL = {
-  Administrador: "/Administrador",
-  Supervisor: "/supervisor",
-  Coordinador: "/coordinador",
-  "Aprendiz Interno": "/Interno",
-  "Aprendiz Externo": "/Externo",
-  "Pasante Interno": "/PasanteInterno",
-  "Pasante Externo": "/PasanteExterno",
-  Cocina: "/Cocina",
-  Bienestar: "/Bienestar",
-};
-
-// Manual de instrucciones de uso por rol.
-// Cada entrada tiene: icono, titulo, descripcion y un link de accion rapida.
 const MANUAL_POR_ROL = {
   Administrador: {
-    Bienvenida: "Gestion completa del sistema Foodsys.",
+    Bienvenida: "Gestion integral y parametrizacion del sistema Foodsys.",
     Pasos: [
       {
         Icono: Users,
-        Titulo: "Gestionar Usuarios",
-        Descripcion: "Crea, edita o inactiva usuarios. Asigna roles desde el submodulo Asignar Roles.",
+        Titulo: "Gestionar Usuarios e Instructores",
+        Descripcion: "Crea, edita e importa aprendices e instructores. Asigna roles desde la matriz oficial.",
         Link: "/usuarios",
       },
       {
-        Icono: BookOpen,
-        Titulo: "Gestionar Fichas y Programas",
-        Descripcion: "Registra fichas academicas y programas. Vincula aprendices a sus fichas.",
-        Link: "/fichas",
+        Icono: Wheat,
+        Titulo: "Almuerzo en Jornada de Campo",
+        Descripcion: "Consulta y audita las solicitudes de almuerzo guardado emitidas por fichas en campo.",
+        Link: "/guardar-almuerzo-campo",
       },
       {
         Icono: Utensils,
-        Titulo: "Gestionar Platos y Menus",
-        Descripcion: "Agrega platos con imagen y descripcion. Programa los menus diarios por tipo de comida.",
+        Titulo: "Platos y Bebidas",
+        Descripcion: "Administra el catalogo de platos y bebidas frias o calientes disponibles para la minuta.",
         Link: "/platos",
       },
       {
         Icono: CalendarCheck,
-        Titulo: "Gestionar Reservas",
-        Descripcion: "Visualiza y administra todas las reservas del sistema desde la tabla de reservas.",
-        Link: "/reservas",
+        Titulo: "Gestionar Menus y Reservas",
+        Descripcion: "Planifica los menus semanales y monitorea el estado global de reservas de los aprendices.",
+        Link: "/menus",
       },
       {
         Icono: BarChart3,
-        Titulo: "Ver Reportes",
-        Descripcion: "Genera reportes diarios, semanales, mensuales o por aprendiz especifico.",
+        Titulo: "Modulo de Reportes",
+        Descripcion: "Consulta consumos reales, inasistencias, alertas de bienestar y reporte de campo en 4 pestanas.",
+        Link: "/Administrador/Reportes",
+      },
+    ],
+  },
+  Instructor: {
+    Bienvenida: "Solicitud y seguimiento de almuerzos guardados por practicas en campo.",
+    Pasos: [
+      {
+        Icono: Wheat,
+        Titulo: "Guardar Almuerzos de Ficha",
+        Descripcion: "Selecciona tu ficha y marca a los aprendices en jornada de campo para extender su horario de almuerzo.",
+        Link: "/guardar-almuerzo-campo",
+      },
+      {
+        Icono: BarChart3,
+        Titulo: "Reportes de Campo",
+        Descripcion: "Consulta las actas generadas y el cumplimiento de entrega de raciones de tus aprendices.",
+        Link: "/Administrador/Reportes",
+      },
+    ],
+  },
+  Vocero: {
+    Bienvenida: "Gestion de reservas y solicitudes de apoyo para tu ficha.",
+    Pasos: [
+      {
+        Icono: CalendarCheck,
+        Titulo: "Mis Reservas",
+        Descripcion: "Realiza tu reserva diaria de comida seleccionando plato y bebida antes de las 10:30 PM.",
+        Link: "/Interno/Reservar",
+      },
+      {
+        Icono: Wheat,
+        Titulo: "Guardar Almuerzo en Campo",
+        Descripcion: "Solicita el guardado grupal de almuerzos cuando tu ficha tenga jornada en unidades productivas.",
+        Link: "/guardar-almuerzo-campo",
+      },
+    ],
+  },
+  "SENA Empresa": {
+    Bienvenida: "Coordinacion de raciones y alimentacion en unidades productivas.",
+    Pasos: [
+      {
+        Icono: Wheat,
+        Titulo: "Almuerzos en Unidades de Campo",
+        Descripcion: "Gestiona y valida los vales de almuerzo guardado para aprendices asignados a unidades productivas.",
+        Link: "/guardar-almuerzo-campo",
+      },
+      {
+        Icono: BarChart3,
+        Titulo: "Reportes de SENA Empresa",
+        Descripcion: "Monitorea la distribucion de almuerzos por unidad productiva (Ganaderia, Piscicultura, etc.).",
         Link: "/Administrador/Reportes",
       },
     ],
   },
   Supervisor: {
-    Bienvenida: "Control de turnos y verificacion de reservas.",
+    Bienvenida: "Control de turnos y registro de consumo en comedor.",
     Pasos: [
       {
         Icono: Edit,
-        Titulo: "Iniciar un Turno",
-        Descripcion: "Ve al modulo Registrar, ingresa tu contraseña y selecciona el tipo de comida (Desayuno, Almuerzo o Cena).",
+        Titulo: "Iniciar Turno de Comedor",
+        Descripcion: "Abre el turno de servicio seleccionando Desayuno, Almuerzo o Cena con control de acceso.",
         Link: "/supervisor/Registrar",
       },
       {
         Icono: QrCode,
-        Titulo: "Escanear Codigos QR",
-        Descripcion: "Usa el escaner para verificar las reservas de los aprendices en tiempo real durante el turno activo.",
+        Titulo: "Escanear QR o Cedula",
+        Descripcion: "Registra consumos mediante camara o lector de codigo de barras USB con cedula de ciudadania.",
         Link: "/supervisor/Registrar",
       },
       {
         Icono: BarChart3,
-        Titulo: "Finalizar y Ver Reporte",
-        Descripcion: "Al finalizar el turno, el sistema genera automaticamente las estadisticas del dia.",
+        Titulo: "Reporte de Cierre",
+        Descripcion: "Al finalizar el servicio, revisa las estadisticas de asistencia y raciones entregadas.",
         Link: "/supervisor/Reportes",
       },
     ],
   },
   Coordinador: {
-    Bienvenida: "Gestion de aprendices y novedades de comida.",
+    Bienvenida: "Gestion formativa, novedades y seguimiento de aprendices.",
     Pasos: [
       {
         Icono: ClipboardList,
-        Titulo: "Registrar Novedades",
-        Descripcion: "Si un aprendiz no reservo el dia anterior, crea una novedad para gestionarle la comida del dia.",
+        Titulo: "Registrar Novedad",
+        Descripcion: "Autoriza reservas excepcionales hasta las 9:00 AM para aprendices que requieran comida.",
         Link: "/coordinador/Novedades",
       },
       {
         Icono: Users,
-        Titulo: "Ver Aprendices",
-        Descripcion: "Consulta el estado de los aprendices, habilita o sanciona segun corresponda.",
+        Titulo: "Seguimiento de Aprendices",
+        Descripcion: "Consulta estados de matricula, semaforo semanal de fallas y registro de sanciones.",
         Link: "/aprendices",
       },
       {
         Icono: BarChart3,
-        Titulo: "Generar Reportes",
-        Descripcion: "Consulta el consumo por dia, semana o mes. Busca el historial de un aprendiz por documento.",
+        Titulo: "Reportes Estadisticos",
+        Descripcion: "Analiza el comportamiento nutricional y asistencia de las distintas fichas del centro.",
         Link: "/coordinador/Reportes",
       },
     ],
   },
   "Aprendiz Interno": {
-    Bienvenida: "Realiza tu reserva de comida y visualiza tu historial.",
+    Bienvenida: "Reserva de alimentacion para residentes del Centro de Convivencia.",
     Pasos: [
       {
         Icono: CalendarCheck,
         Titulo: "Hacer una Reserva",
-        Descripcion: "Ve a Reservas, selecciona el tipo de comida (Desayuno, Almuerzo o Cena) y elige el plato disponible para hoy.",
+        Descripcion: "Reserva Desayuno, Almuerzo y Cena seleccionando tu plato y bebida antes de las 10:30 PM.",
         Link: "/Interno/Reservar",
       },
       {
         Icono: QrCode,
-        Titulo: "Usar tu Codigo QR",
-        Descripcion: "Tras confirmar la reserva se genera tu codigo QR. Presentalo al supervisor en la hora de tu comida.",
+        Titulo: "Codigo QR y Turnos",
+        Descripcion: "Presenta tu codigo QR digital en el comedor en los horarios oficiales de cada servicio.",
         Link: "/Interno/Reservar",
       },
       {
         Icono: ClipboardList,
-        Titulo: "Ver Historial",
-        Descripcion: "En la seccion de historial puedes ver el estado de tus reservas: Verificado, Vencido o Cancelado.",
+        Titulo: "Ceder o Cancelar",
+        Descripcion: "Si no vas a consumir, cancela a tiempo o cede tu comida a otro companero interno.",
         Link: "/Interno/Reservar",
       },
     ],
   },
   "Aprendiz Externo": {
-    Bienvenida: "Reserva tu almuerzo y presenta tu codigo QR.",
+    Bienvenida: "Reserva diaria de almuerzo para aprendices externos.",
     Pasos: [
       {
         Icono: CalendarCheck,
         Titulo: "Reservar Almuerzo",
-        Descripcion: "Ve a Reservas, selecciona Almuerzo y elige el plato disponible segun el menu del dia.",
+        Descripcion: "Agenda tu almuerzo antes de las 10:30 PM del dia anterior eligiendo tu plato y bebida.",
         Link: "/Externo/Reservar",
       },
       {
         Icono: QrCode,
-        Titulo: "Codigo QR",
-        Descripcion: "Despues de confirmar tu reserva se genera el codigo QR. Presentalo al supervisor durante el almuerzo.",
+        Titulo: "Verificacion y Consumo",
+        Descripcion: "Valida primero en Cocina y luego reclama tu plato escaneando tu QR con el Supervisor.",
         Link: "/Externo/Reservar",
       },
     ],
   },
   "Pasante Interno": {
-    Bienvenida: "Accede a tus reservas con estado Especial aprobado.",
+    Bienvenida: "Acceso al comedor para pasantes en convenio interno.",
     Pasos: [
       {
-        Icono: ShieldCheck,
-        Titulo: "Verificar Estado Especial",
-        Descripcion: "Tu acceso al comedor depende del estado Especial aprobado por tu coordinador. Verifica en Mi Perfil.",
-        Link: "/PasanteInterno/Perfil",
+        Icono: CalendarCheck,
+        Titulo: "Reservar Comidas",
+        Descripcion: "Accede a Desayuno, Almuerzo y Cena segun tu autorizacion de pasantia aprobada.",
+        Link: "/PasanteInterno/Reservar",
       },
       {
-        Icono: CalendarCheck,
-        Titulo: "Hacer una Reserva",
-        Descripcion: "Una vez habilitado, ve a Reservas para generar tu codigo QR de comida.",
+        Icono: QrCode,
+        Titulo: "Codigo QR de Consumo",
+        Descripcion: "Presenta tu comprobante digital en cada comida dentro de la ventana de servicio.",
         Link: "/PasanteInterno/Reservar",
       },
     ],
   },
   "Pasante Externo": {
-    Bienvenida: "Accede a tus reservas con estado Especial aprobado.",
+    Bienvenida: "Acceso al almuerzo para pasantes externos.",
     Pasos: [
-      {
-        Icono: ShieldCheck,
-        Titulo: "Verificar Estado Especial",
-        Descripcion: "Tu acceso al comedor depende del estado Especial aprobado por tu coordinador. Verifica en Mi Perfil.",
-        Link: "/PasanteExterno/Perfil",
-      },
       {
         Icono: CalendarCheck,
         Titulo: "Reservar Almuerzo",
-        Descripcion: "Una vez habilitado, ve a Reservas para generar tu codigo QR del almuerzo.",
+        Descripcion: "Agenda tu almuerzo antes de las 10:30 PM del dia anterior para asegurar tu racion.",
         Link: "/PasanteExterno/Reservar",
       },
     ],
   },
-  // ⚠️ MODIFICABLE: agrega o quita pasos del manual de Cocina aqui
   Cocina: {
-    Bienvenida: "Gestiona platos, menus y verifica la presencia de los aprendices externos.",
+    Bienvenida: "Verificacion de reservas y plan de preparacion culinaria.",
     Pasos: [
       {
         Icono: QrCode,
-        Titulo: "Verificar Reservas",
-        Descripcion: "Busca al aprendiz por cedula o ID de reserva y confirma su presencia para habilitar su codigo QR.",
+        Titulo: "Verificar en Cocina",
+        Descripcion: "Escanea el QR o busca por cedula al aprendiz externo antes de servir su racion.",
         Link: "/Cocina/Verificar",
       },
       {
-        Icono: Utensils,
-        Titulo: "Gestionar Platos",
-        Descripcion: "Agrega nuevos platos con imagen y descripcion. Puedes inactivar platos existentes desde el formulario de edicion.",
-        Link: "/platos",
+        Icono: ChefHat,
+        Titulo: "Plan Diario de Cocina",
+        Descripcion: "Revisa con 5 horas de antelacion las cantidades exactas a cocinar de platos y bebidas.",
+        Link: "/Cocina/Plan",
       },
       {
-        Icono: ClipboardList,
-        Titulo: "Gestionar Menus",
-        Descripcion: "Crea menus diarios asignando platos por tipo de comida. No puedes editar ni eliminar menus ya creados.",
-        Link: "/menus",
+        Icono: Utensils,
+        Titulo: "Gestionar Platos y Bebidas",
+        Descripcion: "Actualiza el catalogo de preparaciones de la minuta diaria para cada turno.",
+        Link: "/platos",
       },
     ],
   },
   Bienestar: {
-    Bienvenida: "Monitorea el estado de los aprendices y las novedades.",
+    Bienvenida: "Monitoreo psicosocial, seguimiento de asistencias y novedades.",
     Pasos: [
       {
-        Icono: ClipboardList,
-        Titulo: "Ver Novedades",
-        Descripcion: "Revisa las novedades de comida creadas por los coordinadores durante el dia.",
-        Link: "/Bienestar/Novedades",
+        Icono: BarChart3,
+        Titulo: "Alerta y Seguimiento",
+        Descripcion: "Identifica a aprendices internos con cero consumos para prevencion y acompanamiento.",
+        Link: "/Bienestar/Reportes",
       },
       {
         Icono: Users,
-        Titulo: "Gestionar Aprendices",
-        Descripcion: "Consulta el estado de los aprendices, activa o sanciona segun corresponda.",
+        Titulo: "Gestion de Aprendices",
+        Descripcion: "Revisa fallas acumuladas y administra habilitaciones especiales en el casino.",
         Link: "/aprendices",
-      },
-      {
-        Icono: BarChart3,
-        Titulo: "Reportes",
-        Descripcion: "Genera reportes de consumo para seguimiento y control del bienestar del centro.",
-        Link: "/Bienestar/Reportes",
       },
     ],
   },
 };
 
-// Tarjeta individual de un paso del manual
 const Tarjeta_Paso = ({ Paso, Indice }) => {
   const Icono_Comp = Paso.Icono;
   return (
     <Link
       to={Paso.Link}
-      className="group bg-white rounded-xl border border-gray-200 p-5
-                 hover:border-[#0f3f80]/30 hover:shadow-md transition-all duration-200
-                 flex items-start gap-4"
+      className="group bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5
+                 hover:border-emerald-300 hover:shadow-sm transition-all duration-200
+                 flex items-start gap-3.5"
     >
-      {/* Numero de paso */}
-      <div className="w-8 h-8 rounded-lg bg-[#0f3f80]/10 flex items-center justify-center shrink-0">
-        <Icono_Comp className="w-4 h-4 text-[#0f3f80]" />
+      <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-emerald-50 text-slate-600 group-hover:text-emerald-700 flex items-center justify-center shrink-0 transition-colors">
+        <Icono_Comp className="w-4 h-4" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-gray-800">
-            <span className="text-[#0f3f80] font-bold mr-1.5">{Indice + 1}.</span>
+          <p className="text-xs sm:text-sm font-bold text-slate-800 m-0">
+            <span className="text-emerald-600 font-bold mr-1.5">{Indice + 1}.</span>
             {Paso.Titulo}
           </p>
-          <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#0f3f80] transition-colors shrink-0" />
+          <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-600 transition-colors shrink-0" />
         </div>
-        <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+        <p className="text-[11px] sm:text-xs text-slate-500 mt-1 leading-relaxed m-0">
           {Paso.Descripcion}
         </p>
       </div>
@@ -267,7 +290,6 @@ const Inicio = () => {
   const [Usuario, Set_Usuario] = useState(null);
   const [Rol_Activo, Set_RolActivo] = useState("");
 
-  // Carga los datos del usuario y el rol activo desde el localStorage al montar
   useEffect(() => {
     const Usr = JSON.parse(localStorage.getItem("usuario") || "null");
     const Rol = localStorage.getItem("rolActivo") || "";
@@ -281,45 +303,67 @@ const Inicio = () => {
     : "Usuario";
 
   const rolNormalizado = (Rol_Activo || "").toLowerCase();
+  const esAdmin = rolNormalizado.includes("admin");
   const puedeVerSemaforo = [
     "aprendiz",
     "pasante",
     "bienestar",
     "admin",
     "administrador"
-  ].some(r => rolNormalizado.includes(r));
+  ].some((r) => rolNormalizado.includes(r));
 
   return (
-    <div className="w-full">
-      {/* Encabezado de bienvenida */}
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-800">
-          Bienvenido, {Nombre}
-        </h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {Rol_Activo && (
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#0f3f80] inline-block" />
+    <div className="w-full space-y-6">
+      {/* Encabezado Superior Suave y Moderno */}
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 rounded-2xl p-5 sm:p-6 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+            <span className="text-xs uppercase font-bold tracking-wider text-emerald-300">
+              Sistema de Gestion Nutricional
+            </span>
+          </div>
+          <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-white m-0">
+            Bienvenido, {Nombre}
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-300 mt-1 m-0">
+            Centro Agropecuario "La Granja" - SENA Regional Tolima
+          </p>
+        </div>
+
+        {Rol_Activo && (
+          <div className="self-start sm:self-auto bg-white/10 backdrop-blur-md border border-white/20 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span className="text-xs font-bold text-white uppercase tracking-wide">
               {Rol_Activo}
             </span>
-          )}
-        </p>
+          </div>
+        )}
       </div>
 
-      {/* Semaforo de aforo y congestion en tiempo real (solo Aprendices, Pasantes, Bienestar y Admin) */}
+      {/* Control Rapido de Raciones (Solo para Administrador) */}
+      {esAdmin && <ControlRacionesRapido />}
+
+      {/* Semaforo de Aforo del Comedor */}
       {puedeVerSemaforo && <SemaforoAforoCard />}
 
-      {/* Manual de instrucciones */}
+      {/* Manual Interactivo de Uso por Rol */}
       {Manual ? (
-        <div>
-          <div className="mb-4">
-            <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">
-              Manual de uso
-            </p>
-            <p className="text-sm text-gray-600">{Manual.Bienvenida}</p>
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-6 shadow-sm space-y-4">
+          <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] text-slate-400 uppercase font-bold tracking-wider m-0">
+                Modulo de Operacion
+              </p>
+              <h2 className="text-sm sm:text-base font-bold text-slate-800 m-0 mt-0.5">
+                {Manual.Bienvenida}
+              </h2>
+            </div>
+            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200/80">
+              {Manual.Pasos.length} accesos
+            </span>
           </div>
 
-          {/* Grid de pasos responsive */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {Manual.Pasos.map((Paso, Idx) => (
               <Tarjeta_Paso key={Paso.Titulo} Paso={Paso} Indice={Idx} />
@@ -327,10 +371,8 @@ const Inicio = () => {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <p className="text-sm text-gray-400">
-            No hay instrucciones disponibles para tu rol actual.
-          </p>
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
+          <p className="text-sm font-medium">Instrucciones disponibles en el menu de navegacion lateral.</p>
         </div>
       )}
     </div>

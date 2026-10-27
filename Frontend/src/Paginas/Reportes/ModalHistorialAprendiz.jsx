@@ -327,11 +327,11 @@ const ModalHistorialAprendiz = ({ documento, aprendizId, idUsuario, aprendizInic
                       )}
                     </div>
                     <p className="text-xs text-emerald-700 font-semibold m-0 mt-0.5 truncate">
-                      🍽️ {item.plato?.Nom_Plato || "Plato del día"}
+                      {item.plato?.Nom_Plato || "Plato del día"}
                     </p>
                     {item.bebida?.Nom_Plato && (
                       <p className="text-[11px] text-slate-500 font-medium m-0 mt-0.5 truncate flex items-center gap-1">
-                        <span>🥤 {item.bebida.Nom_Plato}</span>
+                        <span>{item.bebida.Nom_Plato}</span>
                         {item.bebida.Subtipo_Bebida && (
                           <span className="text-[10px] text-slate-400">
                             ({item.bebida.Subtipo_Bebida === 'FRIA' ? 'Bebida Fría' : 'Bebida Caliente'})

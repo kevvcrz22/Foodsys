@@ -23,6 +23,7 @@ import {
 import apiAxios from '../../api/axiosConfig';
 import { exportarAExcel, exportarAPDF } from '../../utils/exportUtils';
 import FoodsysToast from '../../Components/UI/FoodsysToast';
+import DescripcionExpandible from '../../Components/DescripcionExpandible';
 
 const API_BASE = '/api/Cocina';
 
@@ -198,10 +199,10 @@ const TarjetaItemCocina = ({ item, esBebida, puedeVerDetalle, onVerDetalle }) =>
         <div className="flex items-center gap-2">
           <p className="font-semibold text-gray-800 text-sm truncate">{item.Nom_Plato}</p>
           {esBebida && (
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-              item.Subtipo_Bebida === 'CALIENTE' ? 'bg-orange-100 text-orange-800' : 'bg-sky-100 text-sky-800'
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
+              item.Subtipo_Bebida === 'CALIENTE' ? 'bg-orange-50 text-orange-800 border-orange-200' : 'bg-sky-50 text-sky-800 border-sky-200'
             }`}>
-              {item.Subtipo_Bebida === 'CALIENTE' ? '☕ Caliente' : '🧊 Fría'}
+              {item.Subtipo_Bebida === 'CALIENTE' ? 'Caliente' : 'Fría'}
             </span>
           )}
           {puedeVerDetalle && (
@@ -211,7 +212,12 @@ const TarjetaItemCocina = ({ item, esBebida, puedeVerDetalle, onVerDetalle }) =>
           )}
         </div>
         {item.Des_Plato && (
-          <p className="text-xs text-gray-400 truncate">{item.Des_Plato}</p>
+          <DescripcionExpandible
+            texto={item.Des_Plato}
+            limite={45}
+            color={esBebida ? "blue" : "emerald"}
+            className="mt-0.5"
+          />
         )}
       </div>
       <div className="shrink-0 text-center">

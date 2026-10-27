@@ -87,7 +87,7 @@ class ReservasServices {
     return true;
   }
 
-  // Valida horario limite para ceder reservas (hasta las 10:30 AM para Almuerzo y parametrizable para otros turnos)
+  // Valida horario limite para ceder reservas (permite ceder a cualquier hora antes de que finalice el servicio)
   async ValidarHorarioCesion(tipo, fechaReserva) {
     const fechaHoyCol = obtenerFechaColombia();
     const horaActualCol = obtenerHoraColombia();
@@ -99,32 +99,34 @@ class ReservasServices {
     }
 
     if (fechaReserva > fechaHoyCol) {
+      // Las reservas para dias futuros se pueden ceder a cualquier hora (ej. 6:00 PM de la vispera o madrugada)
       return true;
     }
 
-    // Si es para el dia de hoy:
-    let limiteMinutos = 10 * 60 + 30; // 10:30 AM por defecto para Almuerzo
-    let horaStr = "10:30 AM";
+    // Para el dia actual de servicio: se permite ceder libremente a cualquier hora antes de que finalice el servicio en comedor
+    // Desayuno hasta 08:30 AM, Almuerzo hasta 02:00 PM (14:00), Cena hasta 08:30 PM (20:30)
+    let limiteMinutos = 14 * 60; // 02:00 PM para Almuerzo
+    let horaStr = "02:00 PM (14:00)";
 
     if (tipo === "Desayuno") {
-      limiteMinutos = 5 * 60;
-      horaStr = "05:00 AM";
+      limiteMinutos = 8 * 60 + 30; // 08:30 AM
+      horaStr = "08:30 AM";
     } else if (tipo === "Cena") {
-      limiteMinutos = 17 * 60;
-      horaStr = "05:00 PM (17:00)";
+      limiteMinutos = 20 * 60 + 30; // 08:30 PM (20:30)
+      horaStr = "08:30 PM (20:30)";
     }
 
     try {
       const config = await ConfigHorariosModel.findOne({ where: { Tip_Racion: tipo } });
-      if (config?.Hora_Limite_Cesion) {
-        const [cH, cM] = config.Hora_Limite_Cesion.split(":").map(Number);
+      if (config?.Hora_Fin_Servicio) {
+        const [cH, cM] = config.Hora_Fin_Servicio.split(":").map(Number);
         limiteMinutos = cH * 60 + cM;
         horaStr = `${String(cH).padStart(2, "0")}:${String(cM).padStart(2, "0")}`;
       }
     } catch (_) {}
 
     if (minutosActuales > limiteMinutos) {
-      throw new Error(`El plazo limite para ceder la reserva de ${tipo} vencio hoy a las ${horaStr}.`);
+      throw new Error(`El turno de ${tipo} ha finalizado por hoy (limite para ceder: ${horaStr}).`);
     }
 
     return true;

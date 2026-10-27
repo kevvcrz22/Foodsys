@@ -10,6 +10,7 @@ import apiAxios from "../../api/axiosConfig";
 import PlatosForm from "./PlatosForm";
 import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
 import GlobalLoader from "../../Components/GlobalLoader";
+import DescripcionExpandible from "../../Components/DescripcionExpandible";
 import {
   Pencil, Plus, X, ZoomIn, Search, UtensilsCrossed, Image as ImageIcon,
   FileText, HelpCircle, ChevronDown, ChevronUp, Coffee, Snowflake, Flame,
@@ -90,9 +91,14 @@ const ItemCard = ({ item, onEdit, onZoom }) => {
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-slate-800 truncate m-0">{item.Nom_Plato}</p>
+            <p className="font-bold text-slate-800 text-sm m-0 leading-snug">{item.Nom_Plato}</p>
             {item.Des_Plato && (
-              <p className="text-xs text-slate-500 mt-1 line-clamp-2 m-0">{item.Des_Plato}</p>
+              <DescripcionExpandible
+                texto={item.Des_Plato}
+                limite={60}
+                color={esBebida ? "blue" : "emerald"}
+                className="mt-1"
+              />
             )}
           </div>
           <button
@@ -269,10 +275,15 @@ const CrudPlatos = () => {
       selector: (row) => row.Nom_Plato,
       sortable: true,
       cell: (row) => (
-        <div className="py-2">
+        <div className="py-2 min-w-0 max-w-sm">
           <p className="font-bold text-slate-800 text-sm m-0">{row.Nom_Plato}</p>
           {row.Des_Plato && (
-            <p className="text-xs text-slate-500 m-0 line-clamp-1">{row.Des_Plato}</p>
+            <DescripcionExpandible
+              texto={row.Des_Plato}
+              limite={50}
+              color={row.Tipo_Item === "BEBIDA" ? "blue" : "emerald"}
+              className="mt-0.5"
+            />
           )}
         </div>
       )
@@ -379,7 +390,7 @@ const CrudPlatos = () => {
           }`}
         >
           <UtensilsCrossed size={18} />
-          <span>🍽️ Platos Fuertes</span>
+          <span>Platos Fuertes</span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${
             tabActivo === "PLATOS" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
           }`}>
@@ -399,7 +410,7 @@ const CrudPlatos = () => {
           }`}
         >
           <Coffee size={18} />
-          <span>🥤☕ Bebidas (Frias y Calientes)</span>
+          <span>Bebidas (Frías y Calientes)</span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${
             tabActivo === "BEBIDAS" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
           }`}>

@@ -194,7 +194,7 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "P
                 : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
             }`}
           >
-            <Utensils size={14} /> 🍽️ Plato Fuerte / Comida
+            <Utensils size={14} /> Plato Fuerte / Comida
           </button>
           <button
             type="button"
@@ -205,7 +205,7 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "P
                 : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
             }`}
           >
-            <Coffee size={14} /> 🥤☕ Bebida
+            <Coffee size={14} /> Bebida
           </button>
         </div>
       </div>
@@ -226,7 +226,7 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "P
                   : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
               }`}
             >
-              <Snowflake size={14} className="text-cyan-600" /> 🧊 Bebida Fria
+              <Snowflake size={14} className="text-cyan-600" /> Bebida Fria
             </button>
             <button
               type="button"
@@ -237,7 +237,7 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload, initialTipo = "P
                   : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
               }`}
             >
-              <Flame size={14} className="text-amber-600" /> ☕ Bebida Caliente
+              <Flame size={14} className="text-amber-600" /> Bebida Caliente
             </button>
           </div>
         </div>

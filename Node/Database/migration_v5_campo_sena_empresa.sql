@@ -2,12 +2,17 @@
 -- Migracion V5.0: Nuevos Roles (Instructor, Vocero, SENA Empresa, Coordinacion),
 -- Solicitudes de Guardar Almuerzo por Jornada de Campo, Extension de Horarios y Soporte de Cocina.
 
--- 1. Insertar nuevos roles de forma segura
+-- 1. Insertar nuevos roles de forma segura (sin duplicar Coordinador)
 INSERT IGNORE INTO roles (Nom_Rol, createdat, updatedat) VALUES
 ('Instructor', NOW(), NOW()),
 ('Vocero', NOW(), NOW()),
-('SENA Empresa', NOW(), NOW()),
-('Coordinacion', NOW(), NOW());
+('SENA Empresa', NOW(), NOW());
+
+-- Unificar en caso de que exista el rol duplicado Coordinacion
+UPDATE IGNORE usuariosrol SET Id_Rol = (SELECT Id_Rol FROM roles WHERE Nom_Rol = 'Coordinador' LIMIT 1)
+WHERE Id_Rol IN (SELECT Id_Rol FROM roles WHERE Nom_Rol = 'Coordinacion');
+DELETE FROM usuariosrol WHERE Id_Rol IN (SELECT Id_Rol FROM roles WHERE Nom_Rol = 'Coordinacion');
+DELETE FROM roles WHERE Nom_Rol = 'Coordinacion';
 
 -- 2. Tabla de solicitudes para guardar almuerzos por jornada de campo
 CREATE TABLE IF NOT EXISTS solicitudes_guardado_campo (

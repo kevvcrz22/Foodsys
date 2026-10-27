@@ -8,10 +8,11 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import apiAxios from "../../api/axiosConfig.js";
 import AlertaInasistencias from "./AlertaInasistencias.jsx";
+import DescripcionExpandible from "../../Components/DescripcionExpandible.jsx";
 import {
   UtensilsCrossed, CalendarDays, Clock, CheckCircle2, AlertCircle,
   Coffee, Snowflake, Flame, ShieldAlert, Check, X, Sparkles, HelpCircle,
-  ChevronRight, Calendar
+  ChevronRight, Calendar, Info
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -67,6 +68,7 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
   const [qrData, setQrData] = useState(null);
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [mostrarModalCiclo, setMostrarModalCiclo] = useState(false);
 
   // Calculo de fecha segun ciclo oficial (22:30) y excepcion temporal del 27 de octubre
   const { fechaObjetivoCalculada, esExcepcion27Oct } = useMemo(() => {
@@ -276,21 +278,90 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
         />
       )}
 
-      {/* Banner Superior Destacado: Fecha Objetivo y Excepcion */}
-      <div className="bg-linear-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white p-4 sm:p-5 rounded-2xl shadow-md space-y-1">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-200 font-bold">
-          <Calendar size={15} /> Ciclo Oficial de Reservas (Cierre 10:30 PM)
-        </div>
-        <p className="text-sm sm:text-base font-extrabold m-0 capitalize">
-          En este momento estás reservando para el día: {formatearFechaLarga(fechaReserva)}
-        </p>
-        {esExcepcion27Oct && (
-          <p className="text-xs text-amber-200 font-medium m-0 flex items-center gap-1.5 pt-1">
-            <Sparkles size={13} className="text-amber-300 shrink-0" />
-            Excepción habilitada: Almuerzo del martes 27 de octubre disponible hasta las 08:00 AM.
+      {/* Barra Informativa Superior de Fecha Objetivo y Modal de Ciclo (Estilo Oficial Foodsys) */}
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <Calendar size={13} className="text-emerald-600" /> Reserva Oficial
+            </span>
+            {esExcepcion27Oct && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                <Sparkles size={12} className="text-amber-600" /> Excepción activa
+              </span>
+            )}
+          </div>
+          <p className="text-sm sm:text-base font-bold text-slate-800 m-0 capitalize">
+            En este momento estás reservando para: {formatearFechaLarga(fechaReserva)}
           </p>
-        )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setMostrarModalCiclo(true)}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer shrink-0"
+        >
+          <Info size={14} className="text-emerald-600" />
+          Detalles del Ciclo
+        </button>
       </div>
+
+      {/* Ventana Emergente Oficial: Ciclo de Reservas y Horarios */}
+      {mostrarModalCiclo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
+                  <Calendar size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 m-0">Ciclo Oficial de Reservas</h3>
+                  <p className="text-[11px] text-slate-500 m-0">Cierre ordinario a las 10:30 PM (22:30)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMostrarModalCiclo(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-600">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                <span className="font-semibold text-slate-600 text-[11px]">Día agendado en este momento:</span>
+                <p className="font-bold text-emerald-800 text-sm m-0 capitalize">
+                  {formatearFechaLarga(fechaReserva)}
+                </p>
+              </div>
+
+              {esExcepcion27Oct && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-xs leading-relaxed">
+                  <span className="font-bold block mb-0.5">Excepción Habilitada:</span>
+                  Almuerzo del martes 27 de octubre disponible de manera especial hasta las 08:00 AM.
+                </div>
+              )}
+
+              <div className="space-y-2 text-[11px] text-slate-600 leading-relaxed">
+                <p className="m-0">• <strong>Cierre ordinario:</strong> Tienes plazo hasta las 10:30 PM del día anterior para reservar. Luego de esa hora el sistema abre reservas para el día siguiente.</p>
+                <p className="m-0">• <strong>Cesión de reserva:</strong> Puedes ceder tu reserva a otro compañero a cualquier hora antes de la finalización del servicio en comedor.</p>
+                <p className="m-0">• <strong>Cancelación oportuna:</strong> Habilitada hasta las 09:00 PM de la noche anterior.</p>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setMostrarModalCiclo(false)}
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-xl text-xs transition cursor-pointer"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl p-4 sm:p-6 space-y-5 border border-slate-100 shadow-sm">
         {error && (
@@ -323,13 +394,13 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
                       key={tipo}
                       type="button"
                       onClick={() => setTipReserva(tipo)}
-                      className={`py-3 px-2 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                      className={`py-3 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex flex-col items-center gap-1 ${
                         sel
                           ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-xs"
                           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                       }`}
                     >
-                      <span>{tipo === "Desayuno" ? "🍳 Desayuno" : tipo === "Almuerzo" ? "🍽️ Almuerzo" : "🌙 Cena"}</span>
+                      <span className="font-bold">{tipo}</span>
                       <span className="text-[10px] text-slate-400 font-normal">
                         Vence {horasVencimientoDetalle[tipo]?.horaStr || "13:30"}
                       </span>
@@ -370,9 +441,9 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
                             setPlatoElegido(p.Id_Plato);
                             setPlatoSeleccionado(p);
                           }}
-                          className={`cursor-pointer rounded-2xl border-2 p-3 transition-all flex flex-col justify-between ${
+                          className={`cursor-pointer rounded-2xl border p-3 transition-all flex flex-col justify-between ${
                             isSelected
-                              ? "border-emerald-500 bg-emerald-50/70 shadow-sm ring-2 ring-emerald-500/20"
+                              ? "border-emerald-500 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20"
                               : "border-slate-200 hover:border-slate-300 bg-white"
                           }`}
                         >
@@ -386,15 +457,20 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
                             </div>
                           )}
 
-                          <div className="flex items-start justify-between gap-1">
-                            <div>
-                              <p className="text-xs font-bold text-slate-800 m-0">{p.Nom_Plato}</p>
+                          <div className="flex items-start justify-between gap-1.5">
+                            <div className="w-full min-w-0">
+                              <p className="text-xs font-bold text-slate-800 m-0 leading-snug">{p.Nom_Plato}</p>
                               {p.Des_Plato && (
-                                <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 m-0">{p.Des_Plato}</p>
+                                <DescripcionExpandible
+                                  texto={p.Des_Plato}
+                                  limite={55}
+                                  color="emerald"
+                                  className="mt-1"
+                                />
                               )}
                             </div>
                             {isSelected && (
-                              <div className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 text-[10px]">
+                              <div className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 text-[10px] ml-1 mt-0.5">
                                 ✓
                               </div>
                             )}
@@ -412,7 +488,7 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
               <div className="space-y-2.5 pt-3 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
-                    <Coffee size={14} className="text-blue-600" /> 3. Elige tu Bebida (Fria o Caliente)
+                    <Coffee size={14} className="text-blue-600" /> 3. Elige tu Bebida (Fría o Caliente)
                   </label>
                   {bebidaSeleccionada && (
                     <span className="text-[11px] font-bold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full">
@@ -433,34 +509,43 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
                           setBebidaElegida(b.Id_Plato);
                           setBebidaSeleccionada(b);
                         }}
-                        className={`cursor-pointer rounded-2xl border-2 p-3 transition-all flex items-center gap-3 ${
+                        className={`cursor-pointer rounded-2xl border p-3 transition-all flex items-start gap-3 ${
                           isSelected
-                            ? "border-blue-500 bg-blue-50/70 shadow-sm ring-2 ring-blue-500/20"
+                            ? "border-blue-500 bg-blue-50/70 shadow-xs ring-2 ring-blue-500/20"
                             : "border-slate-200 hover:border-slate-300 bg-white"
                         }`}
                       >
                         {b.Img_Plato ? (
-                          <img src={urlImagen(b.Img_Plato)} alt={b.Nom_Plato} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                          <img src={urlImagen(b.Img_Plato)} alt={b.Nom_Plato} className="w-12 h-12 rounded-xl object-cover shrink-0 mt-0.5" />
                         ) : (
-                          <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-500">
+                          <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-500 mt-0.5">
                             <Coffee size={18} />
                           </div>
                         )}
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 mb-0.5">
-                            <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                              esCaliente ? "bg-amber-100 text-amber-800" : "bg-cyan-100 text-cyan-800"
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                              esCaliente
+                                ? "bg-amber-50 text-amber-800 border-amber-200"
+                                : "bg-sky-50 text-sky-800 border-sky-200"
                             }`}>
-                              {esCaliente ? "☕ Caliente" : "🧊 Fria"}
+                              {esCaliente ? "Caliente" : "Fría"}
                             </span>
-                            <p className="text-xs font-bold text-slate-800 truncate m-0">{b.Nom_Plato}</p>
+                            <p className="text-xs font-bold text-slate-800 m-0 truncate">{b.Nom_Plato}</p>
                           </div>
-                          {b.Des_Plato && <p className="text-[11px] text-slate-400 truncate m-0">{b.Des_Plato}</p>}
+                          {b.Des_Plato && (
+                            <DescripcionExpandible
+                              texto={b.Des_Plato}
+                              limite={45}
+                              color="blue"
+                              className="mt-0.5"
+                            />
+                          )}
                         </div>
 
                         {isSelected && (
-                          <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 text-[10px]">
+                          <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 text-[10px] mt-1">
                             ✓
                           </div>
                         )}
@@ -560,7 +645,7 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
           <li><strong>Cierre de Reserva Normal:</strong> Tienes plazo hasta las <strong>10:30 PM (22:30)</strong> del dia anterior. A partir de las 10:31 PM se agenda para pasado manana.</li>
           <li><strong>Cancelacion Oportuna:</strong> Permitida hasta las <strong>09:00 PM (21:00)</strong> de la noche anterior.</li>
           <li><strong>Novedades de Almuerzo:</strong> Para emergencias del mismo dia hasta las <strong>09:00 AM</strong>.</li>
-          <li><strong>Ceder Reserva a un Companero:</strong> Si no puedes asistir, puedes ceder tu cupo a otro aprendiz hasta las <strong>10:30 AM</strong> para Almuerzo. Tu companero debe aceptar en su aplicacion.</li>
+          <li><strong>Ceder Reserva a un Companero:</strong> Si no puedes asistir, puedes ceder tu cupo a otro aprendiz en cualquier momento antes de que finalice el turno de comida asignado. Tu companero debe aceptar en su aplicacion.</li>
         </ul>
       </div>
 
