@@ -22,7 +22,7 @@ export function obtenerFechaMananaColombia(fecha = new Date()) {
   return obtenerFechaColombia(fechaMananaUtc);
 }
 
-// Retorna la hora actual en Colombia en formato HH:mm:ss
+// Retorna la hora actual en Colombia en formato HH:mm:ss (00:00:00 a 23:59:59)
 export function obtenerHoraColombia(fecha = new Date()) {
   const d = fecha instanceof Date ? fecha : new Date(fecha);
   return new Intl.DateTimeFormat('en-GB', {
@@ -30,8 +30,8 @@ export function obtenerHoraColombia(fecha = new Date()) {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false
-  }).format(d);
+    hourCycle: 'h23'
+  }).format(d).replace(/^24:/, '00:');
 }
 
 // Retorna fecha y hora combinada en Colombia en formato YYYY-MM-DD HH:mm:ss

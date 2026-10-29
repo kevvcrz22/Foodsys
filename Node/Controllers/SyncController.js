@@ -68,11 +68,12 @@ function fechaAFormatoColombiaMySQL(fecha) {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    hour12: false
+    hourCycle: "h23"
   }).formatToParts(d);
   const m = {};
   for (const p of partes) m[p.type] = p.value;
-  return `${m.year}-${m.month}-${m.day} ${m.hour}:${m.minute}:${m.second}`;
+  const horaSegura = m.hour === "24" ? "00" : m.hour;
+  return `${m.year}-${m.month}-${m.day} ${horaSegura}:${m.minute}:${m.second}`;
 }
 
 export const pull = async (req, res) => {
