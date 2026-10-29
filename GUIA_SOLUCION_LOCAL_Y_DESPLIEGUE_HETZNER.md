@@ -61,8 +61,8 @@ git push origin main
 cd /var/www/Foodsys
 git pull origin main
 
-# 1. Aplicar migracion SQL no destructiva (si no se ha ejecutado)
-mysql -u root foodsys_db < Node/Database/migration_v3_innovacion.sql
+# 1. Aplicar migracion SQL canonica idempotente
+mysql -u root foodsys < Node/Database/foodsys_canonical_schema.sql
 
 # 2. Instalar dependencias y compilar Frontend
 cd /var/www/Foodsys/Node && pnpm install
