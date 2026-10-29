@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 import {
   Users, CalendarCheck, BarChart3, ClipboardList,
   QrCode, Edit, Utensils, BookOpen, ShieldCheck,
-  ArrowRight, Wheat, ChefHat, Sparkles
+  ArrowRight, Wheat, ChefHat, Sparkles, MessageSquare
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import SemaforoAforoCard from "../../Components/SemaforoAforoCard.jsx";
@@ -17,36 +17,42 @@ import BolsaSolidariaCard from "../../Components/BolsaSolidariaCard.jsx";
 
 const MANUAL_POR_ROL = {
   Administrador: {
-    Bienvenida: "Gestion integral y parametrizacion del sistema Foodsys.",
+    Bienvenida: "Gestión integral, auditoría y parametrización del sistema Foodsys.",
     Pasos: [
       {
         Icono: Users,
-        Titulo: "Gestionar Usuarios e Instructores",
-        Descripcion: "Crea, edita e importa aprendices e instructores. Asigna roles desde la matriz oficial.",
+        Titulo: "Gestión de Usuarios",
+        Descripcion: "Crea, edita y administra los usuarios del sistema con activación/inactivación lógica.",
         Link: "/usuarios",
       },
       {
-        Icono: Wheat,
-        Titulo: "Almuerzos Apartados SENA Empresa",
-        Descripcion: "Consulta y audita las solicitudes de almuerzos apartados SENA Empresa emitidas por fichas.",
-        Link: "/guardar-almuerzo-campo",
+        Icono: ShieldCheck,
+        Titulo: "Asignar Roles",
+        Descripcion: "Asigna roles respetando la jerarquía estricta del sistema sin duplicidades.",
+        Link: "/UsuariosRoles",
       },
       {
-        Icono: Utensils,
-        Titulo: "Platos y Bebidas",
-        Descripcion: "Administra el catalogo de platos y bebidas frias o calientes disponibles para la minuta.",
-        Link: "/platos",
-      },
-      {
-        Icono: CalendarCheck,
-        Titulo: "Consultar Menus y Reservas",
-        Descripcion: "Audita los menus semanales y exporta el estado global de reservas de los aprendices.",
+        Icono: ClipboardList,
+        Titulo: "Consultar Menús",
+        Descripcion: "Modo solo lectura de minutas oficiales y exportación en PDF y Excel con filtros.",
         Link: "/menus",
       },
       {
+        Icono: CalendarCheck,
+        Titulo: "Consultar Reservas",
+        Descripcion: "Visualiza reservas generales y descarga reportes oficiales en PDF y Excel.",
+        Link: "/reservas",
+      },
+      {
+        Icono: MessageSquare,
+        Titulo: "PQRSF Interventoría",
+        Descripcion: "Gestiona peticiones, quejas, reclamos y sugerencias de los usuarios del comedor.",
+        Link: "/pqrsf-admin",
+      },
+      {
         Icono: BarChart3,
-        Titulo: "Modulo de Reportes",
-        Descripcion: "Consulta consumos reales, inasistencias, alertas de bienestar y reporte de apartados en 4 pestanas.",
+        Titulo: "Módulo de Reportes",
+        Descripcion: "Acceso total a las métricas de consumo, inasistencias y auditoría nutricional.",
         Link: "/Administrador/Reportes",
       },
     ],
@@ -57,25 +63,37 @@ const MANUAL_POR_ROL = {
       {
         Icono: Wheat,
         Titulo: "Almuerzos Apartados SENA Empresa",
-        Descripcion: "Selecciona tu ficha y aparta almuerzos para aprendices en practica hasta las 09:00 AM.",
+        Descripcion: "Selecciona tu ficha y aparta almuerzos para aprendices en práctica hasta las 09:00 AM.",
         Link: "/guardar-almuerzo-campo",
       },
     ],
   },
   Vocero: {
-    Bienvenida: "Gestion de reservas y solicitudes de Almuerzos Apartados SENA Empresa.",
+    Bienvenida: "Gestión de reservas y solicitudes de Almuerzos Apartados SENA Empresa.",
     Pasos: [
+      {
+        Icono: CalendarCheck,
+        Titulo: "Reservar Almuerzo",
+        Descripcion: "Agenda tu almuerzo diario antes de las 10:30 PM del día anterior.",
+        Link: "/Vocero/Reservar",
+      },
       {
         Icono: Wheat,
         Titulo: "Almuerzos Apartados SENA Empresa",
-        Descripcion: "Solicita el apartado grupal de almuerzos cuando tu ficha tenga practica hasta las 09:00 AM.",
+        Descripcion: "Solicita el apartado grupal de almuerzos cuando tu ficha tenga práctica hasta las 09:00 AM.",
         Link: "/guardar-almuerzo-campo",
       },
     ],
   },
   "SENA Empresa": {
-    Bienvenida: "Coordinacion de raciones, internado temporal y alimentacion en unidades productivas.",
+    Bienvenida: "Coordinación de raciones, internado temporal y alimentación en unidades productivas.",
     Pasos: [
+      {
+        Icono: Users,
+        Titulo: "Internado Temporal y Turno Rutinario",
+        Descripcion: "Asigna turnos temporales o rutinarios (Lunes a Viernes) sin eliminar registros históricos.",
+        Link: "/internado-temporal",
+      },
       {
         Icono: Wheat,
         Titulo: "Almuerzos Apartados SENA Empresa",
@@ -83,16 +101,10 @@ const MANUAL_POR_ROL = {
         Link: "/guardar-almuerzo-campo",
       },
       {
-        Icono: Users,
-        Titulo: "Internado Temporal y Turno Rutinario",
-        Descripcion: "Asigna turnos temporales o rutinarios (Lunes a Viernes) sin eliminar registros historicos.",
-        Link: "/admin/internado-temporal",
-      },
-      {
         Icono: BarChart3,
         Titulo: "Reportes de SENA Empresa",
         Descripcion: "Monitorea el resumen exclusivo de Alimentos Apartados e Internado Temporal.",
-        Link: "/Administrador/Reportes",
+        Link: "/sena-empresa/Reportes",
       },
     ],
   },
@@ -108,8 +120,8 @@ const MANUAL_POR_ROL = {
       {
         Icono: QrCode,
         Titulo: "Verificar QR y Registrar",
-        Descripcion: "Registra consumos mediante camara de lectura rapida (<2.5s) o lector USB con feedback sonoro.",
-        Link: "/supervisor/VerificarQR",
+        Descripcion: "Registra consumos mediante cámara de lectura rápida (<2.5s) o lector USB con feedback sonoro.",
+        Link: "/Cocina/Verificar",
       },
     ],
   },
@@ -125,18 +137,18 @@ const MANUAL_POR_ROL = {
       {
         Icono: QrCode,
         Titulo: "Verificar QR y Registrar",
-        Descripcion: "Registra consumos mediante camara de lectura rapida (<2.5s) o lector USB con feedback sonoro.",
-        Link: "/supervisor/VerificarQR",
+        Descripcion: "Registra consumos mediante cámara de lectura rápida (<2.5s) o lector USB con feedback sonoro.",
+        Link: "/Cocina/Verificar",
       },
     ],
   },
   "Supervisor de Contrato": {
-    Bienvenida: "Supervision contractual, interventoria de minuta de 28 dias, PQRSF y auditoria.",
+    Bienvenida: "Supervisión contractual, interventoría de minuta de 28 días, PQRSF y auditoría.",
     Pasos: [
       {
         Icono: ShieldCheck,
         Titulo: "Panel de Supervisor de Contrato",
-        Descripcion: "Audita raciones servidas, cumplimiento de minuta, alertas de PQRSF y metricas de contrato.",
+        Descripcion: "Audita raciones servidas, cumplimiento de minuta, alertas de PQRSF y métricas de contrato.",
         Link: "/supervisor-contrato",
       },
       {

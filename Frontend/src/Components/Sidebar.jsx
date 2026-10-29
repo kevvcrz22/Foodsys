@@ -12,14 +12,66 @@ import {
 import { useNavBar } from "./CerrarSesion";
 import NavRolSelector from "./NavBar/NavRolSelector";
 
+const ROLES_CON_BIENESOFT = [
+  "Coordinador",
+  "Coordinacion",
+  "Bienestar",
+  "Aprendiz Interno",
+  "Aprendiz Externo",
+  "Pasante Interno",
+  "Pasante Externo",
+  "Monitor",
+  "Supervisor",
+];
+
 const NAV_POR_ROL = {
   Administrador: [
-    { to: "/Administrador",          label: "Inicio",                              icon: Home          },
-    { to: "/Administrador/Perfil",   label: "Mi Perfil",                           icon: User          },
+    { to: "/Administrador",          label: "Inicio",               icon: Home          },
+    { to: "/Administrador/Perfil",   label: "Mi Perfil",            icon: User          },
+    { to: "/usuarios",               label: "Usuarios",             icon: Users         },
+    { to: "/UsuariosRoles",          label: "Asignar Roles",        icon: ShieldCheck   },
+    { to: "/menus",                  label: "Menús",                icon: ClipboardList },
+    { to: "/reservas",               label: "Reservas",             icon: Database      },
+    { to: "/pqrsf-admin",            label: "PQRSF Interventoría",  icon: MessageSquare },
+    { to: "/Administrador/Reportes", label: "Reportes",             icon: BarChart3     },
+  ],
+  Coordinador: [
+    { to: "/coordinador",            label: "Inicio",                              icon: Home          },
+    { to: "/coordinador/Perfil",     label: "Mi Perfil",                           icon: User          },
+    { to: "/supervisor/Registrar",   label: "Monitor (Turno)",                     icon: Edit          },
+    { to: "/reservas",               label: "Reservas",                            icon: Database      },
+    { to: "/programas",              label: "Programas",                           icon: GraduationCap },
+    { to: "/fichas",                 label: "Fichas",                              icon: FileText      },
+    { to: "/aprendices",             label: "Aprendices",                          icon: User          },
+    { to: "/pasantes",               label: "Pasantes",                            icon: Users         },
+    { to: "/usuarios",               label: "Instructores y Usuarios",             icon: Users         },
+    { to: "/UsuariosRoles",          label: "Asignar Roles",                       icon: ShieldCheck   },
+    { to: "/menus",                  label: "Menús (Lectura)",                     icon: ClipboardList },
     { to: "/internado-temporal",     label: "Internado Temporal",                  icon: Clock         },
-    { to: "/Administrador/Reportes", label: "Reportes",                            icon: BarChart3     },
-    { to: "/Administrador/Novedades",label: "Novedades",                           icon: ClipboardList },
+    { to: "/sincronizacion",         label: "Sincronización Offline",              icon: ArrowUpDown   },
+    { to: "/coordinador/Novedades",  label: "Novedades",                           icon: ClipboardList },
+    { to: "/coordinador/Reportes",   label: "Reportes",                            icon: BarChart3     },
+  ],
+  Bienestar: [
+    { to: "/Bienestar",              label: "Inicio",                              icon: Home          },
+    { to: "/Bienestar/Perfil",       label: "Mi Perfil",                           icon: User          },
+    { to: "/Bienestar/Plan",         label: "Plan del Día",                        icon: ChefHat       },
+    { to: "/menus",                  label: "Menús (Lectura)",                     icon: ClipboardList },
+    { to: "/platos",                 label: "Platos (Lectura)",                    icon: Utensils      },
+    { to: "/pasantes",               label: "Pasantes (Lectura)",                  icon: Users         },
+    { to: "/aprendices",             label: "Aprendices",                          icon: User          },
+    { to: "/pqrsf-admin",            label: "PQRSF Interventoría",                 icon: MessageSquare },
+    { to: "/supervisor/Registrar",   label: "Monitor (Turno)",                     icon: Edit          },
+    { to: "/sincronizacion",         label: "Sincronización Offline",              icon: ArrowUpDown   },
+    { to: "/Bienestar/Novedades",    label: "Novedades",                           icon: ClipboardList },
+    { to: "/Bienestar/Reportes",     label: "Reportes",                            icon: BarChart3     },
+  ],
+  "SENA Empresa": [
+    { to: "/sena-empresa",           label: "Inicio",                              icon: Home          },
+    { to: "/sena-empresa/Perfil",    label: "Mi Perfil",                           icon: User          },
+    { to: "/internado-temporal",     label: "Internado Temporal (Turno Semanal)",  icon: Clock         },
     { to: "/guardar-almuerzo-campo", label: "Almuerzos Apartados SENA Empresa",    icon: Wheat         },
+    { to: "/sena-empresa/Reportes",  label: "Reportes",                            icon: BarChart3     },
   ],
   Instructor: [
     { to: "/instructor",             label: "Inicio",                              icon: Home          },
@@ -32,42 +84,14 @@ const NAV_POR_ROL = {
     { to: "/Vocero/Reservar",        label: "Reservar",                            icon: CalendarCheck },
     { to: "/guardar-almuerzo-campo", label: "Almuerzos Apartados SENA Empresa",    icon: Wheat         },
   ],
-  "SENA Empresa": [
-    { to: "/sena-empresa",           label: "Inicio",                              icon: Home          },
-    { to: "/sena-empresa/Perfil",    label: "Mi Perfil",                           icon: User          },
-    { to: "/internado-temporal",     label: "Internado Temporal (Turno Semanal)",  icon: Clock         },
-    { to: "/guardar-almuerzo-campo", label: "Almuerzos Apartados SENA Empresa",    icon: Wheat         },
-    { to: "/sena-empresa/Reportes",  label: "Reportes",                            icon: BarChart3     },
-  ],
-  Monitor: [
-    { to: "/supervisor",             label: "Inicio",                              icon: Home          },
-    { to: "/supervisor/Perfil",      label: "Mi Perfil",                           icon: User          },
-    { to: "/supervisor/Registrar",   label: "Registrar",                           icon: Edit          },
+  Cocina: [
+    { to: "/Cocina",                 label: "Inicio",                              icon: Home          },
+    { to: "/Cocina/Perfil",          label: "Mi Perfil",                           icon: User          },
+    { to: "/Cocina/Plan",            label: "Plan del Día",                        icon: ChefHat       },
     { to: "/Cocina/Verificar",       label: "Verificar QR",                        icon: ShieldCheck   },
-    { to: "/guardar-almuerzo-campo", label: "Almuerzos Apartados SENA Empresa",    icon: Wheat         },
-  ],
-  Supervisor: [
-    { to: "/supervisor",             label: "Inicio",                              icon: Home          },
-    { to: "/supervisor/Perfil",      label: "Mi Perfil",                           icon: User          },
-    { to: "/supervisor/Registrar",   label: "Registrar",                           icon: Edit          },
-    { to: "/Cocina/Verificar",       label: "Verificar QR",                        icon: ShieldCheck   },
-    { to: "/guardar-almuerzo-campo", label: "Almuerzos Apartados SENA Empresa",    icon: Wheat         },
-  ],
-  "Supervisor de Contrato": [
-    { to: "/supervisor-contrato",          label: "Inicio (Contrato)",             icon: Home          },
-    { to: "/supervisor-contrato/Perfil",   label: "Mi Perfil",                     icon: User          },
-    { to: "/supervisor-contrato/Plan",     label: "Plan del Día",                  icon: ChefHat       },
-    { to: "/supervisor-contrato/Reportes", label: "Reportes",                      icon: BarChart3     },
-  ],
-  "Aprendiz Externo": [
-    { to: "/Externo",                label: "Inicio",                              icon: Home          },
-    { to: "/Externo/Perfil",         label: "Mi Perfil",                           icon: User          },
-    { to: "/Externo/Reservar",       label: "Reservar",                            icon: CalendarCheck },
-  ],
-  Visitante: [
-    { to: "/Visitante",              label: "Inicio",                              icon: Home          },
-    { to: "/Visitante/Perfil",       label: "Mi Perfil",                           icon: User          },
-    { to: "/Visitante/Reservar",     label: "Reservar",                            icon: CalendarCheck },
+    { to: "/menus",                  label: "Menús",                               icon: ClipboardList },
+    { to: "/platos",                 label: "Platos",                              icon: Utensils      },
+    { to: "/Cocina/Reportes",        label: "Reportes (Tabla 1 Consumidos)",       icon: BarChart3     },
   ],
   "Aprendiz Interno": [
     { to: "/Interno",                label: "Inicio",                              icon: Home          },
@@ -79,88 +103,41 @@ const NAV_POR_ROL = {
     { to: "/PasanteInterno/Perfil",  label: "Mi Perfil",                           icon: User          },
     { to: "/PasanteInterno/Reservar",label: "Reservar",                            icon: CalendarCheck },
   ],
+  "Aprendiz Externo": [
+    { to: "/Externo",                label: "Inicio",                              icon: Home          },
+    { to: "/Externo/Perfil",         label: "Mi Perfil",                           icon: User          },
+    { to: "/Externo/Reservar",       label: "Reservar",                            icon: CalendarCheck },
+  ],
   "Pasante Externo": [
     { to: "/PasanteExterno",         label: "Inicio",                              icon: Home          },
     { to: "/PasanteExterno/Perfil",  label: "Mi Perfil",                           icon: User          },
     { to: "/PasanteExterno/Reservar",label: "Reservar",                            icon: CalendarCheck },
   ],
-  Coordinador: [
-    { to: "/coordinador",            label: "Inicio",                              icon: Home          },
-    { to: "/coordinador/Perfil",     label: "Mi Perfil",                           icon: User          },
-    { to: "/supervisor/Registrar",   label: "Monitor (Turno)",                     icon: Edit          },
-    { to: "/internado-temporal",     label: "Internado Temporal",                  icon: Clock         },
-    { to: "/coordinador/Novedades",  label: "Novedades",                           icon: ClipboardList },
-    { to: "/coordinador/Reportes",   label: "Reportes",                            icon: BarChart3     },
-    { to: "/guardar-almuerzo-campo", label: "Almuerzos Apartados SENA Empresa",    icon: Wheat         },
+  Visitante: [
+    { to: "/Visitante",              label: "Inicio",                              icon: Home          },
+    { to: "/Visitante/Perfil",       label: "Mi Perfil",                           icon: User          },
+    { to: "/Visitante/Reservar",     label: "Reservar",                            icon: CalendarCheck },
   ],
-  Cocina: [
-    { to: "/Cocina",                 label: "Inicio",                              icon: Home          },
-    { to: "/Cocina/Perfil",          label: "Mi Perfil",                           icon: User          },
+  Monitor: [
+    { to: "/supervisor",             label: "Inicio",                              icon: Home          },
+    { to: "/supervisor/Perfil",      label: "Mi Perfil",                           icon: User          },
+    { to: "/supervisor/Registrar",   label: "Registrar",                           icon: Edit          },
     { to: "/Cocina/Verificar",       label: "Verificar QR",                        icon: ShieldCheck   },
-    { to: "/Cocina/Plan",            label: "Plan del Día",                        icon: ChefHat       },
-    { to: "/Cocina/Reportes",        label: "Reportes",                            icon: BarChart3     },
-    { to: "/guardar-almuerzo-campo", label: "Almuerzos Apartados SENA Empresa",    icon: Wheat         },
   ],
-  Bienestar: [
-    { to: "/Bienestar",              label: "Inicio",                              icon: Home          },
-    { to: "/Bienestar/Perfil",       label: "Mi Perfil",                           icon: User          },
-    { to: "/Bienestar/Plan",         label: "Plan del Día",                        icon: ChefHat       },
-    { to: "/supervisor/Registrar",   label: "Monitor (Turno)",                     icon: Edit          },
-    { to: "/internado-temporal",     label: "Internado Temporal",                  icon: Clock         },
-    { to: "/Bienestar/Reportes",     label: "Reportes",                            icon: BarChart3     },
-    { to: "/Bienestar/Novedades",    label: "Novedades",                           icon: ClipboardList },
-    { to: "/guardar-almuerzo-campo", label: "Almuerzos Apartados SENA Empresa",    icon: Wheat         },
-  ],
-};
-
-const TABLAS_POR_ROL = {
-  Administrador: [
-    { to: "/usuarios",            label: "Usuarios",                 icon: Users         },
-    { to: "/aprendices",          label: "Aprendices",               icon: User          },
-    { to: "/pasantes",            label: "Pasantes",                 icon: Users         },
-    { to: "/internado-temporal",  label: "Internado Temporal",       icon: Clock         },
-    { to: "/pqrsf-admin",         label: "PQRSF Interventoría",      icon: MessageSquare },
-    { to: "/supervisor-contrato", label: "Supervisor de Contrato",   icon: ShieldCheck   },
-    { to: "/sincronizacion",      label: "Sincronización Offline",   icon: ArrowUpDown   },
-    { to: "/UsuariosRoles",       label: "Asignar Roles",            icon: ShieldCheck   },
-    { to: "/fichas",              label: "Fichas",                   icon: FileText      },
-    { to: "/programas",           label: "Programas",                icon: GraduationCap },
-    { to: "/reservas",            label: "Reservas",                 icon: Database      },
-    { to: "/platos",              label: "Platos",                   icon: Utensils      },
-    { to: "/menus",               label: "Menús",                    icon: ClipboardList },
-  ],
-  "SENA Empresa": [
-    { to: "/internado-temporal",     label: "Internado Temporal",               icon: Clock },
-    { to: "/guardar-almuerzo-campo", label: "Almuerzos Apartados SENA Empresa", icon: Wheat },
-  ],
-  Coordinador: [
-    { to: "/aprendices",          label: "Aprendices",               icon: User          },
-    { to: "/pasantes",            label: "Pasantes",                 icon: Users         },
-    { to: "/usuarios",            label: "Instructores y Usuarios",  icon: Users         },
-    { to: "/UsuariosRoles",       label: "Asignar Roles",            icon: ShieldCheck   },
-    { to: "/programas",           label: "Programas",                icon: GraduationCap },
-    { to: "/fichas",              label: "Fichas",                   icon: FileText      },
-    { to: "/reservas",            label: "Reservas",                 icon: Database      },
-    { to: "/menus",               label: "Menús (Lectura)",          icon: ClipboardList },
-    { to: "/platos",              label: "Platos",                   icon: Utensils      },
-    { to: "/sincronizacion",      label: "Sincronización Offline",   icon: ArrowUpDown   },
-  ],
-  Bienestar: [
-    { to: "/aprendices",          label: "Aprendices",               icon: User          },
-    { to: "/pasantes",            label: "Pasantes (Lectura)",       icon: Users         },
-    { to: "/pqrsf-admin",         label: "PQRSF Interventoría",      icon: MessageSquare },
-    { to: "/menus",               label: "Menús (Lectura)",          icon: ClipboardList },
-    { to: "/platos",              label: "Platos (Lectura)",         icon: Utensils      },
-    { to: "/sincronizacion",      label: "Sincronización Offline",   icon: ArrowUpDown   },
-  ],
-  Cocina: [
-    { to: "/menus",               label: "Menús",                    icon: ClipboardList },
-    { to: "/platos",              label: "Platos",                   icon: Utensils      },
+  Supervisor: [
+    { to: "/supervisor",             label: "Inicio",                              icon: Home          },
+    { to: "/supervisor/Perfil",      label: "Mi Perfil",                           icon: User          },
+    { to: "/supervisor/Registrar",   label: "Registrar",                           icon: Edit          },
+    { to: "/Cocina/Verificar",       label: "Verificar QR",                        icon: ShieldCheck   },
   ],
   "Supervisor de Contrato": [
-    { to: "/menus",               label: "Menús y Minuta",           icon: ClipboardList },
-    { to: "/platos",              label: "Platos (Edición)",         icon: Utensils      },
-    { to: "/pqrsf-admin",         label: "PQRSF Interventoría",      icon: MessageSquare },
+    { to: "/supervisor-contrato",          label: "Inicio (Contrato)",             icon: Home          },
+    { to: "/supervisor-contrato/Perfil",   label: "Mi Perfil",                     icon: User          },
+    { to: "/supervisor-contrato/Plan",     label: "Plan del Día",                  icon: ChefHat       },
+    { to: "/menus",                        label: "Menús y Minuta",                icon: ClipboardList },
+    { to: "/platos",                       label: "Platos (Edición)",              icon: Utensils      },
+    { to: "/pqrsf-admin",                  label: "PQRSF Interventoría",           icon: MessageSquare },
+    { to: "/supervisor-contrato/Reportes", label: "Reportes",                      icon: BarChart3     },
   ],
 };
 
@@ -193,7 +170,6 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
 
   const Inicial = Nombre_Completo.charAt(0).toUpperCase() || "U";
   const Links = NAV_POR_ROL[Rol_Activo] || [];
-  const Tablas = TABLAS_POR_ROL[Rol_Activo] || [];
 
   const Obtener_Clase_Link = ({ isActive }) =>
     [
@@ -263,18 +239,9 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
 
       {/* ── Navegacion ── */}
       <nav className="flex-1 px-3.5 py-4 space-y-1 overflow-y-auto">
-        <p className="text-slate-400 text-[10px] font-bold px-2 mb-2 uppercase tracking-wider">Menu Principal</p>
+        <p className="text-slate-400 text-[10px] font-bold px-2 mb-2 uppercase tracking-wider">Módulos</p>
         {Links.length > 0 ? Renderizar_Links(Links) : (
-          <p className="text-slate-400 text-xs px-3">Sin modulos disponibles</p>
-        )}
-        {Tablas.length > 0 && (
-          <>
-            <div className="h-px bg-slate-100 my-3" />
-            <p className="text-slate-400 text-[10px] font-bold px-2 mb-2 uppercase tracking-wider">
-              Administracion
-            </p>
-            {Renderizar_Links(Tablas)}
-          </>
+          <p className="text-slate-400 text-xs px-3">Sin módulos asignados</p>
         )}
 
         <div className="h-px bg-slate-100 my-3" />
@@ -289,23 +256,25 @@ export default function Sidebar({ roles = [], rolActivo: rolActivoProp, onCambio
           <BookOpen className="w-4 h-4 flex-shrink-0 text-slate-500" />
           <span>Manuales</span>
         </NavLink>
-        <a
-          href="https://bienesoftlagranja.com/user/login"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-sky-100/80 bg-sky-50/30 group shadow-xs"
-          title="Abrir portal oficial BIENESOFT en nueva pestana"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <img
-              src="/LogoBienesoft.png"
-              alt="Logo BIENESOFT"
-              className="w-4 h-4 object-contain rounded bg-white p-0.5 border border-sky-200 flex-shrink-0 group-hover:scale-105 transition-transform"
-            />
-            <span className="font-bold text-xs uppercase tracking-wider text-sky-900 group-hover:text-sky-700">BIENESOFT</span>
-          </div>
-          <ExternalLink className="w-3.5 h-3.5 text-sky-600 opacity-70 group-hover:opacity-100 transition-opacity" />
-        </a>
+        {ROLES_CON_BIENESOFT.includes(Rol_Activo) && (
+          <a
+            href="https://bienesoftlagranja.com/user/login"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-sky-100/80 bg-sky-50/30 group shadow-xs"
+            title="Abrir portal oficial BIENESOFT en nueva pestana"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <img
+                src="/LogoBienesoft.png"
+                alt="Logo BIENESOFT"
+                className="w-4 h-4 object-contain rounded bg-white p-0.5 border border-sky-200 flex-shrink-0 group-hover:scale-105 transition-transform"
+              />
+              <span className="font-bold text-xs uppercase tracking-wider text-sky-900 group-hover:text-sky-700">BIENESOFT</span>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-sky-600 opacity-70 group-hover:opacity-100 transition-opacity" />
+          </a>
+        )}
       </nav>
 
       {/* ── Pie (Movil) ── */}
