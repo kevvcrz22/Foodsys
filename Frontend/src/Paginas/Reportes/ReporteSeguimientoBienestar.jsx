@@ -28,6 +28,7 @@ import {
   Filter
 } from "lucide-react";
 import apiAxios from "../../api/axiosConfig";
+import toast from "react-hot-toast";
 import ModalHistorialAprendiz from "./ModalHistorialAprendiz";
 import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
 
@@ -112,7 +113,7 @@ const ReporteSeguimientoBienestar = () => {
   // Exportar Excel
   const manejarExportarExcel = async () => {
     if (registrosFiltrados.length === 0) {
-      alert("No hay registros de alerta para exportar en el rango seleccionado.");
+      toast.error("No hay registros de alerta para exportar en el rango seleccionado.");
       return;
     }
 
@@ -155,7 +156,7 @@ const ReporteSeguimientoBienestar = () => {
   // Exportar PDF
   const manejarExportarPDF = async () => {
     if (registrosFiltrados.length === 0) {
-      alert("No hay registros de alerta para exportar en el rango seleccionado.");
+      toast.error("No hay registros de alerta para exportar en el rango seleccionado.");
       return;
     }
 
@@ -192,18 +193,18 @@ const ReporteSeguimientoBienestar = () => {
 
   return (
     <div className="space-y-6">
-      {/* Tarjeta explicativa y guia de Bienestar */}
-      <div className="bg-gradient-to-r from-purple-700 via-indigo-700 to-indigo-800 rounded-2xl p-5 text-white shadow-md">
+      {/* Tarjeta explicativa y guia de Bienestar (Paleta pastel suave / Indigo-Slate para no cansar la vista) */}
+      <div className="bg-gradient-to-r from-indigo-50 via-slate-50 to-blue-50 border border-indigo-200/80 rounded-2xl p-5 text-slate-800 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
-            <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-sm">
-              <HeartHandshake className="w-7 h-7 text-purple-200" />
+            <div className="p-2.5 bg-indigo-100 text-indigo-700 rounded-xl border border-indigo-200/70">
+              <HeartHandshake className="w-7 h-7" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-bold">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-800">
                 Seguimiento Psicosocial y Nutricional (Bienestar al Aprendiz)
               </h2>
-              <p className="text-xs sm:text-sm text-purple-100 mt-1 max-w-2xl">
+              <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
                 Deteccion temprana de aprendices activos que no estan reservando ni asistiendo al comedor.
                 Prioriza a los aprendices internos de Centro de Convivencia para acompanamiento y prevencion.
               </p>
@@ -212,7 +213,7 @@ const ReporteSeguimientoBienestar = () => {
 
           <button
             onClick={() => setMostrarGuia(!mostrarGuia)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 rounded-xl text-xs font-semibold backdrop-blur-sm transition self-start sm:self-center"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-semibold transition self-start sm:self-center shadow-2xs"
           >
             <HelpCircle className="w-4 h-4" />
             <span>{mostrarGuia ? "Ocultar manual" : "Manual de uso"}</span>
@@ -222,8 +223,8 @@ const ReporteSeguimientoBienestar = () => {
 
         {/* Acordeon del manual */}
         {mostrarGuia && (
-          <div className="mt-4 pt-4 border-t border-white/20 text-xs sm:text-sm space-y-2 text-purple-50">
-            <p className="font-semibold text-white">¿Como usar este modulo de alerta?</p>
+          <div className="mt-4 pt-4 border-t border-indigo-200/60 text-xs sm:text-sm space-y-2 text-slate-700">
+            <p className="font-semibold text-indigo-900">¿Como usar este modulo de alerta?</p>
             <ol className="list-decimal list-inside space-y-1">
               <li>Selecciona el rango de fechas para evaluar la inasistencia (por defecto ultimos 7 dias).</li>
               <li>Observa el semaforo de prioridad: los aprendices internos aparecen de primeros con prioridad alta.</li>
@@ -237,36 +238,36 @@ const ReporteSeguimientoBienestar = () => {
 
       {/* Tarjetas de Resumen Estadistico */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs text-gray-500 uppercase font-semibold">Total Sin Consumos</p>
-            <p className="text-2xl font-bold text-gray-900">{resumen.totalSinConsumo}</p>
-            <p className="text-xs text-gray-400">En el periodo seleccionado</p>
+            <p className="text-xs text-slate-500 uppercase font-semibold">Total Sin Consumos</p>
+            <p className="text-2xl font-bold text-slate-900">{resumen.totalSinConsumo}</p>
+            <p className="text-xs text-slate-400">En el periodo seleccionado</p>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-purple-200 shadow-sm flex items-center gap-4 bg-purple-50/20">
-          <div className="w-12 h-12 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+        <div className="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-200/80 shadow-xs flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-indigo-100/80 text-indigo-700 flex items-center justify-center font-bold">
             <Home className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs text-purple-700 uppercase font-semibold">Internos Afectados</p>
-            <p className="text-2xl font-bold text-purple-900">{resumen.totalInternosAfectados}</p>
-            <p className="text-xs text-purple-600 font-medium">Prioridad Maxima (Convivencia)</p>
+            <p className="text-xs text-indigo-700 uppercase font-semibold">Internos Afectados</p>
+            <p className="text-2xl font-bold text-indigo-900">{resumen.totalInternosAfectados}</p>
+            <p className="text-xs text-indigo-600 font-medium">Prioridad Maxima (Convivencia)</p>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
             <UserCheck className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs text-gray-500 uppercase font-semibold">Externos Afectados</p>
-            <p className="text-2xl font-bold text-gray-900">{resumen.totalExternosAfectados}</p>
-            <p className="text-xs text-gray-400">Prioridad Media</p>
+            <p className="text-xs text-slate-500 uppercase font-semibold">Externos Afectados</p>
+            <p className="text-2xl font-bold text-slate-900">{resumen.totalExternosAfectados}</p>
+            <p className="text-xs text-slate-400">Prioridad Media</p>
           </div>
         </div>
       </div>
@@ -313,7 +314,7 @@ const ReporteSeguimientoBienestar = () => {
                 type="checkbox"
                 checked={soloInternos}
                 onChange={(e) => setSoloInternos(e.target.checked)}
-                className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
               />
               <span>Mostrar solo Internos (Centro de Convivencia)</span>
             </label>
@@ -358,7 +359,7 @@ const ReporteSeguimientoBienestar = () => {
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         {cargando ? (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-2" />
+            <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-2" />
             <p className="text-xs">Consultando registros de seguimiento...</p>
           </div>
         ) : registrosFiltrados.length === 0 ? (
@@ -389,7 +390,7 @@ const ReporteSeguimientoBienestar = () => {
                   <tr
                     key={item.Id_Usuario}
                     onClick={() => setAprendizSeleccionado(item)}
-                    className="hover:bg-purple-50/40 cursor-pointer transition"
+                    className="hover:bg-indigo-50/40 cursor-pointer transition"
                     title="Clic para ver historial individual de este aprendiz"
                   >
                     <td className="px-4 py-3 whitespace-nowrap">

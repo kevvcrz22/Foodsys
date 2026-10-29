@@ -83,26 +83,28 @@ const PqrsfAdminDashboard = lazy(() => import("./Paginas/Admin/PqrsfAdminDashboa
 const PanelSincronizacion = lazy(() => import("./Paginas/Admin/PanelSincronizacion.jsx"));
 const ConfiguracionRaciones = lazy(() => import("./Paginas/Admin/ConfiguracionRaciones.jsx"));
 const InternadoTemporal = lazy(() => import("./Paginas/Admin/InternadoTemporal.jsx"));
+const SupervisorContrato = lazy(() => import("./Paginas/Admin/SupervisorContrato.jsx"));
 const ReservaForm = lazy(() => import("./Tablas/Reservas/ReservaForm.jsx"));
 const GuardarAlmuerzoCampo = lazy(() => import("./Paginas/Reservas/GuardarAlmuerzoCampo.jsx"));
 
 // ── Mapa de redireccion despues del login por rol ────────────────────────────
-// Cada rol tiene su propia ruta base. Si un usuario tiene dos roles,
-// la redireccion depende del rol que haya sido seleccionado como activo.
 const RUTAS_POR_ROL = {
   Administrador: "/Administrador",
   Supervisor: "/supervisor",
+  Monitor: "/supervisor",
+  "Supervisor de Contrato": "/supervisor-contrato",
   Coordinador: "/coordinador",
   Coordinacion: "/coordinador",
   "Aprendiz Interno": "/Interno",
   "Aprendiz Externo": "/Externo",
   "Pasante Interno": "/PasanteInterno",
   "Pasante Externo": "/PasanteExterno",
+  Visitante: "/Visitante",
   Cocina: "/Cocina",
   Bienestar: "/Bienestar",
-  Instructor: "/guardar-almuerzo-campo",
-  Vocero: "/Interno",
-  "SENA Empresa": "/guardar-almuerzo-campo",
+  Instructor: "/instructor",
+  Vocero: "/Vocero",
+  "SENA Empresa": "/sena-empresa",
 };
 
 // ── Componente ProtectedRoute ────────────────────────────────────────────────
@@ -406,13 +408,11 @@ function App() {
             }
           />
 
-          {/* ── SUPERVISOR ─────────────────────────────────────────────────── */}
-          {/* El Supervisor registra el consumo de reservas escaneando el QR    */}
-          {/* del aprendiz. Este es su modulo principal.                         */}
+          {/* ── MONITOR / SUPERVISOR ───────────────────────────────────────── */}
           <Route
             path="/supervisor/*"
             element={
-              <ProtectedRoute {...Props_Auth} allowedRoles={["Supervisor"]}>
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Supervisor", "Monitor", "Coordinador", "Bienestar", "Administrador"]}>
                 <LayoutConSidebar {...Props_Layout}>
                   <Routes>
                     <Route index element={<Inicio />} />
@@ -421,6 +421,79 @@ function App() {
                     <Route path="Registrar" element={<RegistrarVista />} />
                     <Route path="Reportes" element={<Reportes />} />
                     <Route path="*" element={<Navigate to="/supervisor" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── SUPERVISOR DE CONTRATO ─────────────────────────────────────── */}
+          <Route
+            path="/supervisor-contrato/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Supervisor de Contrato", "Administrador"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<SupervisorContrato />} />
+                    <Route path="Inicio" element={<SupervisorContrato />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Plan" element={<PlanCocina />} />
+                    <Route path="Reportes" element={<Reportes />} />
+                    <Route path="*" element={<Navigate to="/supervisor-contrato" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── INSTRUCTOR ─────────────────────────────────────────────────── */}
+          <Route
+            path="/instructor/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Instructor", "Administrador", "Coordinador"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<Inicio />} />
+                    <Route path="Inicio" element={<Inicio />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="*" element={<Navigate to="/instructor" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── VOCERO ─────────────────────────────────────────────────────── */}
+          <Route
+            path="/Vocero/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Vocero"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<Inicio />} />
+                    <Route path="Inicio" element={<Inicio />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Reservar" element={<ReservasPag />} />
+                    <Route path="Reservas" element={<ReservasPag />} />
+                    <Route path="*" element={<Navigate to="/Vocero" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── SENA EMPRESA ───────────────────────────────────────────────── */}
+          <Route
+            path="/sena-empresa/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["SENA Empresa", "Administrador", "Coordinador"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<Inicio />} />
+                    <Route path="Inicio" element={<Inicio />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Reportes" element={<Reportes />} />
+                    <Route path="*" element={<Navigate to="/sena-empresa" replace />} />
                   </Routes>
                 </LayoutConSidebar>
               </ProtectedRoute>
@@ -448,7 +521,6 @@ function App() {
           />
 
           {/* ── APRENDIZ EXTERNO ───────────────────────────────────────────── */}
-          {/* Solo puede reservar almuerzo segun las reglas de negocio.          */}
           <Route
             path="/Externo/*"
             element={
@@ -467,14 +539,31 @@ function App() {
             }
           />
 
+          {/* ── VISITANTE ──────────────────────────────────────────────────── */}
+          {/* Mismas condiciones operativas que Aprendiz Externo (solo Almuerzo) */}
+          <Route
+            path="/Visitante/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Visitante"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<InicioExterno />} />
+                    <Route path="Inicio" element={<InicioExterno />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Reservar" element={<ReservasPag />} />
+                    <Route path="Reservas" element={<ReservasPag />} />
+                    <Route path="*" element={<Navigate to="/Visitante" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
           {/* ── APRENDIZ INTERNO ───────────────────────────────────────────── */}
-          {/* Puede reservar desayuno, almuerzo y cena.                          */}
-          {/* Su flujo de consumo va directo de Generado a Consumido (sin pasar  */}
-          {/* por el area de cocina).                                             */}
           <Route
             path="/Interno/*"
             element={
-              <ProtectedRoute {...Props_Auth} allowedRoles={["Aprendiz Interno"]}>
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Aprendiz Interno", "Vocero"]}>
                 <LayoutConSidebar {...Props_Layout}>
                   <Routes>
                     <Route index element={<InicioInterno />} />
@@ -490,8 +579,6 @@ function App() {
           />
 
           {/* ── PASANTE INTERNO ────────────────────────────────────────────── */}
-          {/* Igual que Aprendiz Interno: accede a las 3 comidas y no pasa por  */}
-          {/* el area de cocina. Flujo directo Generado -> Consumido.            */}
           <Route
             path="/PasanteInterno/*"
             element={
@@ -511,8 +598,6 @@ function App() {
           />
 
           {/* ── PASANTE EXTERNO ────────────────────────────────────────────── */}
-          {/* Igual que Aprendiz Externo: solo almuerzo y debe pasar por cocina  */}
-          {/* antes de que el supervisor pueda consumir su reserva.              */}
           <Route
             path="/PasanteExterno/*"
             element={
@@ -531,22 +616,17 @@ function App() {
             }
           />
 
-          {/* ── COCINA ─────────────────────────────────────────────────────── */}
-          {/* El personal de cocina verifica la presencia de los aprendices     */}
-          {/* externos antes de que puedan usar su QR con el supervisor.        */}
-          {/* Endpoint usado: PATCH /api/Reservas/verificar/:id/cocina           */}
+          {/* ── COCINA Y VERIFICACIÓN QR ───────────────────────────────────── */}
           <Route
             path="/Cocina/*"
             element={
-              <ProtectedRoute {...Props_Auth} allowedRoles={["Cocina"]}>
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Cocina", "Monitor", "Supervisor", "Administrador"]}>
                 <LayoutConSidebar {...Props_Layout}>
                   <Routes>
                     <Route index element={<Inicio />} />
                     <Route path="Inicio" element={<Inicio />} />
                     <Route path="Perfil" element={<Perfil />} />
-                    {/* Verificar: cambia estado de la reserva de Generado a Verificado */}
                     <Route path="Verificar" element={<ValidarReservasCocina />} />
-                    {/* Plan del dia: cuantos platos preparar, excepcionales, balance */}
                     <Route path="Plan" element={<PlanCocina />} />
                     <Route path="Reportes" element={<Reportes />} />
                     <Route path="*" element={<Navigate to="/Cocina" replace />} />
@@ -566,7 +646,6 @@ function App() {
                     <Route index element={<Inicio />} />
                     <Route path="Inicio" element={<Inicio />} />
                     <Route path="Perfil" element={<Perfil />} />
-                    {/* Plan del dia: Bienestar puede ver consolidado y lista nominal por plato */}
                     <Route path="Plan" element={<PlanCocina />} />
                     <Route path="Reportes" element={<Reportes />} />
                     <Route path="Novedades" element={<Novedades />} />
@@ -577,35 +656,32 @@ function App() {
             }
           />
 
-          {/* ── CRUDs ADMINISTRATIVOS (solo Administrador) ─────────────────── */}
-          {/* Cada tabla tiene su propia ruta plana para facilitar la navegacion */}
-          <Route path="/usuarios" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudUsuarios /></LayoutConSidebar></ProtectedRoute>} />
-          <Route path="/UsuariosRoles" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudUsuariosRoles /></LayoutConSidebar></ProtectedRoute>} />
-          <Route path="/fichas" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudFichas /></LayoutConSidebar></ProtectedRoute>} />
-          <Route path="/programas" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudPrograma /></LayoutConSidebar></ProtectedRoute>} />
+          {/* ── TABLAS Y MÓDULOS TRANSVERSALES SEGÚN MATRIZ RBAC ────────────── */}
+          <Route path="/usuarios" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudUsuarios /></LayoutConSidebar></ProtectedRoute>} />
+          <Route path="/UsuariosRoles" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudUsuariosRoles /></LayoutConSidebar></ProtectedRoute>} />
+          <Route path="/fichas" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudFichas /></LayoutConSidebar></ProtectedRoute>} />
+          <Route path="/programas" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudPrograma /></LayoutConSidebar></ProtectedRoute>} />
           <Route path="/roles" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudRoles /></LayoutConSidebar></ProtectedRoute>} />
           <Route path="/platos" element={
-            <ProtectedRoute {...Props_Auth} allowedRoles={['Administrador', 'Cocina']}>
+            <ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador", "Bienestar", "Cocina", "Supervisor de Contrato"]}>
               <LayoutConSidebar {...Props_Layout}>
-                {/* soloLectura para Cocina: puede ver platos pero no crear/editar/eliminar */}
-                <CrudPlatos soloLectura={Rol_Activo === 'Cocina'} />
+                <CrudPlatos />
               </LayoutConSidebar>
             </ProtectedRoute>
           } />
           <Route path="/menus" element={
-            <ProtectedRoute {...Props_Auth} allowedRoles={['Administrador', 'Cocina']}>
+            <ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador", "Bienestar", "Cocina", "Supervisor de Contrato"]}>
               <LayoutConSidebar {...Props_Layout}>
-                {/* soloCrear para Cocina: puede ver menus y crear nuevos, pero no editar/eliminar */}
-                <CrudMenus soloCrear={Rol_Activo === 'Cocina'} />
+                <CrudMenus />
               </LayoutConSidebar>
             </ProtectedRoute>
           } />
 
-          {/* Reservas: visible para Administrador y SENA Empresa (vista de tabla y gestion general) */}
+          {/* Reservas: Administrador (solo lectura), Coordinador y SENA Empresa */}
           <Route
             path="/reservas"
             element={
-              <ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "SENA Empresa"]}>
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador", "SENA Empresa"]}>
                 <LayoutConSidebar {...Props_Layout}>
                   <CrudReservas />
                 </LayoutConSidebar>
@@ -613,7 +689,7 @@ function App() {
             }
           />
 
-          {/* Aprendices: accesible para Administrador, Coordinador y Bienestar */}
+          {/* Aprendices: Administrador, Coordinador y Bienestar */}
           <Route
             path="/aprendices"
             element={
@@ -628,7 +704,7 @@ function App() {
             }
           />
 
-          {/* Pasantes: modulo dedicado accesible para Administrador, Coordinador y Bienestar */}
+          {/* Pasantes: Administrador, Coordinador y Bienestar */}
           <Route
             path="/pasantes"
             element={
@@ -643,13 +719,13 @@ function App() {
             }
           />
 
-          {/* PQRSF e Interventoria: accesible para Administrador y Bienestar */}
+          {/* PQRSF e Interventoría: Administrador, Bienestar y Supervisor de Contrato */}
           <Route
             path="/pqrsf-admin"
             element={
               <ProtectedRoute
                 {...Props_Auth}
-                allowedRoles={["Administrador", "Bienestar"]}
+                allowedRoles={["Administrador", "Bienestar", "Supervisor de Contrato"]}
               >
                 <LayoutConSidebar {...Props_Layout}>
                   <PqrsfAdminDashboard />
@@ -658,13 +734,13 @@ function App() {
             }
           />
 
-          {/* Sincronizacion Offline: accesible para Administrador */}
+          {/* Sincronización Offline: Administrador, Coordinador y Bienestar */}
           <Route
             path="/sincronizacion"
             element={
               <ProtectedRoute
                 {...Props_Auth}
-                allowedRoles={["Administrador"]}
+                allowedRoles={["Administrador", "Coordinador", "Bienestar"]}
               >
                 <LayoutConSidebar {...Props_Layout}>
                   <PanelSincronizacion />
@@ -688,7 +764,7 @@ function App() {
             }
           />
 
-          {/* Internado Temporal SENA Empresa: gestion de aprendices externos con estadia temporal */}
+          {/* Internado Temporal SENA Empresa */}
           <Route
             path="/internado-temporal"
             element={
@@ -703,7 +779,7 @@ function App() {
             }
           />
 
-          {/* Guardar Almuerzo por Jornada de Campo: accesible para roles autorizados */}
+          {/* Almuerzos Apartados SENA Empresa */}
           <Route
             path="/guardar-almuerzo-campo"
             element={
@@ -718,6 +794,7 @@ function App() {
                   "Coordinacion",
                   "Administrador",
                   "Supervisor",
+                  "Monitor",
                   "Cocina"
                 ]}
               >

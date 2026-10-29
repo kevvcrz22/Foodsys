@@ -15,6 +15,7 @@ import PlatosModel from "../Models/PlatosModels.js";
 import NotificacionesModel from "../Models/NotificacionesModel.js";
 import { encolarEventoSync } from "./SyncOutboxService.js";
 import { obtenerFechaColombia } from "../Utils/dateUtils.js";
+import { generarQrFirmado } from "../Utils/qrCrypto.js";
 
 class CampoService {
 
@@ -159,8 +160,8 @@ class CampoService {
       throw new Error("No es posible registrar una solicitud para una fecha pasada.");
     }
 
-    if (Fec_Servicio === hoyBogota && horaActualBogota > "11:00:00") {
-      throw new Error("El horario limite para solicitar almuerzos guardados por jornada de campo es hasta las 11:00 AM del mismo dia.");
+    if (Fec_Servicio === hoyBogota && horaActualBogota > "09:00:00") {
+      throw new Error("El horario límite para solicitar Almuerzos Apartados SENA Empresa del mismo día es hasta las 09:00 AM.");
     }
 
     // Hora estimada maxima permitida: 15:00:00 (3:00 PM)
@@ -365,24 +366,37 @@ class CampoService {
     const t = await db.transaction();
 
     try {
-      if (idReserva) {
-        // Entrega individual
-        await ReservaModel.update(
-          { Est_Reserva: "Consumido" },
-          { where: { Id_Reserva: idReserva, Id_Solicitud_Campo: idSolicitud }, transaction: t }
-        );
-      } else {
-        // Entrega grupal de todos los que faltan
-        await ReservaModel.update(
-          { Est_Reserva: "Consumido" },
-          {
-            where: {
-              Id_Solicitud_Campo: idSolicitud,
-              Est_Reserva: { [Op.ne]: "Consumido" }
-            },
+      const whereEntrega = idReserva
+        ? { Id_Reserva: idReserva, Id_Solicitud_Campo: idSolicitud }
+        : { Id_Solicitud_Campo: idSolicitud, Est_Reserva: { [Op.ne]: "Consumido" } };
+
+      const reservasAEntregar = await ReservaModel.findAll({
+        where: whereEntrega,
+        include: [{ model: UsuariosModel, as: "usuario", attributes: ["NumDoc_Usuario"] }],
+        transaction: t
+      });
+
+      await ReservaModel.update(
+        { Est_Reserva: "Consumido" },
+        { where: whereEntrega, transaction: t }
+      );
+
+      for (const rEnt of reservasAEntregar) {
+        if (rEnt.usuario?.NumDoc_Usuario) {
+          await db.query(`
+            INSERT IGNORE INTO qr_consumidos_control (uuid_reserva, NumDoc_Usuario, Fec_Reserva, Tip_Reserva, Fecha_Consumo, nodo_consumo)
+            VALUES (?, ?, ?, ?, NOW(), ?)
+          `, {
+            replacements: [
+              rEnt.uuid_reserva || uuidv4(),
+              rEnt.usuario.NumDoc_Usuario,
+              rEnt.Fec_Reserva,
+              rEnt.Tip_Reserva || "Almuerzo",
+              process.env.NODE_ROLE || "LOCAL"
+            ],
             transaction: t
-          }
-        );
+          });
+        }
       }
 
       // Recontar entregados reales
@@ -470,7 +484,7 @@ class CampoService {
             transaction: t
           });
 
-          if (!resExistente) {
+            if (!resExistente) {
             const uuidR = uuidv4();
             resExistente = await ReservaModel.create({
               uuid_reserva: uuidR,
@@ -480,7 +494,7 @@ class CampoService {
               Vec_Reserva: `${fServicio} 14:30:00`,
               Tip_Reserva: "Almuerzo",
               Est_Reserva: "Generado",
-              Qr_Reserva: `SENAGRANJA-CAMPO-${idUsu}-${fServicio}`,
+              Qr_Reserva: "",
               Id_Plato: platoAlm?.Id_Plato || 1,
               Tipo_Bebida: "FRIA",
               Lleva_Sopa: true,
@@ -489,6 +503,12 @@ class CampoService {
               Justificacion_Campo: justificacion || "Turno SENA Empresa programado semanal",
               Unidad_Productiva_Campo: unidadProductiva || "SENA_EMPRESA_GENERAL"
             }, { transaction: t });
+
+            const qrLigero = generarQrFirmado({
+              Id_Reserva: resExistente.Id_Reserva,
+              uuid_reserva: uuidR
+            });
+            await resExistente.update({ Qr_Reserva: qrLigero }, { transaction: t });
             totalReservasCreadas++;
           } else {
             await resExistente.update({

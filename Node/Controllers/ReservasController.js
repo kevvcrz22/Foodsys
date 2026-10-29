@@ -333,12 +333,11 @@ export const consumirPorId = async (req, res) => {
     if (!reserva) {
       return res.status(404).json({ message: "No se encontro la reserva con ese ID" });
     }
-    if (!reserva.Qr_Reserva) {
-      return res.status(400).json({ message: "La reserva no tiene codigo QR asociado" });
-    }
 
     // Reutilizamos el flujo completo del supervisor para mantener consistencia
-    const resultado = await ReservasServices.procesarConsumoSupervisor(reserva.Qr_Reserva);
+    const resultado = await ReservasServices.procesarConsumoSupervisor(
+      reserva.Qr_Reserva || String(reserva.Id_Reserva)
+    );
     return res.status(200).json(resultado);
   } catch (err) {
     console.error("[ReservasController] consumirPorId:", err.message);

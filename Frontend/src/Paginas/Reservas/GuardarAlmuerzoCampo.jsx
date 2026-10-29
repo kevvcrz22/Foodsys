@@ -417,13 +417,13 @@ export default function GuardarAlmuerzoCampo() {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 text-xs font-semibold text-emerald-700">
-              <Sparkles size={13} className="text-emerald-600" /> Jornada de Campo & SENA Empresa (Almuerzos Guardados)
+              <Sparkles size={13} className="text-emerald-600" /> Gestión Operativa & SENA Empresa (Almuerzos Apartados)
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight m-0">
-              Guardar Almuerzo por Jornada de Campo
+              Almuerzos Apartados SENA Empresa
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed m-0">
-              Permite a Instructores, Voceros y encargados de SENA Empresa autorizar la reserva extendida de almuerzos para fichas que realizan labores agrícolas, pecuarias o agroindustriales en lotes lejanos.
+              Permite a Instructores, Voceros y encargados de SENA Empresa apartar almuerzos con horario extendido para aprendices en labores de unidades productivas (límite de solicitud el mismo día: 09:00 AM).
             </p>
           </div>
 
@@ -508,7 +508,7 @@ export default function GuardarAlmuerzoCampo() {
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-3 text-xs text-amber-800">
           <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
           <div className="leading-relaxed">
-            <strong>Horario oficial de solicitud:</strong> Puedes registrar el guardado de almuerzos desde el día anterior o el mismo día del servicio <strong>hasta las 11:00 AM</strong>. Los almuerzos guardados podrán ser reclamados en comedor hasta la hora estimada indicada (máximo 3:00 PM).
+            <strong>Horario oficial de solicitud:</strong> Puedes registrar Almuerzos Apartados SENA Empresa desde el día anterior o el mismo día del servicio <strong>hasta las 09:00 AM como límite máximo</strong>. Los almuerzos apartados podrán ser reclamados en comedor hasta la hora estimada indicada (máximo 3:00 PM).
           </div>
         </div>
       </div>
@@ -619,7 +619,12 @@ export default function GuardarAlmuerzoCampo() {
                   <tbody className="divide-y divide-slate-100">
                     {datosFicha.aprendicesConReserva.map(a => {
                       const isSel = seleccionados.has(a.Id_Reserva);
-                      const esTurno = a.esTurnoSenaEmpresa || a.Est_Usuario === "Turno Sena Empresa" || a.Est_Usuario === "Sena Empresa";
+                      const esTurno =
+                        a.esTurnoSenaEmpresa ||
+                        a.Est_Usuario === "Turnos en SENA empresa" ||
+                        a.Est_Usuario === "SENA empresa" ||
+                        a.Est_Usuario === "Turno Sena Empresa" ||
+                        a.Est_Usuario === "Sena Empresa";
 
                       return (
                         <tr

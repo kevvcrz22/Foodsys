@@ -170,7 +170,10 @@ const QRModal = ({ reserva, onClose }) => {
 /* ─────────────────────────────────────────
    Componente Principal: CrudReservas
 ───────────────────────────────────────── */
-const CrudReservas = () => {
+const CrudReservas = ({ soloLectura: propSoloLectura = false }) => {
+  const rolActivo = (localStorage.getItem("rolActivo") || "").trim();
+  const esSoloLectura = propSoloLectura || rolActivo === "Administrador";
+
   const [reservas, setReservas] = useState([]);
   const [filterText, setFilterText] = useState("");
   const [cargando, setCargando] = useState(true);
@@ -391,7 +394,7 @@ const CrudReservas = () => {
     },
     {
       name: "Acciones",
-      minWidth: "160px",
+      minWidth: esSoloLectura ? "100px" : "160px",
       cell: (row) => (
         <div className="flex items-center gap-1.5 whitespace-nowrap">
           <button
@@ -400,12 +403,14 @@ const CrudReservas = () => {
           >
             <Eye className="w-3.5 h-3.5" /> Ver QR
           </button>
-          <button
-            onClick={() => editReserva(row)}
-            className="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-lg px-2 py-1 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5" /> Editar
-          </button>
+          {!esSoloLectura && (
+            <button
+              onClick={() => editReserva(row)}
+              className="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-lg px-2 py-1 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Editar
+            </button>
+          )}
         </div>
       ),
     },
@@ -505,12 +510,14 @@ const CrudReservas = () => {
                 <FileText size={14} /> Exportar PDF
               </button>
 
-              <button
-                onClick={() => { setSelectedReserva(null); setEditar(false); setIsModalOpen(true); }}
-                className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-xs font-semibold cursor-pointer transition-colors shadow-sm"
-              >
-                <Plus size={14} /> Nueva Reserva
-              </button>
+              {!esSoloLectura && (
+                <button
+                  onClick={() => { setSelectedReserva(null); setEditar(false); setIsModalOpen(true); }}
+                  className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-xs font-semibold cursor-pointer transition-colors shadow-sm"
+                >
+                  <Plus size={14} /> Nueva Reserva
+                </button>
+              )}
             </div>
           </div>
 

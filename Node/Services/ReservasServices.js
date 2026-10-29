@@ -21,15 +21,26 @@ import { notificarCambioReservas } from "./SocketService.js";
 import { enviarCorreoSolicitudCesion } from "./Servicio_Correo.js";
 import { generarQrFirmado, verificarQrOffline } from "../Utils/qrCrypto.js";
 import {
+  HORARIOS_OFICIALES,
   obtenerFechaColombia,
   obtenerFechaMananaColombia,
   obtenerFechaPasadoMananaColombia,
   obtenerFechaObjetivoReserva,
-  obtenerHoraColombia
+  obtenerHoraColombia,
+  obtenerTurnoActualColombia
 } from "../Utils/dateUtils.js";
 import { dispararCicloSyncDebounced } from "./SyncOutboxService.js";
 
-const ROLES_EXTERNOS = ["Aprendiz Externo", "Pasante Externo"];
+const ROLES_EXTERNOS = ["Aprendiz Externo", "Pasante Externo", "Visitante", "Instructor", "Vocero"];
+const ESTADOS_BLOQUEADOS_RESERVA = [
+  "Aplazado",
+  "Cancelado",
+  "Condicionado",
+  "Retiro voluntario",
+  "Traslado",
+  "finalizado_ficha_lectiva",
+  "finalizado_etapa_productiva"
+];
 const DIAS_DURACION_ESPECIAL = 30;
 
 class ReservasServices {
@@ -38,13 +49,13 @@ class ReservasServices {
     return obtenerFechaColombia();
   }
 
-  // Calcula la fecha y hora de vencimiento segun la fecha de reserva
+  // Calcula la fecha y hora de vencimiento segun la fecha de reserva (America/Bogota)
   CalcularVencimiento(tipo, fechaReserva) {
     const vencimiento = new Date(`${fechaReserva}T00:00:00`);
     const fin = {
-      Desayuno: { h: 8, m: 0 },
+      Desayuno: { h: 7, m: 0 },
       Almuerzo: { h: 13, m: 30 },
-      Cena: { h: 20, m: 0 }
+      Cena: { h: 19, m: 0 }
     };
     if (!fin[tipo]) throw new Error("Tipo de comida no valido");
     vencimiento.setHours(fin[tipo].h, fin[tipo].m, 0, 0);
@@ -105,16 +116,16 @@ class ReservasServices {
     }
 
     // Para el dia actual de servicio: se permite ceder libremente a cualquier hora antes de que finalice el servicio en comedor
-    // Desayuno hasta 08:30 AM, Almuerzo hasta 02:00 PM (14:00), Cena hasta 08:30 PM (20:30)
-    let limiteMinutos = 14 * 60; // 02:00 PM para Almuerzo
-    let horaStr = "02:00 PM (14:00)";
+    // Desayuno hasta 07:00 AM, Almuerzo hasta 01:30 PM (13:30), Cena hasta 07:00 PM (19:00)
+    let limiteMinutos = 13 * 60 + 30; // 01:30 PM para Almuerzo
+    let horaStr = "01:30 PM (13:30)";
 
     if (tipo === "Desayuno") {
-      limiteMinutos = 8 * 60 + 30; // 08:30 AM
-      horaStr = "08:30 AM";
+      limiteMinutos = 7 * 60; // 07:00 AM
+      horaStr = "07:00 AM";
     } else if (tipo === "Cena") {
-      limiteMinutos = 20 * 60 + 30; // 08:30 PM (20:30)
-      horaStr = "08:30 PM (20:30)";
+      limiteMinutos = 19 * 60; // 07:00 PM (19:00)
+      horaStr = "07:00 PM (19:00)";
     }
 
     try {
@@ -133,14 +144,43 @@ class ReservasServices {
     return true;
   }
 
-  // Ventana horaria de consumo en el comedor
+  // Ventana horaria de consumo en el comedor (America/Bogota)
   ObtenerVentanaHoraria(tipo) {
     const ventanas = {
-      Desayuno: { desde: 6, hasta: 8 },
-      Almuerzo: { desde: 11, hasta: 14 },
-      Cena: { desde: 18, hasta: 20 }
+      Desayuno: { desde: 6, hasta: 7, rangoTexto: "06:00 AM - 07:00 AM" },
+      Almuerzo: { desde: 11.5, hasta: 13.5, rangoTexto: "11:30 AM - 01:30 PM" },
+      Cena: { desde: 18, hasta: 19, rangoTexto: "06:00 PM - 07:00 PM" }
     };
     return ventanas[tipo] ?? null;
+  }
+
+  // Valida estrictamente que la reserva corresponda a la fecha de hoy y al turno activo actual en Colombia
+  ValidarVentanaConsumoReserva(reserva) {
+    const fechaHoy = obtenerFechaColombia();
+    const horaActualStr = obtenerHoraColombia();
+    const [hh, mm] = horaActualStr.split(":").map(Number);
+    const minutosActuales = hh * 60 + mm;
+    const turnoActivo = obtenerTurnoActualColombia();
+
+    const horarioReserva = HORARIOS_OFICIALES[reserva.Tip_Reserva];
+    const rangoPermitido = horarioReserva ? horarioReserva.rangoTexto : "Horario oficial";
+
+    // Excepcion para almuerzos apartados SENA Empresa con hora extendida el mismo dia
+    if (reserva.Es_Guardado_Campo && reserva.Fec_Reserva === fechaHoy) {
+      const [hLim, mLim] = String(reserva.Hora_Limite_Extendida || "14:30:00").split(":").map(Number);
+      const minLim = (hLim || 14) * 60 + (mLim || 30);
+      if (minutosActuales >= HORARIOS_OFICIALES.Almuerzo.inicioTurnoMin && minutosActuales <= minLim) {
+        return true;
+      }
+    }
+
+    if (reserva.Fec_Reserva !== fechaHoy || turnoActivo !== reserva.Tip_Reserva) {
+      throw new Error(
+        `No se puede consumir: Esta reserva corresponde al turno de ${reserva.Tip_Reserva} de la fecha ${reserva.Fec_Reserva} (Horario permitido: ${rangoPermitido}). Actualmente el sistema solo permite registrar ${turnoActivo || "Ninguno"}.`
+      );
+    }
+
+    return true;
   }
 
   // Valida que la reserva ordinaria cumpla las fechas y horarios limites oficiales de Foodsys
@@ -280,7 +320,13 @@ class ReservasServices {
     const esInterno = roles.some(r => r === "Aprendiz Interno" || r === "Pasante Interno") || cenCon === "Si";
     if (esInterno) return ["Desayuno", "Almuerzo", "Cena"];
 
-    const esExterno = roles.some(r => r === "Aprendiz Externo" || r === "Pasante Externo" || r === "Instructor" || r === "Vocero");
+    const esExterno = roles.some(r =>
+      r === "Aprendiz Externo" ||
+      r === "Pasante Externo" ||
+      r === "Visitante" ||
+      r === "Instructor" ||
+      r === "Vocero"
+    );
     if (esExterno) return ["Almuerzo"];
 
     return ["Almuerzo"];
@@ -382,6 +428,21 @@ class ReservasServices {
         throw new Error("No puedes realizar reservas porque te encuentras sancionado.");
       }
 
+      // Bloquear reservas a usuarios en estados restringidos (Aplazado, Cancelado, Condicionado, etc.)
+      if (ESTADOS_BLOQUEADOS_RESERVA.includes(usuario.Est_Usuario)) {
+        throw new Error(
+          `No puedes realizar reservas porque tu estado académico actual es "${usuario.Est_Usuario}".`
+        );
+      }
+
+      // Bloquear reservas a pasantes cuyo periodo de pasantía haya caducado
+      const hoyCol = obtenerFechaColombia();
+      if (usuario.FecFin_Pasantia && String(usuario.FecFin_Pasantia) < hoyCol) {
+        throw new Error(
+          `Tu periodo de pasantía finalizó el ${usuario.FecFin_Pasantia} y tu cuenta se encuentra inactiva para reservas.`
+        );
+      }
+
       await this.VerificarExpiracionEspecial(usuario, transaction);
 
       const tiposPermitidos = this.ObtenerRolesPermitidos(rolesUsuario, usuario.CenCon_Usuario);
@@ -408,13 +469,13 @@ class ReservasServices {
           Id_Usuario: usuario.Id_Usuario,
           Tip_Reserva: TipoNormalizado,
           Fec_Reserva: fechaReserva,
-          Est_Reserva: "Generado"
+          Est_Reserva: { [Op.in]: ["Generado", "Verificado", "Consumido", "Pendiente"] }
         },
         transaction
       });
 
       if (existente) {
-        throw new Error(`Ya tienes una reserva activa para ${TipoNormalizado} del ${fechaReserva}.`);
+        throw new Error(`Ya tienes una reserva registrada (${existente.Est_Reserva}) para ${TipoNormalizado} del ${fechaReserva}.`);
       }
 
       const uuidReserva = crypto.randomUUID();
@@ -438,7 +499,7 @@ class ReservasServices {
         sync_status: "PENDING"
       }, { transaction });
 
-      // Generar QR firmado digitalmente con Ed25519
+      // Generar QR ultra ligero firmado con HMAC-SHA256 (< 35 caracteres)
       const qrFirmado = generarQrFirmado({
         uuid_reserva: uuidReserva,
         Id_Reserva: nuevaReserva.Id_Reserva,
@@ -472,15 +533,16 @@ class ReservasServices {
         transaction
       });
 
-      const baseUrl = process.env.FRONTEND_URL || "https://foodsyslagranja.com";
-      const qrUrl = `${baseUrl}/ReservaCreada-checkin?data=${encodeURIComponent(qrFirmado)}`;
-
       return {
+        Id_Reserva: nuevaReserva.Id_Reserva,
         Qr_Reserva: qrFirmado,
         uuid_reserva: uuidReserva,
+        Tip_Reserva: TipoNormalizado,
+        Fec_Reserva: fechaReserva,
+        Tipo_Bebida: Tipo_Bebida || "FRIA",
+        Lleva_Sopa: Lleva_Sopa !== undefined ? Boolean(Lleva_Sopa) : true,
         validDate: fechaReserva,
-        expiresAt: fechaVencimiento,
-        qrUrl
+        expiresAt: fechaVencimiento
       };
     });
     dispararCicloSyncDebounced();
@@ -488,8 +550,10 @@ class ReservasServices {
   }
 
   /**
-   * Unica definicion atomica de verificacion presencial de cocina (Generado -> Verificado)
-   * Exclusivo para Aprendices Externos y Pasantes Externos sin estado Especial
+   * Flujo Directo Cocina:
+   * Si un usuario externo (o cualquier reserva valida) presenta su QR en Cocina,
+   * pasa directamente de Generado/Verificado a Consumido en una sola fila,
+   * validando estrictamente fecha, horario del turno activo y uso unico.
    */
   async procesarVerificacionCocina(Id_Reserva) {
     const resultado = await db.transaction(async (transaction) => {
@@ -518,56 +582,90 @@ class ReservasServices {
         throw new Error("La reserva indicada no existe en la base de datos.");
       }
 
-      if (reserva.Est_Reserva === "Verificado") {
-        return {
-          message: "Esta reserva ya fue verificada previamente en Cocina",
-          Id_Reserva: reserva.Id_Reserva,
-          Aprendiz: `${reserva.usuario?.Nom_Usuario ?? ""} ${reserva.usuario?.Ape_Usuario ?? ""}`.trim(),
-          NumDoc: reserva.usuario?.NumDoc_Usuario,
-          Tipo: reserva.Tip_Reserva,
-          Plato: reserva.plato?.Nom_Plato ?? "Sin plato asignado",
-          ImgPlato: reserva.plato?.Img_Plato ?? null,
-          Bebida: reserva.bebida ? `${reserva.bebida.Nom_Plato} (${reserva.bebida.Subtipo_Bebida === 'FRIA' ? 'Bebida Fría' : 'Bebida Caliente'})` : "Sin bebida asignada",
-          SubtipoBebida: reserva.bebida?.Subtipo_Bebida || null,
-          ImgBebida: reserva.bebida?.Img_Plato ?? null,
-          nuevoEstado: "Verificado"
-        };
+      if (reserva.Est_Reserva === "Consumido") {
+        throw new Error("Esta reserva ya fue consumida previamente.");
       }
 
-      if (reserva.Est_Reserva !== "Generado") {
-        throw new Error(`No se puede verificar una reserva con estado '${reserva.Est_Reserva}'`);
+      if (!["Generado", "Verificado"].includes(reserva.Est_Reserva)) {
+        throw new Error(`No se puede procesar una reserva con estado '${reserva.Est_Reserva}'`);
       }
 
-      await reserva.update({ Est_Reserva: "Verificado" }, { transaction });
+      // Validacion estricta de fecha y ventana horaria del turno activo
+      this.ValidarVentanaConsumoReserva(reserva);
 
-      // Encolar evento VERIFY en sync_outbox
-      if (reserva.uuid_reserva) {
+      // Comprobar en qr_consumidos_control que no haya sido consumida previamente
+      if (reserva.usuario?.NumDoc_Usuario) {
+        const [consumoPrevio] = await db.query(`
+          SELECT uuid_reserva FROM qr_consumidos_control
+          WHERE NumDoc_Usuario = ? AND Fec_Reserva = ? AND Tip_Reserva = ?
+        `, {
+          replacements: [reserva.usuario.NumDoc_Usuario, reserva.Fec_Reserva, reserva.Tip_Reserva],
+          transaction
+        });
+
+        if (consumoPrevio.length > 0) {
+          throw new Error(`Esta reserva ya fue consumida el dia de hoy para el turno de ${reserva.Tip_Reserva}.`);
+        }
+      }
+
+      // Flujo directo en Cocina: pasa directamente a Consumido
+      await reserva.update({ Est_Reserva: "Consumido" }, { transaction });
+
+      const uuidControl = reserva.uuid_reserva || crypto.randomUUID();
+      if (reserva.usuario?.NumDoc_Usuario) {
         await db.query(`
-          INSERT INTO sync_outbox (event_id, source_node, entidad, operacion, entity_uuid, payload, sync_status, created_at)
-          VALUES (?, ?, 'RESERVA', 'VERIFY', ?, ?, 'PENDING', NOW())
+          INSERT INTO qr_consumidos_control (uuid_reserva, NumDoc_Usuario, Fec_Reserva, Tip_Reserva, Id_Supervisor, nodo_consumo)
+          VALUES (?, ?, ?, ?, NULL, ?)
+          ON DUPLICATE KEY UPDATE Fecha_Consumo = NOW()
         `, {
           replacements: [
-            crypto.randomUUID(),
-            process.env.NODE_ROLE || "LOCAL",
-            reserva.uuid_reserva,
-            JSON.stringify({ uuid_reserva: reserva.uuid_reserva, Est_Reserva: "Verificado" })
+            uuidControl,
+            reserva.usuario.NumDoc_Usuario,
+            reserva.Fec_Reserva,
+            reserva.Tip_Reserva,
+            process.env.NODE_ROLE || "LOCAL"
           ],
           transaction
         });
       }
 
+      // Encolar evento CONSUME en sync_outbox
+      await db.query(`
+        INSERT INTO sync_outbox (event_id, source_node, entidad, operacion, entity_uuid, payload, sync_status, created_at)
+        VALUES (?, ?, 'RESERVA', 'CONSUME', ?, ?, 'PENDING', NOW())
+      `, {
+        replacements: [
+          crypto.randomUUID(),
+          process.env.NODE_ROLE || "LOCAL",
+          uuidControl,
+          JSON.stringify({
+            uuid_reserva: uuidControl,
+            Id_Reserva: reserva.Id_Reserva,
+            Est_Reserva: "Consumido",
+            NumDoc_Usuario: reserva.usuario?.NumDoc_Usuario || null
+          })
+        ],
+        transaction
+      });
+
+      // Incrementar contador en turno activo
+      TurnosService.incrementarConsumoTurnoActivo().catch(() => {});
+
       return {
-        message: "Reserva verificada exitosamente en Cocina. El aprendiz ya puede presentar su QR ante el supervisor.",
+        message: "Reserva verificada y registrada como consumida exitosamente en Cocina.",
         Id_Reserva: reserva.Id_Reserva,
         Aprendiz: `${reserva.usuario?.Nom_Usuario ?? ""} ${reserva.usuario?.Ape_Usuario ?? ""}`.trim(),
         NumDoc: reserva.usuario?.NumDoc_Usuario,
         Tipo: reserva.Tip_Reserva,
         Plato: reserva.plato?.Nom_Plato ?? "Sin plato asignado",
         ImgPlato: reserva.plato?.Img_Plato ?? null,
-        Bebida: reserva.bebida ? `${reserva.bebida.Nom_Plato} (${reserva.bebida.Subtipo_Bebida === 'FRIA' ? 'Bebida Fría' : 'Bebida Caliente'})` : "Sin bebida asignada",
-        SubtipoBebida: reserva.bebida?.Subtipo_Bebida || null,
+        Bebida: reserva.bebida
+          ? `${reserva.bebida.Nom_Plato} (${reserva.bebida.Subtipo_Bebida === 'FRIA' ? 'Bebida Fría' : 'Bebida Caliente'})`
+          : (reserva.Tipo_Bebida === "CALIENTE" ? "Bebida Caliente" : "Bebida Fría"),
+        SubtipoBebida: reserva.bebida?.Subtipo_Bebida || reserva.Tipo_Bebida || null,
+        Lleva_Sopa: reserva.Lleva_Sopa,
         ImgBebida: reserva.bebida?.Img_Plato ?? null,
-        nuevoEstado: "Verificado"
+        nuevoEstado: "Consumido"
       };
     });
     dispararCicloSyncDebounced();
@@ -608,7 +706,8 @@ class ReservasServices {
     }
 
     const fechaHoy = this.ObtenerFechaHoy();
-    const reserva = await ReservaModel.findOne({
+    const turnoActual = obtenerTurnoActualColombia();
+    const reservasHoy = await ReservaModel.findAll({
       where: {
         Id_Usuario: usuario.Id_Usuario,
         Fec_Reserva: fechaHoy
@@ -616,16 +715,21 @@ class ReservasServices {
       order: [["createdAt", "DESC"]]
     });
 
-    if (!reserva) {
+    if (!reservasHoy || reservasHoy.length === 0) {
       throw new Error("Este aprendiz no tiene ninguna reserva registrada para el dia de hoy.");
     }
+
+    const reserva =
+      (turnoActual && reservasHoy.find(r => r.Tip_Reserva === turnoActual)) ||
+      reservasHoy.find(r => ["Generado", "Verificado"].includes(r.Est_Reserva)) ||
+      reservasHoy[0];
 
     return await this.procesarVerificacionCocina(reserva.Id_Reserva);
   }
 
   /**
    * Procesa el consumo del supervisor (Verificado/Generado -> Consumido)
-   * Soporta firma Ed25519 offline, comprobacion unica en qr_consumidos_control
+   * Soporta firma ligera HMAC-SHA256, Ed25519 offline, comprobacion unica en qr_consumidos_control
    * y creacion automatica de réplica local si el aprendiz reservo en la nube durante un corte de internet.
    */
   async procesarConsumoSupervisor(contenidoQR, idSupervisor = null) {
@@ -633,7 +737,7 @@ class ReservasServices {
       let payloadEd25519 = null;
       const fechaHoy = this.ObtenerFechaHoy();
 
-      // 1. Intentar verificacion matematica Ed25519
+      // 1. Intentar verificacion criptografica (HMAC ligero o Ed25519)
       try {
         payloadEd25519 = verificarQrOffline(contenidoQR, null, fechaHoy);
       } catch (errEd) {
@@ -645,7 +749,15 @@ class ReservasServices {
       let reserva = null;
       let usuario = null;
 
-      if (payloadEd25519) {
+      if (payloadEd25519 && payloadEd25519.esLigero && payloadEd25519.idReserva) {
+        reserva = await ReservaModel.findByPk(payloadEd25519.idReserva, {
+          include: [
+            { model: PlatosModels, as: "plato", attributes: ["Nom_Plato", "Des_Plato", "Img_Plato"] },
+            { model: PlatosModels, as: "bebida", attributes: ["Nom_Plato", "Des_Plato", "Img_Plato", "Subtipo_Bebida"] }
+          ],
+          transaction
+        });
+      } else if (payloadEd25519 && payloadEd25519.doc) {
         // Bloqueo estricto anti-fraude: Comprobar si ya fue consumido hoy
         const [consumoPrevio] = await db.query(`
           SELECT uuid_reserva, Fecha_Consumo FROM qr_consumidos_control
@@ -693,7 +805,7 @@ class ReservasServices {
             Fec_Reserva: payloadEd25519.fecha,
             Vec_Reserva: this.CalcularVencimiento(payloadEd25519.comida, payloadEd25519.fecha),
             Tip_Reserva: payloadEd25519.comida,
-            Est_Reserva: "Consumido",
+            Est_Reserva: "Generado",
             Qr_Reserva: contenidoQR,
             Id_Plato: payloadEd25519.plato,
             sync_status: "PENDING"
@@ -717,6 +829,9 @@ class ReservasServices {
         throw new Error("Esta reserva ya fue consumida previamente.");
       }
 
+      // Validacion estricta de fecha y ventana horaria del turno activo en Colombia
+      this.ValidarVentanaConsumoReserva(reserva);
+
       // Validar usuario y roles
       if (!usuario) {
         usuario = await UsuariosModel.findByPk(reserva.Id_Usuario, {
@@ -731,24 +846,28 @@ class ReservasServices {
 
       if (!usuario) throw new Error("El usuario propietario del QR no existe.");
 
+      // Bloqueo estricto anti-doble consumo para cualquier formato de QR, documento o ID
+      const [consumoPrevioGeneral] = await db.query(`
+        SELECT uuid_reserva FROM qr_consumidos_control
+        WHERE NumDoc_Usuario = ? AND Fec_Reserva = ? AND Tip_Reserva = ?
+      `, {
+        replacements: [usuario.NumDoc_Usuario, reserva.Fec_Reserva, reserva.Tip_Reserva],
+        transaction
+      });
+
+      if (consumoPrevioGeneral.length > 0) {
+        throw new Error(`Esta reserva ya fue consumida el dia de hoy para el turno de ${reserva.Tip_Reserva}.`);
+      }
+
       await this.VerificarExpiracionEspecial(usuario, transaction);
 
       const rolesUsuario = usuario.rolesUsuario?.map(ur => ur.rolUsuario?.Nom_Rol).filter(Boolean) || [];
       const esInterno = rolesUsuario.some(r => r === "Aprendiz Interno" || r === "Pasante Interno");
       const esEspecial = this.EsUsuarioEspecial(usuario, rolesUsuario);
 
-      // Flujo de validacion de estados
-      if (esInterno || esEspecial) {
-        if (!["Generado", "Verificado"].includes(reserva.Est_Reserva)) {
-          throw new Error(`No se puede consumir una reserva con estado: ${reserva.Est_Reserva}`);
-        }
-      } else {
-        if (reserva.Est_Reserva === "Generado") {
-          throw new Error("La reserva aun no ha sido verificada en cocina. El aprendiz debe presentarse primero en cocina.");
-        }
-        if (reserva.Est_Reserva !== "Verificado") {
-          throw new Error(`No se puede consumir una reserva con estado: ${reserva.Est_Reserva}`);
-        }
+      // Flujo de validacion de estados (tanto Generado como Verificado pueden ser consumidos en turno activo)
+      if (!["Generado", "Verificado"].includes(reserva.Est_Reserva)) {
+        throw new Error(`No se puede consumir una reserva con estado: ${reserva.Est_Reserva}`);
       }
 
       // Marcar como consumida
@@ -825,7 +944,8 @@ class ReservasServices {
     if (!Usuario) throw new Error("No se encontro ningun usuario registrado con ese numero de documento.");
 
     const FechaHoy = this.ObtenerFechaHoy();
-    const Reserva = await ReservaModel.findOne({
+    const TurnoActual = obtenerTurnoActualColombia();
+    const ReservasHoy = await ReservaModel.findAll({
       where: {
         Id_Usuario: Usuario.Id_Usuario,
         Fec_Reserva: FechaHoy
@@ -837,12 +957,20 @@ class ReservasServices {
       order: [["createdAt", "DESC"]]
     });
 
-    if (!Reserva) throw new Error("Este aprendiz no tiene reserva registrada para el dia de hoy.");
-    if (!["Generado", "Verificado"].includes(Reserva.Est_Reserva)) {
-      throw new Error(`La reserva de este aprendiz ya fue ${Reserva.Est_Reserva.toLowerCase()}.`);
+    if (!ReservasHoy || ReservasHoy.length === 0) {
+      throw new Error("Este aprendiz no tiene reserva registrada para el dia de hoy.");
     }
 
-    return await this.procesarConsumoSupervisor(Reserva.Qr_Reserva, idSupervisor);
+    const Reserva =
+      (TurnoActual && ReservasHoy.find(r => r.Tip_Reserva === TurnoActual)) ||
+      ReservasHoy.find(r => ["Generado", "Verificado"].includes(r.Est_Reserva)) ||
+      ReservasHoy[0];
+
+    if (!["Generado", "Verificado"].includes(Reserva.Est_Reserva)) {
+      throw new Error(`La reserva de este aprendiz (${Reserva.Tip_Reserva}) ya fue ${Reserva.Est_Reserva.toLowerCase()}.`);
+    }
+
+    return await this.procesarConsumoSupervisor(Reserva.Qr_Reserva || String(Reserva.Id_Reserva), idSupervisor);
   }
 
   // ─────────────────────────────────────────────────────────────

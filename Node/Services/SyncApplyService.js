@@ -15,7 +15,10 @@ import UsuariosRolModel from "../Models/UsuariosRolModel.js";
 import RolesModel from "../Models/RolesModel.js";
 import TurnosModel from "../Models/TurnosModel.js";
 import PqrsfModel from "../Models/PqrsfModel.js";
+import SolicitudesCampoModel from "../Models/SolicitudesCampoModel.js";
+import InternadoTemporalModel from "../Models/InternadoTemporalModel.js";
 import { sincronizarEstadoAprendices } from "./FichasServices.js";
+import { normalizarEstadoOficial } from "./UsuariosService.js";
 import { Op } from "sequelize";
 import fs from "fs";
 import path from "path";
@@ -80,58 +83,133 @@ class SyncApplyService {
     const { entidad, operacion, payload } = evt;
     const datos = typeof payload === "string" ? JSON.parse(payload) : payload;
 
-    switch (entidad) {
+    const entidadNormalizada = String(entidad || "").trim().toUpperCase();
+
+    switch (entidadNormalizada) {
       case "RESERVA":
+      case "RESERVAS":
         await this.aplicarReserva(operacion, datos, sourceNode);
         break;
       case "PLATO":
+      case "PLATOS":
         await this.aplicarPlato(operacion, datos, sourceNode);
         break;
       case "MENU":
+      case "MENUS":
         await this.aplicarMenu(operacion, datos, sourceNode);
         break;
       case "PROGRAMA":
+      case "PROGRAMAS":
         await this.aplicarPrograma(operacion, datos, sourceNode);
         break;
       case "FICHA":
+      case "FICHAS":
         await this.aplicarFicha(operacion, datos, sourceNode);
         break;
       case "USUARIO":
+      case "USUARIOS":
         await this.aplicarUsuario(operacion, datos, sourceNode);
         break;
       case "USUARIO_ROL":
+      case "USUARIOS_ROLES":
+      case "USUARIOSROL":
         await this.aplicarUsuarioRol(operacion, datos, sourceNode);
         break;
       case "TURNO":
+      case "TURNOS":
         await this.aplicarTurno(operacion, datos, sourceNode);
         break;
       case "PQRSF":
         await this.aplicarPqrsf(operacion, datos, sourceNode);
+        break;
+      case "SOLICITUD_CAMPO":
+      case "SOLICITUDES_CAMPO":
+      case "SOLICITUDES_GUARDADO_CAMPO":
+        await this.aplicarSolicitudCampo(operacion, datos, sourceNode);
+        break;
+      case "INTERNADO_TEMPORAL":
+        await this.aplicarInternadoTemporal(operacion, datos, sourceNode);
         break;
       default:
         console.warn(`[SyncApplyService] Entidad no implementada para sync: ${entidad}`);
     }
   }
 
-  // 1. Reconciliacion de Reservas con prevalencia de consumo presencial en comedor
+  // Resolucion de llaves foraneas por llave natural o UUID para evitar colisiones de IDs locales vs Hetzner
+  async resolverIdUsuarioLocal(datos = {}) {
+    if (datos.NumDoc_Usuario) {
+      const u = await UsuariosModel.findOne({ where: { NumDoc_Usuario: datos.NumDoc_Usuario } });
+      if (u) return u.Id_Usuario;
+    }
+    if (datos.uuid_usuario || datos.uuid) {
+      const u = await UsuariosModel.findOne({ where: { uuid: datos.uuid_usuario || datos.uuid } });
+      if (u) return u.Id_Usuario;
+    }
+    if (datos.Id_Usuario) {
+      const u = await UsuariosModel.findByPk(datos.Id_Usuario);
+      if (u) return u.Id_Usuario;
+    }
+    return datos.Id_Usuario || null;
+  }
+
+  async resolverIdPlatoLocal(datos = {}) {
+    if (datos.Nom_Plato) {
+      const p = await PlatoModel.findOne({ where: { Nom_Plato: datos.Nom_Plato } });
+      if (p) return p.Id_Plato;
+    }
+    if (datos.Id_Plato) {
+      const p = await PlatoModel.findByPk(datos.Id_Plato);
+      if (p) return p.Id_Plato;
+    }
+    return datos.Id_Plato || null;
+  }
+
+  async resolverIdFichaLocal(datos = {}) {
+    if (datos.Num_Ficha) {
+      const f = await FichasModel.findOne({ where: { Num_Ficha: datos.Num_Ficha } });
+      if (f) return f.Id_Ficha;
+    }
+    if (datos.Id_Ficha) {
+      const f = await FichasModel.findByPk(datos.Id_Ficha);
+      if (f) return f.Id_Ficha;
+    }
+    return datos.Id_Ficha || null;
+  }
+
+  async resolverIdProgramaLocal(datos = {}) {
+    if (datos.Nom_Programa) {
+      const pr = await ProgramaModel.findOne({ where: { Nom_Programa: datos.Nom_Programa } });
+      if (pr) return pr.Id_Programa;
+    }
+    if (datos.Id_Programa) {
+      const pr = await ProgramaModel.findByPk(datos.Id_Programa);
+      if (pr) return pr.Id_Programa;
+    }
+    return datos.Id_Programa || null;
+  }
+
+  // 1. Reconciliacion de Reservas con prevalencia de consumo presencial en comedor y UUID global
   async aplicarReserva(operacion, datos, sourceNode) {
-    const uuidRes = datos.uuid_reserva || datos.uuid;
+    const uuidRes = datos.uuid_reserva || datos.uuid || crypto.randomUUID();
+    const idUsuarioLocal = await this.resolverIdUsuarioLocal(datos);
+    const idPlatoLocal = await this.resolverIdPlatoLocal(datos);
 
     if (operacion === "CREATE" || operacion === "UPSERT") {
+      const condiciones = [{ uuid_reserva: uuidRes }];
+      if (idUsuarioLocal && datos.Fec_Reserva && datos.Tip_Reserva) {
+        condiciones.push({
+          Id_Usuario: idUsuarioLocal,
+          Fec_Reserva: datos.Fec_Reserva,
+          Tip_Reserva: datos.Tip_Reserva
+        });
+      }
+
       const existente = await ReservaModel.findOne({
-        where: {
-          [Op.or]: [
-            { uuid_reserva: uuidRes },
-            {
-              Id_Usuario: datos.Id_Usuario,
-              Fec_Reserva: datos.Fec_Reserva,
-              Tip_Reserva: datos.Tip_Reserva
-            }
-          ]
-        }
+        where: { [Op.or]: condiciones }
       });
 
       if (!existente) {
+        if (!idUsuarioLocal) return;
         await ReservaModel.create({
           uuid_reserva: uuidRes,
           nodo_origen: sourceNode || "LOCAL",
@@ -140,17 +218,18 @@ class SyncApplyService {
           Est_Reserva: datos.Est_Reserva || "Generado",
           Tip_Reserva: datos.Tip_Reserva,
           Qr_Reserva: datos.Qr_Reserva,
-          Id_Plato: datos.Id_Plato,
-          Id_Usuario: datos.Id_Usuario,
+          Id_Plato: idPlatoLocal,
+          Id_Usuario: idUsuarioLocal,
           sync_status: "SYNCED"
         });
       } else {
         // Regla: si localmente ya se consumio o verifico, prevalece
         if (datos.Est_Reserva === "Consumido" || !["Consumido", "Verificado"].includes(existente.Est_Reserva)) {
           await existente.update({
+            uuid_reserva: existente.uuid_reserva || uuidRes,
             Est_Reserva: datos.Est_Reserva,
             Qr_Reserva: datos.Qr_Reserva || existente.Qr_Reserva,
-            Id_Plato: datos.Id_Plato || existente.Id_Plato
+            Id_Plato: idPlatoLocal || existente.Id_Plato
           });
         }
       }
@@ -232,33 +311,35 @@ class SyncApplyService {
     }
   }
 
-  // 3. Reconciliacion de Menus programados
+  // 3. Reconciliacion de Menus programados (resuelve Id_Plato por Nom_Plato)
   async aplicarMenu(operacion, datos, sourceNode) {
+    const idPlatoResuelto = await this.resolverIdPlatoLocal(datos);
+
     if (operacion === "CREATE" || operacion === "UPSERT") {
       let menu = null;
-      if (datos.Id_Menu) menu = await MenuModel.findByPk(datos.Id_Menu);
-      if (!menu) {
+      if (idPlatoResuelto) {
         menu = await MenuModel.findOne({
           where: {
             Fec_Menu: datos.Fec_Menu,
             Tip_Menu: datos.Tip_Menu,
-            Id_Plato: datos.Id_Plato
+            Id_Plato: idPlatoResuelto
           }
         });
       }
+      if (!menu && datos.Id_Menu) menu = await MenuModel.findByPk(datos.Id_Menu);
 
       if (!menu) {
+        if (!idPlatoResuelto) return;
         await MenuModel.create({
-          Id_Menu: datos.Id_Menu || undefined,
           Fec_Menu: datos.Fec_Menu,
           Tip_Menu: datos.Tip_Menu,
-          Id_Plato: datos.Id_Plato
+          Id_Plato: idPlatoResuelto
         });
       } else {
         await menu.update({
           Fec_Menu: datos.Fec_Menu || menu.Fec_Menu,
           Tip_Menu: datos.Tip_Menu || menu.Tip_Menu,
-          Id_Plato: datos.Id_Plato || menu.Id_Plato
+          Id_Plato: idPlatoResuelto || menu.Id_Plato
         });
       }
     } else if (operacion === "UPDATE") {
@@ -267,7 +348,7 @@ class SyncApplyService {
         await menu.update({
           Fec_Menu: datos.Fec_Menu || menu.Fec_Menu,
           Tip_Menu: datos.Tip_Menu || menu.Tip_Menu,
-          Id_Plato: datos.Id_Plato || menu.Id_Plato
+          Id_Plato: idPlatoResuelto || menu.Id_Plato
         });
       }
     } else if (operacion === "DELETE") {
@@ -279,12 +360,11 @@ class SyncApplyService {
   async aplicarPrograma(operacion, datos, sourceNode) {
     if (operacion === "CREATE" || operacion === "UPSERT") {
       let prog = null;
-      if (datos.Id_Programa) prog = await ProgramaModel.findByPk(datos.Id_Programa);
-      if (!prog && datos.Nom_Programa) prog = await ProgramaModel.findOne({ where: { Nom_Programa: datos.Nom_Programa } });
+      if (datos.Nom_Programa) prog = await ProgramaModel.findOne({ where: { Nom_Programa: datos.Nom_Programa } });
+      if (!prog && datos.Id_Programa) prog = await ProgramaModel.findByPk(datos.Id_Programa);
 
       if (!prog) {
         await ProgramaModel.create({
-          Id_Programa: datos.Id_Programa || undefined,
           Nom_Programa: datos.Nom_Programa,
           NivFor_Programa: datos.NivFor_Programa || null,
           Are_Programa: datos.Are_Programa || null,
@@ -299,8 +379,8 @@ class SyncApplyService {
         });
       }
     } else if (operacion === "UPDATE") {
-      let prog = datos.Id_Programa ? await ProgramaModel.findByPk(datos.Id_Programa) : null;
-      if (!prog && datos.Nom_Programa) prog = await ProgramaModel.findOne({ where: { Nom_Programa: datos.Nom_Programa } });
+      let prog = datos.Nom_Programa ? await ProgramaModel.findOne({ where: { Nom_Programa: datos.Nom_Programa } }) : null;
+      if (!prog && datos.Id_Programa) prog = await ProgramaModel.findByPk(datos.Id_Programa);
       if (prog) {
         await prog.update({
           Nom_Programa: datos.Nom_Programa || prog.Nom_Programa,
@@ -310,16 +390,18 @@ class SyncApplyService {
         });
       }
     } else if (operacion === "DELETE") {
-      let prog = datos.Id_Programa ? await ProgramaModel.findByPk(datos.Id_Programa) : null;
-      if (!prog && datos.Nom_Programa) prog = await ProgramaModel.findOne({ where: { Nom_Programa: datos.Nom_Programa } });
+      let prog = datos.Nom_Programa ? await ProgramaModel.findOne({ where: { Nom_Programa: datos.Nom_Programa } }) : null;
+      if (!prog && datos.Id_Programa) prog = await ProgramaModel.findByPk(datos.Id_Programa);
       if (prog) {
         await prog.update({ Est_Programa: "Inactivo" });
       }
     }
   }
 
-  // 5. Reconciliacion de Fichas de Formacion
+  // 5. Reconciliacion de Fichas de Formacion (resuelve Id_Programa por Nom_Programa)
   async aplicarFicha(operacion, datos, sourceNode) {
+    const idProgramaResuelto = await this.resolverIdProgramaLocal(datos);
+
     if (operacion === "CREATE" || operacion === "UPSERT") {
       let ficha = null;
       if (datos.Num_Ficha) ficha = await FichasModel.findOne({ where: { Num_Ficha: datos.Num_Ficha } });
@@ -327,13 +409,12 @@ class SyncApplyService {
 
       if (!ficha) {
         ficha = await FichasModel.create({
-          Id_Ficha: datos.Id_Ficha || undefined,
           Num_Ficha: datos.Num_Ficha,
           FecIniLec_Ficha: datos.FecIniLec_Ficha,
           FecFinLec_Ficha: datos.FecFinLec_Ficha,
           FecIniPra_Ficha: datos.FecIniPra_Ficha,
           FecFinPra_Ficha: datos.FecFinPra_Ficha,
-          Id_Programa: datos.Id_Programa
+          Id_Programa: idProgramaResuelto
         });
       } else {
         await ficha.update({
@@ -342,7 +423,7 @@ class SyncApplyService {
           FecFinLec_Ficha: datos.FecFinLec_Ficha || ficha.FecFinLec_Ficha,
           FecIniPra_Ficha: datos.FecIniPra_Ficha || ficha.FecIniPra_Ficha,
           FecFinPra_Ficha: datos.FecFinPra_Ficha || ficha.FecFinPra_Ficha,
-          Id_Programa: datos.Id_Programa || ficha.Id_Programa
+          Id_Programa: idProgramaResuelto || ficha.Id_Programa
         });
       }
 
@@ -359,41 +440,50 @@ class SyncApplyService {
           FecFinLec_Ficha: datos.FecFinLec_Ficha || ficha.FecFinLec_Ficha,
           FecIniPra_Ficha: datos.FecIniPra_Ficha || ficha.FecIniPra_Ficha,
           FecFinPra_Ficha: datos.FecFinPra_Ficha || ficha.FecFinPra_Ficha,
-          Id_Programa: datos.Id_Programa || ficha.Id_Programa
+          Id_Programa: idProgramaResuelto || ficha.Id_Programa
         });
         try {
           await sincronizarEstadoAprendices(ficha.Id_Ficha);
         } catch (e) {}
       }
     } else if (operacion === "DELETE") {
-      if (datos.Id_Ficha) await FichasModel.destroy({ where: { Id_Ficha: datos.Id_Ficha } });
-      else if (datos.Num_Ficha) await FichasModel.destroy({ where: { Num_Ficha: datos.Num_Ficha } });
+      if (datos.Num_Ficha) await FichasModel.destroy({ where: { Num_Ficha: datos.Num_Ficha } });
+      else if (datos.Id_Ficha) await FichasModel.destroy({ where: { Id_Ficha: datos.Id_Ficha } });
     }
   }
 
   // 6. Reconciliacion de Usuarios (Aprendices, Funcionarios, Administradores)
+  // Desacoplado de Id_Usuario local; usa NumDoc_Usuario y uuid como llaves naturales
   async aplicarUsuario(operacion, datos, sourceNode) {
+    const idFichaResuelta = await this.resolverIdFichaLocal(datos);
+
     if (operacion === "CREATE" || operacion === "UPSERT") {
       let usuario = null;
       if (datos.NumDoc_Usuario) usuario = await UsuariosModel.findOne({ where: { NumDoc_Usuario: datos.NumDoc_Usuario } });
-      if (!usuario && datos.Id_Usuario) usuario = await UsuariosModel.findByPk(datos.Id_Usuario);
       if (!usuario && datos.uuid) usuario = await UsuariosModel.findOne({ where: { uuid: datos.uuid } });
+      if (!usuario && datos.Id_Usuario) usuario = await UsuariosModel.findByPk(datos.Id_Usuario);
 
       const camposValidos = {};
       const props = [
         "TipDoc_Usuario", "NumDoc_Usuario", "Nom_Usuario", "Ape_Usuario",
         "Gen_Usuario", "Cor_Usuario", "Tel_Usuario", "CenCon_Usuario",
         "Est_Usuario", "Pol_Usuario", "San_Usuario", "Fec_Desancion",
-        "Id_Ficha", "password", "uuid"
+        "FecIni_Pasantia", "FecFin_Pasantia", "password", "uuid"
       ];
       for (const p of props) {
         if (datos[p] !== undefined && datos[p] !== null) {
           camposValidos[p] = datos[p];
         }
       }
+      if (idFichaResuelta) {
+        camposValidos.Id_Ficha = idFichaResuelta;
+      }
+      if (camposValidos.Est_Usuario) {
+        camposValidos.Est_Usuario = normalizarEstadoOficial(camposValidos.Est_Usuario) || "Formación";
+      }
 
       if (!usuario) {
-        if (datos.Id_Usuario) camposValidos.Id_Usuario = datos.Id_Usuario;
+        if (!camposValidos.uuid) camposValidos.uuid = crypto.randomUUID();
         usuario = await UsuariosModel.create(camposValidos);
       } else {
         await usuario.update(camposValidos);
@@ -405,6 +495,7 @@ class SyncApplyService {
     } else if (operacion === "UPDATE") {
       let usuario = null;
       if (datos.NumDoc_Usuario) usuario = await UsuariosModel.findOne({ where: { NumDoc_Usuario: datos.NumDoc_Usuario } });
+      if (!usuario && datos.uuid) usuario = await UsuariosModel.findOne({ where: { uuid: datos.uuid } });
       if (!usuario && datos.Id_Usuario) usuario = await UsuariosModel.findByPk(datos.Id_Usuario);
       if (usuario) {
         const camposValidos = {};
@@ -412,12 +503,18 @@ class SyncApplyService {
           "TipDoc_Usuario", "Nom_Usuario", "Ape_Usuario",
           "Gen_Usuario", "Cor_Usuario", "Tel_Usuario", "CenCon_Usuario",
           "Est_Usuario", "Pol_Usuario", "San_Usuario", "Fec_Desancion",
-          "Id_Ficha", "password"
+          "FecIni_Pasantia", "FecFin_Pasantia", "password"
         ];
         for (const p of props) {
           if (datos[p] !== undefined && datos[p] !== null) {
             camposValidos[p] = datos[p];
           }
+        }
+        if (idFichaResuelta !== null && idFichaResuelta !== undefined) {
+          camposValidos.Id_Ficha = idFichaResuelta;
+        }
+        if (camposValidos.Est_Usuario) {
+          camposValidos.Est_Usuario = normalizarEstadoOficial(camposValidos.Est_Usuario) || usuario.Est_Usuario;
         }
         await usuario.update(camposValidos);
         if (Array.isArray(datos.roles)) {
@@ -429,8 +526,7 @@ class SyncApplyService {
       if (datos.NumDoc_Usuario) usuario = await UsuariosModel.findOne({ where: { NumDoc_Usuario: datos.NumDoc_Usuario } });
       if (!usuario && datos.Id_Usuario) usuario = await UsuariosModel.findByPk(datos.Id_Usuario);
       if (usuario) {
-        await UsuariosRolModel.destroy({ where: { Id_Usuario: usuario.Id_Usuario } });
-        await usuario.destroy();
+        await usuario.update({ Est_Usuario: "Cancelado" });
       }
     }
   }
@@ -565,6 +661,107 @@ class SyncApplyService {
           Respuesta_Administracion: datos.Respuesta_Administracion !== undefined ? datos.Respuesta_Administracion : pqrsf.Respuesta_Administracion,
           Id_Responsable_Respuesta: datos.Id_Responsable_Respuesta || pqrsf.Id_Responsable_Respuesta,
           Fecha_Respuesta: datos.Fecha_Respuesta || pqrsf.Fecha_Respuesta
+        });
+      }
+    }
+  }
+
+  // 10. Reconciliacion de Solicitudes de Almuerzo por Jornada de Campo / SENA Empresa
+  async aplicarSolicitudCampo(operacion, datos, sourceNode) {
+    const uuidSolicitud = datos.uuid_solicitud || datos.uuid;
+    if (!uuidSolicitud) return;
+
+    const existente = await SolicitudesCampoModel.findOne({
+      where: { uuid_solicitud: uuidSolicitud }
+    });
+
+    if (operacion === "CREATE" || operacion === "UPSERT") {
+      if (!existente) {
+        await SolicitudesCampoModel.create({
+          uuid_solicitud: uuidSolicitud,
+          Codigo_Acta: datos.Codigo_Acta,
+          Id_Ficha: datos.Id_Ficha,
+          Num_Ficha: datos.Num_Ficha,
+          Nom_Programa: datos.Nom_Programa,
+          Fec_Servicio: datos.Fec_Servicio,
+          Tip_Comida: datos.Tip_Comida || "Almuerzo",
+          Id_Usuario_Solicita: datos.Id_Usuario_Solicita,
+          Rol_Solicitante: datos.Rol_Solicitante,
+          Total_Raciones_Solicitadas: datos.Total_Raciones_Solicitadas,
+          Total_Raciones_Entregadas: datos.Total_Raciones_Entregadas || 0,
+          Estado_Solicitud: datos.Estado_Solicitud || "SOLICITADO",
+          Observaciones: datos.Observaciones,
+          Detalle_Aprendices: typeof datos.Detalle_Aprendices === "object" ? JSON.stringify(datos.Detalle_Aprendices) : datos.Detalle_Aprendices,
+          nodo_origen: sourceNode || "LOCAL",
+          sync_status: "SYNCED"
+        });
+      } else {
+        await existente.update({
+          Estado_Solicitud: datos.Estado_Solicitud || existente.Estado_Solicitud,
+          Total_Raciones_Entregadas: datos.Total_Raciones_Entregadas !== undefined ? datos.Total_Raciones_Entregadas : existente.Total_Raciones_Entregadas,
+          Observaciones: datos.Observaciones || existente.Observaciones
+        });
+      }
+    } else if (operacion === "UPDATE" || operacion === "ENTREGAR") {
+      if (existente) {
+        await existente.update({
+          Estado_Solicitud: datos.Estado_Solicitud || existente.Estado_Solicitud,
+          Total_Raciones_Entregadas: datos.Total_Raciones_Entregadas !== undefined ? datos.Total_Raciones_Entregadas : existente.Total_Raciones_Entregadas,
+          Observaciones: datos.Observaciones || existente.Observaciones
+        });
+      }
+    }
+  }
+
+  // 11. Reconciliacion de Internado Temporal (Gestores SENA Empresa / Rutinario)
+  async aplicarInternadoTemporal(operacion, datos, sourceNode) {
+    const idUsuarioLocal = await this.resolverIdUsuarioLocal(datos);
+    if (!idUsuarioLocal) return;
+
+    let existente = null;
+    if (datos.Id_Internado) {
+      existente = await InternadoTemporalModel.findByPk(datos.Id_Internado);
+    }
+    if (!existente) {
+      existente = await InternadoTemporalModel.findOne({
+        where: {
+          Id_Usuario: idUsuarioLocal,
+          Fecha_Inicio: datos.Fecha_Inicio,
+          Fecha_Fin: datos.Fecha_Fin
+        }
+      });
+    }
+
+    if (operacion === "CREATE" || operacion === "UPSERT") {
+      if (!existente) {
+        await InternadoTemporalModel.create({
+          Id_Usuario: idUsuarioLocal,
+          NumDoc_Usuario: String(datos.NumDoc_Usuario || ""),
+          Nom_Aprendiz: datos.Nom_Aprendiz || "",
+          Num_Ficha: String(datos.Num_Ficha || ""),
+          Nom_Programa: datos.Nom_Programa || "",
+          Unidad_Productiva: datos.Unidad_Productiva || "SENA Empresa",
+          Fecha_Inicio: datos.Fecha_Inicio,
+          Fecha_Fin: datos.Fecha_Fin,
+          Rol_Original: datos.Rol_Original || "Aprendiz Externo",
+          Estado_Internado: datos.Estado_Internado || "ACTIVO",
+          Registrado_Por: datos.Registrado_Por || sourceNode || "Sincronizacion"
+        });
+      } else {
+        await existente.update({
+          Unidad_Productiva: datos.Unidad_Productiva || existente.Unidad_Productiva,
+          Fecha_Inicio: datos.Fecha_Inicio || existente.Fecha_Inicio,
+          Fecha_Fin: datos.Fecha_Fin || existente.Fecha_Fin,
+          Estado_Internado: datos.Estado_Internado || existente.Estado_Internado
+        });
+      }
+    } else if (operacion === "UPDATE" || operacion === "REVERTIR") {
+      if (existente) {
+        await existente.update({
+          Unidad_Productiva: datos.Unidad_Productiva || existente.Unidad_Productiva,
+          Fecha_Inicio: datos.Fecha_Inicio || existente.Fecha_Inicio,
+          Fecha_Fin: datos.Fecha_Fin || existente.Fecha_Fin,
+          Estado_Internado: datos.Estado_Internado || existente.Estado_Internado
         });
       }
     }

@@ -349,7 +349,11 @@ const MenuCard = ({ menu, onEdit, onDelete, ocultarEditar, ocultarEliminar }) =>
 /* ───────────────────────────────────────────
    Componente principal: CrudMenus
 ─────────────────────────────────────────── */
-const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
+const CrudMenus = ({ soloLectura: propSoloLectura = false, soloCrear: propSoloCrear = false }) => {
+  const rolActivo = (localStorage.getItem("rolActivo") || "").trim();
+  const soloLectura = propSoloLectura || ["Administrador", "Coordinador", "Bienestar"].includes(rolActivo);
+  const soloCrear = propSoloCrear || rolActivo === "Cocina";
+
   const [menus, setMenus] = useState([]);
   const [platos, setPlatos] = useState([]);
   const [filterText, setFilterText] = useState("");
@@ -785,7 +789,7 @@ const CrudMenus = ({ soloLectura = false, soloCrear = false }) => {
                             onEdit={editMenu}
                             onDelete={deleteMenuHandler}
                             ocultarEditar={soloLectura || soloCrear}
-                            ocultarEliminar={soloLectura}
+                            ocultarEliminar={soloLectura || soloCrear}
                           />
                         ))}
                       </div>

@@ -6,7 +6,12 @@
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import Swal from "sweetalert2";
+import {
+  confirmarAccionFoodsys,
+  notificarExito,
+  notificarError,
+  notificarInfo
+} from "./notificacionesFoodsys.jsx";
 
 /**
  * Limpia y normaliza el nombre de un archivo para evitar errores en sistemas de archivos
@@ -46,47 +51,38 @@ export const descargarBlobUniversal = (blob, nombreArchivo) => {
  * Dialogo inteligente de confirmacion al exportar:
  * Pregunta amigablemente si desea exportar todos o solo los filtrados
  */
-export const confirmarExportacion = async ({
-  totalOriginal,
-  totalFiltrado,
-  tieneFiltrosActivos = false,
-  formato = "Excel", // 'Excel' o 'PDF'
-  nombreModulo = "registros"
-}) => {
+export const confirmarExportacion = async (params = {}) => {
+  const totalOrig = params.totalOriginal ?? params.totalRegistros ?? 0;
+  const totalFilt = params.totalFiltrado ?? params.totalFiltrados ?? totalOrig;
+  const hayFiltros = Boolean(params.tieneFiltrosActivos ?? params.tieneFiltros ?? false);
+  const formato = params.formato || "Excel";
+  const nombreModulo = params.nombreModulo || "registros";
+
   // Caso A: No hay filtros activos
-  if (!tieneFiltrosActivos || totalOriginal === totalFiltrado) {
-    const resultado = await Swal.fire({
-      title: `¿Exportar ${formato}?`,
-      text: `No has aplicado ningun filtro en esta tabla. ¿Deseas exportar todos los ${totalOriginal} ${nombreModulo} completos?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#2E5792",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: `Si, exportar todos (${totalOriginal})`,
-      cancelButtonText: "Cancelar",
-      reverseButtons: true
+  if (!hayFiltros || totalOrig === totalFilt) {
+    const respuesta = await confirmarAccionFoodsys({
+      titulo: `¿Exportar ${formato}?`,
+      mensaje: `No has aplicado ningún filtro en esta tabla. ¿Deseas exportar todos los ${totalOrig} ${nombreModulo} completos?`,
+      textoConfirmar: `Sí, exportar todos (${totalOrig})`,
+      textoCancelar: "Cancelar",
+      variante: "primario"
     });
 
-    return resultado.isConfirmed ? "todos" : null;
+    return respuesta === "confirmado" ? "todos" : null;
   }
 
   // Caso B: Si hay filtros aplicados
-  const resultado = await Swal.fire({
-    title: `¿Que deseas exportar a ${formato}?`,
-    html: `Tienes filtros activos en pantalla.<br>Puedes descargar los <b>${totalFiltrado}</b> registros filtrados o la lista completa de <b>${totalOriginal}</b> registros.`,
-    icon: "question",
-    showCancelButton: true,
-    showDenyButton: true,
-    confirmButtonColor: "#2E5792",
-    denyButtonColor: "#0d9488",
-    cancelButtonColor: "#6b7280",
-    confirmButtonText: `Exportar filtrados (${totalFiltrado})`,
-    denyButtonText: `Exportar todos (${totalOriginal})`,
-    cancelButtonText: "Cancelar"
+  const respuesta = await confirmarAccionFoodsys({
+    titulo: `¿Qué deseas exportar a ${formato}?`,
+    mensaje: `Tienes filtros activos en pantalla. Puedes descargar los ${totalFilt} registros filtrados o la lista completa de ${totalOrig} registros.`,
+    textoConfirmar: `Exportar filtrados (${totalFilt})`,
+    textoSecundario: `Exportar todos (${totalOrig})`,
+    textoCancelar: "Cancelar",
+    variante: "primario"
   });
 
-  if (resultado.isConfirmed) return "filtrados";
-  if (resultado.isDenied) return "todos";
+  if (respuesta === "confirmado") return "filtrados";
+  if (respuesta === "secundario") return "todos";
   return null;
 };
 
@@ -99,12 +95,7 @@ export const exportarAExcel = ({
   nombreHoja = "Datos"
 }) => {
   if (!datos || datos.length === 0) {
-    Swal.fire({
-      title: "Sin datos",
-      text: "No hay registros disponibles para exportar.",
-      icon: "info",
-      confirmButtonColor: "#2E5792"
-    });
+    notificarInfo("No hay registros disponibles para exportar a Excel.");
     return;
   }
 
@@ -150,12 +141,7 @@ export const exportarAPDF = ({
   orientacion = "landscape" // 'portrait' o 'landscape'
 }) => {
   if (!datos || datos.length === 0) {
-    Swal.fire({
-      title: "Sin datos",
-      text: "No hay registros disponibles para exportar.",
-      icon: "info",
-      confirmButtonColor: "#2E5792"
-    });
+    notificarInfo("No hay registros disponibles para exportar a PDF.");
     return;
   }
 
@@ -203,13 +189,18 @@ export const exportarAPDF = ({
   // Normalizar filas (soportar array de arrays o array de objetos)
   let filasDatos = datos;
   if (datos.length > 0 && !Array.isArray(datos[0]) && typeof datos[0] === "object") {
-    const keys = columnas.map((c) => (typeof c === "object" && c !== null ? c.key : null));
-    filasDatos = datos.map((fila) =>
-      keys.map((k, idx) => {
-        if (k && fila[k] !== undefined) return String(fila[k] ?? "");
-        return String(Object.values(fila)[idx] ?? "");
-      })
+    const keys = columnas.map((c) =>
+      typeof c === "object" && c !== null ? (c.key || c.dataKey || c.field || null) : null
     );
+    filasDatos = datos.map((fila) => {
+      const valoresObj = Object.values(fila);
+      return encabezados.map((enc, idx) => {
+        const k = keys[idx];
+        if (k && fila[k] !== undefined) return String(fila[k] ?? "");
+        if (fila[enc] !== undefined) return String(fila[enc] ?? "");
+        return String(valoresObj[idx] ?? "");
+      });
+    });
   }
 
   // Tabla con AutoTable

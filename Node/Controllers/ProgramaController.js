@@ -96,11 +96,6 @@ export const deletePrograma = async (req, res) => {
 
 export const descargarPlantillaPrograma = (_req, res) => {
   try {
-    const templatePath = path.resolve(__dirname, "../Templates/Programas_Foodsys_Oficial.xlsx");
-    if (fs.existsSync(templatePath)) {
-      return res.download(templatePath, "Programas_Foodsys_Oficial.xlsx");
-    }
-
     const Libro = XLSX.utils.book_new();
     const Hoja = XLSX.utils.aoa_to_sheet([COLUMNAS_PLANTILLA_PROGRAMA]);
     Hoja["!cols"] = COLUMNAS_PLANTILLA_PROGRAMA.map(() => ({ wch: 26 }));

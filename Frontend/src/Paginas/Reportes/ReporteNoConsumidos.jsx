@@ -13,6 +13,7 @@
 //   7. Integración con Socket.IO para actualización en tiempo real sin recargar página.
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import toast from "react-hot-toast";
 import apiAxios from "../../api/axiosConfig";
 import {
   UserX,
@@ -189,9 +190,10 @@ const ReporteNoConsumidos = () => {
       enlace.download = `Inasistencias_${periodo}_${fechaHoyStr}.${ext}`;
       enlace.click();
       URL.revokeObjectURL(url);
+      toast.success(`Reporte de inasistencias (${formato.toUpperCase()}) descargado.`);
     } catch (err) {
       console.error("[ReporteNoConsumidos] Error al exportar:", err);
-      alert("Error al descargar el archivo. Verifica la conexión con el servidor.");
+      toast.error("Error al descargar el archivo. Verifica la conexión con el servidor.");
     } finally {
       setExportando(null);
     }

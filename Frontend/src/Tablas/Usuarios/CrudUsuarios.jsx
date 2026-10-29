@@ -12,6 +12,7 @@ import UsuariosForm from "./UsuariosForm.jsx";
 import ImportarExcel from "./ImportarExcel.jsx";
 import ModalImportarInstructores from "./ModalImportarInstructores.jsx";
 import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
+import { confirmarAccionFoodsys } from "../../utils/notificacionesFoodsys.jsx";
 import GlobalLoader from "../../Components/GlobalLoader";
 import {
   Users, Pencil, Plus, Search, X, History,
@@ -20,21 +21,38 @@ import {
   FileText, Phone, Mail, Calendar, Award
 } from "lucide-react";
 
+const ESTADOS_ACTIVOS = [
+  "Formación",
+  "Inducción",
+  "Apoyo de sostenimiento",
+  "SENA empresa",
+  "Turnos en SENA empresa",
+  "Instructor",
+  "Visitantes",
+  "En Formacion",
+  "Activo",
+  "activo"
+];
+
 /* ============================================================
    BADGE DE ESTADO FORMATIVO O DE CUENTA
 ============================================================ */
 const EstadoBadge = ({ estado }) => {
-  const activo = estado === "Activo" || estado === "activo" || estado === "En Formacion";
+  const est = estado === "En Formacion" ? "Formación" : (estado || "Formación");
+  const activo = ESTADOS_ACTIVOS.includes(est);
+  const esProductiva = est === "Etapa productiva";
   return (
     <span
       className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
         activo
           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+          : esProductiva
+          ? "bg-blue-50 text-blue-700 border-blue-200"
           : "bg-red-50 text-red-700 border-red-200"
       }`}
     >
       {activo ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
-      {estado || "—"}
+      {est}
     </span>
   );
 };
@@ -226,26 +244,95 @@ const CrudUsuarios = () => {
     );
   };
 
-  // Envia la actualizacion de sancion al backend
+  // Envia la actualizacion de sancion al backend y resetea Fallas SEM a 0/3 al quitar sancion
   const ejecutarToggleSancion = async (usuario, nuevo) => {
     setActualizandoSan(usuario.Id_Usuario);
     const toastId = toast.loading("Actualizando sancion...");
     try {
       await apiAxios.patch(`/api/Usuarios/${usuario.Id_Usuario}/sancion`, { San_Usuario: nuevo });
       setUsuarios((prev) =>
-        prev.map((u) => (u.Id_Usuario === usuario.Id_Usuario ? { ...u, San_Usuario: nuevo } : u))
+        prev.map((u) =>
+          u.Id_Usuario === usuario.Id_Usuario
+            ? { ...u, San_Usuario: nuevo, inasistenciasSemana: nuevo === "No" ? 0 : u.inasistenciasSemana }
+            : u
+        )
       );
       if (usuarioDetalle?.Id_Usuario === usuario.Id_Usuario) {
-        setUsuarioDetalle((prev) => ({ ...prev, San_Usuario: nuevo }));
+        setUsuarioDetalle((prev) => ({
+          ...prev,
+          San_Usuario: nuevo,
+          inasistenciasSemana: nuevo === "No" ? 0 : prev.inasistenciasSemana
+        }));
       }
       toast.success(
-        nuevo === "Si" ? "Usuario sancionado correctamente" : "Sancion retirada correctamente",
+        nuevo === "Si"
+          ? "Usuario sancionado correctamente"
+          : "Sanción retirada y contador Fallas SEM reiniciado a 0 de 3",
         { id: toastId }
       );
     } catch (err) {
       toast.error(err?.response?.data?.message || "Error al actualizar la sancion", { id: toastId });
     } finally {
       setActualizandoSan(null);
+    }
+  };
+
+  // Quitar todas las sanciones de forma masiva con confirmacion via react-hot-toast
+  const handleQuitarTodasLasSanciones = async () => {
+    if (cantSancionados === 0) {
+      toast("Actualmente no hay usuarios sancionados.", { icon: "ℹ️" });
+      return;
+    }
+
+    const confirmar = await confirmarAccionFoodsys({
+      titulo: "¿Quitar todas las sanciones activas?",
+      texto: `Se retirará la sanción a los ${cantSancionados} usuario(s) sancionado(s) y su contador semanal de Fallas SEM volverá automáticamente a 0 de 3.`,
+      textoConfirmar: "Sí, quitar todas",
+      textoCancelar: "Cancelar",
+      variante: "warning"
+    });
+    if (!confirmar) return;
+
+    const toastId = toast.loading("Retirando todas las sanciones...");
+    try {
+      const res = await apiAxios.patch("/api/Usuarios/sanciones/quitar-todas");
+      setUsuarios((prev) =>
+        prev.map((u) => ({
+          ...u,
+          San_Usuario: "No",
+          inasistenciasSemana: 0
+        }))
+      );
+      toast.success(res.data?.message || "Todas las sanciones fueron retiradas exitosamente.", { id: toastId });
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Error al retirar las sanciones masivamente", { id: toastId });
+    }
+  };
+
+  // Activacion / Inactivacion logica del estado del usuario (sin borrado fisico)
+  const handleToggleEstadoLogico = async (usuario) => {
+    const estActual = usuario.Est_Usuario || "Formación";
+    const esActivo = ESTADOS_ACTIVOS.includes(estActual);
+    const nuevoEstado = esActivo ? "Cancelado" : "Formación";
+    const nombre = `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim();
+
+    const confirmar = await confirmarAccionFoodsys({
+      titulo: esActivo ? "¿Suspender estado de reservas?" : "¿Habilitar en Formación?",
+      texto: `${nombre} pasará de "${estActual}" a "${nuevoEstado}".`,
+      textoConfirmar: `Cambiar a ${nuevoEstado}`,
+      textoCancelar: "Cancelar",
+      variante: esActivo ? "danger" : "info"
+    });
+    if (!confirmar) return;
+
+    try {
+      await apiAxios.put(`/api/Usuarios/${usuario.Id_Usuario}`, { Est_Usuario: nuevoEstado });
+      setUsuarios((prev) =>
+        prev.map((u) => (u.Id_Usuario === usuario.Id_Usuario ? { ...u, Est_Usuario: nuevoEstado } : u))
+      );
+      toast.success(`Estado actualizado a ${nuevoEstado}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Error al cambiar el estado del usuario");
     }
   };
 
@@ -269,13 +356,9 @@ const CrudUsuarios = () => {
   let listaFiltrada = usuarios;
 
   if (filtroEstado === "activos") {
-    listaFiltrada = listaFiltrada.filter(
-      (u) => u.Est_Usuario === "Activo" || u.Est_Usuario === "activo" || u.Est_Usuario === "En Formacion"
-    );
-  } else if (filtroEstado === "inactivos") {
-    listaFiltrada = listaFiltrada.filter(
-      (u) => u.Est_Usuario !== "Activo" && u.Est_Usuario !== "activo" && u.Est_Usuario !== "En Formacion"
-    );
+    listaFiltrada = listaFiltrada.filter((u) => ESTADOS_ACTIVOS.includes(u.Est_Usuario || "Formación"));
+  } else if (filtroEstado === "restringidos") {
+    listaFiltrada = listaFiltrada.filter((u) => !ESTADOS_ACTIVOS.includes(u.Est_Usuario || "Formación"));
   }
 
   if (filtroSancion === "sancionados") {
@@ -553,6 +636,22 @@ const CrudUsuarios = () => {
             <Pencil size={12} className="text-blue-600" /> Editar
           </button>
 
+          <button
+            onClick={() => handleToggleEstadoLogico(row)}
+            className={`rounded-lg px-2 py-1 text-[11px] font-semibold cursor-pointer inline-flex items-center gap-1 transition-colors ${
+              ESTADOS_ACTIVOS.includes(row.Est_Usuario || "Formación")
+                ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+            }`}
+            title={
+              ESTADOS_ACTIVOS.includes(row.Est_Usuario || "Formación")
+                ? "Inactivar lógicamente (pasar a Cancelado)"
+                : "Activar lógicamente (pasar a Formación)"
+            }
+          >
+            {ESTADOS_ACTIVOS.includes(row.Est_Usuario || "Formación") ? "Suspender" : "Habilitar"}
+          </button>
+
           {canToggleSan && (
             <button
               disabled={actualizandoSan === row.Id_Usuario}
@@ -730,6 +829,16 @@ const CrudUsuarios = () => {
                 <FileText size={14} /> Exportar PDF
               </button>
 
+              {canToggleSan && (
+                <button
+                  onClick={handleQuitarTodasLasSanciones}
+                  className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl px-3.5 py-2 text-xs font-semibold cursor-pointer hover:bg-amber-100 transition-colors"
+                  title="Retirar todas las sanciones activas de forma masiva y reiniciar contadores a 0/3"
+                >
+                  <ShieldCheck size={14} className="text-amber-600" /> Quitar todas las sanciones
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   setSelectedUsuario(null);
@@ -760,8 +869,8 @@ const CrudUsuarios = () => {
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Estado:</span>
               {btnFiltro("todos", "Todos", "#e0e7ff", "#3730a3", "estado")}
-              {btnFiltro("activos", "Activos", "#f0fdf4", "#16a34a", "estado")}
-              {btnFiltro("inactivos", "Inactivos", "#fef2f2", "#dc2626", "estado")}
+              {btnFiltro("activos", "En Formación / Habilitados", "#f0fdf4", "#16a34a", "estado")}
+              {btnFiltro("restringidos", "Restringidos / Cancelados", "#fef2f2", "#dc2626", "estado")}
             </div>
 
             <div className="flex items-center gap-1.5 flex-wrap">

@@ -37,7 +37,7 @@ const tipoBadge = {
 };
 
 /* ── Card movil de Plato ── */
-const ItemCard = ({ item, onEdit, onZoom }) => {
+const ItemCard = ({ item, onEdit, onZoom, puedeEditar }) => {
   const imgSrc = item.Img_Plato ? `${API_URL}/uploads/${item.Img_Plato}` : null;
 
   return (
@@ -86,12 +86,14 @@ const ItemCard = ({ item, onEdit, onZoom }) => {
               />
             )}
           </div>
-          <button
-            onClick={() => onEdit(item)}
-            className="shrink-0 flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-          >
-            <Pencil size={12} /> Editar
-          </button>
+          {puedeEditar && (
+            <button
+              onClick={() => onEdit(item)}
+              className="shrink-0 flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <Pencil size={12} /> Editar
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -109,7 +111,12 @@ const CrudPlatos = () => {
   const [zoomImg, setZoomImg] = useState(null);
   const [exportando, setExportando] = useState(false);
   const [optimizando, setOptimizando] = useState(false);
-  const [mostrarGuia, setMostrarGuia] = useState(false);
+
+  const rolActivo = (localStorage.getItem("rolActivo") || "").trim();
+  const esSoloLectura = rolActivo === "Bienestar";
+  // Cocina puede crear platos, pero NO editarlos (potestad de Coordinador / Supervisor de Contrato / Admin)
+  const puedeCrear = !esSoloLectura;
+  const puedeEditar = !esSoloLectura && rolActivo !== "Cocina";
 
   const isMobile = useIsMobile();
 
@@ -220,6 +227,51 @@ const CrudPlatos = () => {
     }
   };
 
+  // Exportar a PDF
+  const handleExportarPDF = async () => {
+    if (items.length === 0) {
+      toast.error("No hay platos para exportar.");
+      return;
+    }
+
+    const decision = await confirmarExportacion({
+      totalOriginal: items.length,
+      totalFiltrado: itemsFiltrados.length,
+      tieneFiltrosActivos,
+      formato: "PDF",
+      nombreModulo: "platos"
+    });
+
+    if (!decision) return;
+
+    setExportando(true);
+    try {
+      const registros = decision === "filtrados" ? itemsFiltrados : items;
+      const columnasPDF = ["ID", "Nombre Oficial del Plato", "Turno", "Descripcion"];
+      const filasPDF = registros.map((p) => [
+        p.Id_Plato,
+        p.Nom_Plato || "",
+        p.Tip_Plato || "Almuerzo",
+        p.Des_Plato || "Sin descripcion"
+      ]);
+
+      exportarAPDF({
+        titulo: "Catalogo Oficial de Platos del Comedor",
+        subtitulo: `Centro Agropecuario "La Granja" - Total registros: ${registros.length}`,
+        columnas: columnasPDF,
+        datos: filasPDF,
+        nombreArchivo: `Foodsys_Platos_${decision}`,
+        orientacion: "portrait"
+      });
+      toast.success("Archivo PDF descargado exitosamente");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al exportar a PDF");
+    } finally {
+      setExportando(false);
+    }
+  };
+
   // Columnas para DataTable de escritorio
   const columns = [
     {
@@ -276,7 +328,7 @@ const CrudPlatos = () => {
         );
       }
     },
-    {
+    ...(puedeEditar ? [{
       name: "Acciones",
       width: "100px",
       cell: (row) => (
@@ -287,7 +339,7 @@ const CrudPlatos = () => {
           <Pencil size={12} /> Editar
         </button>
       )
-    }
+    }] : [])
   ];
 
   return (
@@ -306,25 +358,27 @@ const CrudPlatos = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={handleOptimizarImagenes}
-            disabled={optimizando}
-            className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-2xl text-xs font-semibold transition-all cursor-pointer border border-slate-200"
-            title="Comprime todas las imagenes pesadas a formato WebP ligero"
-          >
-            <Sparkles size={14} className={optimizando ? "animate-spin text-amber-500" : "text-amber-500"} />
-            <span>{optimizando ? "Optimizando..." : "Optimizar Imagenes"}</span>
-          </button>
+        {puedeCrear && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleOptimizarImagenes}
+              disabled={optimizando}
+              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-2xl text-xs font-semibold transition-all cursor-pointer border border-slate-200"
+              title="Comprime todas las imagenes pesadas a formato WebP ligero"
+            >
+              <Sparkles size={14} className={optimizando ? "animate-spin text-amber-500" : "text-amber-500"} />
+              <span>{optimizando ? "Optimizando..." : "Optimizar Imagenes"}</span>
+            </button>
 
-          <button
-            onClick={nuevoItem}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-          >
-            <Plus size={16} />
-            <span>Nuevo Plato</span>
-          </button>
-        </div>
+            <button
+              onClick={nuevoItem}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+            >
+              <Plus size={16} />
+              <span>Nuevo Plato</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Buscador y Exportaciones */}
@@ -340,13 +394,20 @@ const CrudPlatos = () => {
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleExportarExcel}
             disabled={exportando}
             className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
           >
             <FileText size={14} /> Exportar Excel
+          </button>
+          <button
+            onClick={handleExportarPDF}
+            disabled={exportando}
+            className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+          >
+            <FileText size={14} /> Exportar PDF
           </button>
           <button
             onClick={getAllItems}
@@ -370,7 +431,7 @@ const CrudPlatos = () => {
       ) : isMobile ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {itemsFiltrados.map((item) => (
-            <ItemCard key={item.Id_Plato} item={item} onEdit={editItem} onZoom={setZoomImg} />
+            <ItemCard key={item.Id_Plato} item={item} onEdit={editItem} onZoom={setZoomImg} puedeEditar={puedeEditar} />
           ))}
         </div>
       ) : (

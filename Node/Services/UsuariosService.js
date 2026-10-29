@@ -17,6 +17,47 @@ import { v4 as uuidv4 } from "uuid";
 import { Op } from "sequelize";
 import { encolarEventoSync } from "./SyncOutboxService.js";
 
+// Catalogo estricto de los 13 estados oficiales de usuario en Foodsys (sin 'Inactivo')
+export const ESTADOS_USUARIO_OFICIALES = [
+  "Aplazado",
+  "Apoyo de sostenimiento",
+  "Cancelado",
+  "Condicionado",
+  "Formación",
+  "Inducción",
+  "Etapa productiva",
+  "Instructor",
+  "Retiro voluntario",
+  "SENA empresa",
+  "Traslado",
+  "Visitantes",
+  "Turnos en SENA empresa"
+];
+
+export function normalizarEstadoOficial(estRaw, esInstructor = false) {
+  if (esInstructor) return "Instructor";
+  const s = String(estRaw || "").trim();
+  if (!s) return "Formación";
+  if (ESTADOS_USUARIO_OFICIALES.includes(s)) return s;
+
+  const u = s.toUpperCase();
+  if (u.includes("INSTRUCTOR")) return "Instructor";
+  if (u.includes("TURNOS") && u.includes("SENA")) return "Turnos en SENA empresa";
+  if (u.includes("SENA EMPRESA")) return "SENA empresa";
+  if (u.includes("APOYO")) return "Apoyo de sostenimiento";
+  if (u.includes("INDUCCI")) return "Inducción";
+  if (u.includes("PRODUCTIVA") || u.includes("PRACTICA") || u.includes("PRÁCTICA") || u.includes("LECTIVA")) return "Etapa productiva";
+  if (u.includes("CONDICIONADO")) return "Condicionado";
+  if (u.includes("APLAZADO")) return "Aplazado";
+  if (u.includes("RETIRO")) return "Retiro voluntario";
+  if (u.includes("TRASLAD")) return "Traslado";
+  if (u.includes("VISITANTE")) return "Visitantes";
+  if (u.includes("CANCELADO") || u.includes("INACTIVO") || u.includes("CERTIFICADO") || u.includes("BAJA") || u.includes("FINALIZADO")) {
+    return "Cancelado";
+  }
+  return "Formación";
+}
+
 class UsuariosService {
 
   // Solicita enlace para restablecer contrasena por correo
@@ -106,7 +147,8 @@ class UsuariosService {
     const {
       TipDoc_Usuario, NumDoc_Usuario, Nom_Usuario, Ape_Usuario,
       Gen_Usuario, Cor_Usuario, Tel_Usuario, CenCon_Usuario,
-      Est_Usuario, San_Usuario, Id_Ficha, Roles, password
+      Est_Usuario, San_Usuario, Id_Ficha, Roles, password,
+      FecIni_Pasantia, FecFin_Pasantia
     } = data;
 
     const userExist = await UsuariosModel.findOne({ where: { TipDoc_Usuario, NumDoc_Usuario } });
@@ -115,13 +157,15 @@ class UsuariosService {
     const cenCon = String(CenCon_Usuario || "").toLowerCase().trim();
     const esInterno = ["si", "sí", "1", "true"].includes(cenCon);
 
-    // Verificar si la ficha asociada ya vencio su etapa lectiva
-    let estUsuarioFinal = Est_Usuario || "En Formacion";
+    // Normalizar al catalogo oficial de 13 estados y verificar vencimiento de ficha
+    let estUsuarioFinal = normalizarEstadoOficial(Est_Usuario);
     if (Id_Ficha) {
       const ficha = await FichasModel.findByPk(Id_Ficha);
       const hoyBogota = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
-      if (ficha?.FecFinLec_Ficha && ficha.FecFinLec_Ficha < hoyBogota) {
-        estUsuarioFinal = "Inactivo";
+      if (ficha?.FecFinPra_Ficha && String(ficha.FecFinPra_Ficha).split("T")[0] < hoyBogota) {
+        estUsuarioFinal = "Cancelado";
+      } else if (ficha?.FecFinLec_Ficha && String(ficha.FecFinLec_Ficha).split("T")[0] < hoyBogota) {
+        estUsuarioFinal = "Etapa productiva";
       }
     }
 
@@ -142,6 +186,8 @@ class UsuariosService {
       San_Usuario: San_Usuario || "No",
       Pol_Usuario: "No",
       Id_Ficha: Id_Ficha || null,
+      FecIni_Pasantia: FecIni_Pasantia || null,
+      FecFin_Pasantia: FecFin_Pasantia || null,
       password: hashedPassword,
       uuid: usuariosUuid,
     });
@@ -160,6 +206,13 @@ class UsuariosService {
       if (rolInstructor) {
         await UsuariosRolModel.create({ Id_Usuario: usuarios.Id_Usuario, Id_Rol: rolInstructor.Id_Rol });
         rolesNombres.push("Instructor");
+      }
+    } else if (FecIni_Pasantia || FecFin_Pasantia || datosUsuario.esPasante) {
+      const nombreRol = esInterno ? "Pasante Interno" : "Pasante Externo";
+      const rolEncontrado = await RolesModel.findOne({ where: { Nom_Rol: nombreRol } });
+      if (rolEncontrado) {
+        await UsuariosRolModel.create({ Id_Usuario: usuarios.Id_Usuario, Id_Rol: rolEncontrado.Id_Rol });
+        rolesNombres.push(rolEncontrado.Nom_Rol);
       }
     } else {
       const nombreRol = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
@@ -198,21 +251,36 @@ class UsuariosService {
     return usuarios;
   }
 
-  // Obtiene el mapa en memoria de inasistencias en la semana ISO actual para semaforo de riesgo
-  async obtenerMapaInasistenciasSemana() {
+  // Obtiene el mapa en memoria de inasistencias en la semana ISO actual respetando Fec_Desancion
+  async obtenerMapaInasistenciasSemana(usuariosList = []) {
     try {
-      const { inicioSemanaStr, finSemanaStr } = VencimientoService.getRangoSemana();
+      const { inicioSemanaDate, inicioSemanaStr, finSemanaStr } = VencimientoService.getRangoSemana();
       const inasistencias = await ReservaModel.findAll({
-        attributes: ["Id_Usuario", "Fec_Reserva"],
+        attributes: ["Id_Usuario", "Fec_Reserva", "updatedAt"],
         where: {
           Est_Reserva: "Vencido",
           Fec_Reserva: { [Op.between]: [inicioSemanaStr, finSemanaStr] }
         }
       });
 
+      const mapaDesancion = new Map();
+      for (const u of usuariosList) {
+        if (u.Fec_Desancion) {
+          const fd = new Date(u.Fec_Desancion);
+          if (fd >= inicioSemanaDate) {
+            mapaDesancion.set(u.Id_Usuario, fd);
+          }
+        }
+      }
+
       const mapa = new Map();
       for (const res of inasistencias) {
         const id = res.Id_Usuario;
+        const fecDesancion = mapaDesancion.get(id);
+        if (fecDesancion) {
+          const fechaResDate = res.updatedAt ? new Date(res.updatedAt) : new Date(`${res.Fec_Reserva}T23:59:59`);
+          if (fechaResDate <= fecDesancion) continue;
+        }
         mapa.set(id, (mapa.get(id) || 0) + 1);
       }
       return mapa;
@@ -224,8 +292,6 @@ class UsuariosService {
 
   // Lista todos los usuarios con sus roles, fichas e indicador de inasistencias
   async getAll() {
-    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana();
-
     const todos = await UsuariosModel.findAll({
       include: [
         {
@@ -247,6 +313,8 @@ class UsuariosService {
         }
       ]
     });
+
+    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana(todos);
 
     return todos.map((u) => {
       const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
@@ -293,13 +361,22 @@ class UsuariosService {
     const camposPermitidos = [
       "TipDoc_Usuario", "NumDoc_Usuario", "Nom_Usuario", "Ape_Usuario",
       "Gen_Usuario", "Cor_Usuario", "Tel_Usuario", "CenCon_Usuario",
-      "Est_Usuario", "San_Usuario", "Fec_Desancion", "Id_Ficha", "Pol_Usuario"
+      "Est_Usuario", "San_Usuario", "Fec_Desancion", "Id_Ficha", "Pol_Usuario",
+      "FecIni_Pasantia", "FecFin_Pasantia"
     ];
     const dataFiltrada = {};
     for (const campo of camposPermitidos) {
       if (data[campo] !== undefined) {
         dataFiltrada[campo] = data[campo];
       }
+    }
+
+    if (dataFiltrada.Est_Usuario !== undefined) {
+      dataFiltrada.Est_Usuario = normalizarEstadoOficial(dataFiltrada.Est_Usuario);
+    }
+
+    if (dataFiltrada.San_Usuario === "No") {
+      dataFiltrada.Fec_Desancion = new Date();
     }
 
     if (data.password && data.password.trim()) {
@@ -398,8 +475,6 @@ class UsuariosService {
       console.error("Error al procesar vencimientos en getAprendices:", err.message);
     }
 
-    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana();
-
     const todos = await UsuariosModel.findAll({
       include: [
         {
@@ -417,6 +492,8 @@ class UsuariosService {
         }
       ]
     });
+
+    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana(todos);
 
     return todos
       .filter((u) => {
@@ -439,8 +516,6 @@ class UsuariosService {
       console.error("Error al procesar vencimientos en getPasantes:", err.message);
     }
 
-    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana();
-
     const todos = await UsuariosModel.findAll({
       include: [
         {
@@ -458,6 +533,8 @@ class UsuariosService {
         }
       ]
     });
+
+    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana(todos);
 
     return todos
       .filter((u) => {

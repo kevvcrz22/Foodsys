@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import SemaforoAforoCard from "../../Components/SemaforoAforoCard.jsx";
-import ControlRacionesRapido from "../../Components/Admin/ControlRacionesRapido.jsx";
 import BolsaSolidariaCard from "../../Components/BolsaSolidariaCard.jsx";
 
 const MANUAL_POR_ROL = {
@@ -28,8 +27,8 @@ const MANUAL_POR_ROL = {
       },
       {
         Icono: Wheat,
-        Titulo: "Almuerzo en Jornada de Campo",
-        Descripcion: "Consulta y audita las solicitudes de almuerzo guardado emitidas por fichas en campo.",
+        Titulo: "Almuerzos Apartados SENA Empresa",
+        Descripcion: "Consulta y audita las solicitudes de almuerzos apartados SENA Empresa emitidas por fichas.",
         Link: "/guardar-almuerzo-campo",
       },
       {
@@ -40,89 +39,134 @@ const MANUAL_POR_ROL = {
       },
       {
         Icono: CalendarCheck,
-        Titulo: "Gestionar Menus y Reservas",
-        Descripcion: "Planifica los menus semanales y monitorea el estado global de reservas de los aprendices.",
+        Titulo: "Consultar Menus y Reservas",
+        Descripcion: "Audita los menus semanales y exporta el estado global de reservas de los aprendices.",
         Link: "/menus",
       },
       {
         Icono: BarChart3,
         Titulo: "Modulo de Reportes",
-        Descripcion: "Consulta consumos reales, inasistencias, alertas de bienestar y reporte de campo en 4 pestanas.",
+        Descripcion: "Consulta consumos reales, inasistencias, alertas de bienestar y reporte de apartados en 4 pestanas.",
         Link: "/Administrador/Reportes",
       },
     ],
   },
   Instructor: {
-    Bienvenida: "Solicitud y seguimiento de almuerzos guardados por practicas en campo.",
+    Bienvenida: "Solicitud y seguimiento de Almuerzos Apartados SENA Empresa.",
     Pasos: [
       {
         Icono: Wheat,
-        Titulo: "Guardar Almuerzos de Ficha",
-        Descripcion: "Selecciona tu ficha y marca a los aprendices en jornada de campo para extender su horario de almuerzo.",
+        Titulo: "Almuerzos Apartados SENA Empresa",
+        Descripcion: "Selecciona tu ficha y aparta almuerzos para aprendices en practica hasta las 09:00 AM.",
         Link: "/guardar-almuerzo-campo",
-      },
-      {
-        Icono: BarChart3,
-        Titulo: "Reportes de Campo",
-        Descripcion: "Consulta las actas generadas y el cumplimiento de entrega de raciones de tus aprendices.",
-        Link: "/Administrador/Reportes",
       },
     ],
   },
   Vocero: {
-    Bienvenida: "Gestion de reservas y solicitudes de apoyo para tu ficha.",
+    Bienvenida: "Gestion de reservas y solicitudes de Almuerzos Apartados SENA Empresa.",
     Pasos: [
       {
-        Icono: CalendarCheck,
-        Titulo: "Mis Reservas",
-        Descripcion: "Realiza tu reserva diaria de comida seleccionando plato y bebida antes de las 10:30 PM.",
-        Link: "/Interno/Reservar",
-      },
-      {
         Icono: Wheat,
-        Titulo: "Guardar Almuerzo en Campo",
-        Descripcion: "Solicita el guardado grupal de almuerzos cuando tu ficha tenga jornada en unidades productivas.",
+        Titulo: "Almuerzos Apartados SENA Empresa",
+        Descripcion: "Solicita el apartado grupal de almuerzos cuando tu ficha tenga practica hasta las 09:00 AM.",
         Link: "/guardar-almuerzo-campo",
       },
     ],
   },
   "SENA Empresa": {
-    Bienvenida: "Coordinacion de raciones y alimentacion en unidades productivas.",
+    Bienvenida: "Coordinacion de raciones, internado temporal y alimentacion en unidades productivas.",
     Pasos: [
       {
         Icono: Wheat,
-        Titulo: "Almuerzos en Unidades de Campo",
-        Descripcion: "Gestiona y valida los vales de almuerzo guardado para aprendices asignados a unidades productivas.",
+        Titulo: "Almuerzos Apartados SENA Empresa",
+        Descripcion: "Gestiona y valida los vales de almuerzos apartados SENA Empresa asignados a unidades productivas.",
         Link: "/guardar-almuerzo-campo",
+      },
+      {
+        Icono: Users,
+        Titulo: "Internado Temporal y Turno Rutinario",
+        Descripcion: "Asigna turnos temporales o rutinarios (Lunes a Viernes) sin eliminar registros historicos.",
+        Link: "/admin/internado-temporal",
       },
       {
         Icono: BarChart3,
         Titulo: "Reportes de SENA Empresa",
-        Descripcion: "Monitorea la distribucion de almuerzos por unidad productiva (Ganaderia, Piscicultura, etc.).",
+        Descripcion: "Monitorea el resumen exclusivo de Alimentos Apartados e Internado Temporal.",
         Link: "/Administrador/Reportes",
       },
     ],
   },
-  Supervisor: {
-    Bienvenida: "Control de turnos y registro de consumo en comedor.",
+  Monitor: {
+    Bienvenida: "Control de turnos concurrentes y registro de consumo en comedor.",
     Pasos: [
       {
         Icono: Edit,
         Titulo: "Iniciar Turno de Comedor",
-        Descripcion: "Abre el turno de servicio seleccionando Desayuno, Almuerzo o Cena con control de acceso.",
+        Descripcion: "Abre el turno desde 10 minutos antes del servicio con soporte multi-monitor.",
         Link: "/supervisor/Registrar",
       },
       {
         Icono: QrCode,
-        Titulo: "Escanear QR o Cedula",
-        Descripcion: "Registra consumos mediante camara o lector de codigo de barras USB con cedula de ciudadania.",
+        Titulo: "Verificar QR y Registrar",
+        Descripcion: "Registra consumos mediante camara de lectura rapida (<2.5s) o lector USB con feedback sonoro.",
+        Link: "/supervisor/VerificarQR",
+      },
+    ],
+  },
+  Supervisor: {
+    Bienvenida: "Control de turnos concurrentes y registro de consumo en comedor.",
+    Pasos: [
+      {
+        Icono: Edit,
+        Titulo: "Iniciar Turno de Comedor",
+        Descripcion: "Abre el turno desde 10 minutos antes del servicio con soporte multi-monitor.",
         Link: "/supervisor/Registrar",
       },
       {
+        Icono: QrCode,
+        Titulo: "Verificar QR y Registrar",
+        Descripcion: "Registra consumos mediante camara de lectura rapida (<2.5s) o lector USB con feedback sonoro.",
+        Link: "/supervisor/VerificarQR",
+      },
+    ],
+  },
+  "Supervisor de Contrato": {
+    Bienvenida: "Supervision contractual, interventoria de minuta de 28 dias, PQRSF y auditoria.",
+    Pasos: [
+      {
+        Icono: ShieldCheck,
+        Titulo: "Panel de Supervisor de Contrato",
+        Descripcion: "Audita raciones servidas, cumplimiento de minuta, alertas de PQRSF y metricas de contrato.",
+        Link: "/supervisor-contrato",
+      },
+      {
+        Icono: Utensils,
+        Titulo: "Edicion de Platos y Minuta (Ciclo 28 dias)",
+        Descripcion: "Autoriza y edita platos dentro de la minuta oficial de 28 dias con variantes decimales.",
+        Link: "/platos",
+      },
+      {
         Icono: BarChart3,
-        Titulo: "Reporte de Cierre",
-        Descripcion: "Al finalizar el servicio, revisa las estadisticas de asistencia y raciones entregadas.",
-        Link: "/supervisor/Reportes",
+        Titulo: "Reportes de Interventoria",
+        Descripcion: "Exporta reportes oficiales de consumo nominal, no consumidos y seguimiento.",
+        Link: "/Administrador/Reportes",
+      },
+    ],
+  },
+  Visitante: {
+    Bienvenida: "Acceso de reserva de almuerzo para visitantes autorizados del centro.",
+    Pasos: [
+      {
+        Icono: CalendarCheck,
+        Titulo: "Reservar Almuerzo",
+        Descripcion: "Agenda tu almuerzo seleccionando plato y bebida dentro del horario habilitado.",
+        Link: "/Visitante/Reservar",
+      },
+      {
+        Icono: QrCode,
+        Titulo: "Presentar Ticket QR",
+        Descripcion: "Descarga tu comprobante de reserva con codigo QR ligero para ingreso al comedor.",
+        Link: "/Visitante/Reservar",
       },
     ],
   },
@@ -304,54 +348,57 @@ const Inicio = () => {
     : "Usuario";
 
   const rolNormalizado = (Rol_Activo || "").toLowerCase();
-  const esAdmin = rolNormalizado.includes("admin");
   const puedeVerSemaforo = [
     "aprendiz",
     "pasante",
     "bienestar",
     "admin",
-    "administrador"
+    "administrador",
+    "coordinador",
+    "monitor",
+    "supervisor",
+    "visitante"
   ].some((r) => rolNormalizado.includes(r));
 
   return (
     <div className="w-full space-y-6">
-      {/* Encabezado Superior Suave - Estilo Reportes y Usuarios */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
-            <Utensils className="w-6 h-6" />
+      {/* Grilla de 2 Columnas (50% / 50% en escritorio, apilados en movil): Banner de Bienvenida + Aforo del Comedor */}
+      <div className={puedeVerSemaforo ? "grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch" : "w-full"}>
+        {/* Encabezado Superior Suave - Estilo Reportes y Usuarios */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 h-full">
+          <div className="flex items-start gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+              <Utensils className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                <span className="text-xs uppercase font-semibold tracking-wider text-emerald-700">
+                  Sistema de Gestion Nutricional
+                </span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-800 m-0">
+                Bienvenido, {Nombre}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1 m-0">
+                Centro Agropecuario "La Granja" - SENA Regional Tolima
+              </p>
+            </div>
           </div>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-              <span className="text-xs uppercase font-semibold tracking-wider text-emerald-700">
-                Sistema de Gestion Nutricional
+
+          {Rol_Activo && (
+            <div className="self-start sm:self-auto bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full flex items-center gap-2 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+              <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wide">
+                {Rol_Activo}
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-800 m-0">
-              Bienvenido, {Nombre}
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1 m-0">
-              Centro Agropecuario "La Granja" - SENA Regional Tolima
-            </p>
-          </div>
+          )}
         </div>
 
-        {Rol_Activo && (
-          <div className="self-start sm:self-auto bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-            <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wide">
-              {Rol_Activo}
-            </span>
-          </div>
-        )}
+        {/* Semaforo de Aforo del Comedor (50% derecha en escritorio) */}
+        {puedeVerSemaforo && <SemaforoAforoCard />}
       </div>
-
-      {/* Control Rapido de Raciones (Solo para Administrador) */}
-      {esAdmin && <ControlRacionesRapido />}
-
-      {/* Semaforo de Aforo del Comedor */}
-      {puedeVerSemaforo && <SemaforoAforoCard />}
 
       {/* Bolsa Solidaria Bienestar (Aprendices y Pasantes) */}
       {(rolNormalizado.includes("aprendiz") || rolNormalizado.includes("pasante")) && (

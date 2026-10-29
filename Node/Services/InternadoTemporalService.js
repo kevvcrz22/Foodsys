@@ -85,11 +85,11 @@ class InternadoTemporalService {
       throw new Error("El archivo Excel esta vacio o no contiene filas de datos.");
     }
 
-    // Localizar la fila de encabezados
+    // Localizar la fila de encabezados (hasta las primeras 20 filas)
     let headerRowIdx = 0;
-    for (let i = 0; i < Math.min(5, rows.length); i++) {
+    for (let i = 0; i < Math.min(20, rows.length); i++) {
       const rowStr = (rows[i] || []).map(c => String(c).toUpperCase()).join(" ");
-      if (rowStr.includes("DOCUMENTO") || rowStr.includes("NOMBRES") || rowStr.includes("FICHA")) {
+      if (rowStr.includes("DOCUMENTO") || rowStr.includes("CEDULA") || rowStr.includes("NOMBRES") || rowStr.includes("FICHA")) {
         headerRowIdx = i;
         break;
       }
@@ -266,7 +266,7 @@ class InternadoTemporalService {
       if (tieneTurnoActivoHoy) {
         await usuario.update({
           CenCon_Usuario: "Si",
-          Est_Usuario: "Turno Sena Empresa"
+          Est_Usuario: "Turnos en SENA empresa"
         });
 
         // Notificar al aprendiz
@@ -315,7 +315,7 @@ class InternadoTemporalService {
     for (const reg of porActivar) {
       await reg.update({ Estado_Periodo: "ACTIVO" });
       await UsuariosModel.update(
-        { CenCon_Usuario: "Si", Est_Usuario: "Turno Sena Empresa" },
+        { CenCon_Usuario: "Si", Est_Usuario: "Turnos en SENA empresa" },
         { where: { Id_Usuario: reg.Id_Usuario } }
       );
       activados++;
@@ -342,12 +342,13 @@ class InternadoTemporalService {
         }
       });
 
-      // Si no tiene otro periodo activo, revertir a su estado original (Externo)
+      // Si no tiene otro periodo activo, revertir a su estado original
       if (!otroPeriodoActivo) {
+        const cenConOriginal = exp.Estado_Original_CenCon || "No";
         await UsuariosModel.update(
           {
-            CenCon_Usuario: "No",
-            Est_Usuario: "En Formacion"
+            CenCon_Usuario: cenConOriginal,
+            Est_Usuario: "Formación"
           },
           { where: { Id_Usuario: exp.Id_Usuario } }
         );
@@ -357,7 +358,7 @@ class InternadoTemporalService {
           await NotificacionesModel.create({
             Id_Usuario: exp.Id_Usuario,
             Titulo: "Finalización de Internado Temporal SENA Empresa",
-            Mensaje: `Tu periodo temporal en el internado (${exp.Unidad_Productiva}) ha concluido. Tu estado ha sido restablecido a Aprendiz Externo.`,
+            Mensaje: `Tu periodo temporal en el internado (${exp.Unidad_Productiva}) ha concluido. Tu estado ha sido restablecido.`,
             Tipo: "info",
             Leido: false,
             Fecha_Creacion: new Date()
@@ -413,19 +414,41 @@ class InternadoTemporalService {
 
     return registros.map(r => {
       const plain = r.toJSON();
-      const diasRestantes = Math.ceil((new Date(r.Fecha_Fin) - new Date(hoy)) / (1000 * 60 * 60 * 24));
+      const estadoCalc =
+        r.Estado_Periodo === "VENCIDO"
+          ? "VENCIDO"
+          : hoy >= r.Fecha_Inicio && hoy <= r.Fecha_Fin
+          ? "ACTIVO"
+          : hoy > r.Fecha_Fin
+          ? "VENCIDO"
+          : "PROGRAMADO";
+
+      let diasRestantes = 0;
+      if (estadoCalc === "ACTIVO") {
+        diasRestantes = Math.max(0, Math.ceil((new Date(r.Fecha_Fin) - new Date(hoy)) / (1000 * 60 * 60 * 24)));
+      } else if (estadoCalc === "PROGRAMADO") {
+        diasRestantes = Math.max(1, Math.ceil((new Date(r.Fecha_Inicio) - new Date(hoy)) / (1000 * 60 * 60 * 24)));
+      }
+
       return {
         ...plain,
-        diasRestantes: r.Estado_Periodo === "ACTIVO" ? Math.max(0, diasRestantes) : null
+        Estado_Periodo: estadoCalc,
+        estadoCalculado: estadoCalc,
+        Unidad_Sena_Empresa: plain.Unidad_Productiva,
+        diasRestantes
       };
     });
   }
 
   /**
-   * Registro manual de un aprendiz externo a internado temporal
+   * Registro manual de un aprendiz (externo o interno en turno rutinario semanal) a internado temporal
    */
   async crearRegistroManual(datos, usuarioSolicitante = {}) {
-    const { numDoc, fechaInicio, fechaFin, unidadProductiva, observaciones } = datos;
+    const numDoc = String(datos.numDoc || datos.NumDoc_Usuario || "").replace(/\D/g, "");
+    const fechaInicio = datos.fechaInicio || datos.Fecha_Inicio;
+    const fechaFin = datos.fechaFin || datos.Fecha_Fin;
+    const unidadProductiva = datos.unidadProductiva || datos.Unidad_Sena_Empresa || datos.Unidad_Productiva || "SENA Empresa";
+    const observaciones = datos.observaciones || datos.Observaciones || "Registro manual";
 
     if (!numDoc || !fechaInicio || !fechaFin) {
       throw new Error("El documento, fecha de inicio y fecha de fin son obligatorios.");
@@ -457,13 +480,13 @@ class InternadoTemporalService {
       Nom_Usuario: usuario.Nom_Usuario,
       Ape_Usuario: usuario.Ape_Usuario,
       Num_Ficha: usuario.Id_Ficha || null,
-      Unidad_Productiva: unidadProductiva || "SENA Empresa",
+      Unidad_Productiva: unidadProductiva,
       Fecha_Inicio: fechaInicio,
       Fecha_Fin: fechaFin,
-      Rol_Original: "Aprendiz Externo",
+      Rol_Original: usuario.CenCon_Usuario === "Si" ? "Aprendiz Interno" : "Aprendiz Externo",
       Estado_Original_CenCon: usuario.CenCon_Usuario || "No",
       Estado_Periodo: estadoPeriodo,
-      Observaciones: observaciones || "Registro manual",
+      Observaciones: observaciones,
       Id_Usuario_Registro: usuarioSolicitante.id || null,
       Rol_Usuario_Registro: usuarioSolicitante.rol || "SENA Empresa",
       Origen_Registro: "MANUAL"
@@ -472,7 +495,7 @@ class InternadoTemporalService {
     if (estadoPeriodo === "ACTIVO") {
       await usuario.update({
         CenCon_Usuario: "Si",
-        Est_Usuario: "Turno Sena Empresa"
+        Est_Usuario: "Turnos en SENA empresa"
       });
     }
 
@@ -480,18 +503,71 @@ class InternadoTemporalService {
   }
 
   /**
-   * Elimina o cancela un registro de internado temporal y revierte de ser necesario
+   * Actualiza un registro existente de internado temporal
    */
-  async eliminarRegistro(idRegistro) {
+  async actualizarRegistro(idRegistro, datos = {}) {
+    const registro = await InternadoTemporalModel.findByPk(idRegistro);
+    if (!registro) {
+      throw new Error("Registro de internado temporal no encontrado.");
+    }
+
+    const fechaInicio = datos.Fecha_Inicio || datos.fechaInicio || registro.Fecha_Inicio;
+    const fechaFin = datos.Fecha_Fin || datos.fechaFin || registro.Fecha_Fin;
+    const unidad = datos.Unidad_Sena_Empresa || datos.Unidad_Productiva || datos.unidadProductiva || registro.Unidad_Productiva;
+    const observaciones = datos.Observaciones !== undefined ? datos.Observaciones : (datos.observaciones !== undefined ? datos.observaciones : registro.Observaciones);
+
+    if (fechaFin < fechaInicio) {
+      throw new Error("La fecha de fin no puede ser anterior a la fecha de inicio.");
+    }
+
+    const hoy = obtenerFechaColombia();
+    let estadoPeriodo = "PROGRAMADO";
+    if (hoy >= fechaInicio && hoy <= fechaFin) {
+      estadoPeriodo = "ACTIVO";
+    } else if (hoy > fechaFin) {
+      estadoPeriodo = "VENCIDO";
+    }
+
+    await registro.update({
+      Fecha_Inicio: fechaInicio,
+      Fecha_Fin: fechaFin,
+      Unidad_Productiva: unidad,
+      Observaciones: observaciones,
+      Estado_Periodo: estadoPeriodo
+    });
+
+    if (estadoPeriodo === "ACTIVO") {
+      await UsuariosModel.update(
+        { CenCon_Usuario: "Si", Est_Usuario: "Turnos en SENA empresa" },
+        { where: { Id_Usuario: registro.Id_Usuario } }
+      );
+    }
+
+    return registro;
+  }
+
+  /**
+   * Elimina o revoca un registro de internado temporal y revierte de ser necesario
+   */
+  async eliminarRegistro(idRegistro, { soloRevocar = false } = {}) {
     const registro = await InternadoTemporalModel.findByPk(idRegistro);
     if (!registro) {
       throw new Error("Registro de internado temporal no encontrado.");
     }
 
     const idUsuario = registro.Id_Usuario;
-    await registro.destroy();
+    const cenConOriginal = registro.Estado_Original_CenCon || "No";
 
-    // Comprobar si el usuario debe revertirse a Externo
+    if (soloRevocar) {
+      await registro.update({
+        Estado_Periodo: "VENCIDO",
+        Observaciones: `${registro.Observaciones || ""} (Turno finalizado/revertido manualmente)`.trim()
+      });
+    } else {
+      await registro.destroy();
+    }
+
+    // Comprobar si el usuario debe revertirse a su estado original
     const hoy = obtenerFechaColombia();
     const activoRestante = await InternadoTemporalModel.findOne({
       where: {
@@ -504,12 +580,12 @@ class InternadoTemporalService {
 
     if (!activoRestante) {
       await UsuariosModel.update(
-        { CenCon_Usuario: "No", Est_Usuario: "En Formacion" },
+        { CenCon_Usuario: cenConOriginal, Est_Usuario: "Formación" },
         { where: { Id_Usuario: idUsuario } }
       );
     }
 
-    return { mensaje: "Registro eliminado correctamente y estados verificados." };
+    return { mensaje: "Turno revertido correctamente y estados verificados." };
   }
 
   /**

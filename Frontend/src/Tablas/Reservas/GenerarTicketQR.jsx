@@ -1,433 +1,441 @@
-// Utils/GenerarTicketQR.js
-//
-// Genera una imagen PNG con el ticket completo de la reserva usando Canvas 2D.
-// Incluye: informacion del usuario, imagen del plato, descripcion del plato,
-//          detalles de la reserva y el codigo QR.
-//
-// USO:
-//   import { GenerarTicketQR } from "../../Utils/GenerarTicketQR";
-//   await GenerarTicketQR({ reserva, usuario, qrUrl, urlImagen });
-//
-// PARAMETROS:
-//   reserva   -> objeto de la reserva (del historial)
-//   usuario   -> { nombre: string, documento: string }
-//   qrUrl     -> string con la URL completa que va en el QR
-//   urlImagen -> funcion(nombreArchivo) => URL de la imagen del plato
+// Frontend/src/Tablas/Reservas/GenerarTicketQR.jsx
+// Generador de Ticket de Reserva estilo comprobante/factura compacto en alta resolucion (Canvas 2x Retina).
+// Incluye marca de agua institucional de Foodsys, sello RESERVADO, QR centrado de baja densidad (lectura < 2.5s),
+// y detalles perifericos completos: Aprendiz/Usuario, Ficha/Programa, Comida, Fecha, Vencimiento, Plato, Bebida y Sopa/Caldo.
 
-// ─── Helpers de Canvas ───────────────────────────────────────────────────────
+import toast from "react-hot-toast";
 
-// Carga una imagen desde una URL y la retorna como HTMLImageElement.
-// Usa crossOrigin anonimo para poder dibujar imagenes del backend en el canvas.
 const CargarImagen = (url) =>
-    new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null); // Si falla, continuar sin imagen
-        img.src = url;
-    });
+  new Promise((resolve) => {
+    if (!url) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 
-// Dibuja texto con salto de linea automatico dentro de un ancho maximo.
-// Retorna la coordenada Y final para saber donde continuar dibujando.
-const DibujarTextoMultilinea = (ctx, texto, x, y, anchoMax, alturaLinea) => {
-    if (!texto) return y;
-    const palabras = texto.split(" ");
-    let lineaActual = "";
-    let yActual = y;
+const DividirLineas = (ctx, texto, anchoMax) => {
+  if (!texto) return ["—"];
+  const palabras = String(texto).trim().split(/\s+/);
+  const lineas = [];
+  let actual = "";
 
-    for (const palabra of palabras) {
-        const lineaPrueba = lineaActual ? `${lineaActual} ${palabra}` : palabra;
-        const medida = ctx.measureText(lineaPrueba);
-
-        if (medida.width > anchoMax && lineaActual) {
-            ctx.fillText(lineaActual, x, yActual);
-            lineaActual = palabra;
-            yActual += alturaLinea;
-        } else {
-            lineaActual = lineaPrueba;
-        }
+  for (const palabra of palabras) {
+    const prueba = actual ? `${actual} ${palabra}` : palabra;
+    if (ctx.measureText(prueba).width > anchoMax && actual) {
+      lineas.push(actual);
+      actual = palabra;
+    } else {
+      actual = prueba;
     }
-
-    if (lineaActual) {
-        ctx.fillText(lineaActual, x, yActual);
-        yActual += alturaLinea;
-    }
-
-    return yActual;
+  }
+  if (actual) lineas.push(actual);
+  return lineas.length > 0 ? lineas : ["—"];
 };
 
-// Genera el SVG del codigo QR usando la libreria qrcode
-// y lo convierte a una imagen que puede dibujarse en el canvas.
 const GenerarImagenQR = async (texto, tamano) => {
-    try {
-        // Importar dinamicamente qrcode para no aumentar el bundle base
-        const QRCode = (await import("qrcode")).default;
-        const urlData = await QRCode.toDataURL(texto, {
-            width: tamano,
-            margin: 2,
-            errorCorrectionLevel: "H",
-            color: { dark: "#0f172a", light: "#ffffff" },
-        });
-        return await CargarImagen(urlData);
-    } catch {
-        return null;
+  try {
+    const QRCode = (await import("qrcode")).default;
+    // Extraer solo el payload util si venia con envoltura URL
+    let payloadLimpio = String(texto || "").trim();
+    if (payloadLimpio.includes("data=")) {
+      try {
+        payloadLimpio = decodeURIComponent(payloadLimpio.split("data=")[1].split("&")[0]);
+      } catch {
+        // conservar original
+      }
     }
+    const urlData = await QRCode.toDataURL(payloadLimpio, {
+      width: tamano * 2,
+      margin: 1,
+      errorCorrectionLevel: "M",
+      color: { dark: "#0f172a", light: "#ffffff" }
+    });
+    return await CargarImagen(urlData);
+  } catch {
+    return null;
+  }
 };
 
-// Dibuja un rectangulo con esquinas redondeadas
 const RectanguloRedondeado = (ctx, x, y, ancho, alto, radio) => {
-    ctx.beginPath();
-    ctx.moveTo(x + radio, y);
-    ctx.lineTo(x + ancho - radio, y);
-    ctx.arcTo(x + ancho, y, x + ancho, y + radio, radio);
-    ctx.lineTo(x + ancho, y + alto - radio);
-    ctx.arcTo(x + ancho, y + alto, x + ancho - radio, y + alto, radio);
-    ctx.lineTo(x + radio, y + alto);
-    ctx.arcTo(x, y + alto, x, y + alto - radio, radio);
-    ctx.lineTo(x, y + radio);
-    ctx.arcTo(x, y, x + radio, y, radio);
-    ctx.closePath();
+  ctx.beginPath();
+  ctx.moveTo(x + radio, y);
+  ctx.lineTo(x + ancho - radio, y);
+  ctx.arcTo(x + ancho, y, x + ancho, y + radio, radio);
+  ctx.lineTo(x + ancho, y + alto - radio);
+  ctx.arcTo(x + ancho, y + alto, x + ancho - radio, y + alto, radio);
+  ctx.lineTo(x + radio, y + alto);
+  ctx.arcTo(x, y + alto, x, y + alto - radio, radio);
+  ctx.lineTo(x, y + radio);
+  ctx.arcTo(x, y, x + radio, y, radio);
+  ctx.closePath();
 };
 
-// ─── Configuracion visual por estado ─────────────────────────────────────────
-
-const COLORES_ESTADO = {
-    Generado:   { texto: "Pendiente", fondo: "#fffbeb", color: "#b45309", punto: "#f59e0b" },
-    Generada:   { texto: "Pendiente", fondo: "#fffbeb", color: "#b45309", punto: "#f59e0b" },
-    Verificado: { texto: "Verificado", fondo: "#eff6ff", color: "#1d4ed8", punto: "#3b82f6" },
-    Verificada: { texto: "Verificado", fondo: "#eff6ff", color: "#1d4ed8", punto: "#3b82f6" },
-    Consumido:  { texto: "Consumido", fondo: "#f0fdf4", color: "#15803d", punto: "#22c55e" },
-    Consumida:  { texto: "Consumido", fondo: "#f0fdf4", color: "#15803d", punto: "#22c55e" },
-    Vencido:    { texto: "Vencida", fondo: "#fef2f2", color: "#b91c1c", punto: "#ef4444" },
-    Vencida:    { texto: "Vencida", fondo: "#fef2f2", color: "#b91c1c", punto: "#ef4444" },
-    Cancelado:  { texto: "Cancelado", fondo: "#f8fafc", color: "#64748b", punto: "#94a3b8" },
-    Cancelada:  { texto: "Cancelada", fondo: "#f8fafc", color: "#64748b", punto: "#94a3b8" },
+const HORARIOS_COMIDA = {
+  Desayuno: "06:00 AM – 07:00 AM",
+  Almuerzo: "11:30 AM – 01:30 PM",
+  Cena: "06:00 PM – 07:00 PM"
 };
 
-const COLORES_TIPO = {
-    Desayuno: "#ea580c",
-    Almuerzo: "#4f46e5",
-    Cena: "#7c3aed",
+const FormatearFechaCorta = (fechaStr) => {
+  if (!fechaStr) return "—";
+  const f = String(fechaStr).slice(0, 10);
+  const d = new Date(`${f}T12:00:00`);
+  if (isNaN(d.getTime())) return f;
+  return d.toLocaleDateString("es-CO", {
+    timeZone: "America/Bogota",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
 };
 
-const FormatearFechaLarga = (fechaStr) => {
-    if (!fechaStr) return "—";
-    return new Date(`${fechaStr}T12:00:00`).toLocaleDateString("es-CO", {
-        weekday: "long", day: "numeric", month: "long", year: "numeric",
-    });
-};
+export const GenerarTicketQR = async ({ reserva, usuario, qrUrl }) => {
+  const SCALE = 2; // Alta resolucion 2x Retina para evitar pixelado al hacer zoom
+  const ANCHO = 420;
+  const PAD = 24;
+  const ANCHO_INT = ANCHO - PAD * 2;
 
-const FormatearHora = (isoStr) => {
-    if (!isoStr) return "—";
-    return new Date(isoStr).toLocaleTimeString("es-CO", {
-        hour: "2-digit", minute: "2-digit",
-    });
-};
+  // Extraer datos consolidados de usuario, ficha y reserva
+  const usrStorage = JSON.parse(localStorage.getItem("usuario") || "null") || {};
+  const rolActivo = localStorage.getItem("rolActivo") || reserva?.Rol_Usuario || "Aprendiz";
 
-// ─── Funcion principal ────────────────────────────────────────────────────────
+  const nombreUsuario =
+    usuario?.nombre ||
+    `${reserva?.usuario?.Nom_Usuario || usrStorage.Nom_Usuario || ""} ${reserva?.usuario?.Ape_Usuario || usrStorage.Ape_Usuario || ""}`.trim() ||
+    "Usuario Foodsys";
 
-export const GenerarTicketQR = async ({ reserva, usuario, qrUrl, urlImagen }) => {
+  const docUsuario =
+    usuario?.documento ||
+    reserva?.usuario?.NumDoc_Usuario ||
+    usrStorage.NumDoc_Usuario ||
+    "—";
 
-    // ── Constantes de layout ──────────────────────────────────────────────────
-    const ANCHO = 600;
-    const PADDING = 32;
-    const ANCHO_INTERNO = ANCHO - PADDING * 2;
-    const RADIO = 16;
+  const tipDoc = reserva?.usuario?.TipDoc_Usuario || usrStorage.TipDoc_Usuario || "CC";
+  const numFicha =
+    reserva?.usuario?.ficha?.Num_Ficha ||
+    usrStorage?.ficha?.Num_Ficha ||
+    usrStorage?.Num_Ficha ||
+    reserva?.Num_Ficha ||
+    "General";
 
-    // ── Preparar datos ────────────────────────────────────────────────────────
-    const estadoConfig = COLORES_ESTADO[reserva.Est_Reserva] ?? COLORES_ESTADO.Cancelado;
-    const colorTipo = COLORES_TIPO[reserva.Tip_Reserva] ?? "#64748b";
-    const imgPlatoUrl = urlImagen(reserva.plato?.Img_Plato);
-    const esActiva = reserva.Est_Reserva === "Generado" || reserva.Est_Reserva === "Verificado";
+  const nomPrograma =
+    reserva?.usuario?.ficha?.programa?.Nom_Programa ||
+    usrStorage?.ficha?.programa?.Nom_Programa ||
+    reserva?.Nom_Programa ||
+    "Centro Agropecuario La Granja";
 
-    // ── Cargar recursos en paralelo ───────────────────────────────────────────
-    const [imgPlato, imgQR] = await Promise.all([
-        imgPlatoUrl ? CargarImagen(imgPlatoUrl) : Promise.resolve(null),
-        qrUrl ? GenerarImagenQR(qrUrl, 240) : Promise.resolve(null),
-    ]);
+  const tipoComida = reserva?.Tip_Reserva || "Almuerzo";
+  const horarioTexto = reserva?.Es_Guardado_Campo
+    ? "11:30 AM – 02:30 PM (Apartado SENA Empresa)"
+    : HORARIOS_COMIDA[tipoComida] || "Horario Oficial";
 
-    // ── Medir el alto total del canvas (se calcula antes de crear el canvas) ──
-    // Cada seccion contribuye una altura fija o dinamica
-    const ALTO_BARRA_TOP = 8;
-    const ALTO_HEADER = 64;
-    const ALTO_IMG_PLATO = imgPlato ? 240 : 0;
-    const ALTO_SECCION_USUARIO = 80;
+  const nombrePlato = reserva?.plato?.Nom_Plato || reserva?.Nom_Plato || "Plato de la Minuta Oficial";
 
-    // Para Des_Plato necesitamos un canvas temporal para medir el texto
-    const canvasMedicion = document.createElement("canvas");
-    const ctxMedicion = canvasMedicion.getContext("2d");
-    ctxMedicion.font = "16px sans-serif";
-    const descTexto = reserva.plato?.Des_Plato ?? "";
-    let alturaDesc = 0;
-    if (descTexto) {
-        const palabras = descTexto.split(" ");
-        let linea = "";
-        let lineas = 1;
-        for (const p of palabras) {
-            const prueba = linea ? `${linea} ${p}` : p;
-            if (ctxMedicion.measureText(prueba).width > ANCHO_INTERNO - 32) {
-                linea = p;
-                lineas++;
-            } else {
-                linea = prueba;
-            }
-        }
-        alturaDesc = 32 + lineas * 24 + 16; // label + lineas + padding
-    }
+  // Preferencia de bebida
+  const tipoBebidaRaw = String(reserva?.Tipo_Bebida || reserva?.bebida?.Subtipo_Bebida || "FRIA").toUpperCase();
+  const nombreBebida = reserva?.bebida?.Nom_Plato || "";
+  let textoBebida = "Bebida Fría";
+  if (tipoBebidaRaw === "CALIENTE") {
+    textoBebida = nombreBebida ? `Bebida Caliente (${nombreBebida})` : "Bebida Caliente";
+  } else if (tipoBebidaRaw === "NINGUNA") {
+    textoBebida = "Sin bebida";
+  } else if (nombreBebida) {
+    textoBebida = `Bebida Fría (${nombreBebida})`;
+  }
 
-    const ALTO_NOMBRE_PLATO = 80;
-    const ALTO_DETALLES = 180;
-    const ALTO_QR = imgQR ? 300 : 0;
-    const ALTO_FOOTER = 60;
-    const SEPARADORES = 8 * 16; // gaps entre secciones
+  // Sopa / Caldo incluido
+  const llevaSopa = reserva?.Lleva_Sopa !== undefined ? Boolean(Number(reserva.Lleva_Sopa)) : true;
+  const textoSopa =
+    tipoComida === "Desayuno"
+      ? llevaSopa
+        ? "Sí, con caldo incluido"
+        : "No, sin caldo"
+      : llevaSopa
+      ? "Sí, con sopa incluida"
+      : "No, sin sopa";
 
-    const ALTO_TOTAL =
-        ALTO_BARRA_TOP + ALTO_HEADER + ALTO_IMG_PLATO + ALTO_SECCION_USUARIO +
-        ALTO_NOMBRE_PLATO + alturaDesc + ALTO_DETALLES + ALTO_QR +
-        ALTO_FOOTER + SEPARADORES;
+  const contenidoQr = qrUrl || reserva?.Qr_Reserva || JSON.stringify({ r: Number(reserva?.Id_Reserva || 0) });
 
-    // ── Crear canvas real ─────────────────────────────────────────────────────
-    const canvas = document.createElement("canvas");
-    canvas.width = ANCHO;
-    canvas.height = ALTO_TOTAL;
-    const ctx = canvas.getContext("2d");
+  const [imgQR, imgLogo] = await Promise.all([
+    GenerarImagenQR(contenidoQr, 200),
+    CargarImagen("/LogoFoodsys.png")
+  ]);
 
-    let Y = 0; // Cursor vertical
+  // Medicion previa para calcular alto exacto sin desbordamientos
+  const canvasMed = document.createElement("canvas");
+  const ctxMed = canvasMed.getContext("2d");
 
-    // ── 1. Fondo blanco ───────────────────────────────────────────────────────
-    ctx.fillStyle = "#f8fafc";
-    ctx.fillRect(0, 0, ANCHO, ALTO_TOTAL);
+  ctxMed.font = "bold 14px system-ui, -apple-system, sans-serif";
+  const lineasNombre = DividirLineas(ctxMed, nombreUsuario.toUpperCase(), ANCHO_INT - 24);
+  const lineasPlato = DividirLineas(ctxMed, nombrePlato, ANCHO_INT - 28);
 
-    // ── 2. Barra superior de color segun estado ───────────────────────────────
-    const gradienteTop = ctx.createLinearGradient(0, 0, ANCHO, 0);
-    gradienteTop.addColorStop(0, estadoConfig.punto);
-    gradienteTop.addColorStop(1, colorTipo);
-    ctx.fillStyle = gradienteTop;
-    ctx.fillRect(0, 0, ANCHO, ALTO_BARRA_TOP);
-    Y += ALTO_BARRA_TOP;
+  ctxMed.font = "600 11px system-ui, -apple-system, sans-serif";
+  const lineasPrograma = DividirLineas(ctxMed, `${numFicha} — ${nomPrograma}`, ANCHO_INT - 24);
 
-    // ── 3. Header: logo + titulo ──────────────────────────────────────────────
+  const ALTO_HEADER = 76;
+  const ALTO_QR_SECTION = 248;
+  const ALTO_BLOQUE_USUARIO = 74 + (lineasNombre.length - 1) * 16 + (lineasPrograma.length - 1) * 14;
+  const ALTO_BLOQUE_COMIDA = 148 + (lineasPlato.length - 1) * 18;
+  const ALTO_FOOTER = 54;
+  const ALTO_TOTAL = ALTO_HEADER + ALTO_QR_SECTION + ALTO_BLOQUE_USUARIO + ALTO_BLOQUE_COMIDA + ALTO_FOOTER + 36;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = ANCHO * SCALE;
+  canvas.height = ALTO_TOTAL * SCALE;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(SCALE, SCALE);
+
+  // 1. Fondo general tipo comprobante compacto
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, ANCHO, ALTO_TOTAL);
+
+  // Borde exterior tipo factura
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 1.5;
+  RectanguloRedondeado(ctx, 6, 6, ANCHO - 12, ALTO_TOTAL - 12, 16);
+  ctx.stroke();
+
+  // 2. Marca de agua institucional de Foodsys en el fondo
+  if (imgLogo) {
+    ctx.save();
+    ctx.globalAlpha = 0.045;
+    const wmSize = 240;
+    ctx.drawImage(imgLogo, (ANCHO - wmSize) / 2, (ALTO_TOTAL - wmSize) / 2, wmSize, wmSize);
+    ctx.restore();
+  }
+
+  let Y = 12;
+
+  // 3. Encabezado Institucional Compacto
+  ctx.save();
+  RectanguloRedondeado(ctx, 12, Y, ANCHO - 24, ALTO_HEADER - 8, 12);
+  const gradHeader = ctx.createLinearGradient(12, Y, ANCHO - 12, Y);
+  gradHeader.addColorStop(0, "#065f46");
+  gradHeader.addColorStop(1, "#0f766e");
+  ctx.fillStyle = gradHeader;
+  ctx.fill();
+
+  if (imgLogo) {
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, Y, ANCHO, ALTO_HEADER);
-
-    ctx.fillStyle = "#0f172a";
-    ctx.font = "bold 22px system-ui, sans-serif";
-    ctx.fillText("Foodsys", PADDING, Y + 38);
-
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "13px system-ui, sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText("Ticket de Reserva", ANCHO - PADDING, Y + 38);
-    ctx.textAlign = "left";
-    Y += ALTO_HEADER;
-
-    // ── 4. Imagen del plato ───────────────────────────────────────────────────
-    if (imgPlato) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(0, Y, ANCHO, ALTO_IMG_PLATO);
-        ctx.clip();
-        ctx.drawImage(imgPlato, 0, Y, ANCHO, ALTO_IMG_PLATO);
-        ctx.restore();
-
-        // Gradiente oscuro en la parte inferior de la imagen para legibilidad
-        const gradImg = ctx.createLinearGradient(0, Y + ALTO_IMG_PLATO * 0.5, 0, Y + ALTO_IMG_PLATO);
-        gradImg.addColorStop(0, "rgba(0,0,0,0)");
-        gradImg.addColorStop(1, "rgba(0,0,0,0.6)");
-        ctx.fillStyle = gradImg;
-        ctx.fillRect(0, Y, ANCHO, ALTO_IMG_PLATO);
-        Y += ALTO_IMG_PLATO;
-    }
-
-    // ── 5. Seccion usuario ────────────────────────────────────────────────────
-    ctx.fillStyle = "#1e293b";
-    ctx.fillRect(0, Y, ANCHO, ALTO_SECCION_USUARIO);
-
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "11px system-ui, sans-serif";
-    ctx.fillText("APRENDIZ", PADDING, Y + 24);
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 18px system-ui, sans-serif";
-    ctx.fillText(usuario?.nombre ?? "Usuario", PADDING, Y + 46);
-
-    ctx.fillStyle = "#64748b";
-    ctx.font = "13px system-ui, sans-serif";
-    ctx.fillText(`Doc. ${usuario?.documento ?? "—"}`, PADDING, Y + 65);
-    Y += ALTO_SECCION_USUARIO + 16;
-
-    // ── 6. Nombre del plato + badges ─────────────────────────────────────────
-    ctx.fillStyle = "#0f172a";
-    ctx.font = "bold 26px system-ui, sans-serif";
-    ctx.fillText(reserva.plato?.Nom_Plato ?? "Plato no disponible", PADDING, Y + 32);
-
-    // Badge tipo de comida
-    const textoBadgeTipo = reserva.Tip_Reserva ?? "";
-    ctx.font = "bold 12px system-ui, sans-serif";
-    const anchoBadge = ctx.measureText(textoBadgeTipo).width + 24;
-    const xBadgeTipo = ANCHO - PADDING - anchoBadge;
-    const yBadgeTipo = Y + 10;
-
-    RectanguloRedondeado(ctx, xBadgeTipo, yBadgeTipo, anchoBadge, 26, 8);
-    ctx.fillStyle = colorTipo + "22";
+    RectanguloRedondeado(ctx, 22, Y + 12, 42, 42, 10);
     ctx.fill();
-    ctx.strokeStyle = colorTipo + "88";
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.fillStyle = colorTipo;
-    ctx.fillText(textoBadgeTipo, xBadgeTipo + 12, yBadgeTipo + 17);
+    ctx.drawImage(imgLogo, 25, Y + 15, 36, 36);
+  }
 
-    // Badge estado
-    const textoBadgeEstado = estadoConfig.texto;
-    const anchoBadgeE = ctx.measureText(textoBadgeEstado).width + 28;
-    const xBadgeE = ANCHO - PADDING - anchoBadgeE;
-    const yBadgeE = yBadgeTipo + 32;
+  const xTit = imgLogo ? 74 : 24;
+  ctx.fillStyle = "#a7f3d0";
+  ctx.font = "bold 9px system-ui, -apple-system, sans-serif";
+  ctx.fillText("SENA • CENTRO AGROPECUARIO LA GRANJA", xTit, Y + 22);
 
-    RectanguloRedondeado(ctx, xBadgeE, yBadgeE, anchoBadgeE, 26, 13);
-    ctx.fillStyle = estadoConfig.fondo;
-    ctx.fill();
-    ctx.strokeStyle = estadoConfig.punto + "88";
-    ctx.lineWidth = 1;
-    ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 17px system-ui, -apple-system, sans-serif";
+  ctx.fillText("COMPROBANTE DE RESERVA", xTit, Y + 41);
 
-    // Punto de estado
-    ctx.beginPath();
-    ctx.arc(xBadgeE + 14, yBadgeE + 13, 4, 0, Math.PI * 2);
-    ctx.fillStyle = estadoConfig.punto;
-    ctx.fill();
+  ctx.fillStyle = "#d1fae5";
+  ctx.font = "600 10px system-ui, -apple-system, sans-serif";
+  ctx.fillText(`Ticket #${reserva?.Id_Reserva || "—"}  •  ${rolActivo}`, xTit, Y + 56);
+  ctx.restore();
 
-    ctx.fillStyle = estadoConfig.color;
-    ctx.fillText(textoBadgeEstado, xBadgeE + 22, yBadgeE + 17);
+  Y += ALTO_HEADER + 4;
 
-    ctx.fillStyle = "#64748b";
-    ctx.font = "13px system-ui, sans-serif";
-    ctx.fillText(`Reserva #${reserva.Id_Reserva}`, PADDING, Y + 56);
-    Y += ALTO_NOMBRE_PLATO;
+  // 4. Codigo QR Central y Sello RESERVADO
+  const qrBoxSize = 198;
+  const qrBoxX = (ANCHO - qrBoxSize) / 2;
 
-    // ── 7. Descripcion del plato ──────────────────────────────────────────────
-    if (descTexto) {
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "bold 10px system-ui, sans-serif";
-        ctx.fillText("DESCRIPCIÓN DEL PLATO", PADDING, Y + 4);
+  RectanguloRedondeado(ctx, qrBoxX, Y, qrBoxSize, qrBoxSize, 14);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.strokeStyle = "#10b981";
+  ctx.lineWidth = 2;
+  ctx.stroke();
 
-        ctx.fillStyle = "#475569";
-        ctx.font = "15px system-ui, sans-serif";
-        const yFinalDesc = DibujarTextoMultilinea(
-            ctx, descTexto, PADDING, Y + 24, ANCHO_INTERNO - 16, 24
-        );
-        Y = yFinalDesc + 16;
-    }
+  if (imgQR) {
+    const qrDraw = 178;
+    ctx.drawImage(
+      imgQR,
+      qrBoxX + (qrBoxSize - qrDraw) / 2,
+      Y + (qrBoxSize - qrDraw) / 2,
+      qrDraw,
+      qrDraw
+    );
+  }
 
-    // ── 8. Detalles de la reserva ─────────────────────────────────────────────
-    // Fondo de la seccion de detalles
-    RectanguloRedondeado(ctx, PADDING, Y, ANCHO_INTERNO, ALTO_DETALLES - 16, RADIO);
-    ctx.fillStyle = "#f1f5f9";
-    ctx.fill();
+  // Sello "RESERVADO" claro debajo del QR
+  const selloY = Y + qrBoxSize + 8;
+  const selloAncho = 156;
+  const selloX = (ANCHO - selloAncho) / 2;
+  RectanguloRedondeado(ctx, selloX, selloY, selloAncho, 24, 12);
+  ctx.fillStyle = "#ecfdf5";
+  ctx.fill();
+  ctx.strokeStyle = "#059669";
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
 
-    const filas = [
-        { icono: "•", label: "Fecha de reserva", valor: FormatearFechaLarga(reserva.Fec_Reserva) },
-        { icono: "•", label: "Vence a las", valor: FormatearHora(reserva.Vec_Reserva) },
-        { icono: "•", label: "Tipo de reserva", valor: reserva.Exc_Reserva === "Si" ? "Novedad del dia" : "Reserva normal" },
-    ];
+  ctx.fillStyle = "#047857";
+  ctx.font = "900 11px system-ui, -apple-system, sans-serif";
+  ctx.textAlign = "center";
+  const textoSello = (reserva?.Est_Reserva || "RESERVADO").toUpperCase() === "GENERADO"
+    ? "✓ RESERVADO"
+    : `✓ ${(reserva?.Est_Reserva || "RESERVADO").toUpperCase()}`;
+  ctx.fillText(textoSello, ANCHO / 2, selloY + 16);
+  ctx.textAlign = "left";
 
-    if (reserva.Exc_Reserva === "Si" && reserva.Jus_Reserva) {
-        filas.push({ icono: "•", label: "Justificacion", valor: reserva.Jus_Reserva });
-    }
+  Y += ALTO_QR_SECTION - 4;
 
-    let yFila = Y + 20;
-    for (const fila of filas) {
-        // Icono
-        ctx.font = "16px system-ui, sans-serif";
-        ctx.fillText(fila.icono, PADDING + 16, yFila + 16);
+  // Linea punteada estilo factura
+  ctx.save();
+  ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.beginPath();
+  ctx.moveTo(PAD, Y);
+  ctx.lineTo(ANCHO - PAD, Y);
+  ctx.stroke();
+  ctx.restore();
+  Y += 10;
 
-        // Label
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "bold 10px system-ui, sans-serif";
-        ctx.fillText(fila.label.toUpperCase(), PADDING + 44, yFila + 12);
+  // 5. Datos del Aprendiz / Usuario y Ficha
+  RectanguloRedondeado(ctx, PAD, Y, ANCHO_INT, ALTO_BLOQUE_USUARIO - 8, 12);
+  ctx.fillStyle = "#f8fafc";
+  ctx.fill();
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.lineWidth = 1;
+  ctx.stroke();
 
-        // Valor
-        ctx.fillStyle = "#1e293b";
-        ctx.font = "bold 14px system-ui, sans-serif";
-        ctx.fillText(fila.valor, PADDING + 44, yFila + 28);
+  let yU = Y + 16;
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 9px system-ui, -apple-system, sans-serif";
+  ctx.fillText("TITULAR DE LA RESERVA", PAD + 12, yU);
 
-        // Linea separadora (excepto la ultima)
-        if (fila !== filas[filas.length - 1]) {
-            ctx.strokeStyle = "#e2e8f0";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(PADDING + 44, yFila + 38);
-            ctx.lineTo(PADDING + ANCHO_INTERNO - 16, yFila + 38);
-            ctx.stroke();
-        }
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 10px system-ui, -apple-system, sans-serif";
+  ctx.fillText(`${tipDoc}: ${docUsuario}`, ANCHO - PAD - 12, yU);
+  ctx.textAlign = "left";
 
-        yFila += 44;
-    }
-    Y += ALTO_DETALLES;
+  yU += 16;
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 13px system-ui, -apple-system, sans-serif";
+  for (const lin of lineasNombre) {
+    ctx.fillText(lin, PAD + 12, yU);
+    yU += 16;
+  }
 
-    // ── 9. Codigo QR ─────────────────────────────────────────────────────────
-    if (imgQR) {
-        Y += 16;
+  ctx.fillStyle = "#475569";
+  ctx.font = "600 10.5px system-ui, -apple-system, sans-serif";
+  for (const linP of lineasPrograma) {
+    ctx.fillText(`Ficha: ${linP}`, PAD + 12, yU);
+    yU += 14;
+  }
 
-        // Contenedor del QR
-        const qrContWidth = 280;
-        const qrContHeight = 280;
-        const qrX = (ANCHO - qrContWidth) / 2;
+  Y += ALTO_BLOQUE_USUARIO;
 
-        RectanguloRedondeado(ctx, qrX, Y, qrContWidth, qrContHeight, RADIO);
-        ctx.fillStyle = "#ffffff";
-        ctx.fill();
-        ctx.strokeStyle = esActiva ? "#c7d2fe" : "#e2e8f0";
-        ctx.lineWidth = 2;
-        ctx.stroke();
+  // 6. Detalles de Comida, Fecha, Plato, Bebida y Sopa/Caldo
+  RectanguloRedondeado(ctx, PAD, Y, ANCHO_INT, ALTO_BLOQUE_COMIDA - 6, 12);
+  ctx.fillStyle = "#f0fdf4";
+  ctx.fill();
+  ctx.strokeStyle = "#bbf7d0";
+  ctx.lineWidth = 1;
+  ctx.stroke();
 
-        // Dibujar el QR centrado dentro del contenedor
-        const qrSize = 240;
-        const qrDrawX = qrX + (qrContWidth - qrSize) / 2;
-        const qrDrawY = Y + (qrContHeight - qrSize) / 2;
+  let yC = Y + 18;
+  // Fila Servicio + Fecha
+  ctx.fillStyle = "#065f46";
+  ctx.font = "900 12px system-ui, -apple-system, sans-serif";
+  ctx.fillText(`SERVICIO: ${tipoComida.toUpperCase()}`, PAD + 12, yC);
 
-        if (!esActiva) {
-            ctx.globalAlpha = 0.4;
-        }
-        ctx.drawImage(imgQR, qrDrawX, qrDrawY, qrSize, qrSize);
-        ctx.globalAlpha = 1;
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
+  ctx.fillText(FormatearFechaCorta(reserva?.Fec_Reserva), ANCHO - PAD - 12, yC);
+  ctx.textAlign = "left";
 
-        Y += qrContHeight + 12;
+  yC += 16;
+  ctx.fillStyle = "#047857";
+  ctx.font = "600 10px system-ui, -apple-system, sans-serif";
+  ctx.fillText(`Horario límite de consumo: ${horarioTexto}`, PAD + 12, yC);
 
-        // Texto debajo del QR
-        ctx.textAlign = "center";
-        if (!esActiva) {
-            ctx.fillStyle = "#ef4444";
-            ctx.font = "bold 13px system-ui, sans-serif";
-            ctx.fillText(`Este QR ya no es valido (${estadoConfig.texto})`, ANCHO / 2, Y);
-        } else {
-            ctx.fillStyle = "#64748b";
-            ctx.font = "13px system-ui, sans-serif";
-            ctx.fillText("Presenta este codigo al supervisor para registrar tu consumo", ANCHO / 2, Y);
-        }
-        ctx.textAlign = "left";
-        Y += 20;
-    }
+  // Separador interno
+  yC += 8;
+  ctx.strokeStyle = "#bbf7d0";
+  ctx.beginPath();
+  ctx.moveTo(PAD + 12, yC);
+  ctx.lineTo(ANCHO - PAD - 12, yC);
+  ctx.stroke();
 
-    // ── 10. Footer ────────────────────────────────────────────────────────────
-    Y += 16;
-    ctx.fillStyle = "#f1f5f9";
-    ctx.fillRect(0, Y, ANCHO, ALTO_FOOTER);
+  // Plato fuerte
+  yC += 15;
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 9px system-ui, -apple-system, sans-serif";
+  ctx.fillText("PLATO FUERTE SELECCIONADO", PAD + 12, yC);
 
-    const fechaGeneracion = new Date().toLocaleString("es-CO", {
-        day: "numeric", month: "short", year: "numeric",
-        hour: "2-digit", minute: "2-digit",
-    });
+  yC += 15;
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 13px system-ui, -apple-system, sans-serif";
+  for (const linPl of lineasPlato) {
+    ctx.fillText(linPl, PAD + 12, yC);
+    yC += 17;
+  }
 
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "11px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(`Generado el ${fechaGeneracion} · Foodsys`, ANCHO / 2, Y + 26);
-    ctx.fillText("Documento valido solo para la fecha indicada", ANCHO / 2, Y + 42);
-    ctx.textAlign = "left";
+  // Preferencia de Bebida y Sopa/Caldo en 2 columnas limpias
+  yC += 4;
+  const colW = (ANCHO_INT - 30) / 2;
 
-    // ── Exportar como PNG ─────────────────────────────────────────────────────
-    const link = document.createElement("a");
-    link.download = `ticket-reserva-${reserva.Id_Reserva}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+  // Caja Bebida
+  RectanguloRedondeado(ctx, PAD + 10, yC - 10, colW, 34, 8);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 8.5px system-ui, -apple-system, sans-serif";
+  ctx.fillText("PREFERENCIA BEBIDA", PAD + 18, yC + 1);
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 10.5px system-ui, -apple-system, sans-serif";
+  ctx.fillText(textoBebida.slice(0, 26), PAD + 18, yC + 16);
+
+  // Caja Sopa/Caldo
+  const xSopa = PAD + 20 + colW;
+  RectanguloRedondeado(ctx, xSopa, yC - 10, colW, 34, 8);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 8.5px system-ui, -apple-system, sans-serif";
+  ctx.fillText("SOPA / CALDO", xSopa + 8, yC + 1);
+  ctx.fillStyle = llevaSopa ? "#047857" : "#64748b";
+  ctx.font = "bold 10.5px system-ui, -apple-system, sans-serif";
+  ctx.fillText(textoSopa, xSopa + 8, yC + 16);
+
+  Y += ALTO_BLOQUE_COMIDA;
+
+  // 7. Pie de comprobante
+  const fechaEmision = new Date().toLocaleString("es-CO", {
+    timeZone: "America/Bogota",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  ctx.fillStyle = "#64748b";
+  ctx.font = "600 9.5px system-ui, -apple-system, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Presenta este comprobante digital en la fila correspondiente.", ANCHO / 2, Y + 16);
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "9px system-ui, -apple-system, sans-serif";
+  ctx.fillText(`Emitido: ${fechaEmision} (America/Bogota) • Foodsys SENA`, ANCHO / 2, Y + 31);
+  ctx.textAlign = "left";
+
+  // Descargar PNG de alta nitidez
+  const link = document.createElement("a");
+  link.download = `Ticket_Foodsys_${tipoComida}_${reserva?.Id_Reserva || "Reserva"}.png`;
+  link.href = canvas.toDataURL("image/png");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  toast.success("Ticket de reserva descargado en alta resolución.");
 };
+
+export default GenerarTicketQR;

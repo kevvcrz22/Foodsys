@@ -61,34 +61,91 @@ export function obtenerFechaObjetivoReserva(fecha = new Date()) {
   }
 }
 
-// Determina el turno actual de comida segun la hora oficial en Colombia
-export function obtenerTurnoActualColombia() {
-  const horaStr = obtenerHoraColombia();
+// Horarios oficiales de servicio y apertura de turno en Colombia (America/Bogota)
+// El boton "Iniciar Turno" se habilita exactamente 10 minutos antes de cada servicio:
+// - Desayuno: Turno 05:50 - 07:00 | Comida: 06:00 - 07:00
+// - Almuerzo: Turno 11:20 - 13:30 | Comida: 11:30 - 13:30
+// - Cena:     Turno 17:50 - 19:00 | Comida: 18:00 - 19:00
+export const HORARIOS_OFICIALES = {
+  Desayuno: {
+    inicioTurno: '05:50',
+    inicioServicio: '06:00',
+    finServicio: '07:00',
+    inicioTurnoMin: 5 * 60 + 50,     // 350
+    inicioServicioMin: 6 * 60,       // 360
+    finMin: 7 * 60,                  // 420
+    rangoTexto: '06:00 - 07:00',
+    ventanaTurnoTexto: '05:50 - 07:00'
+  },
+  Almuerzo: {
+    inicioTurno: '11:20',
+    inicioServicio: '11:30',
+    finServicio: '13:30',
+    inicioTurnoMin: 11 * 60 + 20,    // 680
+    inicioServicioMin: 11 * 60 + 30, // 690
+    finMin: 13 * 60 + 30,            // 810
+    rangoTexto: '11:30 - 13:30',
+    ventanaTurnoTexto: '11:20 - 13:30'
+  },
+  Cena: {
+    inicioTurno: '17:50',
+    inicioServicio: '18:00',
+    finServicio: '19:00',
+    inicioTurnoMin: 17 * 60 + 50,    // 1070
+    inicioServicioMin: 18 * 60,      // 1080
+    finMin: 19 * 60,                 // 1140
+    rangoTexto: '18:00 - 19:00',
+    ventanaTurnoTexto: '17:50 - 19:00'
+  }
+};
+
+// Determina el turno actual de comida segun la hora oficial en Colombia (incluyendo los 10 min previos de apertura)
+export function obtenerTurnoActualColombia(fecha = new Date()) {
+  const horaStr = obtenerHoraColombia(fecha);
   const [hh, mm] = horaStr.split(':').map(Number);
   const minutosTotales = hh * 60 + mm;
 
-  // Desayuno: 06:00 a 09:00 (360 a 540 minutos)
-  if (minutosTotales >= 360 && minutosTotales < 540) {
+  if (minutosTotales >= HORARIOS_OFICIALES.Desayuno.inicioTurnoMin && minutosTotales <= HORARIOS_OFICIALES.Desayuno.finMin) {
     return 'Desayuno';
   }
-  // Almuerzo: 11:00 a 14:30 (660 a 870 minutos)
-  if (minutosTotales >= 660 && minutosTotales < 870) {
+  if (minutosTotales >= HORARIOS_OFICIALES.Almuerzo.inicioTurnoMin && minutosTotales <= HORARIOS_OFICIALES.Almuerzo.finMin) {
     return 'Almuerzo';
   }
-  // Cena: 17:30 a 20:30 (1050 a 1230 minutos)
-  if (minutosTotales >= 1050 && minutosTotales < 1230) {
+  if (minutosTotales >= HORARIOS_OFICIALES.Cena.inicioTurnoMin && minutosTotales <= HORARIOS_OFICIALES.Cena.finMin) {
     return 'Cena';
   }
-  // Fuera de horario estricto, retorna null o el turno mas cercano
   return null;
 }
 
+// Verifica si la hora actual en Colombia esta dentro de la ventana habilitada para iniciar turno (10 min antes hasta fin del turno)
+export function verificarVentanaInicioTurno(fecha = new Date()) {
+  const horaActual = obtenerHoraColombia(fecha).slice(0, 5);
+  const turno = obtenerTurnoActualColombia(fecha);
+  if (turno) {
+    return {
+      permitido: true,
+      turno,
+      horario: HORARIOS_OFICIALES[turno],
+      horaActual
+    };
+  }
+  return {
+    permitido: false,
+    turno: null,
+    horario: null,
+    horaActual,
+    mensaje: `El botón "Iniciar Turno" solo se habilita 10 minutos antes de cada servicio oficial: Desayuno (05:50 - 07:00), Almuerzo (11:20 - 13:30) y Cena (17:50 - 19:00). Hora actual en Colombia: ${horaActual}.`
+  };
+}
+
 export default {
+  HORARIOS_OFICIALES,
   obtenerFechaColombia,
   obtenerFechaMananaColombia,
   obtenerFechaPasadoMananaColombia,
   obtenerFechaObjetivoReserva,
   obtenerHoraColombia,
   obtenerFechaHoraColombia,
-  obtenerTurnoActualColombia
+  obtenerTurnoActualColombia,
+  verificarVentanaInicioTurno
 };

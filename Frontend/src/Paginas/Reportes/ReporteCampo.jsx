@@ -241,11 +241,11 @@ const ReporteCampo = () => {
     ]);
 
     exportarAPDF({
-      titulo: "REPORTE DE ALMUERZOS GUARDADOS POR JORNADA DE CAMPO Y SENA EMPRESA",
+      titulo: "REPORTE DE ALMUERZOS APARTADOS SENA EMPRESA E INTERNADO TEMPORAL",
       subtitulo: `Centro Agropecuario La Granja - Espinal Tolima | Periodo: ${periodo.toUpperCase()} | Fichas: ${resumen.totalFichas} | Aprendices: ${resumen.totalAprendices} | Entregados: ${resumen.totalEntregados}`,
       columnas,
       datos: filas,
-      nombreArchivo: `Reporte_Campo_SENA_Empresa_${periodo}`,
+      nombreArchivo: `Reporte_Apartados_SENA_Empresa_${periodo}`,
       orientacion: "landscape"
     });
   };
@@ -261,10 +261,10 @@ const ReporteCampo = () => {
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-                Tab 4 — Fichas en Jornada de Campo y SENA Empresa
+                Tab 4 — Almuerzos Apartados SENA Empresa e Internado Temporal
               </h2>
               <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
-                Control de almuerzos guardados por actividades agropecuarias con autorizacion y hora extendida.
+                Control de almuerzos apartados SENA Empresa por actividades agropecuarias con autorizacion y hora extendida.
               </p>
             </div>
           </div>
@@ -281,7 +281,7 @@ const ReporteCampo = () => {
         {mostrarGuia && (
           <div className="mt-4 pt-4 border-t border-emerald-200/60 text-xs sm:text-sm text-gray-700 space-y-2">
             <p>
-              • <b>Horario de solicitud:</b> Los instructores o voceros solicitan el guardado de almuerzos hasta las <b>11:00 AM</b> del dia del servicio.
+              • <b>Horario limite de solicitud:</b> Los instructores, voceros o SENA Empresa solicitan los almuerzos apartados hasta las <b>09:00 AM</b> del dia del servicio.
             </p>
             <p>
               • <b>Proteccion de vencimiento:</b> Estas raciones no se vencen a la 1:30 PM. El sistema extiende su vigencia hasta la hora fijada (maximo 3:00 PM / 15:00:00).

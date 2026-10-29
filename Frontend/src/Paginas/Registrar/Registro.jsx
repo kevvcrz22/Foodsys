@@ -23,6 +23,8 @@ import {
 import apiAxios from "../../api/axiosConfig";
 import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
 import { extraerDocumentoDeCodigoBarras } from "../../utils/barcodeUtils";
+import { confirmarAccionFoodsys } from "../../utils/notificacionesFoodsys.jsx";
+import toast from "react-hot-toast";
 
 // URL base de la API
 const API_URL = import.meta.env.VITE_API_URL || "";
@@ -54,11 +56,11 @@ const ESTILOS_TIPO = {
   },
 };
 
-// Horarios de turnos del comedor
+// Horarios oficiales de turnos del comedor (Habilitación de inicio de turno: 10 minutos antes)
 const HORARIOS_SERVICIO = [
-  { tipo: "Desayuno", horario: "06:00 – 07:00", inicioMin: 6 * 60, finMin: 7 * 60, icon: Coffee, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
-  { tipo: "Almuerzo", horario: "11:30 – 13:30", inicioMin: 11 * 60 + 30, finMin: 13 * 60 + 30, icon: SunMedium, color: "text-green-700", bg: "bg-green-50", border: "border-green-200" },
-  { tipo: "Cena",     horario: "18:00 – 19:00", inicioMin: 18 * 60, finMin: 19 * 60, icon: Moon, color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200" },
+  { tipo: "Desayuno", horario: "06:00 – 07:00", ventanaTurno: "05:50 – 07:00", inicioTurnoMin: 5 * 60 + 50, inicioMin: 6 * 60, finMin: 7 * 60, icon: Coffee, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
+  { tipo: "Almuerzo", horario: "11:30 – 13:30", ventanaTurno: "11:20 – 13:30", inicioTurnoMin: 11 * 60 + 20, inicioMin: 11 * 60 + 30, finMin: 13 * 60 + 30, icon: SunMedium, color: "text-green-700", bg: "bg-green-50", border: "border-green-200" },
+  { tipo: "Cena",     horario: "18:00 – 19:00", ventanaTurno: "17:50 – 19:00", inicioTurnoMin: 17 * 60 + 50, inicioMin: 18 * 60, finMin: 19 * 60, icon: Moon, color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200" },
 ];
 
 // Clasificador inteligente de respuestas de error del backend
@@ -793,11 +795,18 @@ const Registro = () => {
     verificarTurnoActivoEnBD();
   }, [verificarTurnoActivoEnBD]);
 
-  // Identificar el turno de comida actual según la hora
+  // Identificar el turno de comida actual según la hora en Colombia (incluyendo ventana de 10 min antes)
   const turnoComidaActual = useMemo(() => {
-    const minutosDia = horaActual.getHours() * 60 + horaActual.getMinutes();
+    const horaColStr = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "America/Bogota",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).format(horaActual);
+    const [hh, mm] = horaColStr.split(":").map(Number);
+    const minutosDia = (hh || 0) * 60 + (mm || 0);
     return HORARIOS_SERVICIO.find(
-      (h) => minutosDia >= h.inicioMin && minutosDia <= h.finMin
+      (h) => minutosDia >= h.inicioTurnoMin && minutosDia <= h.finMin
     ) || null;
   }, [horaActual]);
 
@@ -847,8 +856,10 @@ const Registro = () => {
       const datos = await resp.json();
 
       if (!resp.ok) {
-        setUltimoResultado({ Error: datos.message || "Error al validar la reserva" });
+        const msgError = datos.message || "Error al validar la reserva";
+        setUltimoResultado({ Error: msgError });
         reproducirBeep("error");
+        toast.error(msgError, { duration: 5000 });
         if (modoFilaRapida) {
           if (timerAutoContinuarRef.current) clearTimeout(timerAutoContinuarRef.current);
           timerAutoContinuarRef.current = setTimeout(() => {
@@ -860,6 +871,7 @@ const Registro = () => {
 
       setUltimoResultado(datos);
       reproducirBeep("exito");
+      toast.success(datos.message || `Consumo registrado: ${datos.Aprendiz || "Aprendiz"}`, { duration: 2500 });
 
       if (modoFilaRapida) {
         if (timerAutoContinuarRef.current) clearTimeout(timerAutoContinuarRef.current);
@@ -1052,10 +1064,17 @@ const Registro = () => {
 
   // ── GESTIÓN DE INICIO / CIERRE DE TURNO CON BACKEND ─────────────────────
   const manejarIniciarTurno = async () => {
+    if (!turnoComidaActual) {
+      toast.error(
+        "El botón 'Iniciar Turno' solo se habilita 10 minutos antes de cada horario oficial: Desayuno (05:50 - 07:00), Almuerzo (11:20 - 13:30) y Cena (17:50 - 19:00).",
+        { duration: 5000 }
+      );
+      return;
+    }
     try {
       setCargandoIniciarTurno(true);
       const res = await apiAxios.post("/api/Turnos/iniciar", {
-        observaciones: "Turno iniciado por Supervisor desde panel de registro"
+        observaciones: `Turno de ${turnoComidaActual.tipo} iniciado desde panel de registro`
       });
       const t = res.data?.turno;
       if (t) {
@@ -1074,9 +1093,10 @@ const Registro = () => {
       setScannerListo(true);
       setInfoTurnoActivo(null);
       obtenerContadoresExternos();
+      toast.success(res.data?.mensaje || `Turno de ${turnoComidaActual.tipo} iniciado correctamente`);
     } catch (err) {
       const msg = err.response?.data?.mensaje || err.message || "Error al iniciar turno";
-      alert(msg);
+      toast.error(msg, { duration: 5000 });
       verificarTurnoActivoEnBD();
     } finally {
       setCargandoIniciarTurno(false);
@@ -1084,9 +1104,15 @@ const Registro = () => {
   };
 
   const manejarCerrarTurno = async () => {
-    if (!window.confirm("¿Seguro que deseas finalizar el turno actual de Supervisor?")) {
-      return;
-    }
+    const confirmar = await confirmarAccionFoodsys({
+      titulo: "¿Finalizar turno actual?",
+      texto: "Se consolidará el listado de consumos y se habilitará la descarga del reporte de cierre en PDF y Excel.",
+      textoConfirmar: "Sí, cerrar turno",
+      textoCancelar: "Continuar en turno",
+      variante: "warning"
+    });
+    if (!confirmar) return;
+
     try {
       const fin = new Date().toISOString();
       setHoraFinTurno(fin);
@@ -1103,15 +1129,15 @@ const Registro = () => {
           const resC = await apiAxios.get(`/api/Turnos/${idTurnoBD}/consumos`);
           if (resC.data?.consumos && Array.isArray(resC.data.consumos)) {
             const listaMapeada = resC.data.consumos.map((c) => ({
-              Aprendiz: `${c.usuario?.Nom_Usuario || ""} ${c.usuario?.Ape_Usuario || ""}`.trim(),
-              NumDoc: c.usuario?.NumDoc_Usuario || "--",
-              Tipo: c.Tip_Reserva,
-              Plato: c.plato?.Nom_Plato || "Menu del dia",
+              Aprendiz: c.Aprendiz || `${c.usuario?.Nom_Usuario || ""} ${c.usuario?.Ape_Usuario || ""}`.trim() || "Aprendiz",
+              NumDoc: c.NumDoc || c.usuario?.NumDoc_Usuario || "--",
+              Tipo: c.Tipo_Comida || c.Tip_Reserva || "Almuerzo",
+              Plato: c.Plato || c.plato?.Nom_Plato || "Plato del Día",
               DescPlato: c.plato?.Desc_Plato || "",
               FlujoEspecial: c.usuario?.Est_Usuario === "Especial",
-              FlujoInterno: c.usuario?.CenCon_Usuario === "Si",
+              FlujoInterno: String(c.Rol || "").toLowerCase().includes("interno") || c.usuario?.CenCon_Usuario === "Si",
               Id_Reserva: c.Id_Reserva,
-              Timestamp: c.updatedAt || c.createdAt
+              Timestamp: c.Hora_Consumo || c.updatedAt || c.createdAt || new Date().toISOString()
             }));
             if (listaMapeada.length > 0) {
               setHistorialTurno(listaMapeada);
@@ -1124,16 +1150,17 @@ const Registro = () => {
 
       await obtenerContadoresExternos();
       setMostrarModalCierre(true);
+      toast.success("Turno finalizado exitosamente. Puedes exportar el reporte de cierre en PDF o Excel.");
     } catch (err) {
       const msg = err.response?.data?.mensaje || "Error al cerrar turno";
-      alert(msg);
+      toast.error(msg);
     }
   };
 
   // ── EXPORTAR REPORTE A EXCEL ───────────────────────────────────────────────
   const manejarExportarExcel = () => {
     if (!historialTurno || historialTurno.length === 0) {
-      alert("No hay consumos registrados en este turno para exportar a Excel.");
+      toast.error("No hay consumos registrados en este turno para exportar a Excel.");
       return;
     }
 
@@ -1158,7 +1185,7 @@ const Registro = () => {
     exportarAExcel({
       columnas,
       datos: datosFormateados,
-      nombreArchivo: `Consumos_Turno_Supervisor_${new Date().toISOString().split("T")[0]}`,
+      nombreArchivo: `Consumos_Turno_Monitor_${new Date().toISOString().split("T")[0]}`,
       tituloHoja: "Consumos de Turno"
     });
   };
@@ -1166,7 +1193,7 @@ const Registro = () => {
   // ── EXPORTAR REPORTE A PDF ────────────────────────────────────────────────
   const manejarExportarPDF = () => {
     if (!historialTurno.length) {
-      alert("No hay consumos en este turno para exportar");
+      toast.error("No hay consumos en este turno para exportar a PDF.");
       return;
     }
     const columnas = [
@@ -1190,9 +1217,9 @@ const Registro = () => {
     exportarAPDF({
       columnas,
       datos: datosFormateados,
-      nombreArchivo: `Consumos_Turno_Supervisor_${new Date().toISOString().split("T")[0]}`,
-      titulo: "Reporte de Cierre de Turno de Supervisión",
-      subtitulo: `Total consumos: ${metricas.consumidos} | Especiales: ${metricas.especiales} | Inicio: ${horaInicioTurno ? new Date(horaInicioTurno).toLocaleTimeString("es-CO") : "N/A"}`
+      nombreArchivo: `Consumos_Turno_Monitor_${new Date().toISOString().split("T")[0]}`,
+      titulo: "Reporte de Cierre de Turno - Monitor / Supervisor",
+      subtitulo: `Total consumos: ${metricas.total} | Especiales: ${metricas.especiales} | Inicio: ${horaInicioTurno ? new Date(horaInicioTurno).toLocaleTimeString("es-CO") : "N/A"}`
     });
   };
 
@@ -1332,16 +1359,16 @@ const Registro = () => {
           })}
         </div>
 
-        {/* Banner de Advertencia si otro supervisor tiene turno abierto */}
+        {/* Banner informativo si otro monitor tiene turno abierto concurrentemente */}
         {infoTurnoActivo && !turnoActivo && (
-          <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 mb-5 flex items-start gap-3 shadow-xs">
-            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="text-xs text-amber-900">
-              <p className="font-bold text-sm">Turno Activo en el Comedor</p>
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-5 flex items-start gap-3 shadow-xs">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-emerald-900">
+              <p className="font-bold text-sm">Apoyo Logístico Concurrente en el Comedor</p>
               <p className="mt-0.5">
-                Ya existe un turno iniciado por <strong>{infoTurnoActivo.usuario?.Nom_Usuario || "Otro Supervisor"}</strong> desde las{" "}
+                Existe un turno activo iniciado por <strong>{infoTurnoActivo.supervisor?.Nom_Usuario || infoTurnoActivo.usuario?.Nom_Usuario || "Monitor en turno"}</strong> desde las{" "}
                 {new Date(infoTurnoActivo.Fecha_Inicio).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}.
-                Por regla de comedor, solo puede haber 1 supervisor con turno abierto a la vez.
+                Puedes iniciar tu propio turno simultáneamente para apoyar el registro rápido en múltiples filas.
               </p>
             </div>
           </div>
@@ -1384,15 +1411,31 @@ const Registro = () => {
               Presiona el botón de abajo para activar la cámara del escáner QR, habilitar la búsqueda por documento y registrar los consumos de los aprendices.
             </p>
 
-            <div className="mt-8 flex justify-center">
+            <div className="mt-8 flex flex-col items-center gap-3">
               <button
                 onClick={manejarIniciarTurno}
-                disabled={cargandoIniciarTurno}
-                className="flex items-center gap-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white px-8 py-3.5 rounded-2xl font-bold text-base transition-all shadow-md shadow-green-600/20 cursor-pointer disabled:opacity-50"
+                disabled={cargandoIniciarTurno || !turnoComidaActual}
+                title={
+                  turnoComidaActual
+                    ? `Iniciar turno de ${turnoComidaActual.tipo}`
+                    : "El botón se habilita 10 minutos antes de cada servicio (05:50, 11:20, 17:50)"
+                }
+                className="flex items-center gap-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white px-8 py-3.5 rounded-2xl font-bold text-base transition-all shadow-md shadow-green-600/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Play className="w-5 h-5 fill-white" />
-                <span>{cargandoIniciarTurno ? "Iniciando turno..." : "Iniciar Turno"}</span>
+                <span>
+                  {cargandoIniciarTurno
+                    ? "Iniciando turno..."
+                    : turnoComidaActual
+                    ? `Iniciar Turno (${turnoComidaActual.tipo})`
+                    : "Iniciar Turno (Fuera de Horario)"}
+                </span>
               </button>
+              {!turnoComidaActual && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl max-w-md">
+                  El botón <strong>Iniciar Turno</strong> se habilita automáticamente <strong>10 minutos antes</strong> de cada horario oficial: Desayuno (05:50 – 07:00), Almuerzo (11:20 – 13:30) y Cena (17:50 – 19:00).
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-3 max-w-md mx-auto mt-10 pt-8 border-t border-gray-100 text-xs text-gray-500">

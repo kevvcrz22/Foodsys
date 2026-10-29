@@ -167,19 +167,43 @@ const PlatosForm = ({ hideModal, selectedPlato, isEdit, reload }) => {
         </h2>
       </div>
 
+      {/* Ciclo de Minuta 28 Dias con Variantes Decimales (ej. 1.1, 1.2 ... 28.1, 28.2) */}
+      <div>
+        <label className="block text-xs font-semibold text-slate-700 mb-1">
+          Ciclo de Minuta 28 Días y Variante (Opcional — ej. 28.1, 28.2)
+        </label>
+        <select
+          className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all cursor-pointer"
+          defaultValue=""
+          onChange={(e) => {
+            const val = e.target.value;
+            if (!val) return;
+            const prefijo = `[Minuta ${val}] `;
+            const limpio = Nom_Plato.replace(/^\[Minuta \d+\.\d+\]\s*/i, "");
+            setNom_Plato(`${prefijo}${limpio}`);
+          }}
+        >
+          <option value="">Seleccionar día y variante del ciclo de 28 días...</option>
+          {Array.from({ length: 28 }, (_, i) => i + 1).flatMap((dia) => [
+            <option key={`${dia}.1`} value={`${dia}.1`}>
+              Día {dia} — Opción {dia}.1
+            </option>,
+            <option key={`${dia}.2`} value={`${dia}.2`}>
+              Día {dia} — Opción {dia}.2
+            </option>
+          ])}
+        </select>
+      </div>
+
       {/* Nombre */}
       <div>
         <label className="block text-xs font-semibold text-slate-700 mb-1">
-          Nombre Oficial {Tipo_Item === "PLATO" ? "del Plato" : "de la Bebida"} *
+          Nombre Oficial del Plato *
         </label>
         <input
           type="text"
           className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-          placeholder={
-            Tipo_Item === "PLATO"
-              ? "Ej: Arroz con pollo campesino y ensalada"
-              : "Ej: Jugo natural de lulo en agua"
-          }
+          placeholder="Ej: Arroz con pollo campesino y ensalada"
           value={Nom_Plato}
           onChange={(e) => setNom_Plato(e.target.value)}
           required

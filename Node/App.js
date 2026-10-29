@@ -3,6 +3,7 @@
 // Arquitectura Clean Code y Seguridad Senior implementada.
 
 // ---------- 1. IMPORTACIÓN DE DEPENDENCIAS ----------
+process.env.TZ = 'America/Bogota';
 import http from 'http';
 import Express from 'express';
 import cors from 'cors';
@@ -40,20 +41,14 @@ import InternadoTemporalService from './Services/InternadoTemporalService.js';
 import { optimizarImagenesExistentes } from './Utils/imageOptimizer.js';
 
 // ---------- 3. IMPORTACIÓN DE MODELOS ----------
-import FichasModel from './Models/FichasModel.js';
-import UsuariosModel from './Models/UsuariosModel.js';
-import ProgramaModel from './Models/ProgramaModel.js';
-import ReservasModel from './Models/ReservasModel.js';
 import RolesModel from './Models/RolesModel.js';
-import UsuariosRolModel from './Models/UsuariosRolModel.js';
-import PlatosModel from './Models/PlatosModels.js';
-import MenuModel from './Models/MenusModels.js';
 import TurnosModel from './Models/TurnosModel.js';
 import NotificacionesModel from './Models/NotificacionesModel.js';
 import PqrsfModel from './Models/PqrsfModel.js';
 import CentrosSenaConfigModel from './Models/CentrosSenaConfigModel.js';
 import ConfigHorariosModel from './Models/ConfigHorariosModel.js';
 import SolicitudesCampoModel from './Models/SolicitudesCampoModel.js';
+import InternadoTemporalModel from './Models/InternadoTemporalModel.js';
 import NovedadesService from './Services/NovedadesService.js';
 import { syncWorkerInstance } from './Jobs/SyncWorker.js';
 
@@ -362,8 +357,39 @@ try {
       await db.query("ALTER TABLE reservas ADD COLUMN sync_status ENUM('PENDING', 'SYNCED') NOT NULL DEFAULT 'PENDING'");
       console.log('✅ Columna sync_status creada en tabla reservas');
     }
+    if (!nombresColsRes.includes('Tipo_Bebida')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN Tipo_Bebida ENUM('FRIA', 'CALIENTE', 'NINGUNA') NOT NULL DEFAULT 'FRIA'");
+    }
+    if (!nombresColsRes.includes('Lleva_Sopa')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN Lleva_Sopa TINYINT(1) NOT NULL DEFAULT 1");
+    }
+    if (!nombresColsRes.includes('Es_Guardado_Campo')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN Es_Guardado_Campo TINYINT(1) NOT NULL DEFAULT 0");
+    }
+    if (!nombresColsRes.includes('Id_Solicitud_Campo')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN Id_Solicitud_Campo INT NULL");
+    }
+    if (!nombresColsRes.includes('Hora_Limite_Extendida')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN Hora_Limite_Extendida TIME NULL");
+    }
+    if (!nombresColsRes.includes('Justificacion_Campo')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN Justificacion_Campo VARCHAR(255) NULL");
+    }
+    if (!nombresColsRes.includes('Unidad_Productiva_Campo')) {
+      await db.query("ALTER TABLE reservas ADD COLUMN Unidad_Productiva_Campo VARCHAR(80) NULL");
+    }
+    await db.query("ALTER TABLE reservas MODIFY COLUMN Est_Reserva VARCHAR(30) NOT NULL DEFAULT 'Generado'");
+
+    const [colsUsuPas] = await db.query("SHOW COLUMNS FROM usuarios");
+    const nombresColsUsu = colsUsuPas.map(c => c.Field);
+    if (!nombresColsUsu.includes('FecIni_Pasantia')) {
+      await db.query("ALTER TABLE usuarios ADD COLUMN FecIni_Pasantia DATE NULL");
+    }
+    if (!nombresColsUsu.includes('FecFin_Pasantia')) {
+      await db.query("ALTER TABLE usuarios ADD COLUMN FecFin_Pasantia DATE NULL");
+    }
   } catch (errRes) {
-    console.warn('Nota sobre columnas de reservas v3:', errRes.message);
+    console.warn('Nota sobre columnas de reservas/usuarios:', errRes.message);
   }
 
   // Asegurar tablas de sincronizacion offline y control antifraude Ed25519
@@ -387,7 +413,7 @@ try {
         source_node ENUM('LOCAL', 'CLOUD') NOT NULL DEFAULT 'LOCAL',
         entidad VARCHAR(40) NOT NULL,
         operacion VARCHAR(30) NOT NULL,
-        entity_uuid CHAR(36) NOT NULL,
+        entity_uuid VARCHAR(64) NOT NULL,
         payload JSON NOT NULL,
         sync_status ENUM('PENDING', 'SYNCED', 'CONFLICT', 'ERROR') NOT NULL DEFAULT 'PENDING',
         attempts INT NOT NULL DEFAULT 0,
@@ -397,6 +423,7 @@ try {
         INDEX idx_sync_pending (sync_status, created_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+    await db.query("ALTER TABLE sync_outbox MODIFY COLUMN entity_uuid VARCHAR(64) NOT NULL").catch(() => {});
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS sync_inbox_processed (
@@ -409,6 +436,48 @@ try {
     await PqrsfModel.sync({ alter: false });
     await CentrosSenaConfigModel.sync({ alter: false });
     await ConfigHorariosModel.sync({ alter: false });
+    await SolicitudesCampoModel.sync({ alter: false });
+    await InternadoTemporalModel.sync({ alter: false });
+
+    // Deduplicar tabla roles y asegurar catalogo oficial RBAC
+    try {
+      await db.query(`
+        UPDATE UsuariosRol ur
+        INNER JOIN roles r_dup ON ur.Id_Rol = r_dup.Id_Rol
+        INNER JOIN (SELECT Nom_Rol, MIN(Id_Rol) AS min_id FROM roles GROUP BY Nom_Rol) r_canon
+          ON r_dup.Nom_Rol = r_canon.Nom_Rol
+        SET ur.Id_Rol = r_canon.min_id
+        WHERE ur.Id_Rol <> r_canon.min_id
+      `).catch(() => {});
+      await db.query(`
+        DELETE ur1 FROM UsuariosRol ur1
+        INNER JOIN UsuariosRol ur2
+          ON ur1.Id_Usuario = ur2.Id_Usuario AND ur1.Id_Rol = ur2.Id_Rol AND ur1.Id_UsuariosRol > ur2.Id_UsuariosRol
+      `).catch(() => {});
+      await db.query(`
+        DELETE r1 FROM roles r1
+        INNER JOIN roles r2 ON r1.Nom_Rol = r2.Nom_Rol AND r1.Id_Rol > r2.Id_Rol
+      `).catch(() => {});
+      await db.query("CREATE UNIQUE INDEX uk_nom_rol ON roles (Nom_Rol)").catch(() => {});
+
+      const rolesOficiales = [
+        'Administrador', 'Coordinador', 'Supervisor', 'Monitor', 'Supervisor de Contrato',
+        'Cocina', 'Bienestar', 'Aprendiz Interno', 'Aprendiz Externo',
+        'Pasante Interno', 'Pasante Externo', 'Instructor', 'Vocero', 'SENA Empresa', 'Visitante'
+      ];
+      for (const nomRol of rolesOficiales) {
+        const existeRol = await RolesModel.findOne({ where: { Nom_Rol: nomRol } });
+        if (!existeRol) {
+          await RolesModel.create({ Nom_Rol: nomRol });
+        }
+      }
+
+      // Normalizar estados de usuario eliminando 'Inactivo' y migrar historicos vencidos/cancelados
+      await db.query("UPDATE usuarios SET Est_Usuario = 'Cancelado' WHERE Est_Usuario IN ('Inactivo', 'INACTIVO', 'inactivo')").catch(() => {});
+      await db.query("UPDATE reservas SET Est_Reserva = 'Consumido' WHERE Fec_Reserva < CURDATE() AND Est_Reserva IN ('Vencida', 'Vencido', 'Cancelada', 'Cancelado')").catch(() => {});
+    } catch (errRolesNorm) {
+      console.warn('Nota sobre normalizacion de roles/estados:', errRolesNorm.message);
+    }
 
     // Sembrar configuracion base del Centro Agropecuario La Granja si no existe
     const conteoCentros = await CentrosSenaConfigModel.count();

@@ -62,10 +62,59 @@ const CONFIG_ROLES = {
     bgActivo: "bg-indigo-100 text-indigo-800 border-indigo-300",
     bgInactivo: "bg-slate-50 text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-700",
     colorHex: "#4f46e5"
+  },
+  "Monitor": {
+    bgActivo: "bg-orange-100 text-orange-800 border-orange-300",
+    bgInactivo: "bg-slate-50 text-slate-500 border-slate-200 hover:border-orange-300 hover:text-orange-700",
+    colorHex: "#ea580c"
+  },
+  "Supervisor de Contrato": {
+    bgActivo: "bg-violet-100 text-violet-800 border-violet-300",
+    bgInactivo: "bg-slate-50 text-slate-500 border-slate-200 hover:border-violet-300 hover:text-violet-700",
+    colorHex: "#6d28d9"
+  },
+  "Instructor": {
+    bgActivo: "bg-cyan-100 text-cyan-800 border-cyan-300",
+    bgInactivo: "bg-slate-50 text-slate-500 border-slate-200 hover:border-cyan-300 hover:text-cyan-700",
+    colorHex: "#0891b2"
+  },
+  "Vocero": {
+    bgActivo: "bg-lime-100 text-lime-800 border-lime-300",
+    bgInactivo: "bg-slate-50 text-slate-500 border-slate-200 hover:border-lime-300 hover:text-lime-700",
+    colorHex: "#65a30d"
+  },
+  "SENA Empresa": {
+    bgActivo: "bg-emerald-100 text-emerald-900 border-emerald-400",
+    bgInactivo: "bg-slate-50 text-slate-500 border-slate-200 hover:border-emerald-400 hover:text-emerald-800",
+    colorHex: "#047857"
+  },
+  "Visitante": {
+    bgActivo: "bg-slate-200 text-slate-800 border-slate-300",
+    bgInactivo: "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-400 hover:text-slate-700",
+    colorHex: "#475569"
   }
 };
 
+const ROLES_PERMITIDOS_COORDINADOR = [
+  "Cocina",
+  "Monitor",
+  "Supervisor",
+  "Bienestar",
+  "Aprendiz Interno",
+  "Aprendiz Externo",
+  "Pasante Interno",
+  "Pasante Externo"
+];
+
 const CrudUsuariosRoles = () => {
+  const rolActivo = localStorage.getItem("rolActivo") || "";
+  const usuarioLogeado = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("usuario") || "null");
+    } catch {
+      return null;
+    }
+  }, []);
   const [usuarios, setUsuarios] = useState([]);
   const [rolesDisponibles, setRolesDisponibles] = useState([]);
   const [usuariosRol, setUsuariosRol] = useState([]);
@@ -102,11 +151,26 @@ const CrudUsuariosRoles = () => {
       ]);
 
       const listaUsuarios = Array.isArray(resUsuarios.data) ? resUsuarios.data : [];
-      const listaRoles = Array.isArray(resRoles.data) ? resRoles.data : [];
+      const listaRolesRaw = Array.isArray(resRoles.data) ? resRoles.data : [];
       const listaUR = Array.isArray(resUsuariosRol.data) ? resUsuariosRol.data : [];
 
+      // Deduplicar roles por Nom_Rol para evitar chips triplicados en interfaz
+      const vistos = new Set();
+      const listaRolesUnicos = [];
+      for (const r of listaRolesRaw) {
+        const nombreLimpio = String(r.Nom_Rol || "").trim();
+        if (!nombreLimpio || vistos.has(nombreLimpio.toLowerCase())) continue;
+        vistos.add(nombreLimpio.toLowerCase());
+        listaRolesUnicos.push({ ...r, Nom_Rol: nombreLimpio });
+      }
+
+      const rolesFiltradosPorJerarquia =
+        rolActivo === "Coordinador"
+          ? listaRolesUnicos.filter((r) => ROLES_PERMITIDOS_COORDINADOR.includes(r.Nom_Rol))
+          : listaRolesUnicos;
+
       setUsuarios(listaUsuarios);
-      setRolesDisponibles(listaRoles);
+      setRolesDisponibles(rolesFiltradosPorJerarquia);
       setUsuariosRol(listaUR);
     } catch (error) {
       console.error("Error al cargar datos de roles y usuarios:", error);
@@ -142,7 +206,9 @@ const CrudUsuariosRoles = () => {
       const nombresRoles = asignados.map((a) => a.Nom_Rol).filter(Boolean);
 
       // Si no vienen en usuariosRol pero si en usuario.roles
-      const rolesFinales = nombresRoles.length > 0 ? nombresRoles : (u.roles || []);
+      const rolesFinales = Array.from(
+        new Set(nombresRoles.length > 0 ? nombresRoles : (u.roles || []))
+      );
 
       return {
         ...u,
@@ -177,11 +243,11 @@ const CrudUsuariosRoles = () => {
         return u.rolesNombres.some((r) => r.includes("Interno"));
       }
       if (filtroCategoria === "Externos") {
-        return u.rolesNombres.some((r) => r.includes("Externo"));
+        return u.rolesNombres.some((r) => r.includes("Externo") || r === "Visitante");
       }
       if (filtroCategoria === "Administrativos") {
         return u.rolesNombres.some((r) =>
-          ["Supervisor", "Cocina", "Bienestar", "Administrador", "Coordinador"].includes(r)
+          ["Supervisor", "Monitor", "Supervisor de Contrato", "Cocina", "Bienestar", "Administrador", "Coordinador", "Instructor", "SENA Empresa"].includes(r)
         );
       }
       if (filtroCategoria === "SinRol") {
@@ -200,6 +266,29 @@ const CrudUsuariosRoles = () => {
 
   // ── Logica para Activar o Desactivar Rol ──────────────────────────────────
   const solicitarAlternarRol = (usuario, rolObj) => {
+    const nombreRol = rolObj.Nom_Rol;
+
+    if (rolActivo === "Coordinador" && !ROLES_PERMITIDOS_COORDINADOR.includes(nombreRol)) {
+      foodsysToast.warning(
+        "Restricción de Jerarquía",
+        "El rol Coordinador solo puede gestionar roles de Casino/Cocina, Monitores, Bienestar y Aprendices/Pasantes."
+      );
+      return;
+    }
+
+    const idLogeado = Number(usuarioLogeado?.Id_Usuario || usuarioLogeado?.id || 0);
+    if (
+      idLogeado === Number(usuario.Id_Usuario) &&
+      ["Administrador", "Coordinador", "Supervisor de Contrato"].includes(nombreRol) &&
+      rolActivo !== "Administrador"
+    ) {
+      foodsysToast.warning(
+        "Acción No Permitida",
+        `No puedes autoasignarte o modificar tu propio rol superior (${nombreRol}).`
+      );
+      return;
+    }
+
     const asignacionActual = usuario.rolesAsignadosObj.find(
       (a) => Number(a.Id_Rol) === Number(rolObj.Id_Rol) || a.Nom_Rol === rolObj.Nom_Rol
     );
@@ -215,33 +304,40 @@ const CrudUsuariosRoles = () => {
         action: () => ejecutarEliminarRol(asignacionActual.Id_UsuariosRol, usuario, rolObj.Nom_Rol)
       });
     } else {
-      // Validar incompatibilidad (Interno vs Externo)
-      const nombreRol = rolObj.Nom_Rol;
-      if (nombreRol === "Aprendiz Interno" && usuario.rolesNombres.includes("Aprendiz Externo")) {
+      // 1. Validar incompatibilidad (Interno vs Externo)
+      const ROLES_INTERNOS = ["Aprendiz Interno", "Pasante Interno"];
+      const ROLES_EXTERNOS = ["Aprendiz Externo", "Pasante Externo", "Visitante"];
+
+      if (ROLES_INTERNOS.includes(nombreRol) && usuario.rolesNombres.some((r) => ROLES_EXTERNOS.includes(r))) {
         foodsysToast.warning(
           "Incompatibilidad de Rol",
-          "El usuario ya tiene asignado 'Aprendiz Externo'. No puede tener ambos perfiles simultaneamente."
+          "El usuario ya tiene un perfil Externo asignado. No puede ser Interno y Externo simultáneamente."
         );
         return;
       }
-      if (nombreRol === "Aprendiz Externo" && usuario.rolesNombres.includes("Aprendiz Interno")) {
+      if (ROLES_EXTERNOS.includes(nombreRol) && usuario.rolesNombres.some((r) => ROLES_INTERNOS.includes(r))) {
         foodsysToast.warning(
           "Incompatibilidad de Rol",
-          "El usuario ya tiene asignado 'Aprendiz Interno'. No puede tener ambos perfiles simultaneamente."
+          "El usuario ya tiene un perfil Interno asignado. No puede ser Interno y Externo simultáneamente."
         );
         return;
       }
-      if (nombreRol === "Pasante Interno" && usuario.rolesNombres.includes("Pasante Externo")) {
+
+      // 2. Validar exclusión Pasante vs Aprendiz
+      const ROLES_PASANTE = ["Pasante Interno", "Pasante Externo"];
+      const ROLES_APRENDIZ = ["Aprendiz Interno", "Aprendiz Externo"];
+
+      if (ROLES_PASANTE.includes(nombreRol) && usuario.rolesNombres.some((r) => ROLES_APRENDIZ.includes(r))) {
         foodsysToast.warning(
           "Incompatibilidad de Rol",
-          "El usuario ya tiene asignado 'Pasante Externo'. No puede tener ambos perfiles simultaneamente."
+          "Un Pasante no es Aprendiz. Retira primero el rol de Aprendiz antes de asignarle perfil de Pasante."
         );
         return;
       }
-      if (nombreRol === "Pasante Externo" && usuario.rolesNombres.includes("Pasante Interno")) {
+      if (ROLES_APRENDIZ.includes(nombreRol) && usuario.rolesNombres.some((r) => ROLES_PASANTE.includes(r))) {
         foodsysToast.warning(
           "Incompatibilidad de Rol",
-          "El usuario ya tiene asignado 'Pasante Interno'. No puede tener ambos perfiles simultaneamente."
+          "El usuario ya tiene perfil de Pasante (Pasante no es Aprendiz). Retira primero el rol de Pasante."
         );
         return;
       }

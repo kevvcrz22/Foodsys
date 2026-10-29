@@ -1,202 +1,308 @@
 // Paginas/Manuales/ManualesUsuario.jsx
-// Manuales interactivos de usuario por rol para Foodsys
-import React, { useState } from "react";
+// Manuales interactivos de usuario filtrados exclusivamente según el rol del usuario autenticado
+import React, { useState, useMemo, useEffect } from "react";
 import {
   BookOpen, Users, Utensils, QrCode, ShieldCheck,
-  ClipboardList, HeartHandshake, Settings, CheckCircle2,
-  AlertTriangle, Clock, HelpCircle, ExternalLink
+  ClipboardList, HeartHandshake, Settings,
+  HelpCircle, ExternalLink, Wheat, Info
 } from "lucide-react";
 
 const ROLES_MANUAL = [
-  { id: "Aprendiz", nombre: "Aprendices", icono: Users, color: "text-blue-600 bg-blue-50 border-blue-200" },
+  { id: "General", nombre: "Información General Foodsys", icono: Info, color: "text-sky-600 bg-sky-50 border-sky-200" },
+  { id: "Aprendiz", nombre: "Aprendices / Visitantes / Voceros", icono: Users, color: "text-blue-600 bg-blue-50 border-blue-200" },
   { id: "Pasante", nombre: "Pasantes", icono: ShieldCheck, color: "text-indigo-600 bg-indigo-50 border-indigo-200" },
   { id: "Cocina", nombre: "Cocina", icono: Utensils, color: "text-amber-600 bg-amber-50 border-amber-200" },
-  { id: "Supervisor", nombre: "Supervisor", icono: QrCode, color: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+  { id: "Monitor", nombre: "Monitor (Comedor)", icono: QrCode, color: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+  { id: "SenaEmpresa", nombre: "SENA Empresa / Instructor", icono: Wheat, color: "text-teal-600 bg-teal-50 border-teal-200" },
+  { id: "SupervisorContrato", nombre: "Supervisor de Contrato", icono: ShieldCheck, color: "text-violet-600 bg-violet-50 border-violet-200" },
   { id: "Coordinador", nombre: "Coordinador", icono: ClipboardList, color: "text-purple-600 bg-purple-50 border-purple-200" },
   { id: "Bienestar", nombre: "Bienestar", icono: HeartHandshake, color: "text-rose-600 bg-rose-50 border-rose-200" },
   { id: "Administrador", nombre: "Administrador", icono: Settings, color: "text-slate-600 bg-slate-50 border-slate-200" },
 ];
 
+const MAPA_ROL_A_MANUAL = {
+  "Aprendiz Interno": "Aprendiz",
+  "Aprendiz Externo": "Aprendiz",
+  Visitante: "Aprendiz",
+  Vocero: "Aprendiz",
+  "Pasante Interno": "Pasante",
+  "Pasante Externo": "Pasante",
+  Cocina: "Cocina",
+  Monitor: "Monitor",
+  Supervisor: "Monitor",
+  "SENA Empresa": "SenaEmpresa",
+  Instructor: "SenaEmpresa",
+  "Supervisor de Contrato": "SupervisorContrato",
+  Coordinador: "Coordinador",
+  Coordinacion: "Coordinador",
+  Bienestar: "Bienestar",
+  Administrador: "Administrador",
+};
+
 const CONTENIDO_MANUAL = {
+  General: {
+    titulo: "Información General del Ecosistema Foodsys",
+    descripcion: "Horarios oficiales en zona horaria Colombia (America/Bogota - UTC-5), tickets de reserva y canales institucionales.",
+    pasos: [
+      {
+        paso: 1,
+        titulo: "Horarios Oficiales de Comedor",
+        detalle: "Desayuno: 06:00 AM a 07:00 AM · Almuerzo: 11:30 AM a 01:30 PM · Cena: 06:00 PM a 07:00 PM. Pasada la hora de cierre de cada comida, las reservas no reclamadas pasan automáticamente a estado Vencida."
+      },
+      {
+        paso: 2,
+        titulo: "Ticket Digital y Código QR",
+        detalle: "Al confirmar tu reserva puedes descargar tu Ticket de Reserva de alta resolución, que incluye el código QR ligero de lectura rápida (< 2.5s), plato elegido, bebida y acompañamiento."
+      },
+      {
+        paso: 3,
+        titulo: "Ceder Reserva a un Compañero",
+        detalle: "Si no puedes asistir al servicio, puedes ceder tu reserva activa a otro compañero elegible indicando el motivo antes del cierre del turno."
+      }
+    ],
+    faqs: [
+      { p: "¿Cuál es la zona horaria oficial del sistema?", r: "Todo el sistema opera estrictamente bajo la hora oficial de Colombia (America/Bogota, UTC-5)." },
+      { p: "¿Dónde gestiono los apoyos de BIENESOFT?", r: "Usa el acceso directo al Portal BIENESOFT disponible en la barra lateral y en la cabecera de esta página." }
+    ]
+  },
   Aprendiz: {
-    titulo: "Guía para Aprendices (Internos y Externos)",
-    descripcion: "Aprende cómo gestionar tus reservas alimentarias, horarios y código QR en el Centro Agropecuario La Granja.",
+    titulo: "Guía para Aprendices, Voceros y Visitantes",
+    descripcion: "Aprende cómo gestionar tus reservas alimentarias, horarios oficiales y código QR en el Centro Agropecuario La Granja.",
     pasos: [
       {
         paso: 1,
         titulo: "Crear tu Reserva",
-        detalle: "Ingresa al módulo 'Reservar'. Los aprendices internos pueden elegir Desayuno, Almuerzo y Cena. Los externos reservan Almuerzo. Las reservas se realizan el día anterior antes de los horarios límite."
+        detalle: "Ingresa al módulo 'Reservar'. Los aprendices internos pueden elegir Desayuno, Almuerzo y Cena. Los externos y visitantes reservan únicamente Almuerzo."
       },
       {
         paso: 2,
-        titulo: "Regla de Cancelación (9 Horas)",
-        detalle: "Si no vas a consumir tu alimento, puedes cancelarlo desde tu historial con al menos 9 horas de anticipación al inicio del servicio. Así evitas sanciones automáticas."
+        titulo: "Descargar Ticket o Ceder Reserva",
+        detalle: "Desde tu historial puedes descargar el Ticket oficial con tu QR o ceder tu reserva a otro compañero si se te presenta un inconveniente."
       },
       {
         paso: 3,
-        titulo: "Flujo de Consumo",
-        detalle: "Los aprendices externos se presentan primero en Cocina para verificar su reserva. Luego, pasan al puesto del Supervisor para escanear su código QR y recibir la comida. Los internos pasan directo al supervisor."
+        titulo: "Flujo Directo de Consumo",
+        detalle: "Presenta tu código QR en el horario exacto del servicio (Desayuno 06:00-07:00, Almuerzo 11:30-13:30, Cena 18:00-19:00). En Cocina o con el Monitor tu reserva pasará a Consumido."
       },
       {
         paso: 4,
-        titulo: "Sanciones por Inasistencia",
-        detalle: "Si generas una reserva y no asistes sin haber cancelado, el sistema registrará una inasistencia. Dos inasistencias pueden generar suspensión temporal del servicio."
+        titulo: "Estados y Sanciones",
+        detalle: "Los usuarios en estado Aplazado, Cancelado o Condicionado tienen bloqueada la generación de reservas. Acumular 3 inasistencias en la semana activa sanción automática."
       }
     ],
     faqs: [
-      { p: "¿Qué pasa si se me descarga el celular?", r: "El supervisor puede registrar tu consumo de forma manual buscando tu número de documento en el sistema." },
-      { p: "¿Cuánto tiempo dura mi sesión abierta?", r: "Por seguridad, tu sesión expira tras 5 minutos de inactividad, con una advertencia en pantalla a los 30 segundos restantes." }
+      { p: "¿Qué pasa si se me descarga el celular?", r: "El monitor o personal de cocina puede validar tu reserva activa ingresando tu número de documento." },
+      { p: "¿Hasta qué hora un Vocero puede apartar almuerzo?", r: "El límite máximo para registrar Almuerzos Apartados SENA Empresa el mismo día es las 09:00 AM." }
     ]
   },
   Pasante: {
     titulo: "Guía para Pasantes (Internos y Externos)",
-    descripcion: "Normativa y procedimientos de acceso al beneficio de alimentación para pasantes.",
+    descripcion: "Normativa, vigencia de pasantía y acceso al beneficio de alimentación.",
     pasos: [
       {
         paso: 1,
-        titulo: "Habilitación de Estado Especial",
-        detalle: "Para poder reservar, tu coordinador debe asignarte el estado 'Especial' en el sistema, el cual tiene una vigencia estándar de 30 días renovables."
+        titulo: "Vigencia de Pasantía (Fecha Inicio y Fin)",
+        detalle: "Coordinación define tu fecha de inicio y finalización de pasantía. Al cumplirse la fecha fin, el sistema inactiva automáticamente el cupo de reservas."
       },
       {
         paso: 2,
         titulo: "Reserva de Comidas",
-        detalle: "Una vez habilitado, dirígete al módulo Reservar y escoge el plato disponible según el menú publicado."
+        detalle: "Mientras tu pasantía esté vigente, ingresa a 'Reservar' y selecciona tu plato y preferencia de bebida."
       },
       {
         paso: 3,
-        titulo: "Consumo Simplificado",
-        detalle: "Con estado Especial activo, puedes acudir directamente al Supervisor sin necesidad de validación previa en cocina."
+        titulo: "Validación con QR",
+        detalle: "Presenta tu Ticket QR dentro de la franja horaria oficial de tu comida asignada."
       }
     ],
     faqs: [
-      { p: "¿Cómo sé si mi estado Especial sigue vigente?", r: "En la sección 'Mi Perfil' puedes consultar tu estado actual y la fecha de expiración." }
+      { p: "¿Puedo tener rol de Pasante y Aprendiz al mismo tiempo?", r: "No. Por regla institucional de control de accesos, el perfil de Pasante es excluyente del rol Aprendiz." }
     ]
   },
   Cocina: {
     titulo: "Guía para Personal de Cocina",
-    descripcion: "Control de producción diaria, verificación de presencia y planificación de raciones.",
+    descripcion: "Control de producción diaria, flujo directo de escaneo QR y ciclo de minuta de 28 días.",
     pasos: [
       {
         paso: 1,
         titulo: "Consultar el Plan del Día",
-        detalle: "Revisa cuántas raciones de desayuno, almuerzo y cena fueron reservadas con 5 horas de antelación para calcular las cantidades exactas de ingredientes."
+        detalle: "Revisa cuántas raciones de desayuno, almuerzo y cena fueron reservadas por opción de plato para alistar la producción."
       },
       {
         paso: 2,
-        titulo: "Verificar Código QR de Externos",
-        detalle: "Cuando un aprendiz externo llegue, escanea su código QR en el módulo 'Verificar QR' para confirmar su asistencia física y habilitarlo para el comedor."
+        titulo: "Flujo Directo en Verificar QR",
+        detalle: "Al escanear el QR de un usuario externo con reserva válida en el turno activo, el sistema pasa la reserva directamente de Generado a Consumido en una sola fila con alerta sonora."
       },
       {
         paso: 3,
-        titulo: "Gestión de Menús",
-        detalle: "Programa los platos diarios con su nombre, descripción nutricional e imagen representativa."
+        titulo: "Creación de Platos y Ciclo de 28 Días",
+        detalle: "Puedes crear nuevos platos organizados en el ciclo de 28 días con variantes decimales (ej. 28.1, 28.2). La edición posterior es potestad de Coordinación y Supervisor de Contrato."
       }
     ],
     faqs: [
-      { p: "¿Por qué los internos no pasan por cocina?", r: "Los internos ya residen en la granja y su ración está garantizada contractualmente." }
+      { p: "¿Qué reportes puede consultar Cocina?", r: "Cocina tiene acceso de lectura y exportación a la Tabla 1 (Consumidos) con datos personales anonimizados." }
     ]
   },
-  Supervisor: {
-    titulo: "Guía para Supervisores de Comedor",
-    descripcion: "Apertura de turno, control de entrega de alimentos y cierre con reporte automático.",
+  Monitor: {
+    titulo: "Guía para Monitores de Comedor",
+    descripcion: "Apertura de turno (10 min antes), concurrencia de monitores, escaneo rápido con sonido y exportación PDF.",
     pasos: [
       {
         paso: 1,
-        titulo: "Iniciar Turno",
-        detalle: "Al llegar al comedor, haz clic en 'Iniciar Turno' en tu panel. Solo un supervisor puede estar en turno activo a la vez en la granja. El sistema notificará automáticamente por correo a la administración."
+        titulo: "Ventana de Inicio de Turno (10 Minutos Antes)",
+        detalle: "El botón 'Iniciar Turno' se habilita 10 minutos antes de cada servicio: Desayuno (05:50 - 07:00), Almuerzo (11:20 - 13:30) y Cena (17:50 - 19:00). Varios monitores pueden operar simultáneamente."
       },
       {
         paso: 2,
-        titulo: "Registrar Consumos por QR",
-        detalle: "Apunta la cámara al código QR del aprendiz. La pantalla mostrará en grande el nombre del aprendiz, su documento y el plato que le corresponde."
+        titulo: "Escaneo en Vivo con Feedback Auditivo",
+        detalle: "Escanea el QR del aprendiz (< 2.5s). Escucharás un tono agudo de éxito si es válido o una alarma grave con mensaje explícito si pertenece a otra fecha, otro horario o ya fue consumido."
       },
       {
         paso: 3,
-        titulo: "Registro Manual Alternativo",
-        detalle: "Si el aprendiz no tiene el código QR disponible, ingresa su número de documento en la pestaña 'Manual' para validar y registrar su consumo."
-      },
-      {
-        paso: 4,
-        titulo: "Finalizar Turno",
-        detalle: "Al terminar el servicio, presiona 'Finalizar Turno'. El sistema generará el consolidado de raciones entregadas y enviará el reporte por correo a fierrokkevin@gmail.com."
+        titulo: "Cierre de Turno y Exportación PDF",
+        detalle: "Al finalizar el turno, descarga el acta de cierre en PDF o Excel con el detalle nominal de raciones entregadas."
       }
     ],
     faqs: [
-      { p: "¿Qué pasa si otro supervisor intenta abrir turno?", r: "El sistema le advertirá que ya existe un turno activo y le impedirá registrar hasta que tú finalices." }
+      { p: "¿Pueden dos monitores escanear al mismo tiempo?", r: "Sí. El sistema permite concurrencia de múltiples monitores en el mismo turno para agilizar la fila." }
+    ]
+  },
+  SenaEmpresa: {
+    titulo: "Guía para SENA Empresa e Instructores",
+    descripcion: "Gestión de Internado Temporal, Turno Rutinario Semanal y Almuerzos Apartados (límite 09:00 AM).",
+    pasos: [
+      {
+        paso: 1,
+        titulo: "Almuerzos Apartados SENA Empresa (Hasta las 09:00 AM)",
+        detalle: "Consulta la ficha y selecciona los aprendices con reserva activa para apartar su almuerzo antes de las 09:00 AM del día del servicio."
+      },
+      {
+        paso: 2,
+        titulo: "Internado Temporal y Turno Rutinario Semanal",
+        detalle: "Habilita temporalmente a aprendices de lunes a viernes o carga la plantilla Excel de gestores. Al buscar por documento verás la información completa del aprendiz."
+      },
+      {
+        paso: 3,
+        titulo: "Reportes de Apartados e Internado",
+        detalle: "Consulta y exporta el resumen consolidado de Almuerzos Apartados e Internado Temporal."
+      }
+    ],
+    faqs: [
+      { p: "¿Qué ocurre cuando vence la fecha fin del internado temporal?", r: "El sistema revierte automáticamente al aprendiz a su estado original sin necesidad de intervención manual." }
+    ]
+  },
+  SupervisorContrato: {
+    titulo: "Guía para Supervisor de Contrato",
+    descripcion: "Supervisión de minuta de 28 días, edición de platos, seguimiento SLA de PQRSF y reportes de facturación.",
+    pasos: [
+      {
+        paso: 1,
+        titulo: "Auditoría y Edición de Minuta (Ciclo 28 Días)",
+        detalle: "Supervisa y edita los platos y menús programados dentro del ciclo contractual de 28 días (variantes decimales 1.1 a 28.2)."
+      },
+      {
+        paso: 2,
+        titulo: "Control de PQRSF e Interventoría",
+        detalle: "Monitorea los radicados de calidad, gramaje e higiene y verifica el cumplimiento de los tiempos de respuesta (SLA)."
+      },
+      {
+        paso: 3,
+        titulo: "Reportes de Ejecución Contractual",
+        detalle: "Exporta los reportes consolidados de raciones consumidas y no consumidas para soporte de actas de cobro."
+      }
+    ],
+    faqs: [
+      { p: "¿Quiénes tienen potestad para editar platos creados?", r: "Únicamente Coordinación, Administración y el Supervisor de Contrato." }
     ]
   },
   Coordinador: {
     titulo: "Guía para Coordinadores",
-    descripcion: "Gestión de novedades alimentarias, asignación de estado Especial y reportes.",
+    descripcion: "Gestión de programas, fichas, pasantes con vigencia, instructores, novedades y asignación jerárquica de roles.",
     pasos: [
       {
         paso: 1,
-        titulo: "Registrar Novedades",
-        detalle: "Si un aprendiz requiere alimentación de urgencia y no reservó el día anterior, crea una Novedad seleccionando el aprendiz, el tipo de comida y la justificación institucional."
+        titulo: "Gestión de Pasantes e Instructores",
+        detalle: "Administra el registro de pasantes definiendo su fecha de inicio y fin (inactivación automática al vencer) y gestiona el directorio de instructores."
       },
       {
         paso: 2,
-        titulo: "Habilitar Estado Especial",
-        detalle: "Otorga estado Especial a aprendices o pasantes que requieran facilidades temporales por prácticas o proyectos en la granja."
+        titulo: "Asignación de Roles Operativos",
+        detalle: "Asigna perfiles exclusivamente para Casino/Cocina, Monitores, Bienestar y Aprendices respetando la incompatibilidad entre internos y externos."
       },
       {
         paso: 3,
-        titulo: "Consultar Reportes",
-        detalle: "Exporta reportes en formato PDF y Excel con datos reales de consumo (filtrados exclusivamente por reservas consumidas)."
+        titulo: "Novedades, Sincronización y Reportes",
+        detalle: "Registra novedades alimentarias, supervisa la sincronización offline y exporta las 4 tablas de reportes."
       }
     ],
     faqs: [
-      { p: "¿Cuánto tiempo dura una novedad?", r: "La novedad aplica únicamente para el servicio de comida seleccionado en esa fecha específica." }
+      { p: "¿Qué pasa cuando una Ficha supera su fecha fin lectiva o práctica?", r: "El sistema actualiza automáticamente a los aprendices a 'Etapa productiva' o 'Cancelado' según corresponda." }
     ]
   },
   Bienestar: {
     titulo: "Guía para Bienestar al Aprendiz",
-    descripcion: "Acompañamiento, monitoreo de inasistencias y equidad en el beneficio de alimentación.",
+    descripcion: "Seguimiento de inasistencias, gestión de sanciones, PQRSF y apoyo al aprendiz.",
     pasos: [
       {
         paso: 1,
-        titulo: "Monitoreo de Asistencia",
-        detalle: "Revisa diariamente los aprendices que registraron reservas pero no consumieron su alimento para contactarlos y conocer las causas."
+        titulo: "Control de Aprendices y Sanciones",
+        detalle: "Consulta el semáforo semanal de fallas (0/3 a 3/3). Al retirar una sanción a un aprendiz, su contador Fallas SEM se reinicia automáticamente a 0 de 3."
       },
       {
         paso: 2,
-        titulo: "Gestión de Novedades Humanitarias",
-        detalle: "Crea novedades alimentarias para aprendices en condiciones prioritarias o casos fortuitos de bienestar."
+        titulo: "PQRSF Interventoría y Plan del Día",
+        detalle: "Gestiona las solicitudes de PQRSF (sin eliminación física) y consulta en modo lectura el Plan del Día, Menús, Platos y Pasantes."
       }
     ],
     faqs: [
-      { p: "¿Dónde consulto BIENESOFT?", r: "Puedes acceder a BIENESOFT directamente desde el botón en la barra lateral o footer para gestionar los apoyos de sostenimiento." }
+      { p: "¿Dónde consulto BIENESOFT?", r: "Accede directamente desde el botón BIENESOFT en la barra lateral o en la cabecera." }
     ]
   },
   Administrador: {
     titulo: "Guía para Administradores del Sistema",
-    descripcion: "Mantenimiento integral, gestión de usuarios, roles, fichas y despliegue en Hetzner.",
+    descripcion: "Administración global, control de raciones en barra superior, matriz de roles, sincronización Hetzner y reportes.",
     pasos: [
       {
         paso: 1,
-        titulo: "Importación Masiva de Aprendices",
-        detalle: "Descarga la plantilla de Excel oficial desde 'Importar Aprendices', diligencia los datos y cárgala con validación automática de documentos y fichas."
+        titulo: "Usuarios y Desanción Masiva",
+        detalle: "Gestiona el catálogo oficial de 13 estados (sin eliminación física, mediante activación/inactivación lógica) y utiliza el botón 'Quitar todas las sanciones' cuando se requiera al inicio de periodo."
       },
       {
         paso: 2,
-        titulo: "Asignación de Roles y Fichas",
-        detalle: "Crea programas de formación, fichas asociadas y vincula a los aprendices y funcionarios con sus roles correspondientes."
+        titulo: "Menús y Reservas (Auditoría y Exportación)",
+        detalle: "Consulta y exporta en PDF/Excel con filtros el histórico de Menús y Reservas en modo lectura."
       },
       {
         paso: 3,
-        titulo: "Seguridad y Sesión Única",
-        detalle: "El backend implementa tokenVersion para asegurar que cada usuario mantenga solo una sesión activa y protección contra asignación masiva."
+        titulo: "Sincronización Offline Local ↔ Hetzner",
+        detalle: "Supervisa la replicación por UUID y llaves naturales entre el servidor local del comedor y el VPS en Hetzner."
       }
     ],
     faqs: [
-      { p: "¿Cómo realizar el mantenimiento en el servidor Hetzner?", r: "Consulta la documentación técnica en el repositorio con comandos para PM2, MySQL, Nginx y renovación de certificados SSL." }
+      { p: "¿Dónde ajusto el Control de Raciones y Horarios?", r: "Desde el botón desplegable 'Control de Raciones' ubicado en la barra de navegación superior." }
     ]
   }
 };
 
 export default function ManualesUsuario() {
-  const [rolSeleccionado, setRolSeleccionado] = useState("Aprendiz");
-  const contenido = CONTENIDO_MANUAL[rolSeleccionado];
+  const rolActivo = (localStorage.getItem("rolActivo") || "").trim();
+  const idManualRol = MAPA_ROL_A_MANUAL[rolActivo] || "Aprendiz";
+
+  // Filtrar exclusivamente con la información del rol del usuario autenticado (+ Información General)
+  const rolesPermitidos = useMemo(() => {
+    if (!rolActivo) {
+      return ROLES_MANUAL.filter((r) => r.id === "General" || r.id === "Aprendiz");
+    }
+    return ROLES_MANUAL.filter((r) => r.id === idManualRol || r.id === "General");
+  }, [rolActivo, idManualRol]);
+
+  const [rolSeleccionado, setRolSeleccionado] = useState(idManualRol);
+
+  useEffect(() => {
+    setRolSeleccionado(idManualRol);
+  }, [idManualRol]);
+
+  const contenido = CONTENIDO_MANUAL[rolSeleccionado] || CONTENIDO_MANUAL.General;
 
   return (
     <div className="w-full px-4 sm:px-6 py-8 max-w-7xl mx-auto space-y-8">
@@ -225,9 +331,9 @@ export default function ManualesUsuario() {
         </div>
       </div>
 
-      {/* Selector de Roles */}
+      {/* Selector de Roles (filtrado exclusivamente con la información del rol autenticado + General) */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-        {ROLES_MANUAL.map((r) => {
+        {rolesPermitidos.map((r) => {
           const Icono = r.icono;
           const activo = rolSeleccionado === r.id;
           return (

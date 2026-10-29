@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import apiAxios from '../../api/axiosConfig';
 import { extraerDocumentoDeCodigoBarras } from '../../utils/barcodeUtils';
+import toast from 'react-hot-toast';
 
 const ID_CONTENEDOR_CAMARA = 'reader-cocina-qr';
 
@@ -143,6 +144,7 @@ export default function ValidarReservas() {
       });
       setResultadoExitoQR(respuesta.data);
       reproducirBeep("exito");
+      toast.success(respuesta.data?.message || `Reserva consumida: ${respuesta.data?.Aprendiz || "Usuario"}`, { duration: 3000 });
 
       // Si el modo Fila Rapida esta activo, reactivar escaneo automaticamente tras 2.5 segundos
       if (modoFilaRapida) {
@@ -159,6 +161,7 @@ export default function ValidarReservas() {
       const msg = err?.response?.data?.message || err?.message || 'Error al validar el código QR.';
       setErrorQR(msg);
       reproducirBeep("alerta");
+      toast.error(msg, { duration: 5000 });
     } finally {
       setProcesandoQR(false);
       procesandoRef.current = false;
@@ -220,6 +223,7 @@ export default function ValidarReservas() {
       });
       setResultadoExitoQR(resp.data);
       reproducirBeep("exito");
+      toast.success(resp.data?.message || `Reserva consumida: ${resp.data?.Aprendiz || "Usuario"}`, { duration: 3000 });
 
       if (modoFilaRapida) {
         if (timerAutoContinuarRef.current) clearTimeout(timerAutoContinuarRef.current);
@@ -237,6 +241,7 @@ export default function ValidarReservas() {
       const msg = err?.response?.data?.message || err?.message || 'Error al verificar reserva por documento.';
       setErrorQR(msg);
       reproducirBeep("alerta");
+      toast.error(msg, { duration: 5000 });
     } finally {
       setProcesandoQR(false);
     }

@@ -15,23 +15,41 @@ import {
   HelpCircle, Phone, Mail, Pencil, Upload
 } from "lucide-react";
 import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
+import { confirmarAccionFoodsys } from "../../utils/notificacionesFoodsys.jsx";
 import GlobalLoader from "../../Components/GlobalLoader";
+
+const ESTADOS_ACTIVOS = [
+  "Formación",
+  "Inducción",
+  "Apoyo de sostenimiento",
+  "SENA empresa",
+  "Turnos en SENA empresa",
+  "Instructor",
+  "Visitantes",
+  "En Formacion",
+  "Activo",
+  "activo"
+];
 
 /* ============================================================
    BADGE DE ESTADO FORMATIVO
 ============================================================ */
 const EstadoBadge = ({ estado }) => {
-  const activo = estado === "Activo" || estado === "activo" || estado === "En Formacion";
+  const est = estado === "En Formacion" ? "Formación" : (estado || "Formación");
+  const activo = ESTADOS_ACTIVOS.includes(est);
+  const esProductiva = est === "Etapa productiva";
   return (
     <span
       className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
         activo
           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+          : esProductiva
+          ? "bg-blue-50 text-blue-700 border-blue-200"
           : "bg-red-50 text-red-700 border-red-200"
       }`}
     >
       {activo ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
-      {estado || "—"}
+      {est}
     </span>
   );
 };
@@ -124,24 +142,73 @@ const Aprendices = () => {
     }
   };
 
-  // Activa o retira la sancion de un aprendiz
+  // Activa o retira la sancion de un aprendiz con confirmacion Tailwind y reseteo inmediato de Fallas SEM
   const toggleSancion = async (usuario) => {
     const nuevo = usuario.San_Usuario === "Si" ? "No" : "Si";
-    const accion = nuevo === "Si" ? "sancionar" : "levantar sancion a";
+    const accion = nuevo === "Si" ? "sancionar" : "levantar sanción a";
     const nombre = `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim();
 
-    if (!window.confirm(`¿Estas seguro de ${accion} a ${nombre}?`)) return;
+    const confirmar = await confirmarAccionFoodsys({
+      titulo: nuevo === "Si" ? "¿Sancionar aprendiz?" : "¿Quitar sanción?",
+      texto: `¿Estás seguro de ${accion} ${nombre}? ${nuevo === "No" ? "Su contador semanal volverá a 0 de 3." : ""}`,
+      textoConfirmar: nuevo === "Si" ? "Sí, sancionar" : "Sí, quitar sanción",
+      textoCancelar: "Cancelar",
+      variante: nuevo === "Si" ? "danger" : "info"
+    });
+    if (!confirmar) return;
 
     try {
       await apiAxios.patch(`/api/Usuarios/${usuario.Id_Usuario}/sancion`, { San_Usuario: nuevo });
-      toast.success(`Sancion ${nuevo === "Si" ? "activada" : "retirada"} con exito`);
-      cargarAprendices();
+      setUsuarios((prev) =>
+        prev.map((u) =>
+          u.Id_Usuario === usuario.Id_Usuario
+            ? { ...u, San_Usuario: nuevo, inasistenciasSemana: nuevo === "No" ? 0 : u.inasistenciasSemana }
+            : u
+        )
+      );
+      toast.success(
+        nuevo === "Si"
+          ? "Sanción activada con éxito"
+          : "Sanción retirada y contador Fallas SEM reiniciado a 0 de 3"
+      );
       if (usuarioDetalle && usuarioDetalle.Id_Usuario === usuario.Id_Usuario) {
-        setUsuarioDetalle({ ...usuarioDetalle, San_Usuario: nuevo });
+        setUsuarioDetalle({
+          ...usuarioDetalle,
+          San_Usuario: nuevo,
+          inasistenciasSemana: nuevo === "No" ? 0 : usuarioDetalle.inasistenciasSemana
+        });
       }
     } catch (err) {
       console.error("Error al actualizar sancion:", err);
       toast.error("No se pudo actualizar la sancion.");
+    }
+  };
+
+  // Quitar todas las sanciones de forma masiva
+  const handleQuitarTodasLasSanciones = async () => {
+    const cantSancionados = usuarios.filter((u) => u.San_Usuario === "Si").length;
+    if (cantSancionados === 0) {
+      toast("Actualmente no hay aprendices sancionados.", { icon: "ℹ️" });
+      return;
+    }
+
+    const confirmar = await confirmarAccionFoodsys({
+      titulo: "¿Quitar todas las sanciones de aprendices?",
+      texto: `Se retirará la sanción a los ${cantSancionados} aprendiz(ces) sancionado(s) y su contador semanal de Fallas SEM se reiniciará a 0 de 3.`,
+      textoConfirmar: "Sí, quitar todas",
+      textoCancelar: "Cancelar",
+      variante: "warning"
+    });
+    if (!confirmar) return;
+
+    try {
+      const res = await apiAxios.patch("/api/Usuarios/sanciones/quitar-todas");
+      setUsuarios((prev) =>
+        prev.map((u) => ({ ...u, San_Usuario: "No", inasistenciasSemana: 0 }))
+      );
+      toast.success(res.data?.message || "Todas las sanciones fueron retiradas.");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Error al retirar sanciones masivamente.");
     }
   };
 
@@ -422,6 +489,14 @@ const Aprendices = () => {
         {/* Botones de accion y exportacion */}
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
+            onClick={handleQuitarTodasLasSanciones}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl shadow-sm transition active:scale-95 cursor-pointer"
+            title="Retirar todas las sanciones activas de forma masiva y reiniciar Fallas SEM a 0/3"
+          >
+            <ShieldCheck size={15} />
+            Quitar todas las sanciones
+          </button>
+          <button
             onClick={() => setIsImportModalOpen(true)}
             className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-sm transition active:scale-95 cursor-pointer"
             title="Importar lista de aprendices desde archivo Excel (.xlsx o .xlsm)"
@@ -528,8 +603,21 @@ const Aprendices = () => {
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           >
             <option value="todos">Todos los Estados</option>
-            <option value="En Formacion">En Formacion (Activos)</option>
-            <option value="Inactivo">Inactivos</option>
+            {[
+              "Formación",
+              "Inducción",
+              "Apoyo de sostenimiento",
+              "Etapa productiva",
+              "SENA empresa",
+              "Turnos en SENA empresa",
+              "Condicionado",
+              "Aplazado",
+              "Traslado",
+              "Retiro voluntario",
+              "Cancelado"
+            ].map((est) => (
+              <option key={est} value={est}>{est}</option>
+            ))}
           </select>
         </div>
 

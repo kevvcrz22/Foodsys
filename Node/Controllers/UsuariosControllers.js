@@ -3,7 +3,7 @@
 // Cada funcion recibe la peticion HTTP, delega al servicio y responde con JSON
 // Nomenclatura: PascalCase en espanol sin tildes
 
-import UsuariosService from "../Services/UsuariosService.js";
+import UsuariosService, { normalizarEstadoOficial } from "../Services/UsuariosService.js";
 import CsvService from "../Services/CsvService.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
 import FichasModel from "../Models/FichasModel.js";
@@ -583,11 +583,6 @@ function detectarHojaAprendices(Workbook) {
 */
 export const descargarPlantilla = (_req, res) => {
   try {
-    const templatePath = path.resolve(__dirname, "../Templates/Aprendices_Foodsys_Oficial.xlsx");
-    if (fs.existsSync(templatePath)) {
-      return res.download(templatePath, "Aprendices_Foodsys_Oficial.xlsx");
-    }
-
     const Libro = XLSX.utils.book_new();
 
     // Hoja 1: Plantilla Institucional Foodsys (Limpia y con ejemplos)
@@ -598,11 +593,11 @@ export const descargarPlantilla = (_req, res) => {
       ],
       [
         "CC", "1006129136", "ABNER GIULIANI", "DURAN SAENZ", "3404817",
-        "No", "abner.duran@soy.sena.edu.co", "3107979024", "M", "Aprendiz Externo", "En Formacion"
+        "No", "abner.duran@soy.sena.edu.co", "3107979024", "M", "Aprendiz Externo", "Formación"
       ],
       [
         "TI", "1111337529", "FAIDER FABIAN", "ESCARPETA NIETO", "3404814",
-        "Si", "faiderescarpeta77@gmail.com", "3132026563", "M", "Aprendiz Interno", "En Formacion"
+        "Si", "faiderescarpeta77@gmail.com", "3132026563", "M", "Aprendiz Interno", "Formación"
       ]
     ];
     const Hoja1 = XLSX.utils.aoa_to_sheet(filasFoodsys);
@@ -719,12 +714,13 @@ export const previewImport = async (req, res) => {
       ).toUpperCase().trim();
 
       if (filtrarSoloActivos && estadoRaw) {
-        const esInactivo = /CANCELADO|RETIRO|CERTIFICADO|APLAZADO|TRASLADADO/i.test(estadoRaw);
+        const esInactivo = /CANCELADO|RETIRO|CERTIFICADO|APLAZADO|TRASLADADO|CONDICIONADO/i.test(estadoRaw);
         if (esInactivo) {
-          // Bug 3: Inactivar si ya existia en Foodsys activo y cancelar reservas futuras
+          const estadoNormalizadoBaja = normalizarEstadoOficial(estadoRaw);
+          // Actualizar estado en Foodsys y cancelar reservas futuras
           const usuarioEx = mapaUsuariosDoc.get(numDoc);
-          if (usuarioEx && usuarioEx.Est_Usuario === "En Formacion") {
-            await UsuariosModel.update({ Est_Usuario: "Inactivo" }, { where: { Id_Usuario: usuarioEx.Id_Usuario } });
+          if (usuarioEx && usuarioEx.Est_Usuario !== estadoNormalizadoBaja) {
+            await UsuariosModel.update({ Est_Usuario: estadoNormalizadoBaja }, { where: { Id_Usuario: usuarioEx.Id_Usuario } });
             const hoyStr = obtenerFechaColombia();
             await ReservaModel.update(
               { Est_Reserva: "Cancelado" },
@@ -736,7 +732,7 @@ export const previewImport = async (req, res) => {
                 }
               }
             );
-            usuarioEx.Est_Usuario = "Inactivo";
+            usuarioEx.Est_Usuario = estadoNormalizadoBaja;
           }
           omitidosInactivos++;
           continue;
@@ -818,7 +814,7 @@ export const previewImport = async (req, res) => {
       const esPasante = rolRaw.includes("pasante");
       
       let rolAsignado = "Aprendiz Externo";
-      let estUsuario = "En Formacion";
+      let estUsuario = normalizarEstadoOficial(estadoFilaRaw, esInstructor);
       if (esInstructor) {
         rolAsignado = "Instructor";
         estUsuario = "Instructor";
@@ -999,12 +995,13 @@ export const importarSeleccionados = async (req, res) => {
               if (Fila.Cor_Usuario) datosActualizar.Cor_Usuario = Fila.Cor_Usuario;
               if (Fila.Tel_Usuario) datosActualizar.Tel_Usuario = Fila.Tel_Usuario;
 
-              const estadosBaja = ["inactivo", "cancelado", "retiro voluntario", "trasladado", "aplazado", "certificado", "etapa productiva", "baja"];
+              const estadosBaja = ["inactivo", "cancelado", "retiro voluntario", "trasladado", "traslado", "aplazado", "condicionado", "certificado", "etapa productiva", "baja"];
               const estadoFila = String(Fila.Est_Usuario || Fila.Estado || "").toLowerCase().trim();
               const esBaja = estadosBaja.some(e => estadoFila.includes(e));
+              const estadoNormalizado = normalizarEstadoOficial(Fila.Est_Usuario || Fila.Estado, esInstructor);
 
               if (esBaja) {
-                datosActualizar.Est_Usuario = "Inactivo";
+                datosActualizar.Est_Usuario = estadoNormalizado === "Formación" ? "Cancelado" : estadoNormalizado;
                 const hoyStr = obtenerFechaColombia();
                 await ReservaModel.update(
                   { Est_Reserva: "Cancelado" },
@@ -1017,7 +1014,7 @@ export const importarSeleccionados = async (req, res) => {
                   }
                 );
               } else {
-                datosActualizar.Est_Usuario = esInstructor ? "Instructor" : "En Formacion";
+                datosActualizar.Est_Usuario = estadoNormalizado;
               }
 
               await UsuariosModel.update(datosActualizar, { where: { Id_Usuario: usuarioEx.Id_Usuario } });
@@ -1070,7 +1067,7 @@ export const importarSeleccionados = async (req, res) => {
               Tel_Usuario: Fila.Tel_Usuario ? String(Fila.Tel_Usuario).trim() : null,
               CenCon_Usuario: esInterno ? "Si" : "No",
               Id_Ficha: idFichaFinal,
-              Est_Usuario: esInstructor ? "Instructor" : "En Formacion",
+              Est_Usuario: normalizarEstadoOficial(Fila.Est_Usuario || Fila.Estado, esInstructor),
               San_Usuario: Fila.San_Usuario || "No",
               Pol_Usuario: "No",
               password: HashPwd,
@@ -1212,6 +1209,116 @@ export const GetSancionados = async (req, res) => {
     return res.status(200).json(sancionados);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  QuitarTodasLasSanciones
+  Retira de forma masiva todas las sanciones activas (San_Usuario = 'Si' -> 'No')
+  y actualiza Fec_Desancion = NOW() para reiniciar el contador de Fallas SEM a 0 de 3.
+*/
+export const QuitarTodasLasSanciones = async (_req, res) => {
+  try {
+    const fechaAhora = new Date();
+    const sancionados = await UsuariosModel.findAll({
+      where: { San_Usuario: "Si" },
+      attributes: ["Id_Usuario", "NumDoc_Usuario"]
+    });
+
+    if (sancionados.length === 0) {
+      return res.status(200).json({
+        afectados: 0,
+        message: "No hay usuarios con sanciones activas en este momento."
+      });
+    }
+
+    await UsuariosModel.update(
+      { San_Usuario: "No", Fec_Desancion: fechaAhora },
+      { where: { San_Usuario: "Si" } }
+    );
+
+    for (const u of sancionados) {
+      encolarEventoSync({
+        entidad: "USUARIO",
+        operacion: "UPDATE",
+        entity_uuid: u.NumDoc_Usuario,
+        payload: {
+          NumDoc_Usuario: u.NumDoc_Usuario,
+          San_Usuario: "No",
+          Fec_Desancion: fechaAhora
+        }
+      }).catch(() => {});
+    }
+
+    return res.status(200).json({
+      afectados: sancionados.length,
+      message: `Se retiraron las sanciones de ${sancionados.length} usuario(s) y sus contadores semanales se reiniciaron a 0 de 3.`
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  BuscarAprendizPorDocumento
+  Busca un usuario por su numero de documento exacto y devuelve su informacion
+  academica (Ficha, Programa, Estado y Rol actual) para autocompletado instantaneo.
+*/
+export const BuscarAprendizPorDocumento = async (req, res) => {
+  try {
+    const numDoc = String(req.params.numDoc || "").trim();
+    if (!numDoc) {
+      return res.status(400).json({ message: "El número de documento es obligatorio." });
+    }
+
+    const usuario = await UsuariosModel.findOne({
+      where: { NumDoc_Usuario: numDoc },
+      attributes: [
+        "Id_Usuario", "TipDoc_Usuario", "NumDoc_Usuario", "Nom_Usuario",
+        "Ape_Usuario", "Cor_Usuario", "Tel_Usuario", "Est_Usuario",
+        "CenCon_Usuario", "San_Usuario", "Id_Ficha"
+      ],
+      include: [
+        {
+          model: FichasModel,
+          as: "ficha",
+          attributes: ["Id_Ficha", "Num_Ficha"],
+          include: [{ model: ProgramaModel, as: "programas", attributes: ["Id_Programa", "Nom_Programa"] }]
+        },
+        {
+          model: UsuariosRolModel,
+          as: "rolesUsuario",
+          include: [{ model: RolesModel, as: "rolUsuario", attributes: ["Nom_Rol"] }]
+        }
+      ]
+    });
+
+    if (!usuario) {
+      return res.status(404).json({ message: `No se encontró ningún usuario registrado con el documento ${numDoc}.` });
+    }
+
+    const roles = usuario.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+
+    return res.status(200).json({
+      Id_Usuario: usuario.Id_Usuario,
+      TipDoc_Usuario: usuario.TipDoc_Usuario,
+      NumDoc_Usuario: usuario.NumDoc_Usuario,
+      Nom_Usuario: usuario.Nom_Usuario,
+      Ape_Usuario: usuario.Ape_Usuario,
+      Nombre_Completo: `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim(),
+      Cor_Usuario: usuario.Cor_Usuario,
+      Tel_Usuario: usuario.Tel_Usuario,
+      Est_Usuario: usuario.Est_Usuario,
+      CenCon_Usuario: usuario.CenCon_Usuario,
+      San_Usuario: usuario.San_Usuario,
+      Id_Ficha: usuario.Id_Ficha,
+      Num_Ficha: usuario.ficha?.Num_Ficha || "Sin ficha",
+      Nom_Programa: usuario.ficha?.programas?.Nom_Programa || "Sin programa",
+      Roles: roles,
+      Rol_Principal: roles[0] || "Aprendiz Externo"
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 };
 

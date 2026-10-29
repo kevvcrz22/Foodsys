@@ -262,26 +262,19 @@ export const deleteFichas = async (req, res) => {
 
 export const descargarPlantillaFicha = async (_req, res) => {
   try {
-    const templatePath = path.resolve(__dirname, "../Templates/Fichas_Foodsys_Oficial.xlsx");
-    let Libro;
+    const Libro = XLSX.utils.book_new();
 
-    if (fs.existsSync(templatePath)) {
-      Libro = XLSX.readFile(templatePath);
-    } else {
-      Libro = XLSX.utils.book_new();
-
-      // Hoja 1: Plantilla Institucional Foodsys (Limpia con ejemplos)
-      const filasFoodsys = [
-        ["Num_Ficha", "Nom_Programa", "FecIniLec_Ficha", "FecFinLec_Ficha", "FecIniPra_Ficha", "FecFinPra_Ficha"],
-        [3404817, "GESTION DE EMPRESAS AGROPECUARIAS", "2026-04-15", "2027-04-14", "2027-04-15", "2027-10-15"],
-        [3409672, "PRODUCCION DE ESPECIES MENORES", "2026-02-10", "2027-02-09", "2027-02-10", "2027-08-10"]
-      ];
-      const Hoja1 = XLSX.utils.aoa_to_sheet(filasFoodsys);
-      Hoja1["!cols"] = [
-        { wch: 16 }, { wch: 38 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }
-      ];
-      XLSX.utils.book_append_sheet(Libro, Hoja1, "Plantilla_Fichas");
-    }
+    // Hoja 1: Plantilla Institucional Foodsys (Limpia con ejemplos)
+    const filasFoodsys = [
+      ["Num_Ficha", "Nom_Programa", "FecIniLec_Ficha", "FecFinLec_Ficha", "FecIniPra_Ficha", "FecFinPra_Ficha"],
+      [3404817, "GESTION DE EMPRESAS AGROPECUARIAS", "2026-04-15", "2027-04-14", "2027-04-15", "2027-10-15"],
+      [3409672, "PRODUCCION DE ESPECIES MENORES", "2026-02-10", "2027-02-09", "2027-02-10", "2027-08-10"]
+    ];
+    const Hoja1 = XLSX.utils.aoa_to_sheet(filasFoodsys);
+    Hoja1["!cols"] = [
+      { wch: 16 }, { wch: 38 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }
+    ];
+    XLSX.utils.book_append_sheet(Libro, Hoja1, "Plantilla_Fichas");
 
     // Consultar programas actualizados de la base de datos para la hoja de seleccion
     const programasBD = await ProgramaModel.findAll({

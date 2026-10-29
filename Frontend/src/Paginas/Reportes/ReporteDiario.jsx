@@ -22,6 +22,7 @@
 //   - Funciones auxiliares con mayuscula inicial.
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import toast from "react-hot-toast";
 import apiAxios from "../../api/axiosConfig";
 import { Chart } from "react-google-charts";
 import { FileText, FileSpreadsheet, Search } from "lucide-react";
@@ -61,6 +62,8 @@ const Spinner = () => (
 // ---------------------------------------------------------------------------
 
 const ReporteDiario = () => {
+  const rolActivo = (localStorage.getItem("rolActivo") || localStorage.getItem("rol") || "").trim().toLowerCase();
+  const esRolCocina = rolActivo.includes("cocina") && !rolActivo.includes("admin") && !rolActivo.includes("coordinad");
 
   // Fecha seleccionada por el Coordinador.
   // Se inicializa con la fecha actual del sistema en formato YYYY-MM-DD.
@@ -134,7 +137,7 @@ const ReporteDiario = () => {
   const Exportar = async (Formato) => {
     const totalRegistros = Datos?.reservas?.length || 0;
     if (totalRegistros === 0) {
-      alert("No hay reservas registradas para exportar en esta fecha.");
+      toast.error("No hay reservas registradas para exportar en esta fecha.");
       return;
     }
 
@@ -163,9 +166,10 @@ const ReporteDiario = () => {
         : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
       descargarBlobUniversal(Res.data, `Reporte_Diario_${Fecha}.${Ext}`, Mime);
+      toast.success(`Reporte diario ${Formato.toUpperCase()} descargado.`);
     } catch (Err) {
       console.error("Error exportando reporte diario:", Err);
-      alert("Error al exportar. Verifica la conexion con el servidor.");
+      toast.error("Error al exportar. Verifica la conexion con el servidor.");
     } finally {
       Set_Exportando(null);
     }
@@ -570,22 +574,26 @@ const ReporteDiario = () => {
                         <tr
                           key={R.Id_Reserva}
                           onClick={() => {
-                            if (R.usuario?.Id_Usuario) {
+                            if (!esRolCocina && R.usuario?.Id_Usuario) {
                               Set_AprendizSeleccionado({
                                 id: R.usuario.Id_Usuario,
                                 nombre: `${R.usuario.Nom_Usuario || ""} ${R.usuario.Ape_Usuario || ""}`.trim()
                               });
                             }
                           }}
-                          className="border-t border-gray-50 hover:bg-indigo-50/50 cursor-pointer transition"
-                          title="Clic para ver historial completo del aprendiz"
+                          className={`border-t border-gray-50 transition ${
+                            esRolCocina ? "" : "hover:bg-indigo-50/50 cursor-pointer"
+                          }`}
+                          title={esRolCocina ? "Datos personales anonimizados para Cocina" : "Clic para ver historial completo del aprendiz"}
                         >
 
                           {/* Columna: nombre del aprendiz con badges de estado */}
                           <td className="px-3 py-2.5">
                             <div>
-                              <p className="font-medium text-indigo-600 hover:underline">
-                                {R.usuario
+                              <p className={`font-medium ${esRolCocina ? "text-slate-700" : "text-indigo-600 hover:underline"}`}>
+                                {esRolCocina
+                                  ? `Comensal #${R.Id_Reserva}`
+                                  : R.usuario
                                   ? `${R.usuario.Nom_Usuario} ${R.usuario.Ape_Usuario}`
                                   : `Usuario #${R.Id_Usuario}`
                                 }
@@ -597,7 +605,7 @@ const ReporteDiario = () => {
                                   </span>
                                 )}
                                 {Es_Especial && (
-                                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
+                                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
                                     Especial
                                   </span>
                                 )}
@@ -612,7 +620,9 @@ const ReporteDiario = () => {
 
                           {/* Columna: tipo y numero de documento */}
                           <td className="px-3 py-2.5 text-gray-500">
-                            {R.usuario?.TipDoc_Usuario} {R.usuario?.NumDoc_Usuario}
+                            {esRolCocina
+                              ? `***${String(R.usuario?.NumDoc_Usuario || "000").slice(-3)}`
+                              : `${R.usuario?.TipDoc_Usuario || ""} ${R.usuario?.NumDoc_Usuario || ""}`}
                           </td>
 
                           {/* Columna: tipo de comida de la reserva */}
@@ -635,12 +645,12 @@ const ReporteDiario = () => {
 
                           {/* Columna: telefono de contacto del aprendiz */}
                           <td className="px-3 py-2.5 text-gray-500">
-                            {R.usuario?.Tel_Usuario || "--"}
+                            {esRolCocina ? "Protegido" : (R.usuario?.Tel_Usuario || "--")}
                           </td>
 
                           {/* Columna: correo electronico, truncado si es muy largo */}
                           <td className="px-3 py-2.5 text-gray-500 max-w-[160px] truncate">
-                            {R.usuario?.Cor_Usuario || "--"}
+                            {esRolCocina ? "Protegido" : (R.usuario?.Cor_Usuario || "--")}
                           </td>
                         </tr>
                       );

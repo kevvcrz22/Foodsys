@@ -10,26 +10,49 @@ import toast from "react-hot-toast";
 import {
   Users, Search, CheckCircle2, AlertCircle, ShieldCheck, Ban,
   History, X, Download, FileText, ChevronDown, ChevronUp,
-  AlertTriangle, Phone, Mail, HelpCircle, UserCheck
+  AlertTriangle, Phone, Mail, HelpCircle, UserCheck, Plus, Edit3, Calendar
 } from "lucide-react";
 import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
+import { confirmarAccionFoodsys } from "../../utils/notificacionesFoodsys.jsx";
 import GlobalLoader from "../../Components/GlobalLoader";
+import UsuariosForm from "./UsuariosForm";
+
+const ESTADOS_OFICIALES_USUARIO = [
+  "Formación",
+  "Inducción",
+  "Condicionado",
+  "Aplazado",
+  "Cancelado",
+  "Retiro voluntario",
+  "Traslado",
+  "Etapa productiva",
+  "Apoyo de sostenimiento",
+  "SENA empresa",
+  "Turnos en SENA empresa",
+  "Instructor",
+  "Visitantes"
+];
+
+const ESTADOS_BLOQUEADOS = ["Aplazado", "Cancelado", "Condicionado", "Retiro voluntario", "Traslado"];
 
 /* ============================================================
    BADGE DE ESTADO FORMATIVO
 ============================================================ */
 const EstadoBadge = ({ estado }) => {
-  const activo = estado === "Activo" || estado === "activo" || estado === "En Formacion";
+  const bloqueado = ESTADOS_BLOQUEADOS.includes(estado);
+  const advertencia = estado === "Etapa productiva" || estado === "Inducción";
   return (
     <span
       className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
-        activo
-          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-          : "bg-red-50 text-red-700 border-red-200"
+        bloqueado
+          ? "bg-red-50 text-red-700 border-red-200"
+          : advertencia
+          ? "bg-amber-50 text-amber-700 border-amber-200"
+          : "bg-emerald-50 text-emerald-700 border-emerald-200"
       }`}
     >
-      {activo ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
-      {estado || "—"}
+      {bloqueado ? <AlertCircle size={12} /> : <CheckCircle2 size={12} />}
+      {estado || "Formación"}
     </span>
   );
 };
@@ -66,12 +89,20 @@ const SemaforoInasistencias = ({ inasistencias = 0, sancionado = false }) => {
    COMPONENTE PRINCIPAL: PASANTES
 ============================================================ */
 const Pasantes = () => {
+  const rolActivo = localStorage.getItem("rolActivo") || "";
+  const esSoloLectura = rolActivo === "Bienestar";
+
   const [pasantes, setPasantes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [filtroRol, setFiltroRol] = useState("todos"); // 'todos', 'Pasante Interno', 'Pasante Externo'
   const [filtroSancion, setFiltroSancion] = useState("todos"); // 'todos', 'sancionados', 'activos'
-  const [filtroEstado, setFiltroEstado] = useState("todos"); // 'todos', 'En Formacion', 'Inactivo'
+  const [filtroEstado, setFiltroEstado] = useState("todos");
+
+  // Modal de formulario CRUD (Crear / Editar Pasante con fechas de inicio y fin)
+  const [modalFormAbierto, setModalFormAbierto] = useState(false);
+  const [pasanteEditando, setPasanteEditando] = useState({});
+  const [modoEditar, setModoEditar] = useState(false);
 
   // Modal de historial individual
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
@@ -100,6 +131,21 @@ const Pasantes = () => {
     }
   };
 
+  const abrirNuevoPasante = () => {
+    setPasanteEditando({
+      Est_Usuario: "Etapa productiva",
+      CenCon_Usuario: "No"
+    });
+    setModoEditar(false);
+    setModalFormAbierto(true);
+  };
+
+  const abrirEditarPasante = (pasante) => {
+    setPasanteEditando(pasante);
+    setModoEditar(true);
+    setModalFormAbierto(true);
+  };
+
   // Abrir modal de historial individual del pasante
   const verHistorialUsuario = async (usuario) => {
     setUsuarioDetalle(usuario);
@@ -118,18 +164,45 @@ const Pasantes = () => {
 
   // Cambiar estado de sancion de un pasante
   const toggleSancion = async (usuario) => {
+    if (esSoloLectura) return;
     const nuevo = usuario.San_Usuario === "Si" ? "No" : "Si";
-    const accion = nuevo === "Si" ? "sancionar" : "levantar sancion a";
+    const accion = nuevo === "Si" ? "sancionar" : "levantar sanción a";
     const nombre = `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim();
 
-    if (!window.confirm(`¿Estas seguro de ${accion} a ${nombre}?`)) return;
+    const ok = await confirmarAccionFoodsys({
+      titulo: nuevo === "Si" ? "Aplicar Sanción" : "Retirar Sanción y Reiniciar Fallas",
+      mensaje: `¿Estás seguro de ${accion} ${nombre}? ${
+        nuevo === "No" ? "El contador de fallas semanales se reiniciará a 0 de 3." : ""
+      }`,
+      textoConfirmar: nuevo === "Si" ? "Sí, sancionar" : "Sí, desancionar",
+      variante: nuevo === "Si" ? "danger" : "primary"
+    });
+    if (!ok) return;
 
     try {
       await apiAxios.patch(`/api/Usuarios/${usuario.Id_Usuario}/sancion`, { San_Usuario: nuevo });
-      toast.success(`Sancion ${nuevo === "Si" ? "activada" : "retirada"} con exito`);
-      cargarPasantes();
+      toast.success(
+        nuevo === "Si"
+          ? "Sanción activada con éxito."
+          : "Sanción retirada y contador Fallas SEM reiniciado a 0 de 3."
+      );
+      setPasantes((prev) =>
+        prev.map((p) =>
+          p.Id_Usuario === usuario.Id_Usuario
+            ? {
+                ...p,
+                San_Usuario: nuevo,
+                inasistenciasSemana: nuevo === "No" ? 0 : p.inasistenciasSemana
+              }
+            : p
+        )
+      );
       if (usuarioDetalle && usuarioDetalle.Id_Usuario === usuario.Id_Usuario) {
-        setUsuarioDetalle({ ...usuarioDetalle, San_Usuario: nuevo });
+        setUsuarioDetalle({
+          ...usuarioDetalle,
+          San_Usuario: nuevo,
+          inasistenciasSemana: nuevo === "No" ? 0 : usuarioDetalle.inasistenciasSemana
+        });
       }
     } catch (err) {
       console.error("Error al actualizar sancion:", err);
@@ -316,6 +389,30 @@ const Pasantes = () => {
       )
     },
     {
+      name: "Vigencia Pasantía",
+      selector: (row) => row.FecFin_Pasantia || "",
+      sortable: true,
+      minWidth: "145px",
+      cell: (row) => {
+        if (!row.FecIni_Pasantia && !row.FecFin_Pasantia) {
+          return <span className="text-[11px] text-gray-400 italic">Sin rango asignado</span>;
+        }
+        const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+        const vencida = row.FecFin_Pasantia && row.FecFin_Pasantia < hoy;
+        return (
+          <div className="flex flex-col text-[11px]">
+            <span className="font-semibold text-gray-800 flex items-center gap-1">
+              <Calendar size={11} className={vencida ? "text-rose-600" : "text-purple-600"} />
+              {row.FecIni_Pasantia || "—"} a {row.FecFin_Pasantia || "—"}
+            </span>
+            <span className={`text-[10px] font-bold ${vencida ? "text-rose-600" : "text-emerald-600"}`}>
+              {vencida ? "Vencida (Inactiva)" : "Vigente"}
+            </span>
+          </div>
+        );
+      }
+    },
+    {
       name: "Inasistencias",
       selector: (row) => row.inasistenciasSemana || 0,
       sortable: true,
@@ -331,12 +428,12 @@ const Pasantes = () => {
       name: "Estado",
       selector: (row) => row.Est_Usuario,
       sortable: true,
-      width: "110px",
+      width: "130px",
       cell: (row) => <EstadoBadge estado={row.Est_Usuario} />
     },
     {
       name: "Acciones",
-      width: "140px",
+      minWidth: esSoloLectura ? "70px" : "180px",
       cell: (row) => (
         <div className="flex items-center gap-1.5">
           <button
@@ -346,27 +443,38 @@ const Pasantes = () => {
           >
             <History size={15} />
           </button>
-          <button
-            onClick={() => toggleSancion(row)}
-            className={`px-2 py-1 text-[11px] font-semibold rounded-lg transition flex items-center gap-1 ${
-              row.San_Usuario === "Si"
-                ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                : "bg-rose-50 text-rose-700 hover:bg-rose-100"
-            }`}
-            title={row.San_Usuario === "Si" ? "Quitar sancion" : "Sancionar pasante"}
-          >
-            {row.San_Usuario === "Si" ? (
-              <>
-                <ShieldCheck size={13} />
-                Desancionar
-              </>
-            ) : (
-              <>
-                <Ban size={13} />
-                Sancionar
-              </>
-            )}
-          </button>
+          {!esSoloLectura && (
+            <>
+              <button
+                onClick={() => abrirEditarPasante(row)}
+                className="p-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg transition"
+                title="Editar fechas de pasantía y datos"
+              >
+                <Edit3 size={15} />
+              </button>
+              <button
+                onClick={() => toggleSancion(row)}
+                className={`px-2 py-1 text-[11px] font-semibold rounded-lg transition flex items-center gap-1 ${
+                  row.San_Usuario === "Si"
+                    ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                }`}
+                title={row.San_Usuario === "Si" ? "Quitar sancion" : "Sancionar pasante"}
+              >
+                {row.San_Usuario === "Si" ? (
+                  <>
+                    <ShieldCheck size={13} />
+                    Desancionar
+                  </>
+                ) : (
+                  <>
+                    <Ban size={13} />
+                    Sancionar
+                  </>
+                )}
+              </button>
+            </>
+          )}
         </div>
       )
     }
@@ -386,7 +494,7 @@ const Pasantes = () => {
                 Modulo de Pasantes
               </h1>
               <p className="text-xs text-gray-500 m-0">
-                Gestion de Pasantes Internos y Externos · Control de inasistencias y seguimiento
+                Gestion de Pasantes Internos y Externos · Vigencia de pasantía y seguimiento
               </p>
             </div>
           </div>
@@ -394,6 +502,16 @@ const Pasantes = () => {
 
         {/* Botones de accion y exportacion */}
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {!esSoloLectura && (
+            <button
+              onClick={abrirNuevoPasante}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold rounded-xl shadow-sm transition active:scale-95"
+              title="Registrar nuevo pasante o definir fechas de pasantía"
+            >
+              <Plus size={15} />
+              Nuevo Pasante
+            </button>
+          )}
           <button
             onClick={handleExportarExcel}
             className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-xl shadow-sm transition active:scale-95"
@@ -493,8 +611,11 @@ const Pasantes = () => {
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           >
             <option value="todos">Todos los Estados</option>
-            <option value="En Formacion">En Formacion (Activos)</option>
-            <option value="Inactivo">Inactivos</option>
+            {ESTADOS_OFICIALES_USUARIO.map((est) => (
+              <option key={est} value={est}>
+                {est}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -676,6 +797,44 @@ const Pasantes = () => {
               >
                 Cerrar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Formulario Crear / Editar Pasante */}
+      {modalFormAbierto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in duration-200">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100 bg-purple-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                  <UserCheck size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-sm sm:text-base m-0">
+                    {modoEditar ? "Editar Pasante y Vigencia" : "Registrar Nuevo Pasante"}
+                  </h3>
+                  <p className="text-xs text-gray-500 m-0">
+                    Define fecha de inicio y fin de pasantía (al caducar, se inactiva automáticamente para reservas)
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalFormAbierto(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-6 overflow-y-auto">
+              <UsuariosForm
+                hideModal={() => setModalFormAbierto(false)}
+                UsuarioSeleccionado={pasanteEditando}
+                Editar={modoEditar}
+                reload={cargarPasantes}
+              />
             </div>
           </div>
         </div>

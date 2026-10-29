@@ -34,8 +34,7 @@
 
 import { Router } from "express";
 import authMiddleware from "../Middleware/authMiddleware.js";
-import ReservarMiddleware from "../Middleware/ReservarMiddleware.js";
-// SupervisorMiddleware restringe las rutas de consumo unicamente al rol Supervisor.
+// SupervisorMiddleware restringe las rutas de consumo a Supervisor / Monitor.
 import SupervisorMiddleware from "../Middleware/SupervisorMiddleware.js";
 // CocinaMiddleware restringe la verificacion de presencia al rol Cocina.
 // Sin este middleware, cualquier usuario autenticado podria verificar reservas.

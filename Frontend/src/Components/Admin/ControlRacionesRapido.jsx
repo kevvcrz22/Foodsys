@@ -5,8 +5,8 @@
 // Estilo suave, limpio y moderno alineado con los modulos de Reportes y Usuarios.
 // Codigo sin tildes ni emojis para aprendices de ADSO.
 
-import { useState, useEffect, useCallback } from "react";
-import { Coffee, Sun, Moon, ToggleLeft, ToggleRight, RefreshCw, CheckCircle2, AlertCircle, ShieldAlert } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Coffee, Sun, Moon, ToggleLeft, ToggleRight, RefreshCw, CheckCircle2, AlertCircle, SlidersHorizontal, ChevronDown } from "lucide-react";
 import apiAxios from "../../api/axiosConfig";
 import toast from "react-hot-toast";
 
@@ -19,13 +19,26 @@ const ICONOS_COMIDA = {
 const HORARIOS_OFICIALES = {
   Desayuno: { servicio: "06:00 - 07:00 AM", limite: "10:30 PM dia anterior" },
   Almuerzo: { servicio: "11:30 AM - 01:30 PM", limite: "10:30 PM dia anterior" },
-  Cena: { servicio: "06:00 - 07:30 PM", limite: "10:30 PM dia anterior" }
+  Cena: { servicio: "06:00 - 07:00 PM", limite: "10:30 PM dia anterior" }
 };
 
-export default function ControlRacionesRapido({ onCambioEstado }) {
+export default function ControlRacionesRapido({ onCambioEstado, compacto = false }) {
   const [raciones, setRaciones] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [actualizando, setActualizando] = useState(null);
+  const [abiertoDropdown, setAbiertoDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!compacto) return;
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setAbiertoDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [compacto]);
 
   const cargarConfiguraciones = useCallback(async () => {
     try {
@@ -78,6 +91,101 @@ export default function ControlRacionesRapido({ onCambioEstado }) {
       setActualizando(null);
     }
   };
+
+  if (compacto) {
+    const activasCount = raciones.filter((r) => r.Racion_Activa === 1 || r.Racion_Activa === true).length;
+    return (
+      <div className="relative" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setAbiertoDropdown((prev) => !prev)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white border border-white/20 text-xs font-bold transition cursor-pointer shadow-xs"
+          title="Control de Raciones del Comedor"
+        >
+          <SlidersHorizontal size={14} className="text-emerald-300" />
+          <span className="hidden lg:inline">Raciones</span>
+          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white text-[10px] font-extrabold">
+            {activasCount}/{raciones.length || 3}
+          </span>
+          <ChevronDown size={13} className={`transition-transform ${abiertoDropdown ? "rotate-180" : ""}`} />
+        </button>
+
+        {abiertoDropdown && (
+          <div className="absolute right-0 mt-2 w-80 bg-white text-slate-800 rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden">
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-extrabold text-slate-800 m-0">Control de Raciones</p>
+                <p className="text-[10px] text-slate-500 m-0">Activa o pausa turnos en tiempo real</p>
+              </div>
+              <button
+                type="button"
+                onClick={cargarConfiguraciones}
+                disabled={cargando}
+                className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-700 cursor-pointer"
+                title="Sincronizar"
+              >
+                <RefreshCw size={12} className={cargando ? "animate-spin text-emerald-600" : ""} />
+              </button>
+            </div>
+            <div className="p-3 space-y-2">
+              {raciones.map((racion) => {
+                const Icono = ICONOS_COMIDA[racion.Tip_Racion] || Sun;
+                const activa = racion.Racion_Activa === 1 || racion.Racion_Activa === true;
+                const horario = HORARIOS_OFICIALES[racion.Tip_Racion] || { servicio: "Horario normal", limite: "10:30 PM" };
+                const esProcesando = actualizando === (racion.Id_Config || racion.Tip_Racion);
+
+                return (
+                  <div
+                    key={racion.Tip_Racion}
+                    className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 ${
+                      activa ? "bg-slate-50/80 border-slate-200" : "bg-rose-50/40 border-rose-200"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                          activa ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"
+                        }`}
+                      >
+                        <Icono size={15} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800 m-0">{racion.Tip_Racion}</p>
+                        <p className="text-[10px] text-slate-500 truncate m-0">{horario.servicio}</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleRacion(racion)}
+                      disabled={esProcesando}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer shrink-0 ${
+                        activa
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                          : "bg-rose-600 hover:bg-rose-700 text-white"
+                      } disabled:opacity-50`}
+                    >
+                      {esProcesando ? (
+                        <RefreshCw size={12} className="animate-spin" />
+                      ) : activa ? (
+                        <>
+                          <ToggleRight size={14} /> Activo
+                        </>
+                      ) : (
+                        <>
+                          <ToggleLeft size={14} /> Inactivo
+                        </>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden transition-all duration-300">

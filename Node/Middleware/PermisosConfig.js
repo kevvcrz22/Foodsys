@@ -1,83 +1,70 @@
 // Middleware/PermisosConfig.js
-//
-// Configuracion centralizada de permisos por vista y rol.
-// Cada clave es el nombre de la vista y su valor es un array
-// con los roles que tienen acceso a esa vista.
-//
-// IMPORTANTE: los nombres de roles deben coincidir EXACTAMENTE con
-// los valores del campo Nom_Rol en la tabla roles de la base de datos.
-// Si hay diferencia de mayusculas o espacios, el sistema no dara acceso.
-//
-// CAMBIOS APLICADOS:
-//   - Reporte: se elimino Supervisor. Solo Admin, Coordinador, Cocina, Bienestar.
-//   - Novedad: Bienestar puede crear novedades ademas de Coordinador.
-//   - Menu / Plato: Cocina tiene acceso de lectura para planificar produccion.
-//   - PlanCocina: nuevo permiso para el modulo de cantidades por turno (solo Cocina).
+// Configuracion centralizada de permisos por vista y rol (Matriz RBAC Oficial).
 
 const Permisos_Vista = {
-  // Solo el Supervisor puede registrar consumos de QR
-  Registrar: ["Supervisor"],
+  // Monitor (ex-Supervisor), Coordinador, Bienestar y Administrador pueden registrar consumos de QR
+  Registrar: ["Supervisor", "Monitor", "Coordinador", "Bienestar", "Administrador"],
 
-  // Todos los tipos de aprendices y pasantes pueden generar reservas.
-  // Aunque un usuario tenga otros roles (ej: Coordinador), solo puede
-  // acceder a Reservar cuando su rol activo sea el de aprendiz/pasante.
+  // Aprendices, Pasantes, Vocero y Visitante pueden generar reservas personales
   Reservar: [
     "Aprendiz Interno",
     "Aprendiz Externo",
     "Pasante Interno",
     "Pasante Externo",
+    "Vocero",
+    "Visitante",
   ],
 
-  // El CRUD de usuarios es exclusivo del Administrador
-  Usuarios: ["Administrador"],
+  // El CRUD de usuarios: Administrador y Coordinador (Instructores/Pasantes)
+  Usuarios: ["Administrador", "Coordinador"],
 
-  // La vista de fichas la pueden ver varios roles administrativos
+  // Fichas: Administrador, Coordinador, Supervisor, Monitor, Bienestar
   Ficha: [
-    "Administrador", "Supervisor",
+    "Administrador", "Supervisor", "Monitor",
     "Coordinador", "Bienestar",
   ],
 
-  // Los reportes son visibles para roles de gestion y operacion.
-  // Supervisor NO tiene acceso a reportes.
-  // Aprendices y Pasantes NO tienen acceso a reportes.
+  // Reportes: Administrador, Coordinador, Cocina, Bienestar, SENA Empresa, Supervisor de Contrato, Monitor/Supervisor
   Reporte: [
     "Administrador",
     "Coordinador", "Cocina", "Bienestar",
+    "SENA Empresa", "Supervisor de Contrato",
+    "Supervisor", "Monitor"
   ],
 
-  // Novedades: Bienestar puede crear y ver novedades ademas del Coordinador y Admin.
+  // Novedades: Administrador, Coordinador y Bienestar
   Novedad: [
     "Administrador", "Coordinador", "Bienestar",
   ],
 
-  // Menu: Admin para CRUD completo. Cocina solo usa GET (lectura) para
-  // ver los menus del dia y planificar cantidades de produccion.
-  Menu: ["Administrador", "Cocina"],
+  // Menu: Administrador, Coordinador, Bienestar, Cocina, Supervisor de Contrato
+  Menu: ["Administrador", "Coordinador", "Bienestar", "Cocina", "Supervisor de Contrato"],
 
-  // Plato: Admin para CRUD completo. Cocina solo usa GET (lectura).
-  Plato: ["Administrador", "Cocina"],
+  // Plato: Administrador, Coordinador, Bienestar, Cocina, Supervisor de Contrato
+  Plato: ["Administrador", "Coordinador", "Bienestar", "Cocina", "Supervisor de Contrato"],
 
-  // Programas: roles de planificacion academica
+  // Programas: Administrador y Coordinador
   Programas: [
     "Administrador", "Coordinador",
   ],
 
-  // Planeacion: roles estrategicos
+  // Planeacion
   Planeacion: [
-    "Administrador", "Supervisor", "Bienestar",
+    "Administrador", "Supervisor", "Monitor", "Bienestar", "Coordinador", "Supervisor de Contrato"
   ],
 
-  // Gestion de permisos: exclusivo del Administrador
-  Permisos: ["Administrador"],
+  // Gestion de permisos y asignacion de roles: Administrador y Coordinador
+  Permisos: ["Administrador", "Coordinador"],
 
-  // Contacto: visible para aprendices, pasantes y roles de apoyo
+  // Contacto
   Contacto: [
     "Aprendiz Externo", "Aprendiz Interno",
     "Pasante Interno", "Pasante Externo",
-    "Coordinador", "Cocina", "Bienestar",
+    "Visitante", "Vocero", "Instructor", "SENA Empresa",
+    "Coordinador", "Cocina", "Bienestar", "Supervisor", "Monitor", "Supervisor de Contrato"
   ],
 
-  // Vista de aprendices con campo sancion: Admin, Coordinador y Bienestar
+  // Vista de aprendices: Admin, Coordinador y Bienestar
   Aprendices: [
     "Administrador", "Coordinador", "Bienestar",
   ],
@@ -87,19 +74,19 @@ const Permisos_Vista = {
     "Administrador", "Coordinador", "Bienestar",
   ],
 
-  // Historial de reservas personales: aprendices y pasantes
+  // Historial de reservas personales
   Historial: [
-    "Administrador",
+    "Administrador", "Coordinador",
     "Aprendiz Externo", "Aprendiz Interno",
     "Pasante Interno", "Pasante Externo",
+    "Vocero", "Visitante", "SENA Empresa"
   ],
 
-  // Verificacion de cocina: solo el personal de cocina puede verificar presencia
-  Verificar: ["Cocina"],
+  // Verificacion de cocina y monitor
+  Verificar: ["Cocina", "Monitor", "Supervisor", "Administrador", "Coordinador"],
 
-  // Modulo de planificacion de cantidades por turno: Cocina, Bienestar y Administrador.
-  // Permite ver cuantas reservas hay por tipo y plato para preparar la produccion.
-  PlanCocina: ["Cocina", "Bienestar", "Administrador"],
+  // Planificacion de cantidades por turno: Cocina, Bienestar, Coordinador, Supervisor de Contrato y Administrador
+  PlanCocina: ["Cocina", "Bienestar", "Coordinador", "Supervisor de Contrato", "Administrador"],
 };
 
 export default Permisos_Vista;

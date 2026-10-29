@@ -25,6 +25,8 @@ import {
   importarInstructoresExcel,
   ActualizarSancion,
   GetSancionados,
+  QuitarTodasLasSanciones,
+  BuscarAprendizPorDocumento,
   getResetPassword,
   setNewPassword,
   diagnosticarSofiaPlus,
@@ -79,6 +81,12 @@ Router.get('/pasantes', authMiddleware, getPasantes);
 // Listado de usuarios sancionados (San_Usuario = 'Si')
 // Acceso: Coordinador, Bienestar, Administrador
 Router.get('/sancionados', authMiddleware, GetSancionados);
+
+// Quitar todas las sanciones de forma masiva (reinicia contador semanal a 0 de 3)
+Router.patch('/sanciones/quitar-todas', authMiddleware, QuitarTodasLasSanciones);
+
+// Busqueda rapida de aprendiz por documento para autocompletado en Internado Temporal
+Router.get('/buscar-documento/:numDoc', authMiddleware, BuscarAprendizPorDocumento);
 
 // Importacion legacy CSV
 Router.post('/importar-csv', authMiddleware, importarCSV);

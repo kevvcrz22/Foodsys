@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { BarChart3, TrendingUp, PieChart, UserX, HeartHandshake, Tractor } from "lucide-react";
+import toast from "react-hot-toast";
 import apiAxios from "../../api/axiosConfig";
 import { useSocketListener } from "../../api/socket";
 
@@ -29,19 +30,24 @@ import ReporteCampo from "./ReporteCampo";
 import { descargarBlobUniversal, confirmarExportacion } from "../../utils/exportUtils";
 
 const Reportes = () => {
-  // Detección de rol del usuario: Cocina solo tiene acceso a Consumos Reales (quienes consumieron)
+  // Detección de rol del usuario:
+  // - Cocina: solo tiene acceso a Tab 1 (Consumos Reales con datos personales anonimizados)
+  // - SENA Empresa: restringido exclusivamente al resumen de Alimentos Apartados e Internado Temporal (Tab 4)
   const rolActivo = (localStorage.getItem("rolActivo") || localStorage.getItem("rol") || "").trim().toLowerCase();
   const esRolCocina = rolActivo.includes("cocina") && !rolActivo.includes("admin") && !rolActivo.includes("coordinad");
+  const esRolSenaEmpresa = rolActivo.includes("sena empresa") && !rolActivo.includes("admin") && !rolActivo.includes("coordinad");
 
-  // Vista activa principal: "estadisticas" | "no_consumidos" | "seguimiento_bienestar"
-  const [VistaActiva, Set_VistaActiva] = useState("estadisticas");
+  // Vista activa principal: "estadisticas" | "no_consumidos" | "seguimiento_bienestar" | "campo"
+  const [VistaActiva, Set_VistaActiva] = useState(() => (esRolSenaEmpresa ? "campo" : "estadisticas"));
 
-  // Si el rol es cocina, forzar siempre a vista de consumos reales
+  // Forzar vista permitida segun el rol activo
   useEffect(() => {
     if (esRolCocina && VistaActiva !== "estadisticas") {
       Set_VistaActiva("estadisticas");
+    } else if (esRolSenaEmpresa && VistaActiva !== "campo") {
+      Set_VistaActiva("campo");
     }
-  }, [esRolCocina, VistaActiva]);
+  }, [esRolCocina, esRolSenaEmpresa, VistaActiva]);
 
   // Periodo activo del modulo estadistico.
   // Se inicializa en "diario" para que el tab Diario sea lo primero que ve el usuario.
@@ -149,7 +155,7 @@ const Reportes = () => {
   const Exportar = async (Formato) => {
     const totalRegistros = Datos_Array.length;
     if (totalRegistros === 0) {
-      alert("No hay datos estadisticos para exportar en este periodo.");
+      toast.error("No hay datos estadisticos para exportar en este periodo.");
       return;
     }
 
@@ -190,9 +196,10 @@ const Reportes = () => {
         `Reporte_${Periodo}_${new Date().toISOString().split("T")[0]}.${Ext}`,
         Mime
       );
+      toast.success(`Reporte ${Formato.toUpperCase()} descargado correctamente.`);
     } catch (Err) {
       console.error("Error exportando reporte:", Err);
-      alert("Error al exportar reporte. Verifica la conexion.");
+      toast.error("Error al exportar reporte. Verifica la conexion.");
     } finally {
       Set_Exportando(null);
     }
@@ -222,21 +229,23 @@ const Reportes = () => {
         )}
       </div>
 
-      {/* Triple Conmutador de Enfoque para Administracion, Cocina y Bienestar */}
+      {/* Conmutador de Enfoque por Rol (Administracion, Coordinacion, Bienestar, Cocina, SENA Empresa) */}
       <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
-        <button
-          onClick={() => Set_VistaActiva("estadisticas")}
-          className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
-            VistaActiva === "estadisticas"
-              ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
-              : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" />
-          <span>Tab 1 — Consumos Reales</span>
-        </button>
+        {!esRolSenaEmpresa && (
+          <button
+            onClick={() => Set_VistaActiva("estadisticas")}
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
+              VistaActiva === "estadisticas"
+                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
+                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Tab 1 — Consumos Reales{esRolCocina ? " (Anonimizado)" : ""}</span>
+          </button>
+        )}
 
-        {!esRolCocina && (
+        {!esRolCocina && !esRolSenaEmpresa && (
           <>
             <button
               onClick={() => Set_VistaActiva("no_consumidos")}
@@ -246,7 +255,7 @@ const Reportes = () => {
                   : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"
               }`}
             >
-              <UserX className="w-4 h-4 text-rose-300" />
+              <UserX className="w-4 h-4 text-rose-400" />
               <span>Tab 2 — Inasistencias / No Consumieron</span>
             </button>
 
@@ -254,26 +263,28 @@ const Reportes = () => {
               onClick={() => Set_VistaActiva("seguimiento_bienestar")}
               className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
                 VistaActiva === "seguimiento_bienestar"
-                  ? "bg-purple-700 text-white border-purple-700 shadow-sm shadow-purple-200"
-                  : "bg-white text-purple-700 border-purple-200 hover:bg-purple-50"
+                  ? "bg-indigo-100 text-indigo-900 border-indigo-300 shadow-xs"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-indigo-50/60"
               }`}
             >
-              <HeartHandshake className="w-4 h-4 text-purple-300" />
+              <HeartHandshake className="w-4 h-4 text-indigo-500" />
               <span>Tab 3 — Alerta Seguimiento Bienestar</span>
             </button>
-
-            <button
-              onClick={() => Set_VistaActiva("campo")}
-              className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
-                VistaActiva === "campo"
-                  ? "bg-emerald-700 text-white border-emerald-700 shadow-sm shadow-emerald-200"
-                  : "bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-50"
-              }`}
-            >
-              <Tractor className="w-4 h-4 text-emerald-500" />
-              <span>Tab 4 — Jornada de Campo & SENA Empresa</span>
-            </button>
           </>
+        )}
+
+        {!esRolCocina && (
+          <button
+            onClick={() => Set_VistaActiva("campo")}
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-2 border ${
+              VistaActiva === "campo"
+                ? "bg-emerald-700 text-white border-emerald-700 shadow-sm shadow-emerald-200"
+                : "bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-50"
+            }`}
+          >
+            <Tractor className="w-4 h-4 text-emerald-500" />
+            <span>Tab 4 — Almuerzos Apartados SENA Empresa e Internado Temporal</span>
+          </button>
         )}
       </div>
 

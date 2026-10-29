@@ -7,6 +7,7 @@ import {
   Eye, EyeOff, User, Mail, Phone, Lock,
   CreditCard, Shield, BookOpen, Building2, CheckCircle
 } from "lucide-react";
+import toast from "react-hot-toast";
 import apiAxios from "../../api/axiosConfig";
 
 // Roles del sistema que corresponden a aprendices o pasantes
@@ -213,6 +214,7 @@ const Perfil = () => {
   // Envia los cambios de correo y telefono al endpoint dedicado /api/Usuarios/perfil/contacto
   const GuardarContacto = async () => {
     if (!Correo.trim() && !Telefono.trim()) {
+      toast.error("Debe ingresar al menos un campo para actualizar");
       setMensajeContacto({
         Texto: "Debe ingresar al menos un campo para actualizar",
         Tipo: "error",
@@ -226,14 +228,17 @@ const Perfil = () => {
         Tel_Usuario: Telefono,
       });
       await CargarUsuario();
+      toast.success("Informacion de contacto actualizada correctamente");
       setMensajeContacto({
         Texto: "Informacion de contacto actualizada correctamente",
         Tipo: "exito",
       });
       setTimeout(() => setMensajeContacto({ Texto: "", Tipo: "" }), 4000);
     } catch (err) {
+      const msg = err.response?.data?.message || "Error al guardar los cambios. Intente nuevamente";
+      toast.error(msg);
       setMensajeContacto({
-        Texto: err.response?.data?.message || "Error al guardar los cambios. Intente nuevamente",
+        Texto: msg,
         Tipo: "error",
       });
     } finally {
@@ -244,6 +249,7 @@ const Perfil = () => {
   // Paso 1 del flujo: valida la contraseña actual contra la base de datos
   const ValidarcontraseñaActual = async () => {
     if (!contraseñaActual.trim()) {
+      toast.error("Ingrese su contraseña actual para continuar");
       setMensajecontraseña({
         Texto: "Ingrese su contraseña actual para continuar",
         Tipo: "error",
@@ -259,7 +265,9 @@ const Perfil = () => {
       );
       setPaso(2);
       setMensajecontraseña({ Texto: "", Tipo: "" });
+      toast.success("Contraseña actual verificada");
     } catch {
+      toast.error("La contraseña actual es incorrecta");
       setMensajecontraseña({
         Texto: "La contraseña actual es incorrecta",
         Tipo: "error",
@@ -272,10 +280,12 @@ const Perfil = () => {
   // Paso 2 del flujo: envia la nueva contraseña al backend (/api/Usuarios/perfil/password)
   const Guardarcontraseña = async () => {
     if (!contraseñaNueva.trim()) {
+      toast.error("Ingrese la nueva contraseña");
       setMensajecontraseña({ Texto: "Ingrese la nueva contraseña", Tipo: "error" });
       return;
     }
     if (contraseñaNueva.length < 8) {
+      toast.error("La contraseña debe tener minimo 8 caracteres");
       setMensajecontraseña({
         Texto: "La contraseña debe tener minimo 8 caracteres",
         Tipo: "error",
@@ -283,8 +293,9 @@ const Perfil = () => {
       return;
     }
     if (contraseñaNueva !== contraseñaConfirmar) {
+      toast.error("Las contraseñas no coinciden");
       setMensajecontraseña({
-        Texto: "Las contrasenas no coinciden",
+        Texto: "Las contraseñas no coinciden",
         Tipo: "error",
       });
       return;
@@ -297,13 +308,16 @@ const Perfil = () => {
         confirmPassword: contraseñaConfirmar
       });
       setPaso(3);
+      toast.success("Contraseña actualizada correctamente");
       setMensajecontraseña({
         Texto: "Contraseña actualizada correctamente",
         Tipo: "exito",
       });
     } catch (err) {
+      const msg = err.response?.data?.message || "Error al actualizar la contraseña";
+      toast.error(msg);
       setMensajecontraseña({
-        Texto: err.response?.data?.message || "Error al actualizar la contraseña",
+        Texto: msg,
         Tipo: "error",
       });
     } finally {
@@ -375,7 +389,7 @@ const Perfil = () => {
                 {Usuario.Nom_Usuario} {Usuario.Ape_Usuario}
               </h1>
               <div className="flex flex-wrap gap-2 mt-2">
-                {/* Badge de estado activo o inactivo basado en San_Usuario */}
+                {/* Badge de habilitacion basado en San_Usuario y estado oficial */}
                 <span
                   className={[
                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border",
@@ -388,7 +402,7 @@ const Perfil = () => {
                     className={`w-1.5 h-1.5 rounded-full ${CuentaActiva ? "bg-green-500" : "bg-red-500"
                       }`}
                   />
-                  {CuentaActiva ? "Cuenta Activa" : "Cuenta Inactiva"}
+                  {CuentaActiva ? (Usuario.Est_Usuario || "Formación") : "Restringido por Sanción"}
                 </span>
 
                 {/* Badge de sancion visible cuando San_Usuario es "Si" */}
@@ -524,7 +538,7 @@ const Perfil = () => {
               <CampoEntrada
                 Icono={CheckCircle}
                 Etiqueta="Estado de la Cuenta"
-                Valor={Usuario.Est_Usuario || "Activo"}
+                Valor={Usuario.Est_Usuario || "Formación"}
                 Deshabilitado
               />
             </div>
@@ -621,38 +635,69 @@ const Perfil = () => {
                     OnToggle={() => setVisNueva(!VisNueva)}
                     Placeholder="Minimo 8 caracteres"
                   />
-                  {/* Indicador de fortaleza visual de la contraseña */}
-                  {contraseñaNueva.length > 0 && (
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-400">Fortaleza:</span>
-                        <span className={
-                          contraseñaNueva.length < 8
-                            ? "font-bold text-rose-500"
-                            : (/[0-9]/.test(contraseñaNueva) && /[A-Z]/.test(contraseñaNueva) && /[^A-Za-z0-9]/.test(contraseñaNueva))
-                            ? "font-bold text-emerald-600"
-                            : "font-bold text-amber-500"
-                        }>
-                          {contraseñaNueva.length < 8
-                            ? "Débil (< 8 caracteres)"
-                            : (/[0-9]/.test(contraseñaNueva) && /[A-Z]/.test(contraseñaNueva) && /[^A-Za-z0-9]/.test(contraseñaNueva))
-                            ? "Fuerte (Segura)"
-                            : "Media"}
-                        </span>
+                  {/* Indicador de fortaleza visual reactivo (5 criterios = 20% cada uno) */}
+                  {(() => {
+                    const criterios = [
+                      { label: "8+ caracteres", ok: contraseñaNueva.length >= 8 },
+                      { label: "Mayuscula", ok: /[A-Z]/.test(contraseñaNueva) },
+                      { label: "Minuscula", ok: /[a-z]/.test(contraseñaNueva) },
+                      { label: "Numero", ok: /[0-9]/.test(contraseñaNueva) },
+                      { label: "Especial", ok: /[^A-Za-z0-9]/.test(contraseñaNueva) },
+                    ];
+                    const cumplidos = contraseñaNueva.length === 0 ? 0 : criterios.filter((c) => c.ok).length;
+                    const porcentaje = cumplidos * 20;
+                    const nivelTexto =
+                      cumplidos === 0
+                        ? "Sin ingresar (0%)"
+                        : cumplidos <= 2
+                        ? `Debil (${porcentaje}%)`
+                        : cumplidos <= 4
+                        ? `Media (${porcentaje}%)`
+                        : `Fuerte / Segura (100%)`;
+                    const colorBarra =
+                      cumplidos <= 2
+                        ? "bg-rose-500"
+                        : cumplidos <= 4
+                        ? "bg-amber-500"
+                        : "bg-emerald-500";
+                    const colorTexto =
+                      cumplidos === 0
+                        ? "text-slate-400"
+                        : cumplidos <= 2
+                        ? "font-bold text-rose-500"
+                        : cumplidos <= 4
+                        ? "font-bold text-amber-500"
+                        : "font-bold text-emerald-600";
+
+                    return (
+                      <div className="space-y-2 bg-slate-50 border border-slate-200/80 rounded-xl p-2.5">
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-slate-500 font-semibold">Fortaleza de clave:</span>
+                          <span className={colorTexto}>{nivelTexto}</span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${colorBarra}`}
+                            style={{ width: `${porcentaje}%` }}
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {criterios.map((c) => (
+                            <span
+                              key={c.label}
+                              className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border transition-colors ${
+                                c.ok
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : "bg-white text-slate-400 border-slate-200"
+                              }`}
+                            >
+                              {c.ok ? "✓ " : "• "}{c.label}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                      <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-300 ${
-                            contraseñaNueva.length < 8
-                              ? "w-1/3 bg-rose-500"
-                              : (/[0-9]/.test(contraseñaNueva) && /[A-Z]/.test(contraseñaNueva) && /[^A-Za-z0-9]/.test(contraseñaNueva))
-                              ? "w-full bg-emerald-500"
-                              : "w-2/3 bg-amber-500"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                   <Campocontraseña
                     Etiqueta="Confirmar contraseña"
                     Valor={contraseñaConfirmar}

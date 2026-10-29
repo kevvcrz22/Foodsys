@@ -44,30 +44,93 @@ export default function InternadoTemporal() {
   const [filtroEstado, setFiltroEstado] = useState("TODOS"); // 'TODOS' | 'ACTIVO' | 'PROGRAMADO' | 'VENCIDO'
   const [revisandoVencidos, setRevisandoVencidos] = useState(false);
 
-  // Registro manual
+  // Registro manual y busqueda en tiempo real por documento
   const [numDocManual, setNumDocManual] = useState("");
+  const [aprendizEncontrado, setAprendizEncontrado] = useState(null);
+  const [buscandoAprendiz, setBuscandoAprendiz] = useState(false);
+  const [errorBusquedaDoc, setErrorBusquedaDoc] = useState("");
   const [fechaInicioManual, setFechaInicioManual] = useState(hoyBogotaStr);
   const [fechaFinManual, setFechaFinManual] = useState(hoyBogotaStr);
   const [unidadManual, setUnidadManual] = useState("SENA_EMPRESA_GENERAL");
   const [observacionesManual, setObservacionesManual] = useState("");
   const [guardandoManual, setGuardandoManual] = useState(false);
+  const [idEditandoManual, setIdEditandoManual] = useState(null);
 
   // Importacion Excel
   const [archivoExcel, setArchivoExcel] = useState(null);
-  const [previewDatosExcel, setPreviewDatosExcel] = useState([]);
+  const [previewDatosExcel, setPreviewDatosExcel] = useState(null);
   const [importandoExcel, setImportandoExcel] = useState(false);
   const [descargandoPlantilla, setDescargandoPlantilla] = useState(false);
 
-  // Modal para eliminar o revertir
+  // Modal para revertir turno (sin eliminacion fisica)
   const [registroAEliminar, setRegistroAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
+
+  // Busqueda reactiva de aprendiz al escribir el documento
+  useEffect(() => {
+    const docLimpio = numDocManual.trim().replace(/\D/g, "");
+    if (docLimpio.length < 5) {
+      setAprendizEncontrado(null);
+      setErrorBusquedaDoc("");
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setBuscandoAprendiz(true);
+      setErrorBusquedaDoc("");
+      try {
+        const res = await apiAxios.get(`/api/Usuarios/buscar-documento/${docLimpio}`);
+        if (res.data?.encontrado && res.data?.usuario) {
+          setAprendizEncontrado(res.data.usuario);
+        } else {
+          setAprendizEncontrado(null);
+          setErrorBusquedaDoc("No se encontró ningún usuario con este documento.");
+        }
+      } catch (err) {
+        setAprendizEncontrado(null);
+        setErrorBusquedaDoc(
+          err.response?.data?.message || "No se encontró ningún aprendiz con ese documento."
+        );
+      } finally {
+        setBuscandoAprendiz(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [numDocManual]);
+
+  // Calcular Lunes y Viernes para Turno Rutinario Semanal (semana actual o siguiente)
+  const aplicarTurnoRutinarioSemanal = (offsetSemanas = 0) => {
+    const base = new Date(`${hoyBogotaStr}T12:00:00-05:00`);
+    const diaSemana = base.getDay(); // 0=Dom, 1=Lun ... 6=Sab
+    const diffLunes = (diaSemana === 0 ? -6 : 1 - diaSemana) + offsetSemanas * 7;
+    const lunes = new Date(base);
+    lunes.setDate(base.getDate() + diffLunes);
+    const viernes = new Date(lunes);
+    viernes.setDate(lunes.getDate() + 4);
+
+    const fmt = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(d);
+    const fLun = fmt(lunes);
+    const fVie = fmt(viernes);
+    setFechaInicioManual(fLun);
+    setFechaFinManual(fVie);
+    setObservacionesManual(
+      `Turno Rutinario Semanal (Lunes ${fLun} a Viernes ${fVie}) - SENA Empresa`
+    );
+    FoodsysToast.info(`Rango semanal aplicado: Lunes ${fLun} a Viernes ${fVie}`);
+  };
 
   // Cargar lista de internados temporales
   const cargarRegistros = useCallback(async () => {
     setCargando(true);
     try {
       const res = await apiAxios.get("/api/internado-temporal/listar");
-      setRegistros(Array.isArray(res.data?.registros) ? res.data.registros : []);
+      const lista = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.registros)
+        ? res.data.registros
+        : [];
+      setRegistros(lista);
     } catch (err) {
       console.error("Error al cargar internado temporal:", err);
       FoodsysToast.error("Error al cargar la lista de internado temporal.");
@@ -85,8 +148,10 @@ export default function InternadoTemporal() {
     setRevisandoVencidos(true);
     try {
       const res = await apiAxios.post("/api/internado-temporal/revisar-vencidos");
+      const rev = res.data?.revertidos ?? res.data?.resultado?.revertidos ?? 0;
+      const act = res.data?.activados ?? res.data?.resultado?.activados ?? 0;
       FoodsysToast.success(
-        `Revision completada: ${res.data?.revertidos || 0} aprendices vencidos revertidos a externos.`
+        `Revisión completada: ${act} turnos activados hoy y ${rev} aprendices vencidos revertidos.`
       );
       cargarRegistros();
     } catch (err) {
@@ -139,12 +204,21 @@ export default function InternadoTemporal() {
         const sheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-        // Extraer primeras 10 filas para previsualizacion
+        // Localizar encabezados en las primeras 20 filas
         if (jsonData.length > 1) {
-          const encabezados = jsonData[0] || [];
-          const filas = jsonData.slice(1, 11).filter((r) => r.length > 0);
-          setPreviewDatosExcel({ encabezados, filas, total: jsonData.length - 1 });
-          FoodsysToast.success(`Archivo cargado: ${jsonData.length - 1} filas detectadas.`);
+          let headerIdx = 0;
+          for (let i = 0; i < Math.min(20, jsonData.length); i++) {
+            const rowStr = (jsonData[i] || []).map((c) => String(c).toUpperCase()).join(" ");
+            if (rowStr.includes("DOCUMENTO") || rowStr.includes("CEDULA") || rowStr.includes("NOMBRES") || rowStr.includes("FICHA")) {
+              headerIdx = i;
+              break;
+            }
+          }
+          const encabezados = jsonData[headerIdx] || [];
+          const filasDatos = jsonData.slice(headerIdx + 1).filter((r) => Array.isArray(r) && r.some((cell) => cell !== undefined && cell !== ""));
+          const filas = filasDatos.slice(0, 10);
+          setPreviewDatosExcel({ encabezados, filas, total: filasDatos.length });
+          FoodsysToast.success(`Archivo cargado: ${filasDatos.length} filas de datos detectadas.`);
         } else {
           FoodsysToast.warning("El archivo parece estar vacío.");
         }
@@ -172,14 +246,16 @@ export default function InternadoTemporal() {
         headers: { "Content-Type": "multipart/form-data" }
       });
 
-      const { totalImportados, totalActivadosHoy, totalOmitidos } = res.data;
+      const totalImportados = res.data?.totalImportados ?? res.data?.resultado?.creadosOActualizados ?? 0;
+      const totalActivadosHoy = res.data?.totalActivadosHoy ?? res.data?.resultado?.activadosHoy ?? 0;
+      const totalOmitidos = res.data?.totalOmitidos ?? (res.data?.resultado?.noEncontradosEnBd?.length || 0);
       FoodsysToast.success(
-        `Importación exitosa: ${totalImportados} turnos registrados, ${totalActivadosHoy} activados hoy como internos (${totalOmitidos || 0} no encontrados en sistema).`,
+        `Importación exitosa: ${totalImportados} turnos registrados, ${totalActivadosHoy} activados hoy como internos (${totalOmitidos} no encontrados en sistema).`,
         { duration: 6000 }
       );
 
       setArchivoExcel(null);
-      setPreviewDatosExcel([]);
+      setPreviewDatosExcel(null);
       setTabActivo("LISTADO");
       cargarRegistros();
     } catch (err) {
@@ -191,7 +267,18 @@ export default function InternadoTemporal() {
     }
   };
 
-  // Guardar registro manual
+  // Abrir formulario manual en modo edicion de turno
+  const handleAbrirEditarTurno = (r) => {
+    setIdEditandoManual(r.Id_Internado_Temporal);
+    setNumDocManual(String(r.NumDoc_Usuario || ""));
+    setFechaInicioManual(r.Fecha_Inicio || hoyBogotaStr);
+    setFechaFinManual(r.Fecha_Fin || hoyBogotaStr);
+    setUnidadManual(r.Unidad_Sena_Empresa || r.Unidad_Productiva || "SENA_EMPRESA_GENERAL");
+    setObservacionesManual(r.Observaciones || "");
+    setTabActivo("MANUAL");
+  };
+
+  // Guardar registro manual (Crear o Editar)
   const handleGuardarManual = async (e) => {
     e.preventDefault();
     const docLimpio = numDocManual.trim().replace(/\D/g, "");
@@ -208,16 +295,28 @@ export default function InternadoTemporal() {
 
     setGuardandoManual(true);
     try {
-      const res = await apiAxios.post("/api/internado-temporal/crear", {
-        NumDoc_Usuario: docLimpio,
-        Fecha_Inicio: fechaInicioManual,
-        Fecha_Fin: fechaFinManual,
-        Unidad_Sena_Empresa: unidadManual,
-        Observaciones: observacionesManual
-      });
+      if (idEditandoManual) {
+        const res = await apiAxios.put(`/api/internado-temporal/${idEditandoManual}`, {
+          Fecha_Inicio: fechaInicioManual,
+          Fecha_Fin: fechaFinManual,
+          Unidad_Sena_Empresa: unidadManual,
+          Observaciones: observacionesManual
+        });
+        FoodsysToast.success(res.data?.message || "Turno de internado temporal actualizado con éxito.");
+      } else {
+        const res = await apiAxios.post("/api/internado-temporal/crear", {
+          NumDoc_Usuario: docLimpio,
+          Fecha_Inicio: fechaInicioManual,
+          Fecha_Fin: fechaFinManual,
+          Unidad_Sena_Empresa: unidadManual,
+          Observaciones: observacionesManual
+        });
+        FoodsysToast.success(res.data?.message || "Aprendiz asignado a internado temporal con éxito.");
+      }
 
-      FoodsysToast.success(res.data?.message || "Aprendiz asignado a internado temporal con éxito.");
+      setIdEditandoManual(null);
       setNumDocManual("");
+      setAprendizEncontrado(null);
       setObservacionesManual("");
       setTabActivo("LISTADO");
       cargarRegistros();
@@ -230,19 +329,19 @@ export default function InternadoTemporal() {
     }
   };
 
-  // Eliminar / Revertir turno
+  // Revertir turno (sin eliminacion fisica)
   const handleConfirmarEliminar = async () => {
     if (!registroAEliminar) return;
 
     setEliminando(true);
     try {
-      await apiAxios.delete(`/api/internado-temporal/${registroAEliminar.Id_Internado_Temporal}`);
-      FoodsysToast.success("Turno cancelado y usuario revertido a estado externo.");
+      await apiAxios.patch(`/api/internado-temporal/${registroAEliminar.Id_Internado_Temporal}/revocar`);
+      FoodsysToast.success("Turno finalizado y usuario revertido a su estado original.");
       setRegistroAEliminar(null);
       cargarRegistros();
     } catch (err) {
-      console.error("Error al eliminar turno:", err);
-      const msg = err.response?.data?.message || "Error al eliminar el turno";
+      console.error("Error al revertir turno:", err);
+      const msg = err.response?.data?.message || "Error al revertir el turno";
       FoodsysToast.error(msg);
     } finally {
       setEliminando(false);
@@ -542,14 +641,26 @@ export default function InternadoTemporal() {
                             )}
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() => setRegistroAEliminar(r)}
-                              className="inline-flex items-center gap-1 text-xs text-rose-600 hover:text-rose-800 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition border border-transparent hover:border-rose-200 cursor-pointer"
-                              title="Cancelar turno y revertir inmediatamente a externo"
-                            >
-                              <Trash2 size={13} /> Revertir
-                            </button>
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleAbrirEditarTurno(r)}
+                                className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition border border-transparent hover:border-indigo-200 cursor-pointer"
+                                title="Editar fechas o unidad del turno"
+                              >
+                                Editar
+                              </button>
+                              {!esVencido && (
+                                <button
+                                  type="button"
+                                  onClick={() => setRegistroAEliminar(r)}
+                                  className="inline-flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-2.5 py-1 rounded-lg transition border border-transparent hover:border-amber-200 cursor-pointer"
+                                  title="Finalizar turno y revertir inmediatamente al estado original"
+                                >
+                                  <RefreshCw size={12} /> Revertir
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -666,14 +777,54 @@ export default function InternadoTemporal() {
       ============================================================ */}
       {tabActivo === "MANUAL" && (
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm space-y-6 max-w-2xl">
-          <div className="space-y-1">
-            <h2 className="text-lg font-extrabold text-slate-900 m-0 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-emerald-600" />
-              Asignar Turno de Internado Temporal Manualmente
-            </h2>
-            <p className="text-xs text-slate-500 m-0">
-              Ingresa el documento del aprendiz y el rango de fechas en que estará en internado.
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className="text-lg font-extrabold text-slate-900 m-0 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-emerald-600" />
+                {idEditandoManual ? "Editar Turno de Internado Temporal" : "Asignar Turno de Internado Temporal Manualmente"}
+              </h2>
+              <p className="text-xs text-slate-500 m-0">
+                Ingresa el documento del aprendiz para autocompletar sus datos o asigna un Turno Rutinario Semanal (Lunes a Viernes).
+              </p>
+            </div>
+            {idEditandoManual && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIdEditandoManual(null);
+                  setNumDocManual("");
+                  setAprendizEncontrado(null);
+                  setObservacionesManual("");
+                }}
+                className="text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 px-3 py-1.5 rounded-xl self-start"
+              >
+                Nuevo Registro
+              </button>
+            )}
+          </div>
+
+          {/* Botones rapidos: Turno Rutinario Semanal (Lunes a Viernes) */}
+          <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-3.5 space-y-2">
+            <p className="text-xs font-bold text-indigo-900 m-0 flex items-center gap-1.5">
+              <Calendar size={14} className="text-indigo-700" />
+              Turno Rutinario (Semanal: Lunes a Viernes — Internos y Externos)
             </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => aplicarTurnoRutinarioSemanal(0)}
+                className="px-3 py-1.5 bg-white hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-semibold transition cursor-pointer shadow-2xs"
+              >
+                Esta Semana (Lunes a Viernes)
+              </button>
+              <button
+                type="button"
+                onClick={() => aplicarTurnoRutinarioSemanal(1)}
+                className="px-3 py-1.5 bg-white hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-semibold transition cursor-pointer shadow-2xs"
+              >
+                Próxima Semana (Lunes a Viernes)
+              </button>
+            </div>
           </div>
 
           <form onSubmit={handleGuardarManual} className="space-y-4">
@@ -681,14 +832,60 @@ export default function InternadoTemporal() {
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Número de Documento del Aprendiz *
               </label>
-              <input
-                type="text"
-                value={numDocManual}
-                onChange={(e) => setNumDocManual(e.target.value)}
-                placeholder="Ej: 1109381233"
-                required
-                className="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={numDocManual}
+                  onChange={(e) => setNumDocManual(e.target.value)}
+                  disabled={Boolean(idEditandoManual)}
+                  placeholder="Ej: 1109381233 (escribe para buscar datos del aprendiz en tiempo real)"
+                  required
+                  className="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none disabled:bg-slate-100"
+                />
+                {buscandoAprendiz && (
+                  <span className="absolute right-3 top-2.5 text-[11px] text-emerald-600 font-semibold animate-pulse">
+                    Buscando...
+                  </span>
+                )}
+              </div>
+
+              {/* Tarjeta autocompletada con informacion completa del aprendiz */}
+              {aprendizEncontrado && (
+                <div className="mt-2.5 p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl text-xs space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-extrabold text-emerald-950 text-sm">
+                      {aprendizEncontrado.Nom_Usuario} {aprendizEncontrado.Ape_Usuario}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      {(aprendizEncontrado.roles || []).join(", ") || (aprendizEncontrado.CenCon_Usuario === "Si" ? "Interno" : "Externo")}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-700 pt-1 border-t border-emerald-200/60">
+                    <div>
+                      <span className="text-slate-400 block">Ficha / Programa:</span>
+                      <span className="font-semibold text-slate-800">
+                        {aprendizEncontrado.Num_Ficha || "Sin ficha"} · {aprendizEncontrado.Nom_Programa || "Sin programa"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block">Estado Formativo:</span>
+                      <span className="font-semibold text-slate-800">{aprendizEncontrado.Est_Usuario}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block">Convivencia Actual:</span>
+                      <span className="font-semibold text-slate-800">
+                        {aprendizEncontrado.CenCon_Usuario === "Si" ? "Interno (Sí)" : "Externo (No)"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {errorBusquedaDoc && !aprendizEncontrado && (
+                <p className="mt-1.5 text-[11px] font-semibold text-rose-600 m-0">
+                  {errorBusquedaDoc}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -753,7 +950,10 @@ export default function InternadoTemporal() {
             <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setTabActivo("LISTADO")}
+                onClick={() => {
+                  setIdEditandoManual(null);
+                  setTabActivo("LISTADO");
+                }}
                 className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs transition cursor-pointer"
               >
                 Cancelar
@@ -766,7 +966,7 @@ export default function InternadoTemporal() {
                 {guardandoManual && (
                   <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 )}
-                <span>Guardar Asignación</span>
+                <span>{idEditandoManual ? "Actualizar Turno" : "Guardar Asignación"}</span>
               </button>
             </div>
           </form>
@@ -774,19 +974,19 @@ export default function InternadoTemporal() {
       )}
 
       {/* ============================================================
-          MODAL DE CONFIRMACION PARA REVERTIR / ELIMINAR TURNO
+          MODAL DE CONFIRMACION PARA REVERTIR TURNO (SIN ELIMINAR)
       ============================================================ */}
       <FoodsysConfirmModal
         isOpen={Boolean(registroAEliminar)}
         onClose={() => setRegistroAEliminar(null)}
         onConfirm={handleConfirmarEliminar}
-        title="Revertir Aprendiz a Estado Externo"
-        message={`¿Estás seguro de cancelar el internado temporal para el aprendiz ${
+        title="Revertir Aprendiz a Estado Original"
+        message={`¿Estás seguro de finalizar anticipadamente el internado temporal para el aprendiz ${
           registroAEliminar?.usuario
             ? `${registroAEliminar.usuario.Nom_Usuario} ${registroAEliminar.usuario.Ape_Usuario}`
             : registroAEliminar?.NumDoc_Usuario
-        }? Su estado volverá a 'En Formación' y Centro de Convivencia a 'No'.`}
-        confirmText="Sí, Revertir a Externo"
+        }? El registro pasará a estado VENCIDO y su estado formativo volverá a 'Formación'.`}
+        confirmText="Sí, Revertir Estado"
         cancelText="Conservar Turno"
         type="danger"
         loading={eliminando}

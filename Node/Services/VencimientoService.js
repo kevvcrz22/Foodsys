@@ -81,11 +81,11 @@ class VencimientoService {
     // Minutos de cierre del servicio oficial en Colombia:
     // Desayuno: 07:00 AM (420 min)
     // Almuerzo:  13:30 (1:30 PM = 810 min)
-    // Cena:      19:30 (7:30 PM = 1170 min)
+    // Cena:      19:00 (7:00 PM = 1140 min)
     const minutosCierrePorTurno = {
       Desayuno: 7 * 60,         // 07:00 AM
       Almuerzo: 13 * 60 + 30,   // 01:30 PM
-      Cena: 19 * 60 + 30        // 07:30 PM
+      Cena: 19 * 60             // 07:00 PM
     };
 
     const minutosCierre = minutosCierrePorTurno[reserva.Tip_Reserva];

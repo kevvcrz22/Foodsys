@@ -23,9 +23,9 @@ export function obtenerFechaHoyBogota() {
 
 /**
  * Sincroniza el estado de los aprendices asociados a una ficha especifica:
- * - Si la fecha de fin de etapa lectiva (FecFinLec_Ficha) es menor que hoy en Bogota,
- *   los aprendices pasan a estado 'Inactivo' y sus reservas futuras abiertas se cancelan.
- * - Si aun esta vigente, se mantienen en 'En Formacion'.
+ * - Si FecFinPra_Ficha < hoy -> 'Cancelado' (y cancela reservas futuras).
+ * - Si FecFinLec_Ficha < hoy -> 'Etapa productiva' (y cancela reservas futuras).
+ * - Si aun esta vigente -> 'Formación'.
  *
  * @param {number} Id_Ficha - Clave primaria de la ficha
  * @returns {Promise<object>} Cantidad de usuarios afectados y estado asignado
@@ -35,12 +35,15 @@ export async function sincronizarEstadoAprendices(Id_Ficha) {
   if (!ficha) throw new Error("Ficha no encontrada");
 
   const hoyStr = obtenerFechaHoyBogota();
-  const fechaFinStr = ficha.FecFinLec_Ficha
+  const fechaFinLecStr = ficha.FecFinLec_Ficha
     ? String(ficha.FecFinLec_Ficha).split("T")[0]
     : null;
+  const fechaFinPraStr = ficha.FecFinPra_Ficha
+    ? String(ficha.FecFinPra_Ficha).split("T")[0]
+    : null;
 
-  // Si no tiene fecha de fin lectiva definida, se asume vigente
-  const lectivaCulminada = fechaFinStr ? fechaFinStr < hoyStr : false;
+  const productivaCulminada = fechaFinPraStr ? fechaFinPraStr < hoyStr : false;
+  const lectivaCulminada = fechaFinLecStr ? fechaFinLecStr < hoyStr : false;
 
   const usuarios = await UsuariosModel.findAll({
     where: { Id_Ficha },
@@ -54,16 +57,26 @@ export async function sincronizarEstadoAprendices(Id_Ficha) {
   const ids = usuarios.map(u => u.Id_Usuario);
   if (ids.length === 0) return { afectados: 0, estado: null };
 
-  const nuevoEstado = lectivaCulminada ? "Inactivo" : "En Formacion";
+  let nuevoEstado = "Formación";
+  if (productivaCulminada) {
+    nuevoEstado = "Cancelado";
+  } else if (lectivaCulminada) {
+    nuevoEstado = "Etapa productiva";
+  }
 
-  // Actualizamos el estado de los usuarios de la ficha
+  // Actualizamos el estado de los usuarios de la ficha (excepto Instructores)
   await UsuariosModel.update(
     { Est_Usuario: nuevoEstado },
-    { where: { Id_Usuario: { [Op.in]: ids } } }
+    {
+      where: {
+        Id_Usuario: { [Op.in]: ids },
+        Est_Usuario: { [Op.ne]: "Instructor" }
+      }
+    }
   );
 
-  // Si la ficha ya culmino etapa lectiva, cancelamos todas sus reservas futuras o abiertas pendientes
-  if (lectivaCulminada) {
+  // Si la ficha ya culmino etapa lectiva o productiva, cancelamos todas sus reservas futuras o abiertas pendientes
+  if (lectivaCulminada || productivaCulminada) {
     const reservasCanceladas = await ReservaModel.update(
       { Est_Reserva: "Cancelado" },
       {
@@ -84,17 +97,17 @@ export async function sincronizarEstadoAprendices(Id_Ficha) {
 
 /**
  * Tarea de mantenimiento masivo:
- * Revisa todas las fichas cuya fecha de fin de etapa lectiva haya expirado
- * e inactiva automaticamente a sus aprendices cancelando sus reservas.
+ * Revisa todas las fichas cuya fecha de fin de etapa lectiva o productiva haya expirado,
+ * asi como pasantes con FecFin_Pasantia vencida, actualizando su estado y cancelando reservas futuras.
  */
 export async function sincronizarTodasLasFichasVencidas() {
   const hoyStr = obtenerFechaHoyBogota();
   const fichasVencidas = await FichasModel.findAll({
     where: {
-      FecFinLec_Ficha: {
-        [Op.ne]: null,
-        [Op.lt]: hoyStr
-      }
+      [Op.or]: [
+        { FecFinLec_Ficha: { [Op.ne]: null, [Op.lt]: hoyStr } },
+        { FecFinPra_Ficha: { [Op.ne]: null, [Op.lt]: hoyStr } }
+      ]
     }
   });
 
@@ -106,6 +119,36 @@ export async function sincronizarTodasLasFichasVencidas() {
     } catch (e) {
       console.warn(`[FichasServices] Error sincronizando ficha #${f.Num_Ficha}:`, e.message);
     }
+  }
+
+  // Inactivar automaticamente para reservas a los Pasantes cuyo periodo de pasantia haya caducado
+  try {
+    const pasantesVencidos = await UsuariosModel.findAll({
+      where: {
+        FecFin_Pasantia: { [Op.ne]: null, [Op.lt]: hoyStr },
+        Est_Usuario: { [Op.notIn]: ["Cancelado", "Retiro voluntario"] }
+      }
+    });
+    if (pasantesVencidos.length > 0) {
+      const idsPasantes = pasantesVencidos.map(p => p.Id_Usuario);
+      await UsuariosModel.update(
+        { Est_Usuario: "Cancelado", CenCon_Usuario: "No" },
+        { where: { Id_Usuario: { [Op.in]: idsPasantes } } }
+      );
+      await ReservaModel.update(
+        { Est_Reserva: "Cancelado" },
+        {
+          where: {
+            Id_Usuario: { [Op.in]: idsPasantes },
+            Fec_Reserva: { [Op.gte]: hoyStr },
+            Est_Reserva: { [Op.in]: ["Generado", "Verificado"] }
+          }
+        }
+      );
+      totalAfectados += idsPasantes.length;
+    }
+  } catch (errPas) {
+    console.warn("[FichasServices] Nota al sincronizar pasantes vencidos:", errPas.message);
   }
 
   return { fichasProcesadas: fichasVencidas.length, usuariosAfectados: totalAfectados };

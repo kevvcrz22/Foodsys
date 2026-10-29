@@ -1,7 +1,7 @@
 // Node/Services/TurnosService.js
-// Servicio de gestion de turnos de supervisores en Foodsys
-// Regla de negocio estricta: Solo puede existir UN turno activo a la vez
-// Codigo comentado didacticamente sin tildes ni emojis para aprendices de primer semestre
+// Servicio de gestion de turnos de monitores/supervisores en Foodsys
+// Permite concurrencia de multiples monitores en el mismo turno para apoyo logistico
+// y valida la apertura desde 10 minutos antes de cada horario oficial.
 
 import TurnosModel from "../Models/TurnosModel.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
@@ -15,12 +15,28 @@ import NotificacionesService from "./NotificacionesService.js";
 import { getIO } from "./SocketService.js";
 import { Op } from "sequelize";
 import { encolarEventoSync } from "./SyncOutboxService.js";
+import { verificarVentanaInicioTurno } from "../Utils/dateUtils.js";
 
 class TurnosService {
   /**
-   * Obtiene el turno activo actual, si existe
+   * Obtiene el turno activo actual (priorizando el del usuario autenticado si se indica)
    */
-  async obtenerTurnoActivo() {
+  async obtenerTurnoActivo(idUsuario = null) {
+    if (idUsuario) {
+      const turnoPropio = await TurnosModel.findOne({
+        where: { Estado: 'Activo', Id_Usuario: idUsuario },
+        include: [
+          {
+            model: UsuariosModel,
+            as: 'supervisor',
+            attributes: ['Id_Usuario', 'Nom_Usuario', 'Ape_Usuario', 'Cor_Usuario', 'NumDoc_Usuario']
+          }
+        ],
+        order: [['Fecha_Inicio', 'DESC']]
+      });
+      if (turnoPropio) return turnoPropio;
+    }
+
     return await TurnosModel.findOne({
       where: { Estado: 'Activo' },
       include: [
@@ -29,34 +45,45 @@ class TurnosService {
           as: 'supervisor',
           attributes: ['Id_Usuario', 'Nom_Usuario', 'Ape_Usuario', 'Cor_Usuario', 'NumDoc_Usuario']
         }
-      ]
+      ],
+      order: [['Fecha_Inicio', 'DESC']]
     });
   }
 
   /**
-   * Inicia un nuevo turno para el supervisor.
-   * Valida que no exista ningun otro turno activo en el sistema.
+   * Inicia un nuevo turno para el monitor/supervisor.
+   * Permite concurrencia de multiples monitores en el mismo horario de servicio
+   * y valida que se inicie dentro de la ventana oficial (10 min antes del servicio).
    */
   async iniciarTurno(idUsuario, observaciones = '') {
-    const turnoActivoExistente = await this.obtenerTurnoActivo();
+    // Verificar si este mismo monitor ya tiene un turno activo abierto
+    const turnoPropioActivo = await TurnosModel.findOne({
+      where: { Estado: 'Activo', Id_Usuario: idUsuario },
+      include: [
+        {
+          model: UsuariosModel,
+          as: 'supervisor',
+          attributes: ['Id_Usuario', 'Nom_Usuario', 'Ape_Usuario', 'Cor_Usuario', 'NumDoc_Usuario']
+        }
+      ]
+    });
 
-    if (turnoActivoExistente) {
-      if (turnoActivoExistente.Id_Usuario === idUsuario) {
-        return {
-          mensaje: "Ya tienes un turno activo en curso.",
-          turno: turnoActivoExistente,
-          esNuevo: false
-        };
-      } else {
-        const nombreOtro = turnoActivoExistente.supervisor
-          ? `${turnoActivoExistente.supervisor.Nom_Usuario} ${turnoActivoExistente.supervisor.Ape_Usuario}`
-          : "otro supervisor";
-        throw new Error(`Ya existe un turno activo en el comedor a cargo de ${nombreOtro}. Solo puede haber un supervisor en turno a la vez.`);
-      }
+    if (turnoPropioActivo) {
+      return {
+        mensaje: "Ya tienes un turno activo en curso.",
+        turno: turnoPropioActivo,
+        esNuevo: false
+      };
+    }
+
+    // Validar ventana horaria oficial (10 minutos antes de cada comida)
+    const ventana = verificarVentanaInicioTurno();
+    if (!ventana.permitido) {
+      throw new Error(ventana.mensaje);
     }
 
     const supervisor = await UsuariosModel.findByPk(idUsuario);
-    if (!supervisor) throw new Error("Supervisor no encontrado");
+    if (!supervisor) throw new Error("Monitor / Supervisor no encontrado");
 
     const nuevoTurno = await TurnosModel.create({
       Id_Usuario: idUsuario,
@@ -135,10 +162,10 @@ class TurnosService {
   }
 
   /**
-   * Finaliza el turno activo del supervisor
+   * Finaliza el turno activo del monitor/supervisor
    */
   async finalizarTurno(idUsuario, observaciones = '') {
-    const turnoActivo = await this.obtenerTurnoActivo();
+    const turnoActivo = await this.obtenerTurnoActivo(idUsuario);
 
     if (!turnoActivo) {
       throw new Error("No hay ningun turno activo para finalizar.");
@@ -307,17 +334,14 @@ class TurnosService {
   }
 
   /**
-   * Incrementa el contador de consumos del turno activo cuando se registra un consumo
+   * Incrementa el contador de consumos de los turnos activos cuando se registra un consumo
    */
   async incrementarConsumoTurnoActivo() {
     try {
-      const turnoActivo = await TurnosModel.findOne({ where: { Estado: 'Activo' } });
-      if (turnoActivo) {
-        await TurnosModel.increment('Total_Consumos_Registrados', {
-          by: 1,
-          where: { Id_Turno: turnoActivo.Id_Turno }
-        });
-      }
+      await TurnosModel.increment('Total_Consumos_Registrados', {
+        by: 1,
+        where: { Estado: 'Activo' }
+      });
     } catch (err) {
       console.warn("[TurnosService] No se pudo incrementar consumo en turno activo:", err.message);
     }

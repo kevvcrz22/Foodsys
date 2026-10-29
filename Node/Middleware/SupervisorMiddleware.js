@@ -19,17 +19,15 @@ export default async function SupervisorMiddleware(req, res, next) {
       return res.status(401).json({ message: 'No autenticado' });
     }
 
-    // Solo el Supervisor puede registrar consumos de reservas.
-    // Un Administrador no puede hacer esta funcion aunque tenga mas permisos en otras areas.
-    const rolesPermitidos = ['Supervisor'];
+    const rolesPermitidos = ['Supervisor', 'Monitor', 'Coordinador', 'Bienestar', 'Administrador'];
     const rolesUsuario    = req.user.roles || [];
 
-    // Con some() verificamos que al menos uno de los roles del usuario sea Supervisor
+    // Con some() verificamos que al menos uno de los roles del usuario sea Supervisor / Monitor
     const tienePermiso = rolesUsuario.some(rol => rolesPermitidos.includes(rol));
 
     if (!tienePermiso) {
       return res.status(403).json({
-        message: 'Acceso denegado: solo el Supervisor puede registrar consumos de reservas'
+        message: 'Acceso denegado: solo el Monitor / Supervisor o personal autorizado puede registrar consumos de reservas'
       });
     }
 

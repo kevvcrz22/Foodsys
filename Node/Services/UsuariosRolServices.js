@@ -43,14 +43,41 @@ class UsuariosRolService {
         return usuarioRol;
     }
 
-    // Valida incompatibilidades de roles entre perfiles internos y externos
-    async validarIncompatibilidadRoles(Id_Usuario, Id_Rol_Nuevo, Id_UsuariosRol_Actual = null) {
+    // Valida incompatibilidades de roles y jerarquía (cadena de mando)
+    async validarIncompatibilidadRoles(Id_Usuario, Id_Rol_Nuevo, Id_UsuariosRol_Actual = null, usuarioSolicitante = null) {
         const rolNuevo = await RolesModel.findByPk(Id_Rol_Nuevo);
         if (!rolNuevo) throw new Error("Rol no encontrado");
 
         const nombreRolNuevo = rolNuevo.Nom_Rol;
 
-        // Obtener los roles que ya tiene el usuario (excluyendo el registro actual si es edición)
+        // 1. Validar cadena de mando y prohibición de autoasignación de roles superiores
+        if (usuarioSolicitante) {
+            const idSolicitante = Number(usuarioSolicitante.id || usuarioSolicitante.Id_Usuario || 0);
+            const rolActivoSolicitante = usuarioSolicitante.rol || "";
+            const ROLES_SUPERIORES = ["Administrador", "Coordinador", "Supervisor de Contrato"];
+
+            if (idSolicitante === Number(Id_Usuario) && ROLES_SUPERIORES.includes(nombreRolNuevo) && rolActivoSolicitante !== "Administrador") {
+                throw new Error(`No está permitido autoasignarse un rol superior ('${nombreRolNuevo}').`);
+            }
+
+            if (rolActivoSolicitante === "Coordinador") {
+                const ROLES_PERMITIDOS_COORDINADOR = [
+                    "Cocina",
+                    "Monitor",
+                    "Supervisor",
+                    "Bienestar",
+                    "Aprendiz Interno",
+                    "Aprendiz Externo",
+                    "Pasante Interno",
+                    "Pasante Externo"
+                ];
+                if (!ROLES_PERMITIDOS_COORDINADOR.includes(nombreRolNuevo)) {
+                    throw new Error(`El rol Coordinador solo está autorizado para asignar perfiles de Casino/Cocina, Monitores, Bienestar y Aprendices/Pasantes.`);
+                }
+            }
+        }
+
+        // 2. Obtener los roles que ya tiene el usuario (excluyendo el registro actual si es edición)
         const rolesAsignados = await UsuariosRolModel.findAll({
             where: {
                 Id_Usuario,
@@ -63,21 +90,30 @@ class UsuariosRolService {
             .map(ur => ur.rolUsuario?.Nom_Rol)
             .filter(Boolean);
 
-        if (nombreRolNuevo === "Aprendiz Interno" && nombresRolesActuales.includes("Aprendiz Externo")) {
-            throw new Error("No se puede asignar 'Aprendiz Interno' porque el usuario ya tiene el perfil 'Aprendiz Externo'.");
+        // Regla A: No permitir Interno y Externo simultáneamente
+        const ROLES_INTERNOS = ["Aprendiz Interno", "Pasante Interno"];
+        const ROLES_EXTERNOS = ["Aprendiz Externo", "Pasante Externo", "Visitante"];
+
+        if (ROLES_INTERNOS.includes(nombreRolNuevo) && nombresRolesActuales.some(r => ROLES_EXTERNOS.includes(r))) {
+            throw new Error(`No se puede asignar '${nombreRolNuevo}' porque el usuario ya tiene un perfil Externo asignado.`);
         }
-        if (nombreRolNuevo === "Aprendiz Externo" && nombresRolesActuales.includes("Aprendiz Interno")) {
-            throw new Error("No se puede asignar 'Aprendiz Externo' porque el usuario ya tiene el perfil 'Aprendiz Interno'.");
+        if (ROLES_EXTERNOS.includes(nombreRolNuevo) && nombresRolesActuales.some(r => ROLES_INTERNOS.includes(r))) {
+            throw new Error(`No se puede asignar '${nombreRolNuevo}' porque el usuario ya tiene un perfil Interno asignado.`);
         }
-        if (nombreRolNuevo === "Pasante Interno" && nombresRolesActuales.includes("Pasante Externo")) {
-            throw new Error("No se puede asignar 'Pasante Interno' porque el usuario ya tiene el perfil 'Pasante Externo'.");
+
+        // Regla B: Pasante NO es Aprendiz (exclusión mutua)
+        const ROLES_PASANTE = ["Pasante Interno", "Pasante Externo"];
+        const ROLES_APRENDIZ = ["Aprendiz Interno", "Aprendiz Externo"];
+
+        if (ROLES_PASANTE.includes(nombreRolNuevo) && nombresRolesActuales.some(r => ROLES_APRENDIZ.includes(r))) {
+            throw new Error(`No se puede asignar '${nombreRolNuevo}' porque un Pasante no puede tener simultáneamente un rol de Aprendiz.`);
         }
-        if (nombreRolNuevo === "Pasante Externo" && nombresRolesActuales.includes("Pasante Interno")) {
-            throw new Error("No se puede asignar 'Pasante Externo' porque el usuario ya tiene el perfil 'Pasante Interno'.");
+        if (ROLES_APRENDIZ.includes(nombreRolNuevo) && nombresRolesActuales.some(r => ROLES_PASANTE.includes(r))) {
+            throw new Error(`No se puede asignar '${nombreRolNuevo}' porque el usuario ya figura como Pasante (Pasante no es Aprendiz).`);
         }
     }
 
-    async create(data) {
+    async create(data, usuarioSolicitante = null) {
         const { Id_Usuario, Id_Rol } = data;
 
         if (!Id_Usuario || !Id_Rol) {
@@ -93,8 +129,8 @@ class UsuariosRolService {
             throw new Error("Este usuario ya tiene ese rol asignado");
         }
 
-        // Validar incompatibilidad (no permitir aprendiz interno y externo juntos, ni pasante interno y externo juntos)
-        await this.validarIncompatibilidadRoles(Id_Usuario, Id_Rol);
+        // Validar incompatibilidad y jerarquía
+        await this.validarIncompatibilidadRoles(Id_Usuario, Id_Rol, null, usuarioSolicitante);
 
         const creado = await UsuariosRolModel.create({ Id_Usuario, Id_Rol });
 
@@ -114,7 +150,7 @@ class UsuariosRolService {
         return creado;
     }
 
-    async update(id, data) {
+    async update(id, data, usuarioSolicitante = null) {
         const { Id_Usuario, Id_Rol } = data;
         if (!Id_Usuario || !Id_Rol) {
             throw new Error("Id_Usuario e Id_Rol son requeridos");
@@ -131,8 +167,8 @@ class UsuariosRolService {
             throw new Error("Este usuario ya tiene ese rol asignado");
         }
 
-        // Validar incompatibilidad
-        await this.validarIncompatibilidadRoles(Id_Usuario, Id_Rol, id);
+        // Validar incompatibilidad y jerarquía
+        await this.validarIncompatibilidadRoles(Id_Usuario, Id_Rol, id, usuarioSolicitante);
 
         const result = await UsuariosRolModel.update(
             { Id_Usuario, Id_Rol },
@@ -156,8 +192,29 @@ class UsuariosRolService {
         return true;
     }
 
-    async delete(id) {
-        const ur = await UsuariosRolModel.findByPk(id);
+    async delete(id, usuarioSolicitante = null) {
+        const ur = await UsuariosRolModel.findByPk(id, {
+            include: [{ model: RolesModel, as: "rolUsuario" }]
+        });
+        if (!ur) throw new Error("UsuarioRol no encontrado");
+
+        if (usuarioSolicitante && usuarioSolicitante.rol === "Coordinador") {
+            const ROLES_PERMITIDOS_COORDINADOR = [
+                "Cocina",
+                "Monitor",
+                "Supervisor",
+                "Bienestar",
+                "Aprendiz Interno",
+                "Aprendiz Externo",
+                "Pasante Interno",
+                "Pasante Externo"
+            ];
+            const nomRol = ur.rolUsuario?.Nom_Rol || "";
+            if (nomRol && !ROLES_PERMITIDOS_COORDINADOR.includes(nomRol)) {
+                throw new Error(`El rol Coordinador no puede retirar el perfil '${nomRol}'.`);
+            }
+        }
+
         const Id_Usuario = ur?.Id_Usuario;
         const deleted = await UsuariosRolModel.destroy({ where: { Id_UsuariosRol: id } });
         if (!deleted) throw new Error("UsuarioRol no encontrado");

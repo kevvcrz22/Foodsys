@@ -75,7 +75,7 @@ const SemaforoAforoCard = () => {
   const colorConfig = CONFIG_COLOR[datos?.color || "GRIS"] || CONFIG_COLOR.GRIS;
 
   return (
-    <div className={`w-full rounded-2xl border p-4 mb-6 transition-all duration-300 shadow-xs ${colorConfig.bgCard}`}>
+    <div className={`w-full h-full rounded-2xl border p-4 sm:p-5 flex flex-col justify-center transition-all duration-300 shadow-xs ${colorConfig.bgCard}`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 
         {/* Informacion principal del aforo */}

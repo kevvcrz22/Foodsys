@@ -25,9 +25,7 @@ export default async function CocinaMiddleware(req, res, next) {
       return res.status(401).json({ message: 'No autenticado' });
     }
 
-    // Roles permitidos para consultar plan de produccion y verificar cocina:
-    // Cocina para plan y verificacion; Bienestar y Administrador para visualizacion del plan
-    const rolesPermitidos = ['Cocina', 'Bienestar', 'Administrador'];
+    const rolesPermitidos = ['Cocina', 'Supervisor', 'Monitor', 'Bienestar', 'Coordinador', 'Supervisor de Contrato', 'Administrador'];
     const rolesUsuario    = req.user.roles || [];
 
     // Con some() verificamos que al menos uno de los roles del usuario este permitido
@@ -35,7 +33,7 @@ export default async function CocinaMiddleware(req, res, next) {
 
     if (!tienePermiso) {
       return res.status(403).json({
-        message: 'Acceso denegado: se requieren permisos de Cocina, Bienestar o Administrador'
+        message: 'Acceso denegado: se requieren permisos de Cocina, Monitor/Supervisor, Bienestar o Coordinador'
       });
     }
 

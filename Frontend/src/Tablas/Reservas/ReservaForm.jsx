@@ -8,21 +8,22 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import apiAxios from "../../api/axiosConfig.js";
 import AlertaInasistencias from "./AlertaInasistencias.jsx";
+import GenerarTicketQR from "./GenerarTicketQR.jsx";
 import DescripcionExpandible from "../../Components/DescripcionExpandible.jsx";
 import {
   UtensilsCrossed, CalendarDays, Clock, CheckCircle2, AlertCircle,
   Coffee, Snowflake, Flame, ShieldAlert, Check, X, Sparkles, HelpCircle,
-  ChevronRight, Calendar, Info
+  ChevronRight, Calendar, Info, Download
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
-// Horarios oficiales de vencimiento del servicio en comedor
+// Horarios oficiales de vencimiento del servicio en comedor (America/Bogota)
 const horasVencimientoDetalle = {
-  Desayuno: { horaStr: "08:00 AM", fin: "08:00:00" },
+  Desayuno: { horaStr: "07:00 AM", fin: "07:00:00" },
   Almuerzo: { horaStr: "01:30 PM (13:30)", fin: "13:30:00" },
-  Cena:     { horaStr: "08:00 PM (20:00)", fin: "20:00:00" }
+  Cena:     { horaStr: "07:00 PM (19:00)", fin: "19:00:00" }
 };
 
 // Formateador de fechas legible en espanol
@@ -611,20 +612,39 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
                 </div>
                 <div className="p-4 bg-white border-2 border-emerald-400 rounded-2xl shadow-md">
                   <QRCodeSVG
-                    value={qrData.qrUrl || qrData.Qr_Reserva || String(qrData.Id_Reserva || "")}
-                    size={220}
-                    marginSize={3}
-                    level="H"
+                    value={qrData.Qr_Reserva || String(qrData.Id_Reserva || "")}
+                    size={210}
+                    marginSize={2}
+                    level="M"
                   />
                 </div>
-                {hideModal && (
+                <div className="w-full flex flex-col sm:flex-row gap-2">
                   <button
-                    onClick={hideModal}
-                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                    type="button"
+                    onClick={() =>
+                      GenerarTicketQR({
+                        ...qrData,
+                        Tip_Reserva: qrData.Tip_Reserva || tipReserva,
+                        Fec_Reserva: qrData.Fec_Reserva || fechaReserva,
+                        Tipo_Bebida: qrData.Tipo_Bebida || tipoBebida,
+                        Lleva_Sopa: qrData.Lleva_Sopa ?? llevaSopa,
+                        plato: qrData.plato || platoSeleccionado
+                      })
+                    }
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                   >
-                    Cerrar
+                    <Download size={14} /> Descargar Ticket
                   </button>
-                )}
+                  {hideModal && (
+                    <button
+                      type="button"
+                      onClick={hideModal}
+                      className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition cursor-pointer"
+                    >
+                      Cerrar
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </>
@@ -638,8 +658,8 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
           Guia Rapida de Horarios y Turnos en Foodsys
         </h4>
         <ul className="space-y-1.5 pl-4 list-disc text-[11px] leading-relaxed text-slate-600 m-0">
-          <li><strong>Aprendices Internos:</strong> Habilitados para Desayuno, Almuerzo y Cena.</li>
-          <li><strong>Aprendices Externos:</strong> Habilitados exclusivamente para Almuerzo.</li>
+          <li><strong>Aprendices Internos:</strong> Habilitados para Desayuno (06:00 - 07:00), Almuerzo (11:30 - 13:30) y Cena (18:00 - 19:00).</li>
+          <li><strong>Aprendices Externos y Visitantes:</strong> Habilitados exclusivamente para Almuerzo (11:30 - 13:30).</li>
           <li><strong>Cierre de Reserva Normal:</strong> Tienes plazo hasta las <strong>10:30 PM (22:30)</strong> del dia anterior. A partir de las 10:31 PM se agenda para pasado manana.</li>
           <li><strong>Cancelacion Oportuna:</strong> Permitida hasta las <strong>09:00 PM (21:00)</strong> de la noche anterior.</li>
           <li><strong>Novedades de Almuerzo:</strong> Para emergencias del mismo dia hasta las <strong>09:00 AM</strong>.</li>
@@ -650,7 +670,7 @@ const ReservaForm = ({ hideModal, reserva, Edit, reload, mostrarQR }) => {
       {/* MODAL LLAMATIVO DE CONFIRMACION DE FECHA Y HORARIO */}
       {modalConfirmacionVisible && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-lg mx-auto p-6 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
               <div className="p-3 bg-amber-100 text-amber-700 rounded-2xl">
                 <Clock className="w-6 h-6" />

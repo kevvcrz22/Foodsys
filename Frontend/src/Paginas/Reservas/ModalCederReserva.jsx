@@ -9,6 +9,7 @@ import {
   Clock, CheckCircle2, Shield, Info, Loader2, ArrowRight
 } from "lucide-react";
 import apiAxios from "../../api/axiosConfig";
+import DescripcionExpandible from "../../Components/DescripcionExpandible.jsx";
 import toast from "react-hot-toast";
 
 const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
@@ -186,14 +187,25 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
           </div>
 
           {/* Tarjeta resumen del plato a ceder */}
-          <div className="mt-3.5 bg-slate-50 rounded-xl p-3 border border-slate-200/80 flex items-center justify-between">
-            <div className="min-w-0 pr-2">
+          <div className="mt-3.5 bg-slate-50 rounded-xl p-3 border border-slate-200/80 flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1 pr-2">
               <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">
                 Plato reservado
               </p>
-              <p className="text-xs sm:text-sm font-bold text-slate-800 truncate">
-                {reserva.plato?.Nom_Plato || "Plato del dia"}
-              </p>
+              <div className="mt-0.5 break-words">
+                <DescripcionExpandible
+                  texto={reserva.plato?.Nom_Plato || "Plato del dia"}
+                  maxLength={55}
+                  className="text-xs sm:text-sm font-bold text-slate-800 leading-snug"
+                />
+                {reserva.plato?.Des_Plato && (
+                  <DescripcionExpandible
+                    texto={reserva.plato.Des_Plato}
+                    maxLength={70}
+                    className="text-[11px] text-slate-500 mt-0.5 leading-snug"
+                  />
+                )}
+              </div>
             </div>
             <span className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200">
               Reserva #{reserva.Id_Reserva}
@@ -314,14 +326,18 @@ const ModalCederReserva = ({ reserva, usuario, onCerrar, onExito }) => {
                           </div>
                           {canSelect ? (
                             <p className="text-[10px] text-emerald-700 mt-1 font-medium flex items-center gap-1">
-                              <CheckCircle2 size={11} className="text-emerald-600" />
-                              Disponible para recibir tu reserva
+                              <CheckCircle2 size={11} className="text-emerald-600 shrink-0" />
+                              <span>Disponible para recibir tu reserva</span>
                             </p>
                           ) : (
-                            <p className="text-[10px] text-rose-600 mt-1 font-semibold flex items-center gap-1">
-                              <AlertCircle size={11} className="text-rose-500" />
-                              Motivo: {cand.Mensaje_Restriccion || "No cumple las condiciones para este turno"}
-                            </p>
+                            <div className="text-[10px] text-rose-600 mt-1 font-semibold flex items-start gap-1 break-words">
+                              <AlertCircle size={11} className="text-rose-500 shrink-0 mt-0.5" />
+                              <DescripcionExpandible
+                                texto={`Motivo: ${cand.Mensaje_Restriccion || "No cumple las condiciones para este turno"}`}
+                                maxLength={65}
+                                className="text-[10px] text-rose-600 font-semibold leading-snug"
+                              />
+                            </div>
                           )}
                         </div>
 

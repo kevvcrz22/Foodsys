@@ -11,6 +11,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Search, UserCheck, Utensils, Download, FileSpreadsheet, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import toast from "react-hot-toast";
 import apiAxios from "../../api/axiosConfig";
 import ModalHistorialAprendiz from "./ModalHistorialAprendiz";
 import { exportarAExcel, exportarAPDF, confirmarExportacion } from "../../utils/exportUtils";
@@ -27,6 +28,9 @@ const TablaConsumidoresNominales = ({
   idPlato = "Todos",
   estado = "Consumido"
 }) => {
+  const rolActivo = (localStorage.getItem("rolActivo") || localStorage.getItem("rol") || "").trim().toLowerCase();
+  const esRolCocina = rolActivo.includes("cocina") && !rolActivo.includes("admin") && !rolActivo.includes("coordinad");
+
   const [registros, setRegistros] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [busqueda, setBusqueda] = useState("");
@@ -95,12 +99,19 @@ const TablaConsumidoresNominales = ({
   // Exportar a Excel
   const manejarExportarExcel = async () => {
     if (registros.length === 0) {
-      alert("No hay registros para exportar en el periodo actual.");
+      toast.error("No hay registros para exportar en el periodo actual.");
       return;
     }
 
     const tieneFiltros = busqueda.trim() !== "";
-    const datosAExportar = tieneFiltros ? registrosFiltrados : registros;
+    const datosBase = tieneFiltros ? registrosFiltrados : registros;
+    const datosAExportar = esRolCocina
+      ? datosBase.map((item) => ({
+          ...item,
+          NumDoc: `***${String(item.NumDoc || "000").slice(-3)}`,
+          NombreCompleto: `Comensal #${item.Id_Reserva || item.Id_Usuario}`
+        }))
+      : datosBase;
 
     const confirmado = await confirmarExportacion({
       tieneFiltros,
@@ -137,12 +148,19 @@ const TablaConsumidoresNominales = ({
   // Exportar a PDF
   const manejarExportarPDF = async () => {
     if (registros.length === 0) {
-      alert("No hay registros para exportar en el periodo actual.");
+      toast.error("No hay registros para exportar en el periodo actual.");
       return;
     }
 
     const tieneFiltros = busqueda.trim() !== "";
-    const datosAExportar = tieneFiltros ? registrosFiltrados : registros;
+    const datosBase = tieneFiltros ? registrosFiltrados : registros;
+    const datosAExportar = esRolCocina
+      ? datosBase.map((item) => ({
+          ...item,
+          NumDoc: `***${String(item.NumDoc || "000").slice(-3)}`,
+          NombreCompleto: `Comensal #${item.Id_Reserva || item.Id_Usuario}`
+        }))
+      : datosBase;
 
     const confirmado = await confirmarExportacion({
       tieneFiltros,
@@ -261,24 +279,26 @@ const TablaConsumidoresNominales = ({
               {registrosPaginados.map((item) => (
                 <tr
                   key={item.Id_Reserva}
-                  onClick={() => setAprendizSeleccionado(item)}
-                  className="hover:bg-indigo-50/50 cursor-pointer transition"
-                  title="Clic para ver historial individual de este aprendiz"
+                  onClick={() => {
+                    if (!esRolCocina) setAprendizSeleccionado(item);
+                  }}
+                  className={`transition ${esRolCocina ? "" : "hover:bg-indigo-50/50 cursor-pointer"}`}
+                  title={esRolCocina ? "Datos personales anonimizados para Cocina" : "Clic para ver historial individual de este aprendiz"}
                 >
                   <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
                     {item.Fecha}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-gray-500">
-                    {item.TipDoc} {item.NumDoc}
+                    {esRolCocina ? `***${String(item.NumDoc || "000").slice(-3)}` : `${item.TipDoc} ${item.NumDoc}`}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap font-medium text-indigo-600 hover:underline">
-                    {item.NombreCompleto}
+                  <td className={`px-4 py-3 whitespace-nowrap font-medium ${esRolCocina ? "text-slate-700" : "text-indigo-600 hover:underline"}`}>
+                    {esRolCocina ? `Comensal #${item.Id_Reserva || item.Id_Usuario}` : item.NombreCompleto}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         item.CenCon_Usuario === "Si"
-                          ? "bg-purple-50 text-purple-700 border border-purple-200"
+                          ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
                           : "bg-blue-50 text-blue-700 border border-blue-200"
                       }`}
                     >

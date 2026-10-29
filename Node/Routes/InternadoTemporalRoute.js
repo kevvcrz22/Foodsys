@@ -9,6 +9,7 @@ import {
   importarExcel,
   descargarPlantilla,
   registrarManual,
+  actualizarRegistro,
   eliminarRegistro,
   revisarVencimientos
 } from "../Controllers/InternadoTemporalController.js";
@@ -23,9 +24,14 @@ router.get("/plantilla", descargarPlantilla);
 router.use(authMiddleware);
 
 router.get("/", getRegistros);
-router.post("/importar-excel", uploadMemoria.single("file"), importarExcel);
+router.get("/listar", getRegistros);
+router.post("/importar-excel", uploadMemoria.any(), importarExcel);
 router.post("/manual", registrarManual);
+router.post("/crear", registrarManual);
+router.put("/:id", actualizarRegistro);
+router.patch("/:id/revocar", eliminarRegistro);
 router.delete("/:id", eliminarRegistro);
 router.post("/revisar-vencimientos", revisarVencimientos);
+router.post("/revisar-vencidos", revisarVencimientos);
 
 export default router;

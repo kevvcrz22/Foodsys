@@ -37,9 +37,11 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
   const [Cor_Usuario,    setCor_Usuario]    = useState("");
   const [Tel_Usuario,    setTel_Usuario]    = useState("");
   const [CenCon_Usuario, setCenCon_Usuario] = useState("");
-  const [Est_Usuario,    setEst_Usuario]    = useState("");
-  const [San_Usuario,    setSan_Usuario]    = useState("");
+  const [Est_Usuario,    setEst_Usuario]    = useState("Formación");
+  const [San_Usuario,    setSan_Usuario]    = useState("No");
   const [Id_Ficha,       setId_Ficha]       = useState("");
+  const [FecIni_Pasantia, setFecIni_Pasantia] = useState("");
+  const [FecFin_Pasantia, setFecFin_Pasantia] = useState("");
   const [Fichas,         setFichas]         = useState([]);
   const [textFormButton, setTextFormButton] = useState("Guardar");
   const [enviando,       setEnviando]       = useState(false);
@@ -57,9 +59,15 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
       setCor_Usuario(UsuarioSeleccionado.Cor_Usuario || "");
       setTel_Usuario(UsuarioSeleccionado.Tel_Usuario || "");
       setCenCon_Usuario(UsuarioSeleccionado.CenCon_Usuario || "");
-      setEst_Usuario(UsuarioSeleccionado.Est_Usuario || "");
-      setSan_Usuario(UsuarioSeleccionado.San_Usuario || "");
+      setEst_Usuario(
+        UsuarioSeleccionado.Est_Usuario === "En Formacion"
+          ? "Formación"
+          : (UsuarioSeleccionado.Est_Usuario || "Formación")
+      );
+      setSan_Usuario(UsuarioSeleccionado.San_Usuario || "No");
       setId_Ficha(UsuarioSeleccionado.Id_Ficha || "");
+      setFecIni_Pasantia(UsuarioSeleccionado.FecIni_Pasantia ? String(UsuarioSeleccionado.FecIni_Pasantia).split("T")[0] : "");
+      setFecFin_Pasantia(UsuarioSeleccionado.FecFin_Pasantia ? String(UsuarioSeleccionado.FecFin_Pasantia).split("T")[0] : "");
       setTextFormButton("Actualizar");
     } else {
       resetForm();
@@ -70,7 +78,8 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
     setId_Usuario(""); setTipDoc_Usuario(""); setNumDoc_Usuario("");
     setNom_Usuario(""); setApe_Usuario(""); setGen_Usuario("");
     setCor_Usuario(""); setTel_Usuario(""); setCenCon_Usuario("");
-    setEst_Usuario(""); setSan_Usuario(""); setId_Ficha("");
+    setEst_Usuario("Formación"); setSan_Usuario("No"); setId_Ficha("");
+    setFecIni_Pasantia(""); setFecFin_Pasantia("");
     setTextFormButton("Guardar");
   };
 
@@ -92,8 +101,11 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
       const payload = {
         TipDoc_Usuario, NumDoc_Usuario, Nom_Usuario, Ape_Usuario,
         Gen_Usuario, Cor_Usuario, Tel_Usuario, CenCon_Usuario,
-        Est_Usuario, San_Usuario,
+        Est_Usuario: Est_Usuario || "Formación",
+        San_Usuario: Editar ? (San_Usuario || "No") : "No",
         Id_Ficha: Id_Ficha || null,
+        FecIni_Pasantia: FecIni_Pasantia || null,
+        FecFin_Pasantia: FecFin_Pasantia || null,
         ...(!Editar && { password: String(NumDoc_Usuario) }),
       };
       if (textFormButton === "Guardar") {
@@ -230,27 +242,37 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
           <div className="flex-1 h-px bg-slate-100" />
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          <Field label="Estado">
+        <div className={`grid ${Editar ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"} gap-3`}>
+          <Field label="Estado Oficial *">
             <select className={inputCls} value={Est_Usuario}
-              onChange={(e) => setEst_Usuario(e.target.value)}>
-              <option value="">Seleccionar...</option>
+              onChange={(e) => setEst_Usuario(e.target.value)} required>
               {[
-                "Aplazado", "Apoyo de Sostenimiento", "Cancelado", "Condicionado",
-                "En Formacion", "En Induccion", "Etapa Productiva", "Instructor", "Retiro Voluntario",
-                "Sena Empresa", "Traslado", "Visitantes", "Turno Sena Empresa",
+                "Formación",
+                "Inducción",
+                "Apoyo de sostenimiento",
+                "Etapa productiva",
+                "SENA empresa",
+                "Turnos en SENA empresa",
+                "Instructor",
+                "Visitantes",
+                "Condicionado",
+                "Aplazado",
+                "Traslado",
+                "Retiro voluntario",
+                "Cancelado",
               ].map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </Field>
 
-          <Field label="Sanción" icon={Shield}>
-            <select className={inputCls} value={San_Usuario}
-              onChange={(e) => setSan_Usuario(e.target.value)}>
-              <option value="">Seleccionar...</option>
-              <option value="Si">Sí</option>
-              <option value="No">No</option>
-            </select>
-          </Field>
+          {Editar && (
+            <Field label="Sanción" icon={Shield}>
+              <select className={inputCls} value={San_Usuario}
+                onChange={(e) => setSan_Usuario(e.target.value)}>
+                <option value="No">No</option>
+                <option value="Si">Sí</option>
+              </select>
+            </Field>
+          )}
 
           <Field label="Ficha" icon={BookOpen}>
             <select className={inputCls} value={Id_Ficha}
@@ -260,6 +282,26 @@ const UsuariosForm = ({ hideModal, UsuarioSeleccionado, Editar, reload }) => {
                 <option key={f.Id_Ficha} value={f.Id_Ficha}>{f.Num_Ficha}</option>
               ))}
             </select>
+          </Field>
+        </div>
+
+        {/* Fechas opcionales de Pasantía (para Pasantes Internos / Externos) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-100">
+          <Field label="Inicio Pasantía (Opcional - Pasantes)">
+            <input
+              type="date"
+              className={inputCls}
+              value={FecIni_Pasantia}
+              onChange={(e) => setFecIni_Pasantia(e.target.value)}
+            />
+          </Field>
+          <Field label="Fin Pasantía (Inactiva al caducar)">
+            <input
+              type="date"
+              className={inputCls}
+              value={FecFin_Pasantia}
+              onChange={(e) => setFecFin_Pasantia(e.target.value)}
+            />
           </Field>
         </div>
       </div>
