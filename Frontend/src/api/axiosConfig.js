@@ -1,0 +1,34 @@
+import axios from "axios";
+
+const API_URL = import.meta.env.VITE_API_URL || "";
+
+const apiNode = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+
+apiNode.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token"); // directo, sin JSON.parse
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+apiNode.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.clear();
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default apiNode;

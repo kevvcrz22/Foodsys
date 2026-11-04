@@ -1,0 +1,775 @@
+// App.jsx
+//
+// Archivo principal del enrutador de FoodSys.
+//
+// RESPONSABILIDADES:
+//   1. Rehidratar la sesion del usuario al recargar la pagina desde localStorage.
+//   2. Proteger cada ruta verificando autenticacion (isAuth) y el rol activo.
+//   3. Redirigir al usuario al dashboard correcto segun su rol despues del login.
+//   4. Proveer el layout con sidebar para todas las rutas internas.
+//
+// REGLA DE ACCESO POR ROL:
+//   Cada ruta solo acepta el rol listado en allowedRoles.
+//   Si un usuario tiene dos roles (ej: Coordinador y Aprendiz Externo),
+//   no puede ejecutar funciones de Aprendiz Externo mientras el rol activo
+//   sea Coordinador. El sistema respeta el rol que este seleccionado,
+//   no todos los roles que tenga el usuario.
+//
+// ROLES Y SUS RUTAS BASE:
+//   Administrador      -> /Administrador   (todas las tablas CRUD, sin modulo Reservar personal)
+//   Supervisor         -> /supervisor      (Registrar consumos, Reportes)
+//   Coordinador        -> /coordinador     (Novedades, Reportes, Aprendices)
+//   Aprendiz Interno   -> /Interno         (Reservar, Historial)
+//   Aprendiz Externo   -> /Externo         (Reservar, Historial)
+//   Pasante Interno    -> /PasanteInterno  (Reservar, Historial)
+//   Pasante Externo    -> /PasanteExterno  (Reservar, Historial)
+//   Cocina             -> /Cocina          (Verificar reservas de externos, Plan del dia, Reportes)
+//   Bienestar          -> /Bienestar       (Novedades, Reportes)
+
+import React, { useState, useEffect, useContext, Suspense, lazy } from "react";
+import {
+  Routes, Route, Navigate,
+  useNavigate, useLocation,
+} from "react-router-dom";
+import { Toaster, toast } from "react-hot-toast";
+import LoadingFoodsys from "./Components/LoadingFoodsys.jsx";
+import InactividadModal from "./Components/InactividadModal.jsx";
+
+// ── Paginas de autenticacion y publicas ──────────────────────────────────────
+const Login = lazy(() => import("./Paginas/Login/Login.jsx"));
+const Perfil = lazy(() => import("./Paginas/Perfil/Perfil.jsx"));
+const Inicio = lazy(() => import("./Paginas/Inicio/Inicio.jsx"));
+const Contacto = lazy(() => import("./Paginas/Contacto/Contacto.jsx"));
+const QueEsFoodsys = lazy(() => import("./Paginas/About/QueEsFoodsys.jsx"));
+const ForgotPassword = lazy(() => import("./Paginas/Recuperar/forgotPassword.jsx"));
+const ResetPassword = lazy(() => import("./Paginas/Recuperar/resetPassword.jsx"));
+const InicioInterno = lazy(() => import("./Paginas/Inicio/InicioInterno.jsx"));
+const InicioExterno = lazy(() => import("./Paginas/Inicio/InicioExterno.jsx"));
+const InicioLanding = lazy(() => import("./Paginas/Inicio/InicioLanding.jsx"));
+const ManualesUsuario = lazy(() => import("./Paginas/Manuales/ManualesUsuario.jsx"));
+
+// ── Componentes de layout ────────────────────────────────────────────────────
+import Chatbot from "./Components/Chatbot.jsx";
+import Footer from "./Components/Footer.jsx";
+import NavBar from "./Components/NavBar/Nav.jsx";
+import Sidebar from "./Components/Sidebar.jsx";
+
+// ── Contexto de autenticacion ────────────────────────────────────────────────
+import { AuthContext } from "./context/authContext.jsx";
+
+// ── Vistas compartidas entre roles ───────────────────────────────────────────
+const Reportes = lazy(() => import("./Paginas/Reportes/Reportes.jsx"));
+const Novedades = lazy(() => import("./Paginas/Novedades/Novedades.jsx"));
+const RegistrarVista = lazy(() => import("./Paginas/Registrar/Registro.jsx"));
+const ReservasPag = lazy(() => import("./Tablas/Reservas/Reservas.jsx"));
+
+// Modulo exclusivo del rol Cocina: verificar reservas de externos
+const ValidarReservasCocina = lazy(() => import("./Paginas/Validar/ValidarReservas.jsx"));
+// Plan del dia de Cocina: cuantos platos preparar, excepcionales, balance del turno
+const PlanCocina = lazy(() => import("./Paginas/Cocina/PlanCocina.jsx"));
+
+// ── Tablas CRUD (uso administrativo) ─────────────────────────────────────────
+const CrudUsuarios = lazy(() => import("./Tablas/Usuarios/CrudUsuarios.jsx"));
+const CrudUsuariosRoles = lazy(() => import("./Tablas/RolesUsuarios/CrudUsuariosRoles.jsx"));
+const CrudFichas = lazy(() => import("./Tablas/Fichas/CrudFichas.jsx"));
+const CrudPrograma = lazy(() => import("./Tablas/Programas/CrudPrograma.jsx"));
+const CrudRoles = lazy(() => import("./Tablas/Roles/CrudRoles.jsx"));
+const CrudPlatos = lazy(() => import("./Tablas/Platos/CrudPlatos.jsx"));
+const CrudMenus = lazy(() => import("./Tablas/Menus/CrudMenus.jsx"));
+const CrudReservas = lazy(() => import("./Tablas/Reservas/CrudReservas.jsx"));
+const Aprendices = lazy(() => import("./Tablas/Usuarios/Aprendices.jsx"));
+const Pasantes = lazy(() => import("./Tablas/Usuarios/Pasantes.jsx"));
+const PqrsfAdminDashboard = lazy(() => import("./Paginas/Admin/PqrsfAdminDashboard.jsx"));
+const PanelSincronizacion = lazy(() => import("./Paginas/Admin/PanelSincronizacion.jsx"));
+const ConfiguracionRaciones = lazy(() => import("./Paginas/Admin/ConfiguracionRaciones.jsx"));
+const InternadoTemporal = lazy(() => import("./Paginas/Admin/InternadoTemporal.jsx"));
+const SupervisorContrato = lazy(() => import("./Paginas/Admin/SupervisorContrato.jsx"));
+const AsignacionSupervisor = lazy(() => import("./Paginas/Admin/AsignacionSupervisor.jsx"));
+const ReservaForm = lazy(() => import("./Tablas/Reservas/ReservaForm.jsx"));
+
+// ── Mapa de redireccion despues del login por rol ────────────────────────────
+const RUTAS_POR_ROL = {
+  Administrador: "/Administrador",
+  Supervisor: "/supervisor",
+  Monitor: "/supervisor",
+  "Supervisor de Contrato": "/supervisor-contrato",
+  Coordinador: "/coordinador",
+  Coordinacion: "/coordinador",
+  "Aprendiz Interno": "/Interno",
+  "Aprendiz Externo": "/Externo",
+  "Pasante Interno": "/PasanteInterno",
+  "Pasante Externo": "/PasanteExterno",
+  Cocina: "/Cocina",
+  Bienestar: "/Bienestar",
+  "SENA Empresa": "/sena-empresa",
+};
+
+// ── Componente ProtectedRoute ────────────────────────────────────────────────
+// Verifica dos condiciones antes de mostrar el contenido:
+//   1. El usuario esta autenticado (tiene token valido).
+//   2. El rol activo esta en la lista de roles permitidos para esa ruta.
+// Si falla alguna condicion, redirige al lugar correcto.
+const ProtectedRoute = ({ children, allowedRoles, isAuth, rolActivo }) => {
+  // Si no esta autenticado, va al login
+  if (!isAuth) return <Navigate to="/" replace />;
+  // Si el rol activo no tiene permiso para esta ruta, lo manda a su dashboard
+  if (!allowedRoles.includes(rolActivo)) {
+    const Ruta = RUTAS_POR_ROL[rolActivo] || "/";
+    return <Navigate to={Ruta} replace />;
+  }
+  return children;
+};
+
+// ── Layout con Sidebar ───────────────────────────────────────────────────────
+// Envuelve el contenido de cada ruta interna con la barra lateral de navegacion.
+const LayoutConSidebar = ({ children, roles, rolActivo, onCambioRol, onCerrarSesion }) => (
+  <div className="flex bg-gray-100 min-h-[calc(100vh-58px)]">
+    <Sidebar
+      roles={roles}
+      rolActivo={rolActivo}
+      onCambioRol={onCambioRol}
+      onCerrarSesion={onCerrarSesion}
+    />
+    <div className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 p-4 md:p-6">{children}</main>
+      <Footer />
+    </div>
+  </div>
+);
+
+// ── Componente principal App ──────────────────────────────────────────────────
+function App() {
+  const Navegar = useNavigate();
+  const Ubicacion = useLocation();
+  const { setUser } = useContext(AuthContext);
+
+  const [Usuario_Logeado, Set_UsuarioLogeado] = useState(null);
+  const [Es_Auth, Set_EsAuth] = useState(false);
+  const [Cargando, Set_Cargando] = useState(true);
+  const [Roles, Set_Roles] = useState([]);
+  const [Rol_Activo, Set_RolActivo] = useState(null);
+  const [CargandoTransicion, Set_CargandoTransicion] = useState(false);
+  const [TextoTransicion, Set_TextoTransicion] = useState("Cargando Foodsys...");
+
+  // Rehidrata la sesion al recargar la pagina o cuando cambian los roles en vivo.
+  // Lee el token y el usuario de localStorage para no pedir el login de nuevo.
+  useEffect(() => {
+    const Sincronizar = () => {
+      const Token_Guardado = localStorage.getItem("token");
+      const Usuario_Raw = localStorage.getItem("usuario");
+      const Roles_Guardados = JSON.parse(localStorage.getItem("roles") || "[]");
+      const Rol_Guardado = localStorage.getItem("rolActivo");
+
+      // Un token valido tiene exactamente 3 partes separadas por puntos
+      const Token_Valido =
+        Token_Guardado &&
+        Token_Guardado !== "ok" &&
+        Token_Guardado.split(".").length === 3;
+
+      if (!Token_Valido || !Usuario_Raw) {
+        localStorage.clear();
+        Set_EsAuth(false);
+        setUser(null);
+        Set_Cargando(false);
+        return;
+      }
+
+      try {
+        const Obj_Usuario = JSON.parse(Usuario_Raw);
+        Set_UsuarioLogeado(Obj_Usuario);
+        setUser(Obj_Usuario);
+        Set_EsAuth(true);
+        Set_Roles(Roles_Guardados);
+
+        // Si el rol activo guardado no está en los roles nuevos o no existe, seleccionar el primero si hay roles
+        if (Roles_Guardados.length > 0) {
+          if (!Rol_Guardado || !Roles_Guardados.includes(Rol_Guardado)) {
+            const PrimerRol = Roles_Guardados[0];
+            localStorage.setItem("rolActivo", PrimerRol);
+            Set_RolActivo(PrimerRol);
+          } else {
+            Set_RolActivo(Rol_Guardado);
+          }
+        } else {
+          Set_RolActivo(Rol_Guardado);
+        }
+      } catch {
+        localStorage.clear();
+        Set_EsAuth(false);
+        setUser(null);
+      } finally {
+        Set_Cargando(false);
+      }
+    };
+
+    Sincronizar();
+    window.addEventListener("storage", Sincronizar);
+    window.addEventListener("rolesActualizados", Sincronizar);
+    return () => {
+      window.removeEventListener("storage", Sincronizar);
+      window.removeEventListener("rolesActualizados", Sincronizar);
+    };
+  }, [setUser]);
+
+  // Limpia cualquier notificación activa y muestra loader intermedio al cambiar de módulo o ruta
+  useEffect(() => {
+    toast.dismiss();
+    if (Cargando) return;
+    Set_TextoTransicion("Cargando módulo...");
+    Set_CargandoTransicion(true);
+    const timer = setTimeout(() => {
+      Set_CargandoTransicion(false);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [Ubicacion.pathname]);
+
+  const Props_Auth = { isAuth: Es_Auth, rolActivo: Rol_Activo };
+
+  // Limpia el estado local y redirige al login
+  const Manejar_CerrarSesion = () => {
+    localStorage.clear();
+    Set_UsuarioLogeado(null);
+    Set_EsAuth(false);
+    Set_Roles([]);
+    Set_RolActivo(null);
+    setUser(null);
+    Navegar("/");
+  };
+
+  const Manejar_CambioRolGlobal = (Nuevo_Rol) => {
+    Set_TextoTransicion(`Cambiando al rol ${Nuevo_Rol}...`);
+    Set_CargandoTransicion(true);
+    localStorage.setItem("rolActivo", Nuevo_Rol);
+    Set_RolActivo(Nuevo_Rol);
+    setTimeout(() => {
+      Navegar(RUTAS_POR_ROL[Nuevo_Rol] || "/");
+      setTimeout(() => {
+        Set_CargandoTransicion(false);
+      }, 300);
+    }, 350);
+  };
+
+  // Props del layout compartidos entre todas las rutas protegidas
+  const Props_Layout = {
+    roles: Roles,
+    rolActivo: Rol_Activo,
+    onCambioRol: Manejar_CambioRolGlobal,
+    onCerrarSesion: Manejar_CerrarSesion,
+  };
+
+  if (Cargando) {
+    return <LoadingFoodsys texto="Cargando sesión Foodsys..." />;
+  }
+
+  // Registra el login exitoso: guarda token, usuario y roles en localStorage
+  const Manejar_Login = (Usr, Roles_Recibidos, Rol_Recibido, Token_JWT) => {
+    const Rol_Final = Rol_Recibido || (Roles_Recibidos && Roles_Recibidos[0]) || null;
+    localStorage.setItem("token", Token_JWT);
+    localStorage.setItem("usuario", JSON.stringify(Usr));
+    localStorage.setItem("roles", JSON.stringify(Roles_Recibidos || []));
+    if (Rol_Final) {
+      localStorage.setItem("rolActivo", Rol_Final);
+    }
+
+    Set_UsuarioLogeado(Usr);
+    Set_EsAuth(true);
+    Set_Roles(Roles_Recibidos || []);
+    Set_RolActivo(Rol_Final);
+    Navegar((Rol_Final && RUTAS_POR_ROL[Rol_Final]) || "/");
+  };
+
+  // El chatbot no aparece en la vista del coordinador por diseno
+  const Ocultar_Chatbot = Ubicacion.pathname.startsWith("/coordinador");
+  // La pantalla de inicio (Landing) tiene su propio header de navegacion institucional
+  const Es_LandingPage = !Es_Auth && Ubicacion.pathname === "/";
+
+  return (
+    <>
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        containerStyle={{
+          zIndex: 99999,
+        }}
+        toastOptions={{
+          duration: 4000,
+          style: {
+            zIndex: 99999,
+            fontFamily: "'Outfit', 'Inter', system-ui, sans-serif",
+            fontSize: "13px",
+            fontWeight: "600",
+            borderRadius: "16px",
+            padding: "12px 18px",
+            color: "#0f274a",
+            background: "rgba(255, 255, 255, 0.96)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid rgba(15, 63, 128, 0.15)",
+            boxShadow: "0 20px 35px -10px rgba(15, 63, 128, 0.2), 0 8px 12px -4px rgba(0, 0, 0, 0.08)",
+          },
+          success: {
+            duration: 3500,
+            iconTheme: {
+              primary: "#10b981",
+              secondary: "#ffffff",
+            },
+            style: {
+              borderLeft: "5px solid #10b981",
+            },
+          },
+          error: {
+            duration: 5000,
+            iconTheme: {
+              primary: "#f43f5e",
+              secondary: "#ffffff",
+            },
+            style: {
+              borderLeft: "5px solid #f43f5e",
+            },
+          },
+        }}
+      />
+      {!Ocultar_Chatbot && <Chatbot />}
+      {!Es_LandingPage && (
+        <NavBar
+          usuario={Usuario_Logeado}
+          roles={Roles}
+          rolActivo={Rol_Activo}
+          onCambioRol={Manejar_CambioRolGlobal}
+          onCerrarSesion={Manejar_CerrarSesion}
+        />
+      )}
+
+      {Es_Auth && (
+        <InactividadModal
+          rolActivo={Rol_Activo}
+          onCerrarSesion={(porInactividad) => {
+            if (porInactividad) {
+              toast.error("Sesión cerrada automáticamente por inactividad (5 min)");
+            }
+            Manejar_CerrarSesion();
+          }}
+        />
+      )}
+
+      {/* Indicador de carga premium para transiciones entre modulos, rutas y cambios de rol */}
+      {CargandoTransicion && <LoadingFoodsys texto={TextoTransicion} />}
+
+      <Suspense fallback={<LoadingFoodsys />}>
+        <Routes>
+
+          {/* ── PANTALLA DE INICIO (LANDING PAGE) ─────────────────────────── */}
+          <Route
+            path="/"
+            element={
+              Es_Auth && Rol_Activo && RUTAS_POR_ROL[Rol_Activo]
+                ? <Navigate to={RUTAS_POR_ROL[Rol_Activo]} replace />
+                : <InicioLanding />
+            }
+          />
+
+          {/* ── LOGIN ──────────────────────────────────────────────────────── */}
+          <Route
+            path="/login"
+            element={
+              Es_Auth && Rol_Activo && RUTAS_POR_ROL[Rol_Activo]
+                ? <Navigate to={RUTAS_POR_ROL[Rol_Activo]} replace />
+                : <Login onLogin={Manejar_Login} />
+            }
+          />
+
+          {/* ── RUTAS PUBLICAS ─────────────────────────────────────────────── */}
+          <Route path="/contacto" element={<Contacto />} />
+          <Route path="/about" element={<QueEsFoodsys />} />
+          <Route path="/recuperar" element={<ForgotPassword />} />
+
+          {/* ── ADMINISTRADOR ──────────────────────────────────────────────── */}
+          {/* El Administrador tiene acceso a todos los CRUD y modulos          */}
+          {/* EXCEPTO al modulo personal de Reservar (ese es de aprendices).    */}
+          <Route
+            path="/Administrador/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<Inicio />} />
+                    <Route path="Inicio" element={<Inicio />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Reportes" element={<Reportes />} />
+                    <Route path="Novedades" element={<Novedades />} />
+                    {/* Redirigir cualquier subruta desconocida al inicio */}
+                    <Route path="*" element={<Navigate to="/Administrador" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── MONITOR / SUPERVISOR ───────────────────────────────────────── */}
+          <Route
+            path="/supervisor/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Supervisor", "Monitor", "Coordinador", "Bienestar", "Administrador"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<Inicio />} />
+                    <Route path="Inicio" element={<Inicio />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Registrar" element={<RegistrarVista />} />
+                    <Route path="Reportes" element={<Reportes />} />
+                    <Route path="*" element={<Navigate to="/supervisor" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── SUPERVISOR DE CONTRATO ─────────────────────────────────────── */}
+          <Route
+            path="/supervisor-contrato/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Supervisor de Contrato", "Administrador"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<SupervisorContrato />} />
+                    <Route path="Inicio" element={<SupervisorContrato />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Plan" element={<PlanCocina />} />
+                    <Route path="Reportes" element={<Reportes />} />
+                    <Route path="*" element={<Navigate to="/supervisor-contrato" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+
+
+          {/* ── SENA EMPRESA ───────────────────────────────────────────────── */}
+          <Route
+            path="/sena-empresa/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["SENA Empresa", "Administrador", "Coordinador"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<Inicio />} />
+                    <Route path="Inicio" element={<Inicio />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Reportes" element={<Reportes />} />
+                    <Route path="*" element={<Navigate to="/sena-empresa" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── COORDINADOR ────────────────────────────────────────────────── */}
+          <Route
+            path="/coordinador/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Coordinador"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<Inicio />} />
+                    <Route path="Inicio" element={<Inicio />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Novedades" element={<Novedades />} />
+                    <Route path="Reportes" element={<Reportes />} />
+                    <Route path="Aprendices" element={<Aprendices />} />
+                    <Route path="*" element={<Navigate to="/coordinador" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── APRENDIZ EXTERNO ───────────────────────────────────────────── */}
+          <Route
+            path="/Externo/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Aprendiz Externo"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<InicioExterno />} />
+                    <Route path="Inicio" element={<InicioExterno />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Reservar" element={<ReservasPag />} />
+                    <Route path="Reservas" element={<ReservasPag />} />
+                    <Route path="*" element={<Navigate to="/Externo" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── APRENDIZ INTERNO ───────────────────────────────────────────── */}
+          <Route
+            path="/Interno/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Aprendiz Interno"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<InicioInterno />} />
+                    <Route path="Inicio" element={<InicioInterno />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Reservar" element={<ReservasPag />} />
+                    <Route path="Reservas" element={<ReservasPag />} />
+                    <Route path="*" element={<Navigate to="/Interno" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── PASANTE INTERNO ────────────────────────────────────────────── */}
+          <Route
+            path="/PasanteInterno/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Pasante Interno"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<Inicio />} />
+                    <Route path="Inicio" element={<Inicio />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Reservar" element={<ReservasPag />} />
+                    <Route path="Reservas" element={<ReservasPag />} />
+                    <Route path="*" element={<Navigate to="/PasanteInterno" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── PASANTE EXTERNO ────────────────────────────────────────────── */}
+          <Route
+            path="/PasanteExterno/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Pasante Externo"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<Inicio />} />
+                    <Route path="Inicio" element={<Inicio />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Reservar" element={<ReservasPag />} />
+                    <Route path="Reservas" element={<ReservasPag />} />
+                    <Route path="*" element={<Navigate to="/PasanteExterno" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── COCINA Y VERIFICACIÓN QR ───────────────────────────────────── */}
+          <Route
+            path="/Cocina/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Cocina", "Monitor", "Supervisor", "Administrador"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<Inicio />} />
+                    <Route path="Inicio" element={<Inicio />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Verificar" element={<ValidarReservasCocina />} />
+                    <Route path="Plan" element={<PlanCocina />} />
+                    <Route path="Reportes" element={<Reportes />} />
+                    <Route path="*" element={<Navigate to="/Cocina" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── BIENESTAR ──────────────────────────────────────────────────── */}
+          <Route
+            path="/Bienestar/*"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Bienestar"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <Routes>
+                    <Route index element={<Inicio />} />
+                    <Route path="Inicio" element={<Inicio />} />
+                    <Route path="Perfil" element={<Perfil />} />
+                    <Route path="Plan" element={<PlanCocina />} />
+                    <Route path="Reportes" element={<Reportes />} />
+                    <Route path="Novedades" element={<Novedades />} />
+                    <Route path="*" element={<Navigate to="/Bienestar" replace />} />
+                  </Routes>
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── TABLAS Y MÓDULOS TRANSVERSALES SEGÚN MATRIZ RBAC ────────────── */}
+          <Route path="/usuarios" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudUsuarios /></LayoutConSidebar></ProtectedRoute>} />
+          <Route path="/UsuariosRoles" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudUsuariosRoles /></LayoutConSidebar></ProtectedRoute>} />
+          <Route path="/fichas" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudFichas /></LayoutConSidebar></ProtectedRoute>} />
+          <Route path="/programas" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudPrograma /></LayoutConSidebar></ProtectedRoute>} />
+          <Route path="/roles" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudRoles /></LayoutConSidebar></ProtectedRoute>} />
+          <Route path="/platos" element={
+            <ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador", "Bienestar", "Cocina", "Supervisor de Contrato"]}>
+              <LayoutConSidebar {...Props_Layout}>
+                <CrudPlatos />
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          } />
+          <Route path="/menus" element={
+            <ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador", "Bienestar", "Cocina", "Supervisor de Contrato"]}>
+              <LayoutConSidebar {...Props_Layout}>
+                <CrudMenus />
+              </LayoutConSidebar>
+            </ProtectedRoute>
+          } />
+
+          {/* Reservas: Administrador (solo lectura), Coordinador y SENA Empresa */}
+          <Route
+            path="/reservas"
+            element={
+              <ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador", "SENA Empresa"]}>
+                <LayoutConSidebar {...Props_Layout}>
+                  <CrudReservas />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Aprendices: Administrador, Coordinador y Bienestar */}
+          <Route
+            path="/aprendices"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={["Administrador", "Coordinador", "Bienestar"]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <Aprendices />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Pasantes: Administrador, Coordinador y Bienestar */}
+          <Route
+            path="/pasantes"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={["Administrador", "Coordinador", "Bienestar"]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <Pasantes />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* PQRSF e Interventoría: Administrador, Bienestar y Supervisor de Contrato */}
+          <Route
+            path="/pqrsf-admin"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={["Administrador", "Bienestar", "Supervisor de Contrato"]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <PqrsfAdminDashboard />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Sincronización Offline: Administrador, Coordinador y Bienestar */}
+          <Route
+            path="/sincronizacion"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={["Administrador", "Coordinador", "Bienestar"]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <PanelSincronizacion />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Horarios y Control de Raciones: accesible para Administrador */}
+          <Route
+            path="/configuracion-raciones"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={["Administrador"]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <ConfiguracionRaciones />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Internado Temporal SENA Empresa */}
+          <Route
+            path="/internado-temporal"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={["Administrador", "SENA Empresa", "Bienestar", "Coordinador", "Coordinacion"]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <InternadoTemporal />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Asignación de Supervisor (Bienestar y Coordinación) */}
+          <Route
+            path="/asignacion-supervisor"
+            element={
+              <ProtectedRoute
+                {...Props_Auth}
+                allowedRoles={[
+                  "Bienestar",
+                  "Coordinador",
+                  "Coordinacion",
+                  "Administrador"
+                ]}
+              >
+                <LayoutConSidebar {...Props_Layout}>
+                  <AsignacionSupervisor />
+                </LayoutConSidebar>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── RECUPERACIÓN DE CONTRASEÑA ─────────────────────────────────── */}
+          <Route path="/forgotPassword" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+          {/* ── MANUALES DE USUARIO ────────────────────────────────────────── */}
+          <Route
+            path="/manuales"
+            element={
+              Es_Auth ? (
+                <LayoutConSidebar {...Props_Layout}>
+                  <ManualesUsuario />
+                </LayoutConSidebar>
+              ) : (
+                <ManualesUsuario />
+              )
+            }
+          />
+
+          {/* ── FALLBACK ──────────────────────────────────────────────────── */}
+          {/* Cualquier ruta que no coincida redirige al login o al dashboard   */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+
+      </Suspense>
+
+      {!Es_Auth && !["/", "/login"].includes(Ubicacion.pathname) && <Footer />}
+    </>
+  );
+}
+
+export default App;

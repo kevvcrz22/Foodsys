@@ -1,0 +1,30 @@
+import db from "../Database/db.js";
+import { DataTypes } from "sequelize";
+
+const UsuariosModel = db.define('usuarios', {
+  Id_Usuario: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  TipDoc_Usuario: { type: DataTypes.STRING, allowNull: true },
+  NumDoc_Usuario: { type: DataTypes.BIGINT, allowNull: true },
+  Nom_Usuario: { type: DataTypes.STRING, allowNull: true },
+  Ape_Usuario: { type: DataTypes.STRING, allowNull: true },
+  Gen_Usuario: { type: DataTypes.STRING, allowNull: true },
+  Cor_Usuario: { type: DataTypes.STRING, allowNull: true },
+  Tel_Usuario: { type: DataTypes.STRING, allowNull: true },
+  CenCon_Usuario: { type: DataTypes.STRING, allowNull: true },
+  Est_Usuario: { type: DataTypes.STRING, allowNull: true, defaultValue: 'Formación' },
+  Pol_Usuario: { type: DataTypes.STRING, allowNull: true, defaultValue: 'No' },
+  San_Usuario: { type: DataTypes.STRING, allowNull: true, defaultValue: 'No' },
+  Fec_Desancion: { type: DataTypes.DATE, allowNull: true },
+  FecIni_Pasantia: { type: DataTypes.DATEONLY, allowNull: true },
+  FecFin_Pasantia: { type: DataTypes.DATEONLY, allowNull: true },
+  Id_Ficha: { type: DataTypes.INTEGER, references: { model: "fichas", key: "Id_Ficha" } },
+  password: { type: DataTypes.STRING, allowNull: true },
+  uuid: { type: DataTypes.STRING, allowNull: true },
+  token: { type: DataTypes.STRING, allowNull: true },
+  tokenVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 }
+},
+{
+  freezeTableName: true
+});
+
+export default UsuariosModel;

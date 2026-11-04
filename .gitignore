@@ -1,0 +1,62 @@
+# Dependencias
+node_modules/
+Frontend/node_modules/
+Node/node_modules/
+
+# Variables de entorno, llaves privadas y credenciales
+.env
+.env.*
+*.env
+*.env.local
+Frontend/.env*
+!Frontend/.env.example
+Node/.env*
+!Node/.env.example
+*.pem
+*.key
+Node/uploads/keys/
+
+# Documentos sensibles de despliegue, contraseñas y servidores
+DESPLIEGUE*
+GUIA_SOLUCION*
+deploy*
+backup-db*
+sync_platos.sql
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Compilacion y temporales
+Frontend/dist/
+dist/
+__pycache__/
+*.pyc
+*.py
+*.ps1
+
+# Documentacion de diseno, manuales y archivos pesados
+*.docx
+*.pdf
+*.xlsx
+*.xlsm
+*.xls
+*.zip
+*.rar
+*.7z
+extracted_images/
+Errores Manual Tecnico/
+preview_*.png
+
+# Subidas y copias locales
+Node/uploads/*
+!Node/uploads/.gitkeep
+Node/backup_uploads/
+*.sql
+!Node/Database/foodsys_canonical_schema.sql
+

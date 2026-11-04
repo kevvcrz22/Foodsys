@@ -1,0 +1,1523 @@
+// Node/Controllers/UsuariosControllers.js
+// Controladores del modulo de usuarios para el sistema Foodsys
+// Cada funcion recibe la peticion HTTP, delega al servicio y responde con JSON
+// Nomenclatura: PascalCase en espanol sin tildes
+
+import UsuariosService, { normalizarEstadoOficial } from "../Services/UsuariosService.js";
+import CsvService from "../Services/CsvService.js";
+import UsuariosModel from "../Models/UsuariosModel.js";
+import FichasModel from "../Models/FichasModel.js";
+import ProgramaModel from "../Models/ProgramaModel.js";
+import RolesModel from "../Models/RolesModel.js";
+import UsuariosRolModel from "../Models/UsuariosRolModel.js";
+import ReservaModel from "../Models/ReservasModel.js";
+import SofiaPlusReconcilerService from "../Services/SofiaPlusReconcilerService.js";
+import { sincronizarEstadoAprendices } from "../Services/FichasServices.js";
+import { normalizarNombrePrograma } from "../Services/ProgramaService.js";
+import { obtenerFechaColombia } from "../Utils/dateUtils.js";
+import { Op } from "sequelize";
+import bcrypt from "bcrypt";
+import { v4 as uuidv4 } from "uuid";
+import XLSX from "xlsx";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { encolarEventoSync } from "../Services/SyncOutboxService.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+/* ============================================================
+   COLUMNAS_PLANTILLA
+   Define el orden exacto de las columnas del archivo Excel
+   que el administrador debe usar para importar aprendices o pasantes.
+============================================================ */
+const COLUMNAS_PLANTILLA = [
+  "TipDoc_Usuario",
+  "NumDoc_Usuario",
+  "Nom_Usuario",
+  "Ape_Usuario",
+  "Gen_Usuario",
+  "Cor_Usuario",
+  "Tel_Usuario",
+  "CenCon_Usuario",
+  "Num_Ficha",
+  "Est_Usuario",
+  "Pol_Usuario",
+  "San_Usuario"
+];
+//Solicitar restablecer contraseña
+export const getResetPassword = async (req, res) => {
+  const { email } = req.body
+
+  try {
+    await UsuariosService.resetPassword(email)
+    res.status(200).json({ message: 'El mensaje para restablecer contraseña fue enviado correctamente.' })
+  } catch (error) {
+    res.status(400).json({ message: error.message })
+  }
+}
+//Recibir la nueva contraseña
+export const setNewPassword = async (req, res) => {
+  try {
+    await UsuariosService.setNewPassword(req.body)
+    res.status(200).json({ message: "Contraseña actualizada correctamente" })
+  } catch (error) {
+    res.status(400).json({ message: "Informacion invalida o el tiempo ha expirado." })
+  }
+}
+// ─────────────────────────────────────────────────────────────
+// AUTENTICACION Y CRUD BASICO
+// ─────────────────────────────────────────────────────────────
+
+/*
+  RegisterUsuarios
+  Paso 1: Express recibe el body con los datos del nuevo usuario.
+  Paso 2: Se delega toda la logica de validacion y creacion al servicio.
+  Paso 3: Si todo va bien se responde 201 (Created). Si el documento
+          ya existe u otro error de negocio, el servicio lanza una
+          excepcion que se captura aqui y se devuelve 400.
+*/
+export const RegisterUsuarios = async (req, res) => {
+  try {
+    await UsuariosService.register(req.body);
+    res.status(201).json({ message: "Usuario registrado con exito" });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+/*
+  Login
+  Paso 1: Se reciben las credenciales del usuario (documento + password).
+  Paso 2: El servicio verifica la existencia del usuario, compara la
+          contraseña con bcrypt y genera el token JWT.
+  Paso 3: Se responde con el objeto usuario, sus roles y el token.
+          El frontend guarda el token para enviarlo en cabeceras futuras.
+*/
+export const Login = async (req, res) => {
+  try {
+    const { usuario, roles, token } = await UsuariosService.Login(req.body);
+    res.status(200).json({ message: "Usuario logueado exitosamente", usuario, roles, token });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+/*
+  getAllUsuarios
+  Consulta sin filtros a la base de datos.
+  Util para listas desplegables y tablas de administracion.
+  Error 500 porque un fallo aqui es problema del servidor, no del cliente.
+*/
+export const getMatrizRoles = async (req, res) => {
+  try {
+    const data = await UsuariosService.getMatrizRoles();
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getAllUsuarios = async (req, res) => {
+  try {
+    const Usuarios = await UsuariosService.getAll();
+    res.status(200).json(Usuarios);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  getUsuarios
+  Busca un unico usuario por su clave primaria (Id_Usuario).
+  Si no existe en la base de datos el servicio lanza error y
+  se responde con 404 (Not Found).
+*/
+export const getUsuarios = async (req, res) => {
+  try {
+    const Usuario = await UsuariosService.getById(req.params.Id);
+    res.status(200).json(Usuario);
+  } catch (error) {
+    res.status(404).json({ message: error.message });
+  }
+};
+
+/*
+  updateUsuarios
+  Paso 1: El body trae solo los campos que cambian (PATCH semantico
+          pero usando PUT para compatibilidad con el frontend actual).
+  Paso 2: El servicio aplica la actualizacion parcial en la BD.
+  Paso 3: 400 si el Id no existe o los datos son invalidos.
+*/
+export const updateUsuarios = async (req, res) => {
+  try {
+    await UsuariosService.update(req.params.Id, req.body);
+    res.status(200).json({ message: "Usuario actualizado correctamente" });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+/*
+  deleteUsuarios
+  Elimina el registro de la base de datos de forma permanente.
+  Esta accion NO es reversible desde la API. Si se necesita
+  soft-delete (borrado logico) se debe agregar en el servicio.
+*/
+export const deleteUsuarios = async (req, res) => {
+  try {
+    await UsuariosService.delete(req.params.Id);
+    res.status(200).json({ message: "Usuario eliminado correctamente" });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+/*
+  aceptarPolitica
+  Registra en la base de datos la fecha o bandera de aceptacion
+  de la politica de privacidad. Se llama una sola vez por usuario
+  despues de que confirma en la pantalla de politicas.
+*/
+export const aceptarPolitica = async (req, res) => {
+  try {
+    await UsuariosService.aceptarPolitica(req.params.Id);
+    res.status(200).json({ message: "Politica aceptada correctamente" });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+/*
+  getAprendices
+  Filtra y devuelve unicamente los usuarios cuyo rol es
+  "Aprendiz Interno" o "Aprendiz Externo".
+  Esta ruta esta protegida con authMiddleware en el router.
+*/
+export const getAprendices = async (req, res) => {
+  try {
+    const Aprendices = await UsuariosService.getAprendices();
+    res.status(200).json(Aprendices);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  getPasantes
+  Filtra y devuelve unicamente los usuarios cuyo rol es
+  "Pasante Interno" o "Pasante Externo".
+  Esta ruta esta protegida con authMiddleware en el router.
+*/
+export const getPasantes = async (req, res) => {
+  try {
+    const Pasantes = await UsuariosService.getPasantes();
+    res.status(200).json(Pasantes);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// CAMBIO DE contraseña EN DOS PASOS
+// El flujo se divide en dos endpoints para mejorar la UX:
+// el usuario confirma su contraseña actual antes de escribir
+// la nueva, evitando errores de tipeo y accesos no autorizados.
+// ─────────────────────────────────────────────────────────────
+
+/*
+  validarPasswordActual  (Paso 1)
+  Paso 1: Se recibe currentPassword desde el body.
+  Paso 2: Se busca el usuario por PK para obtener el hash guardado.
+  Paso 3: bcrypt.compare compara el texto plano con el hash;
+          retorna true/false sin exponer el hash al cliente.
+  Paso 4: Si es valida se responde { valid: true } y el frontend
+          habilita el formulario para ingresar la nueva contraseña.
+  Nota: No se modifica nada en la BD en este paso.
+*/
+export const validarPasswordActual = async (req, res) => {
+  try {
+    const { Id } = req.params;
+    const { currentPassword } = req.body;
+
+    if (!currentPassword) {
+      return res.status(400).json({ message: "La contraseña actual es requerida" });
+    }
+
+    const Usuario = await UsuariosModel.findByPk(Id);
+    if (!Usuario) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    const EsValida = await bcrypt.compare(currentPassword, Usuario.password);
+    if (!EsValida) {
+      return res.status(401).json({ message: "La contraseña actual es incorrecta" });
+    }
+
+    res.status(200).json({ valid: true });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  cambiarPassword  (Paso 2)
+  Paso 1: Se validan que ambos campos existan y que newPassword
+          cumpla el minimo de 8 caracteres (regla de seguridad basica).
+  Paso 2: Se vuelve a verificar currentPassword como segunda barrera
+          de seguridad; evita que un token robado cambie la clave
+          sin conocer la actual.
+  Paso 3: bcrypt.hash genera un nuevo hash con salt de 10 rondas.
+          Nunca se guarda la contraseña en texto plano.
+  Paso 4: UsuariosModel.update aplica solo el campo password.
+          Si Resultado[0] === 0 significa que no se actualizo ninguna
+          fila (Id inexistente), se lanza error controlado.
+*/
+export const cambiarPassword = async (req, res) => {
+  try {
+    const { Id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "La contraseña actual y la nueva son requeridas" });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "La nueva contraseña debe tener al menos 8 caracteres" });
+    }
+
+    const Usuario = await UsuariosModel.findByPk(Id);
+    if (!Usuario) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    const EsValida = await bcrypt.compare(currentPassword, Usuario.password);
+    if (!EsValida) {
+      return res.status(401).json({ message: "La contraseña actual es incorrecta" });
+    }
+
+    const NuevoHash = await bcrypt.hash(newPassword, 10);
+    const Resultado = await UsuariosModel.update(
+      { password: NuevoHash },
+      { where: { Id_Usuario: Id } }
+    );
+
+    if (Resultado[0] === 0) {
+      throw new Error("No se pudo actualizar la contraseña en la base de datos");
+    }
+
+    res.status(200).json({ message: "contraseña actualizada correctamente" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Obtiene el perfil completo del usuario autenticado (cualquier rol)
+export const getMiPerfil = async (req, res) => {
+  try {
+    const Id_Usuario = req.user?.id || req.user?.Id_Usuario;
+    if (!Id_Usuario) {
+      return res.status(401).json({ message: "No autenticado" });
+    }
+
+    const usuario = await UsuariosModel.findByPk(Id_Usuario, {
+      attributes: { exclude: ["password"] },
+      include: [
+        {
+          model: FichasModel,
+          as: "ficha",
+          include: [{ model: ProgramaModel, as: "programas" }]
+        },
+        {
+          model: UsuariosRolModel,
+          as: "rolesUsuario",
+          include: [{ model: RolesModel, as: "rolUsuario" }]
+        }
+      ]
+    });
+
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    const roles = (usuario.rolesUsuario || [])
+      .map(r => r.rolUsuario?.Nom_Rol)
+      .filter(Boolean);
+
+    const perfil = {
+      ...usuario.toJSON(),
+      roles,
+      nombreCompleto: `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim(),
+      nombrePrograma: usuario.ficha?.programas?.Nom_Programa || null,
+      numeroFicha: usuario.ficha?.Num_Ficha || null
+    };
+
+    return res.status(200).json(perfil);
+  } catch (error) {
+    console.error("[UsuariosControllers] getMiPerfil:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// Actualiza correo y telefono del usuario autenticado (Seccion 1 de Mi Perfil)
+export const actualizarContactoPerfil = async (req, res) => {
+  try {
+    const Id_Usuario = req.user?.id || req.user?.Id_Usuario;
+    if (!Id_Usuario) {
+      return res.status(401).json({ message: "No autenticado" });
+    }
+
+    const { Cor_Usuario, Tel_Usuario } = req.body;
+    const updates = {};
+
+    if (Cor_Usuario !== undefined) {
+      const emailTrim = String(Cor_Usuario).trim();
+      if (emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+        return res.status(400).json({ message: "El formato del correo electronico es invalido" });
+      }
+      updates.Cor_Usuario = emailTrim;
+    }
+
+    if (Tel_Usuario !== undefined) {
+      const telTrim = String(Tel_Usuario).trim();
+      if (telTrim && !/^\d{7,15}$/.test(telTrim.replace(/\D/g, ""))) {
+        return res.status(400).json({ message: "El telefono debe contener entre 7 y 15 digitos numericos" });
+      }
+      updates.Tel_Usuario = telTrim;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: "Debe ingresar al menos un dato de contacto para actualizar" });
+    }
+
+    await UsuariosModel.update(updates, { where: { Id_Usuario } });
+
+    encolarEventoSync({
+      entidad: "usuarios",
+      operacion: "UPDATE",
+      entity_uuid: Id_Usuario,
+      payload: updates
+    });
+
+    const usuarioActualizado = await UsuariosModel.findByPk(Id_Usuario, {
+      attributes: { exclude: ["password"] }
+    });
+
+    return res.status(200).json({
+      message: "Informacion de contacto actualizada exitosamente",
+      usuario: usuarioActualizado
+    });
+  } catch (error) {
+    console.error("[UsuariosControllers] actualizarContactoPerfil:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// Actualiza la contrasena del usuario autenticado validando la contrasena actual (Seccion 2 de Mi Perfil)
+export const cambiarPasswordPerfil = async (req, res) => {
+  try {
+    const Id_Usuario = req.user?.id || req.user?.Id_Usuario;
+    if (!Id_Usuario) {
+      return res.status(401).json({ message: "No autenticado" });
+    }
+
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!currentPassword) {
+      return res.status(400).json({ message: "Debe ingresar su contrasena actual" });
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ message: "La nueva contrasena debe tener al menos 8 caracteres" });
+    }
+
+    if (confirmPassword && newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "La confirmacion de contrasena no coincide con la nueva" });
+    }
+
+    const usuario = await UsuariosModel.findByPk(Id_Usuario);
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    const esValida = await bcrypt.compare(currentPassword, usuario.password);
+    if (!esValida) {
+      return res.status(400).json({ message: "La contrasena actual es incorrecta" });
+    }
+
+    const nuevoHash = await bcrypt.hash(newPassword, 10);
+    await UsuariosModel.update({ password: nuevoHash }, { where: { Id_Usuario } });
+
+    return res.status(200).json({ message: "Contrasena actualizada exitosamente" });
+  } catch (error) {
+    console.error("[UsuariosControllers] cambiarPasswordPerfil:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// IMPORTACION MASIVA LEGACY — CSV
+// Se mantiene por compatibilidad con integraciones anteriores.
+// Para nuevas importaciones usar el flujo Excel de tres pasos.
+// ─────────────────────────────────────────────────────────────
+
+/*
+  importarCSV
+  Paso 1: multer (configurado en el router) guarda el archivo en disco.
+  Paso 2: CsvService lee el archivo y crea los usuarios en la BD.
+  Paso 3: Se responde con el conteo de creados y omitidos (duplicados).
+*/
+export const importarCSV = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No se recibio ningun archivo CSV" });
+    }
+    const Resultado = await CsvService.importarDesdeCSV(req.file.path);
+    res.status(200).json({
+      message: `Importacion completada. Creados: ${Resultado.creados}, Omitidos: ${Resultado.omitidos}`,
+      ...Resultado,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// IMPORTACION MASIVA EXCEL — flujo de tres pasos
+//
+// Paso A — descargarPlantilla : el admin descarga el .xlsx vacio
+// Paso B — previewImport      : sube el archivo y ve los datos
+//                               antes de confirmar la importacion
+// Paso C — importarSeleccionados: persiste solo las filas aprobadas
+//
+// Ventaja frente al flujo CSV:
+//   * El admin puede revisar y desmarcar filas antes de guardar.
+//   * El archivo nunca se escribe en disco (memoria RAM).
+//   * Las validaciones ocurren en el backend, no en el frontend.
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Extrae un valor de una fila buscando primero coincidencias exactas y luego parciales.
+ */
+function extractExcelField(row, exactKeys = [], partialKeys = []) {
+  if (!row) return "";
+  const keys = Object.keys(row);
+  for (const ek of exactKeys) {
+    const found = keys.find(k => k.trim().toUpperCase() === ek.toUpperCase());
+    if (found && row[found] !== undefined && String(row[found]).trim() !== "") {
+      return String(row[found]).trim();
+    }
+  }
+  for (const pk of partialKeys) {
+    const found = keys.find(k => k.trim().toUpperCase().includes(pk.toUpperCase()));
+    if (found && row[found] !== undefined && String(row[found]).trim() !== "") {
+      return String(row[found]).trim();
+    }
+  }
+  return "";
+}
+
+/**
+ * Busca inteligentemente la hoja del libro que contiene aprendices reales
+ * y detecta la fila exacta de encabezados. Soporta Base_NO MODIFICAR_2026_SEPTIEMBRE, Hoja1, etc.
+ */
+function detectarHojaAprendices(Workbook) {
+  // Priorizar hojas institucionales del SENA (Centro de Convivencia, Juicios, Base IQR, Foodsys, etc.)
+  const prioridades = [
+    "CENTRO DE CONVIVENCIA",
+    "J_TGOs_Comp_2026_09",
+    "J_TCOs_Comp_2026_09",
+    "Base_Datos_IQR",
+    "Aprendices_Activos",
+    "Plantilla_Aprendices",
+    "Hoja1",
+    "Aprendices",
+    "Usuarios",
+    "Base_Datos",
+    "Registro",
+    "Registro Asistencia",
+    "TGOs-Jucios_Tot",
+    "TCOs-Jucios_Tot",
+    "JUNIO"
+  ];
+
+  const dinamicas = Workbook.SheetNames.filter(n => /J_.*Comp/i.test(n) && !prioridades.includes(n));
+  const todosNombres = [
+    ...prioridades.filter(n => Workbook.Sheets[n]),
+    ...dinamicas,
+    ...Workbook.SheetNames.filter(n => !prioridades.includes(n) && !dinamicas.includes(n))
+  ];
+
+  for (const nombreHoja of todosNombres) {
+    const ws = Workbook.Sheets[nombreHoja];
+    if (!ws) continue;
+    const rawMatrix = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+    for (let r = 0; r < Math.min(15, rawMatrix.length); r++) {
+      const fila = (rawMatrix[r] || []).map(c => String(c).trim().toUpperCase());
+      const hasDoc = fila.some(c =>
+        c.includes("DOCUMENTO") ||
+        c.includes("IDENTIFICACI") ||
+        c.includes("NUMDOC") ||
+        c.includes("DCTO") ||
+        c.includes("CEDULA") ||
+        c.includes("CÉDULA")
+      );
+      const hasNombre = fila.some(c =>
+        c.includes("NOMBRE") ||
+        c.includes("SIMBRES") ||
+        c.includes("APRENDIZ") ||
+        c.includes("APELLIDO")
+      );
+
+      if (hasDoc && hasNombre) {
+        const Filas = XLSX.utils.sheet_to_json(ws, { range: r, defval: "" });
+        if (Filas.length > 0) {
+          return { hoja: ws, nombreHoja, filaEncabezados: r, Filas };
+        }
+      }
+    }
+  }
+
+  const primerNombre = Workbook.SheetNames[0];
+  const ws = Workbook.Sheets[primerNombre];
+  const Filas = XLSX.utils.sheet_to_json(ws, { defval: "" });
+  return { hoja: ws, nombreHoja: primerNombre, filaEncabezados: 0, Filas };
+}
+
+/*
+  descargarPlantilla  (Paso A)
+  Genera un libro Excel con la plantilla oficial de Foodsys y la plantilla SENA compatible.
+*/
+export const descargarPlantilla = (_req, res) => {
+  try {
+    const Libro = XLSX.utils.book_new();
+
+    // Hoja 1: Plantilla Institucional Foodsys (Limpia y con ejemplos)
+    const filasFoodsys = [
+      [
+        "Tipo de Documento", "Documento", "Nombres", "Apellidos", "Ficha",
+        "Centro de Convivencia", "Correo Electrónico", "Teléfono", "Género", "Rol", "Estado"
+      ],
+      [
+        "CC", "1006129136", "ABNER GIULIANI", "DURAN SAENZ", "3404817",
+        "No", "abner.duran@soy.sena.edu.co", "3107979024", "M", "Aprendiz Externo", "Formación"
+      ],
+      [
+        "TI", "1111337529", "FAIDER FABIAN", "ESCARPETA NIETO", "3404814",
+        "Si", "faiderescarpeta77@gmail.com", "3132026563", "M", "Aprendiz Interno", "Formación"
+      ]
+    ];
+    const Hoja1 = XLSX.utils.aoa_to_sheet(filasFoodsys);
+    Hoja1["!cols"] = [
+      { wch: 18 }, { wch: 16 }, { wch: 22 }, { wch: 22 }, { wch: 14 },
+      { wch: 22 }, { wch: 32 }, { wch: 16 }, { wch: 10 }, { wch: 20 }, { wch: 16 }
+    ];
+    XLSX.utils.book_append_sheet(Libro, Hoja1, "Plantilla_Aprendices");
+
+    // Hoja 2: Ejemplo estructura Base_Datos_IQR SENA
+    const filasBaseSENA = [
+      [
+        "Rol", "Tipo de Documento", "Documento", "SImbres", "Apellidos", "Ficha",
+        "Programa de Formación", "CORREO ELECTRÓNICO ", "TELÉFOSI DE CONTACTO",
+        "CENTRO DE CONVIVENCIA", "ESTADO"
+      ],
+      [
+        "Aprendiz", "CC", "1006129136", "ABNER GIULIANI", "DURAN SAENZ", "3404817",
+        "GESTION DE EMPRESAS AGROPECUARIAS", "yuranyt320@gmail.com", "3107979024",
+        "NO", "EN FORMACIÓN"
+      ]
+    ];
+    const Hoja2 = XLSX.utils.aoa_to_sheet(filasBaseSENA);
+    Hoja2["!cols"] = filasBaseSENA[0].map(() => ({ wch: 22 }));
+    XLSX.utils.book_append_sheet(Libro, Hoja2, "Ejemplo_Base_SENA");
+
+    const Buffer = XLSX.write(Libro, { type: "buffer", bookType: "xlsx" });
+
+    res.setHeader("Content-Disposition", 'attachment; filename="Aprendices_Foodsys_Oficial.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(Buffer);
+  } catch (error) {
+    return res.status(500).json({ message: "Error al generar la plantilla de aprendices." });
+  }
+};
+
+/*
+  previewImport  (Paso B)
+  Detecta la hoja y las columnas automáticamente, soportando Base_NO MODIFICAR, Hoja1, etc.
+  Garantiza por regla de negocio que todo aprendiz importado tenga Est_Usuario = "En Formacion".
+*/
+export const previewImport = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Archivo requerido" });
+    }
+
+    const { soloActivos = "true" } = req.query;
+    const filtrarSoloActivos = soloActivos === "true" || soloActivos === true;
+
+    const Workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+    const { Filas, nombreHoja } = detectarHojaAprendices(Workbook);
+
+    if (!Filas || !Filas.length) {
+      return res.status(400).json({ message: "El archivo esta vacio o no se detectaron filas de aprendices." });
+    }
+
+    // Precargar fichas y programas en memoria de forma independiente y segura
+    const todasLasFichas = await FichasModel.findAll({ attributes: ["Id_Ficha", "Num_Ficha", "Id_Programa", "FecFinLec_Ficha"] });
+    const todosProgramas = await ProgramaModel.findAll({ attributes: ["Id_Programa", "Nom_Programa"] });
+    const mapaProgramas = new Map(todosProgramas.map(p => [p.Id_Programa, p.Nom_Programa]));
+
+    const mapaFichas = new Map();
+    for (const f of todasLasFichas) {
+      const nomProg = mapaProgramas.get(f.Id_Programa) || "Por asociar";
+      const fichaObj = {
+        Id_Ficha: f.Id_Ficha,
+        Num_Ficha: f.Num_Ficha,
+        Id_Programa: f.Id_Programa,
+        Nom_Programa: nomProg,
+        FecFinLec_Ficha: f.FecFinLec_Ficha
+      };
+      mapaFichas.set(String(f.Num_Ficha).trim(), fichaObj);
+      mapaFichas.set(String(f.Id_Ficha).trim(), fichaObj);
+    }
+
+    // Precargar usuarios existentes para cruce de inactivos (Bug 3)
+    const usuariosExistentes = await UsuariosModel.findAll({ attributes: ["Id_Usuario", "NumDoc_Usuario", "Est_Usuario"] });
+    const mapaUsuariosDoc = new Map(usuariosExistentes.map(u => [String(u.NumDoc_Usuario).trim(), u]));
+
+    // Procesar y normalizar cada fila
+    const Datos = [];
+    let omitidosInactivos = 0;
+
+    for (const Fila of Filas) {
+      // Extraccion limpia de documento previniendo notacion cientifica
+      const numDocRaw = extractExcelField(
+        Fila,
+        [
+          "NUM. DCTO.", "NUM. DCTO", "NUMERO DCTO", "NÚMERO DCTO", "NÚMERO DCTO.",
+          "DOCUMENTO", "NUMDOC_USUARIO", "NUM_DOC", "NÚMERO DE DOCUMENTO", "NUMERO DE DOCUMENTO",
+          "NÚMERO DE IDENTIFICACIÓN APRENDIZ", "NUMERO DE IDENTIFICACION APRENDIZ",
+          "NÚMERO DE IDENTIFICACIÓN", "CEDULA", "CÉDULA", "CÉDULA DEL APRENDIZ", "IDENTIFICACION"
+        ],
+        ["NUM. DCTO", "NUM DCTO", "DOCUMENTO", "IDENTIFICACI", "CEDULA"]
+      );
+
+      let numDoc = "";
+      if (typeof numDocRaw === "number") {
+        numDoc = Math.round(numDocRaw).toString();
+      } else {
+        let s = String(numDocRaw || "").trim();
+        if (/[eE]/.test(s) && !isNaN(Number(s))) {
+          s = Math.round(Number(s)).toString();
+        }
+        numDoc = s.split(".")[0].replace(/\D/g, "");
+      }
+      if (!numDoc) continue;
+
+      // Estado del aprendiz en la base original
+      const estadoRaw = extractExcelField(
+        Fila,
+        ["ESTADO", "ESTADO APRENDIZ", "ESTADO DEL APRENDIZ", "EST_USUARIO"]
+      ).toUpperCase().trim();
+
+      if (filtrarSoloActivos && estadoRaw) {
+        const esInactivo = /CANCELADO|RETIRO|CERTIFICADO|APLAZADO|TRASLADADO|CONDICIONADO/i.test(estadoRaw);
+        if (esInactivo) {
+          const estadoNormalizadoBaja = normalizarEstadoOficial(estadoRaw);
+          // Actualizar estado en Foodsys y cancelar reservas futuras
+          const usuarioEx = mapaUsuariosDoc.get(numDoc);
+          if (usuarioEx && usuarioEx.Est_Usuario !== estadoNormalizadoBaja) {
+            await UsuariosModel.update({ Est_Usuario: estadoNormalizadoBaja }, { where: { Id_Usuario: usuarioEx.Id_Usuario } });
+            const hoyStr = obtenerFechaColombia();
+            await ReservaModel.update(
+              { Est_Reserva: "Cancelado" },
+              {
+                where: {
+                  Id_Usuario: usuarioEx.Id_Usuario,
+                  Fec_Reserva: { [Op.gte]: hoyStr },
+                  Est_Reserva: { [Op.in]: ["Generado", "Verificado"] }
+                }
+              }
+            );
+            usuarioEx.Est_Usuario = estadoNormalizadoBaja;
+          }
+          omitidosInactivos++;
+          continue;
+        }
+      }
+
+      const tipDoc = extractExcelField(
+        Fila,
+        [
+          "T. DCTO.", "T_ DCTO.", "T. DCTO", "T_ DCTO", "TIPO DE DOCUMENTO",
+          "TIPDOC_USUARIO", "TIPO DOCUMENTO", "TIPO DE IDENTIFICACIÓN APRENDIZ",
+          "TIPO DE IDENTIFICACIÓN", "TIPO", "T. DOC"
+        ]
+      ) || "CC";
+
+      let nombres = extractExcelField(Fila, ["NOM_USUARIO", "SIMBRES", "NOMBRES", "NOMBRE"]);
+      let apellidos = extractExcelField(Fila, ["APE_USUARIO", "APELLIDOS", "APELLIDO", "PRIMER APELLIDO"]);
+      if (!nombres) {
+        const nombreCompleto = extractExcelField(
+          Fila,
+          ["NOMBRE Y APELLIDOS DEL APRENDIZ", "NOMBRE Y APELLIDOS", "NOMBRE COMPLETO", "SIMBRE COMPLETO", "APRENDIZ"]
+        );
+        if (nombreCompleto) {
+          const partes = nombreCompleto.trim().split(/\s+/);
+          nombres = partes.slice(0, Math.ceil(partes.length / 2)).join(" ");
+          apellidos = partes.slice(Math.ceil(partes.length / 2)).join(" ");
+        }
+      }
+
+      const numFichaRaw = extractExcelField(
+        Fila,
+        [
+          "NUM_FICHA", "FICHA", "NO. DE FICHA", "NUMERO DE FICHA", "NÚMERO DE FICHA",
+          "NÚMERO DE GRUPO", "NUMERO DE GRUPO", "ID_FICHA", "IDENTIFICADOR_FICHA",
+          "FICHA DE CARACTERIZACIÓN", "FICHA DE CARACTERIZACION"
+        ]
+      );
+
+      const nomProgExtraido = extractExcelField(
+        Fila,
+        [
+          "PROGRAMA FORMACIÓN", "PROGRAMA FORMACION", "PROGRAMA DE FORMACIÓN",
+          "PROGRAMA DE FORMACION", "PROGRAMA", "NOMBRE_PROGRAMA_FORMACION", "NOMBRE DEL PROGRAMA"
+        ]
+      );
+
+      const corRaw = extractExcelField(
+        Fila,
+        ["COR_USUARIO", "CORREO ELECTRÓNICO ", "CORREO ELECTRÓNICO", "CORREO ELECTRONICO", "CORREO ELECTRÓNICO DEL APRENDIZ ", "CORREO ELECTRÓNICO DEL APRENDIZ", "EMAIL", "CORREO"]
+      );
+
+      const telRawVal = extractExcelField(
+        Fila,
+        ["TEL_USUARIO", "TELÉFOSI DE CONTACTO", "TELEFOSI DE CONTACTO", "TELEFONO DE CONTACTO", "TELÉFONO DE CONTACTO DEL APRENDIZ ", "TELÉFONO DE CONTACTO DEL APRENDIZ", "TELEFONO", "CELULAR", "MÓVIL", "MOVIL"]
+      );
+      let telFinal = "";
+      if (typeof telRawVal === "number") {
+        telFinal = Math.round(telRawVal).toString();
+      } else if (telRawVal) {
+        let st = String(telRawVal).trim();
+        if (/[eE]/.test(st) && !isNaN(Number(st))) {
+          st = Math.round(Number(st)).toString();
+        }
+        telFinal = st.split(".")[0].replace(/\D/g, "");
+      }
+
+      const genRaw = extractExcelField(Fila, ["GEN_USUARIO", "GENERO", "GÉNERO", "SEXO"]);
+
+      // Centro de convivencia (Alojamientos, cabanas, Internos)
+      const cenConRaw = extractExcelField(
+        Fila,
+        ["CENTRO DE CONVIVENCIA", "CENCON_USUARIO", "ALOJAMIENTO Y/O CABAÑA", "CABAÑA", "ALOJAMIENTO"]
+      );
+      const esInterno = /si|sí|cabaña|alojamiento|interno|1|true/i.test(cenConRaw) && !/no|ninguno/i.test(cenConRaw);
+
+      const rolRaw = extractExcelField(Fila, ["ROL", "TIP_USUARIO", "ROL_USUARIO", "ROL_ASIGNADO"]).toLowerCase();
+      const estadoFilaRaw = extractExcelField(Fila, ["ESTADO", "EST_USUARIO", "ESTADO APRENDIZ"]).toLowerCase();
+      const esInstructor = rolRaw.includes("instructor") || estadoFilaRaw.includes("instructor");
+      const esPasante = rolRaw.includes("pasante");
+      
+      let rolAsignado = "Aprendiz Externo";
+      let estUsuario = normalizarEstadoOficial(estadoFilaRaw, esInstructor);
+      if (esInstructor) {
+        rolAsignado = "Instructor";
+        estUsuario = "Instructor";
+      } else if (esPasante) {
+        rolAsignado = esInterno ? "Pasante Interno" : "Pasante Externo";
+      } else {
+        rolAsignado = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
+      }
+
+      // Nombres y apellidos siempre en MAYUSCULAS
+      const nombresMayus = (nombres || "SIN NOMBRE").trim().toUpperCase();
+      const apellidosMayus = (apellidos || "").trim().toUpperCase();
+
+      // Validar si la ficha existe en el sistema (Obligatorio para aprendices, opcional para instructores)
+      const numFichaLimpio = String(numFichaRaw || "").trim().replace(/\D/g, "");
+      const fichaEncontrada = numFichaLimpio ? (mapaFichas.get(numFichaLimpio) || mapaFichas.get(String(parseInt(numFichaLimpio, 10)))) : null;
+      const tieneFichaValida = esInstructor ? true : Boolean(fichaEncontrada && fichaEncontrada.Id_Ficha);
+
+      Datos.push({
+        TipDoc_Usuario: tipDoc,
+        NumDoc_Usuario: numDoc,
+        Nom_Usuario: nombresMayus,
+        Ape_Usuario: apellidosMayus,
+        Cor_Usuario: corRaw || null,
+        Tel_Usuario: telFinal || null,
+        Gen_Usuario: genRaw ? (genRaw.toUpperCase().startsWith("M") ? "Masculino" : "Femenino") : "No especificado",
+        CenCon_Usuario: esInterno ? "Si" : "No",
+        Num_Ficha: fichaEncontrada ? fichaEncontrada.Num_Ficha : (numFichaLimpio || (esInstructor ? "Instructor" : "Sin ficha")),
+        Id_Ficha: fichaEncontrada ? fichaEncontrada.Id_Ficha : null,
+        Nom_Programa: fichaEncontrada
+          ? String(fichaEncontrada.Nom_Programa || "").toUpperCase()
+          : (esInstructor ? "PLANTA INSTRUCTORES" : "PROGRAMA NO REGISTRADO"),
+        fichaValida: tieneFichaValida,
+        errorFicha: tieneFichaValida
+          ? null
+          : (numFichaLimpio
+              ? `La ficha #${numFichaLimpio} no esta registrada en el sistema. Primero debe registrar o importar la ficha en el modulo de Fichas.`
+              : "El aprendiz no tiene numero de ficha asignado. No se puede subir sin ficha."),
+        Rol_Asignado: rolAsignado,
+        Est_Usuario: estUsuario,
+        Estado_Etapa_Lectiva: "Vigente"
+      });
+    }
+
+    const aprendicesValidos = Datos.filter(d => d.fichaValida);
+    const aprendicesSinFicha = Datos.filter(d => !d.fichaValida);
+
+    return res.status(200).json({
+      total: Datos.length,
+      hojaDetectada: nombreHoja,
+      validosConFicha: aprendicesValidos.length,
+      invalidosSinFicha: aprendicesSinFicha.length,
+      omitidosInactivos,
+      data: Datos
+    });
+  } catch (error) {
+    console.error("Error en previewImport:", error);
+    return res.status(500).json({ message: "Error al leer el archivo. Verifica el formato de aprendices." });
+  }
+};
+
+/*
+  importarSeleccionados  (Paso C)
+  Recibe el array de usuarios aprobados, resuelve fichas,
+  asigna roles en usuarios_rol y desactiva aprendices con fichas vencidas.
+  Optimizado para procesar lotes masivos en segundos mediante Sets en memoria y chunks paralelos.
+*/
+export const importarSeleccionados = async (req, res) => {
+  try {
+    const { usuarios } = req.body;
+
+    if (!usuarios?.length) {
+      return res.status(400).json({ message: "No hay datos seleccionados" });
+    }
+
+    // 1. Precargar roles en memoria
+    const rolesDisponibles = await RolesModel.findAll();
+    const mapaRoles = new Map();
+    for (const r of rolesDisponibles) {
+      mapaRoles.set(r.Nom_Rol.trim().toLowerCase(), r.Id_Rol);
+    }
+
+    // 2. Precargar todos los programas en memoria
+    const todosProgramas = await ProgramaModel.findAll();
+    const mapaProgramasPorId = new Map();
+    const mapaProgramasPorNombre = new Map();
+    todosProgramas.forEach(p => {
+      mapaProgramasPorId.set(p.Id_Programa, p);
+      mapaProgramasPorNombre.set(normalizarNombrePrograma(p.Nom_Programa), p);
+    });
+
+    // 3. Precargar fichas en memoria
+    const todasLasFichas = await FichasModel.findAll();
+    const mapaFichas = new Map();
+    for (const f of todasLasFichas) {
+      mapaFichas.set(String(f.Num_Ficha).trim(), f);
+      mapaFichas.set(String(f.Id_Ficha).trim(), f);
+    }
+
+    // 4. Precargar usuarios existentes en Map (para O(1) deduplicacion y auto-actualizacion)
+    const usuariosExistentes = await UsuariosModel.findAll({
+      attributes: ["Id_Usuario", "NumDoc_Usuario", "Cor_Usuario", "Id_Ficha", "Gen_Usuario"]
+    });
+    const mapaUsuariosDoc = new Map(usuariosExistentes.map(u => [String(u.NumDoc_Usuario).trim(), u]));
+    const setDocsEnLote = new Set();
+    const setCors = new Set(
+      usuariosExistentes
+        .filter(u => u.Cor_Usuario)
+        .map(u => String(u.Cor_Usuario).toLowerCase().trim())
+    );
+
+    let Creados = 0;
+    let Actualizados = 0;
+    let Omitidos = 0;
+    const Errores = [];
+    // Procesar en chunks concurrentes de 25 para maximo rendimiento y evitar timeouts HTTP
+    const CHUNK_SIZE = 25;
+    for (let i = 0; i < usuarios.length; i += CHUNK_SIZE) {
+      const lote = usuarios.slice(i, i + CHUNK_SIZE);
+      await Promise.all(
+        lote.map(async (Fila) => {
+          try {
+            if (!Fila.NumDoc_Usuario || !Fila.Nom_Usuario) {
+              Omitidos++;
+              Errores.push(`Fila omitida: falta Documento o Nombre (doc: "${Fila.NumDoc_Usuario || '?'}")`);
+              return;
+            }
+
+            const numDocStr = String(Fila.NumDoc_Usuario).trim();
+            const nomUsuarioFinal = String(Fila.Nom_Usuario).trim().toUpperCase();
+            const apeUsuarioFinal = Fila.Ape_Usuario ? String(Fila.Ape_Usuario).trim().toUpperCase() : "";
+
+            const estadoFilaRaw = String(Fila.Est_Usuario || Fila.Estado || Fila.Rol_Asignado || Fila.Rol || "").toLowerCase().trim();
+            const esInstructor = estadoFilaRaw.includes("instructor");
+
+            // REGLA OBLIGATORIA: La ficha DEBE existir previamente en el sistema para aprendices.
+            // Para instructores la ficha es opcional.
+            const numFichaBuscada = String(Fila.Num_Ficha || Fila.Id_Ficha || "").trim().replace(/\D/g, "");
+            const fichaAsociada = numFichaBuscada
+              ? (mapaFichas.get(numFichaBuscada) || mapaFichas.get(String(parseInt(numFichaBuscada, 10))))
+              : null;
+
+            if (!esInstructor && (!fichaAsociada || !fichaAsociada.Id_Ficha)) {
+              Omitidos++;
+              Errores.push(`Aprendiz ${numDocStr} (${nomUsuarioFinal} ${apeUsuarioFinal}) rechazado: La ficha #${numFichaBuscada || 'No especificada'} no existe en el sistema. Primero debe registrar o importar la ficha.`);
+              return;
+            }
+
+            const idFichaFinal = fichaAsociada?.Id_Ficha || null;
+
+            // Determinar rol segun CenCon_Usuario o si es Instructor
+            const cenConStr = String(Fila.CenCon_Usuario || "").toLowerCase().trim();
+            const esInterno = ["si", "sí", "1", "true", "cabaña", "alojamiento"].includes(cenConStr);
+            const rolRaw = String(Fila.Rol_Asignado || Fila.Rol || "").toLowerCase();
+            const esPasante = rolRaw.includes("pasante");
+
+            let nombreRolAsignar = "Aprendiz Externo";
+            if (esInstructor) {
+              nombreRolAsignar = "Instructor";
+            } else if (esPasante) {
+              nombreRolAsignar = esInterno ? "Pasante Interno" : "Pasante Externo";
+            } else {
+              nombreRolAsignar = esInterno ? "Aprendiz Interno" : "Aprendiz Externo";
+            }
+
+            const idRolFinal = mapaRoles.get(nombreRolAsignar.toLowerCase());
+
+            // 2. Comprobar si el usuario ya existe en BD
+            if (mapaUsuariosDoc.has(numDocStr)) {
+              const usuarioEx = mapaUsuariosDoc.get(numDocStr);
+              const datosActualizar = {
+                Nom_Usuario: nomUsuarioFinal,
+                Ape_Usuario: apeUsuarioFinal,
+                CenCon_Usuario: esInterno ? "Si" : "No"
+              };
+              if (idFichaFinal) datosActualizar.Id_Ficha = idFichaFinal;
+              if (Fila.Gen_Usuario && Fila.Gen_Usuario !== "No especificado") datosActualizar.Gen_Usuario = Fila.Gen_Usuario;
+              if (Fila.Cor_Usuario) datosActualizar.Cor_Usuario = Fila.Cor_Usuario;
+              if (Fila.Tel_Usuario) datosActualizar.Tel_Usuario = Fila.Tel_Usuario;
+
+              const estadosBaja = ["inactivo", "cancelado", "retiro voluntario", "trasladado", "traslado", "aplazado", "condicionado", "certificado", "etapa productiva", "baja"];
+              const estadoFila = String(Fila.Est_Usuario || Fila.Estado || "").toLowerCase().trim();
+              const esBaja = estadosBaja.some(e => estadoFila.includes(e));
+              const estadoNormalizado = normalizarEstadoOficial(Fila.Est_Usuario || Fila.Estado, esInstructor);
+
+              if (esBaja) {
+                datosActualizar.Est_Usuario = estadoNormalizado === "Formación" ? "Cancelado" : estadoNormalizado;
+                const hoyStr = obtenerFechaColombia();
+                await ReservaModel.update(
+                  { Est_Reserva: "Cancelado" },
+                  {
+                    where: {
+                      Id_Usuario: usuarioEx.Id_Usuario,
+                      Fec_Reserva: { [Op.gte]: hoyStr },
+                      Est_Reserva: { [Op.in]: ["Generado", "Verificado"] }
+                    }
+                  }
+                );
+              } else {
+                datosActualizar.Est_Usuario = estadoNormalizado;
+              }
+
+              await UsuariosModel.update(datosActualizar, { where: { Id_Usuario: usuarioEx.Id_Usuario } });
+
+              // Actualizar rol si cambio modalidad
+              if (idRolFinal) {
+                await UsuariosRolModel.destroy({ where: { Id_Usuario: usuarioEx.Id_Usuario } });
+                await UsuariosRolModel.create({ Id_Usuario: usuarioEx.Id_Usuario, Id_Rol: idRolFinal });
+              }
+
+              await encolarEventoSync({
+                entidad: "USUARIO",
+                operacion: "UPDATE",
+                entity_uuid: numDocStr,
+                payload: {
+                  NumDoc_Usuario: numDocStr,
+                  ...datosActualizar,
+                  roles: [nombreRolAsignar]
+                }
+              }).catch(() => {});
+
+              Actualizados++;
+              return;
+            }
+
+            // Deduplicacion dentro del mismo archivo
+            if (setDocsEnLote.has(numDocStr)) {
+              Omitidos++;
+              return;
+            }
+            setDocsEnLote.add(numDocStr);
+
+            // Correo electronico con manejo seguro de duplicados
+            let corStr = Fila.Cor_Usuario ? String(Fila.Cor_Usuario).trim().toLowerCase() : null;
+            if (corStr && setCors.has(corStr)) {
+              corStr = null; // No bloquear el registro si el correo se repite
+            }
+            if (corStr) setCors.add(corStr);
+
+            // Hash seguro y rapido con 8 rondas
+            const HashPwd = await bcrypt.hash(numDocStr, 8);
+
+            const nuevoUsuario = await UsuariosModel.create({
+              TipDoc_Usuario: Fila.TipDoc_Usuario || "CC",
+              NumDoc_Usuario: numDocStr,
+              Nom_Usuario: nomUsuarioFinal,
+              Ape_Usuario: apeUsuarioFinal,
+              Gen_Usuario: Fila.Gen_Usuario && String(Fila.Gen_Usuario).trim() !== "" ? String(Fila.Gen_Usuario).trim() : "No especificado",
+              Cor_Usuario: corStr,
+              Tel_Usuario: Fila.Tel_Usuario ? String(Fila.Tel_Usuario).trim() : null,
+              CenCon_Usuario: esInterno ? "Si" : "No",
+              Id_Ficha: idFichaFinal,
+              Est_Usuario: normalizarEstadoOficial(Fila.Est_Usuario || Fila.Estado, esInstructor),
+              San_Usuario: Fila.San_Usuario || "No",
+              Pol_Usuario: "No",
+              password: HashPwd,
+              uuid: uuidv4(),
+              createdat: new Date(),
+              updatedat: new Date(),
+            });
+
+            if (idRolFinal) {
+              await UsuariosRolModel.create({
+                Id_Usuario: nuevoUsuario.Id_Usuario,
+                Id_Rol: idRolFinal
+              });
+            }
+
+            await encolarEventoSync({
+              entidad: "USUARIO",
+              operacion: "CREATE",
+              entity_uuid: numDocStr,
+              payload: {
+                Id_Usuario: nuevoUsuario.Id_Usuario,
+                TipDoc_Usuario: nuevoUsuario.TipDoc_Usuario,
+                NumDoc_Usuario: nuevoUsuario.NumDoc_Usuario,
+                Nom_Usuario: nuevoUsuario.Nom_Usuario,
+                Ape_Usuario: nuevoUsuario.Ape_Usuario,
+                Gen_Usuario: nuevoUsuario.Gen_Usuario,
+                Cor_Usuario: nuevoUsuario.Cor_Usuario,
+                Tel_Usuario: nuevoUsuario.Tel_Usuario,
+                CenCon_Usuario: nuevoUsuario.CenCon_Usuario,
+                Est_Usuario: nuevoUsuario.Est_Usuario,
+                San_Usuario: nuevoUsuario.San_Usuario,
+                Pol_Usuario: nuevoUsuario.Pol_Usuario,
+                Id_Ficha: nuevoUsuario.Id_Ficha,
+                password: HashPwd,
+                uuid: nuevoUsuario.uuid,
+                roles: [nombreRolAsignar]
+              }
+            }).catch(() => {});
+
+            mapaUsuariosDoc.set(numDocStr, nuevoUsuario);
+            Creados++;
+          } catch (errUser) {
+            Omitidos++;
+            Errores.push(`Error al registrar documento ${Fila.NumDoc_Usuario || '?'}: ${errUser.message}`);
+          }
+        })
+      );
+    }
+
+    return res.status(200).json({
+      creados: Creados,
+      actualizados: Actualizados,
+      omitidos: Omitidos,
+      errores: Errores,
+      mensaje: `Proceso completado: ${Creados} aprendices registrados, ${Actualizados} actualizados con ficha/programa, ${Omitidos} omitidos.`
+    });
+  } catch (error) {
+    console.error("Error en importarSeleccionados:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// GESTION DE SANCIONES
+// El Coordinador y Bienestar pueden activar o desactivar
+// la sancion de un aprendiz cambiando San_Usuario ('Si'/'No').
+// Un usuario sancionado no puede realizar reservas.
+// ─────────────────────────────────────────────────────────────
+
+/*
+  ActualizarSancion
+  Cambia el campo San_Usuario del usuario indicado.
+  Body esperado: { San_Usuario: "Si" | "No" }
+  Solo los roles Coordinador, Bienestar y Administrador pueden acceder
+  (validado por el middleware en la ruta).
+*/
+export const ActualizarSancion = async (req, res) => {
+  try {
+    const { Id } = req.params;
+    const { San_Usuario } = req.body;
+
+    if (!['Si', 'No'].includes(San_Usuario)) {
+      return res.status(400).json({
+        message: 'Valor invalido para San_Usuario. Use "Si" o "No".'
+      });
+    }
+
+    const usuario = await UsuariosModel.findByPk(Id);
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    const camposActualizar = { San_Usuario };
+    if (San_Usuario === 'No') {
+      camposActualizar.Fec_Desancion = new Date();
+    }
+
+    await usuario.update(camposActualizar);
+
+    await encolarEventoSync({
+      entidad: "USUARIO",
+      operacion: "UPDATE",
+      entity_uuid: usuario.NumDoc_Usuario,
+      payload: {
+        NumDoc_Usuario: usuario.NumDoc_Usuario,
+        San_Usuario,
+        Fec_Desancion: camposActualizar.Fec_Desancion || null
+      }
+    });
+
+    return res.status(200).json({
+      message: `Sancion ${San_Usuario === 'Si' ? 'activada' : 'eliminada'} correctamente`,
+      Id_Usuario: usuario.Id_Usuario,
+      Nom_Usuario: usuario.Nom_Usuario,
+      Ape_Usuario: usuario.Ape_Usuario,
+      San_Usuario: usuario.San_Usuario
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  GetSancionados
+  Retorna la lista de todos los usuarios con San_Usuario = 'Si'.
+  Util para que el Coordinador y Bienestar vean rapidamente
+  quienes estan sancionados sin tener que buscar en la tabla completa.
+*/
+export const GetSancionados = async (req, res) => {
+  try {
+    const sancionados = await UsuariosModel.findAll({
+      where: { San_Usuario: 'Si' },
+      attributes: [
+        'Id_Usuario', 'Nom_Usuario', 'Ape_Usuario',
+        'NumDoc_Usuario', 'Tel_Usuario', 'Est_Usuario', 'San_Usuario'
+      ],
+      order: [['Ape_Usuario', 'ASC']]
+    });
+    return res.status(200).json(sancionados);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  QuitarTodasLasSanciones
+  Retira de forma masiva todas las sanciones activas (San_Usuario = 'Si' -> 'No')
+  y actualiza Fec_Desancion = NOW() para reiniciar el contador de Fallas SEM a 0 de 3.
+*/
+export const QuitarTodasLasSanciones = async (_req, res) => {
+  try {
+    const fechaAhora = new Date();
+    const sancionados = await UsuariosModel.findAll({
+      where: { San_Usuario: "Si" },
+      attributes: ["Id_Usuario", "NumDoc_Usuario"]
+    });
+
+    if (sancionados.length === 0) {
+      return res.status(200).json({
+        afectados: 0,
+        message: "No hay usuarios con sanciones activas en este momento."
+      });
+    }
+
+    await UsuariosModel.update(
+      { San_Usuario: "No", Fec_Desancion: fechaAhora },
+      { where: { San_Usuario: "Si" } }
+    );
+
+    for (const u of sancionados) {
+      encolarEventoSync({
+        entidad: "USUARIO",
+        operacion: "UPDATE",
+        entity_uuid: u.NumDoc_Usuario,
+        payload: {
+          NumDoc_Usuario: u.NumDoc_Usuario,
+          San_Usuario: "No",
+          Fec_Desancion: fechaAhora
+        }
+      }).catch(() => {});
+    }
+
+    return res.status(200).json({
+      afectados: sancionados.length,
+      message: `Se retiraron las sanciones de ${sancionados.length} usuario(s) y sus contadores semanales se reiniciaron a 0 de 3.`
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  BuscarAprendizPorDocumento
+  Busca un usuario por su numero de documento exacto y devuelve su informacion
+  academica (Ficha, Programa, Estado y Rol actual) para autocompletado instantaneo.
+*/
+export const BuscarAprendizPorDocumento = async (req, res) => {
+  try {
+    const numDoc = String(req.params.numDoc || "").trim();
+    if (!numDoc) {
+      return res.status(400).json({ message: "El número de documento es obligatorio." });
+    }
+
+    const usuario = await UsuariosModel.findOne({
+      where: { NumDoc_Usuario: numDoc },
+      attributes: [
+        "Id_Usuario", "TipDoc_Usuario", "NumDoc_Usuario", "Nom_Usuario",
+        "Ape_Usuario", "Cor_Usuario", "Tel_Usuario", "Est_Usuario",
+        "CenCon_Usuario", "San_Usuario", "Id_Ficha"
+      ],
+      include: [
+        {
+          model: FichasModel,
+          as: "ficha",
+          attributes: ["Id_Ficha", "Num_Ficha"],
+          include: [{ model: ProgramaModel, as: "programas", attributes: ["Id_Programa", "Nom_Programa"] }]
+        },
+        {
+          model: UsuariosRolModel,
+          as: "rolesUsuario",
+          include: [{ model: RolesModel, as: "rolUsuario", attributes: ["Nom_Rol"] }]
+        }
+      ]
+    });
+
+    if (!usuario) {
+      return res.status(404).json({ message: `No se encontró ningún usuario registrado con el documento ${numDoc}.` });
+    }
+
+    const roles = usuario.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
+
+    const usuarioObj = {
+      Id_Usuario: usuario.Id_Usuario,
+      TipDoc_Usuario: usuario.TipDoc_Usuario,
+      NumDoc_Usuario: usuario.NumDoc_Usuario,
+      Nom_Usuario: usuario.Nom_Usuario,
+      Ape_Usuario: usuario.Ape_Usuario,
+      Nombre_Completo: `${usuario.Nom_Usuario || ""} ${usuario.Ape_Usuario || ""}`.trim(),
+      Cor_Usuario: usuario.Cor_Usuario,
+      Tel_Usuario: usuario.Tel_Usuario,
+      Est_Usuario: usuario.Est_Usuario,
+      CenCon_Usuario: usuario.CenCon_Usuario,
+      San_Usuario: usuario.San_Usuario,
+      Id_Ficha: usuario.Id_Ficha,
+      Num_Ficha: usuario.ficha?.Num_Ficha || "Sin ficha",
+      Nom_Programa: usuario.ficha?.programas?.Nom_Programa || "Sin programa",
+      Roles: roles,
+      roles: roles,
+      Rol_Principal: roles[0] || (usuario.CenCon_Usuario === "Si" ? "Aprendiz Interno" : "Aprendiz Externo")
+    };
+
+    return res.status(200).json({
+      encontrado: true,
+      usuario: usuarioObj,
+      ...usuarioObj
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  diagnosticarSofiaPlus
+  Analiza cualquier reporte institucional bruto de SOFIA Plus y devuelve
+  los 5 contadores clave de discrepancias antes de confirmar.
+*/
+export const diagnosticarSofiaPlus = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Archivo de SOFIA Plus requerido" });
+    }
+    const diagnostico = await SofiaPlusReconcilerService.DiagnosticarCruceSofiaPlus(req.file.buffer);
+    return res.status(200).json(diagnostico);
+  } catch (error) {
+    console.error("[UsuariosControllers] Error en diagnosticarSofiaPlus:", error);
+    return res.status(400).json({ message: error.message || "Error al analizar archivo de SOFIA Plus." });
+  }
+};
+
+/*
+  aplicarConciliacionSofiaPlus
+  Ejecuta la conciliacion confirmada de SOFIA Plus en 1 clic dentro de una transaccion.
+*/
+export const aplicarConciliacionSofiaPlus = async (req, res) => {
+  try {
+    const resultado = await SofiaPlusReconcilerService.AplicarConciliacionSofiaPlus(req.body);
+    return res.status(200).json(resultado);
+  } catch (error) {
+    console.error("[UsuariosControllers] Error en aplicarConciliacionSofiaPlus:", error);
+    return res.status(400).json({ message: error.message || "Error al aplicar conciliacion SOFIA Plus." });
+  }
+};
+
+/*
+  descargarPlantillaInstructores
+  Descarga un archivo Excel modelo para importar instructores facilmente
+*/
+export const descargarPlantillaInstructores = async (req, res) => {
+  try {
+    const wb = XLSX.utils.book_new();
+    const headers = [
+      "TipDoc_Usuario",
+      "NumDoc_Usuario",
+      "Nom_Usuario",
+      "Ape_Usuario",
+      "Gen_Usuario",
+      "Cor_Usuario",
+      "Tel_Usuario",
+      "Num_Ficha"
+    ];
+    const dataEjemplo = [
+      {
+        TipDoc_Usuario: "CC",
+        NumDoc_Usuario: "10000001",
+        Nom_Usuario: "CARLOS ANDRES",
+        Ape_Usuario: "RODRIGUEZ PEREZ",
+        Gen_Usuario: "Masculino",
+        Cor_Usuario: "crodriguez@sena.edu.co",
+        Tel_Usuario: "3101234567",
+        Num_Ficha: "2994856"
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(dataEjemplo, { header: headers });
+    XLSX.utils.book_append_sheet(wb, ws, "Instructores");
+    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Disposition", 'attachment; filename="Plantilla_Instructores_Foodsys.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.status(200).send(buffer);
+  } catch (err) {
+    return res.status(500).json({ message: "Error al generar plantilla de instructores" });
+  }
+};
+
+/*
+  importarInstructoresExcel
+  Procesa archivo Excel para registrar o actualizar instructores asignando el rol y estado Instructor
+*/
+export const importarInstructoresExcel = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No se subio ningun archivo Excel." });
+    }
+    const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+    const sheetName = wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({ message: "El archivo no contiene filas de datos." });
+    }
+
+    const rolInstructor = await RolesModel.findOne({ where: { Nom_Rol: "Instructor" } });
+    if (!rolInstructor) {
+      return res.status(500).json({ message: "El rol 'Instructor' no existe en la base de datos." });
+    }
+
+    let creados = 0;
+    let actualizados = 0;
+    let omitidos = 0;
+    const errores = [];
+
+    for (const r of rows) {
+      const tipDoc = extractExcelField(r, ["TIPDOC", "TIPO DOCUMENTO", "TIPO", "TIPDOC_USUARIO"]) || "CC";
+      const numDoc = String(extractExcelField(r, ["NUMDOC", "DOCUMENTO", "NUMERO DOCUMENTO", "CEDULA", "NUMDOC_USUARIO"]) || "").trim().replace(/\D/g, "");
+      const nombres = extractExcelField(r, ["NOMBRE", "NOMBRES", "NOM_USUARIO"]);
+      const apellidos = extractExcelField(r, ["APELLIDO", "APELLIDOS", "APE_USUARIO"]);
+      const correo = extractExcelField(r, ["CORREO", "EMAIL", "COR_USUARIO"]);
+      const telefono = extractExcelField(r, ["TELEFONO", "CELULAR", "TEL_USUARIO"]);
+      const genero = extractExcelField(r, ["GENERO", "GEN_USUARIO"]);
+      const numFichaRaw = extractExcelField(r, ["FICHA", "NUM_FICHA", "ID_FICHA"]);
+
+      if (!numDoc || !nombres) {
+        omitidos++;
+        errores.push(`Fila omitida por falta de documento o nombre: ${JSON.stringify(r)}`);
+        continue;
+      }
+
+      let idFichaFinal = null;
+      if (numFichaRaw) {
+        const nfLimpio = String(numFichaRaw).trim().replace(/\D/g, "");
+        if (nfLimpio) {
+          const f = await FichasModel.findOne({ where: { Num_Ficha: nfLimpio } });
+          if (f) idFichaFinal = f.Id_Ficha;
+        }
+      }
+
+      const existe = await UsuariosModel.findOne({ where: { NumDoc_Usuario: numDoc } });
+      if (existe) {
+        await existe.update({
+          Nom_Usuario: String(nombres).trim().toUpperCase(),
+          Ape_Usuario: String(apellidos || "").trim().toUpperCase(),
+          Cor_Usuario: correo || existe.Cor_Usuario,
+          Tel_Usuario: telefono || existe.Tel_Usuario,
+          Est_Usuario: "Instructor",
+          ...(idFichaFinal ? { Id_Ficha: idFichaFinal } : {})
+        });
+        const tieneRol = await UsuariosRolModel.findOne({
+          where: { Id_Usuario: existe.Id_Usuario, Id_Rol: rolInstructor.Id_Rol }
+        });
+        if (!tieneRol) {
+          await UsuariosRolModel.create({
+            Id_Usuario: existe.Id_Usuario,
+            Id_Rol: rolInstructor.Id_Rol
+          });
+        }
+        actualizados++;
+      } else {
+        const hashPwd = await bcrypt.hash(numDoc, 8);
+        const nuevo = await UsuariosModel.create({
+          TipDoc_Usuario: tipDoc,
+          NumDoc_Usuario: numDoc,
+          Nom_Usuario: String(nombres).trim().toUpperCase(),
+          Ape_Usuario: String(apellidos || "").trim().toUpperCase(),
+          Gen_Usuario: genero || "No especificado",
+          Cor_Usuario: correo || null,
+          Tel_Usuario: telefono || null,
+          CenCon_Usuario: "No",
+          Est_Usuario: "Instructor",
+          San_Usuario: "No",
+          Pol_Usuario: "No",
+          Id_Ficha: idFichaFinal,
+          password: hashPwd,
+          uuid: uuidv4()
+        });
+        await UsuariosRolModel.create({
+          Id_Usuario: nuevo.Id_Usuario,
+          Id_Rol: rolInstructor.Id_Rol
+        });
+        creados++;
+      }
+    }
+
+    return res.status(200).json({
+      message: `Proceso completado. ${creados} instructores creados, ${actualizados} actualizados, ${omitidos} omitidos.`,
+      creados,
+      actualizados,
+      omitidos,
+      errores
+    });
+  } catch (error) {
+    console.error("[UsuariosControllers] Error en importarInstructoresExcel:", error);
+    return res.status(500).json({ message: error.message || "Error al importar instructores." });
+  }
+};

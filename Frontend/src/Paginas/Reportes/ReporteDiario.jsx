@@ -1,0 +1,678 @@
+// Paginas/Reportes/ReporteDiario.jsx
+//
+// Tab de reporte diario dentro de la pagina de Reportes.
+// Es el primer tab visible automaticamente al ingresar al modulo de reportes.
+//
+// Funcionalidades:
+//   1. Selector de fecha nativo (input type="date") inicializado en la fecha actual.
+//   2. Filtros de tipo de comida: Todos, Desayuno, Almuerzo, Cena.
+//   3. Boton "Consultar" que dispara la peticion al backend con la fecha y el tipo.
+//   4. Tarjetas de resumen: total del dia, por tipo de comida, por estado de reserva,
+//      excepcionales y usuarios con estado Especial.
+//   5. Tabla detallada con: nombre del aprendiz, documento, tipo, plato consumido,
+//      estado de la reserva, telefono, correo y hora de creacion.
+//   6. Tres graficas (Barras, Lineas, Pastel) que se renderizan con los datos del dia.
+//   7. Botones de exportacion PDF y Excel que llaman al backend con los filtros activos.
+//
+// Toda la logica de base de datos vive en ReportesServices.js (backend Node).
+// Este componente solo hace peticiones HTTP y renderiza la respuesta.
+//
+// Convencion de nombres:
+//   - Constantes y estados en PascalCase con prefijo Set_ para setters (convencion del proyecto).
+//   - Funciones auxiliares con mayuscula inicial.
+
+import { useState, useEffect, useCallback, useMemo } from "react";
+import toast from "react-hot-toast";
+import apiAxios from "../../api/axiosConfig";
+import { Chart } from "react-google-charts";
+import { FileText, FileSpreadsheet, Search } from "lucide-react";
+import { useSocketListener } from "../../api/socket";
+import ModalHistorialAprendiz from "./ModalHistorialAprendiz";
+import { descargarBlobUniversal, confirmarExportacion } from "../../utils/exportUtils";
+
+// ---------------------------------------------------------------------------
+// UTILIDADES DE PRESENTACION
+// ---------------------------------------------------------------------------
+
+// Devuelve las clases Tailwind de color para el badge del estado de una reserva.
+// Se centraliza aqui para no repetir la logica en cada fila de la tabla.
+const Color_Estado = (Estado) => {
+  if (Estado === "Consumido" || Estado === "Consumida") return "bg-green-100 text-green-700";
+  if (Estado === "Verificado" || Estado === "Verificada") return "bg-blue-100 text-blue-700";
+  if (Estado === "Cancelado" || Estado === "Cancelada" || Estado === "Vencido" || Estado === "Vencida") return "bg-red-100 text-red-600";
+  return "bg-orange-100 text-orange-600"; // Estado por defecto: Generado
+};
+
+// Convierte una fecha en formato YYYY-MM-DD al estilo local DD/MM/YYYY.
+// Se usa en los titulos de las tarjetas de resumen y en el encabezado de la tabla.
+const Formatear_Fecha = (Fecha_Str) => {
+  if (!Fecha_Str) return "--";
+  const [Anio, Mes, Dia] = Fecha_Str.split("-");
+  return `${Dia}/${Mes}/${Anio}`;
+};
+
+// Spinner animado reutilizable para mostrar carga dentro de botones.
+// Usa border parcial para simular una animacion de giro con CSS puro.
+const Spinner = () => (
+  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+);
+
+// ---------------------------------------------------------------------------
+// COMPONENTE PRINCIPAL
+// ---------------------------------------------------------------------------
+
+const ReporteDiario = () => {
+  const rolActivo = (localStorage.getItem("rolActivo") || localStorage.getItem("rol") || "").trim().toLowerCase();
+  const esRolCocina = rolActivo.includes("cocina") && !rolActivo.includes("admin") && !rolActivo.includes("coordinad");
+
+  // Fecha seleccionada por el Coordinador.
+  // Se inicializa con la fecha actual del sistema en formato YYYY-MM-DD.
+  const [Fecha, Set_Fecha] = useState(new Date().toISOString().split("T")[0]);
+
+  // Tipo de comida seleccionado para filtrar las reservas del dia.
+  // "Todos" significa que no se aplica ningun filtro de tipo.
+  const [Tipo, Set_Tipo] = useState("Todos");
+
+  // Objeto de respuesta del backend.
+  // Estructura esperada: { resumen: {...}, reservas: [...] }
+  const [Datos, Set_Datos] = useState(null);
+
+  // Controla el estado de carga mientras el backend responde.
+  // Bloquea el boton Consultar para evitar peticiones duplicadas.
+  const [Cargando, Set_Cargando] = useState(false);
+
+  // Mensaje de error que se muestra en pantalla si la peticion falla.
+  const [Error_Msg, Set_Error_Msg] = useState(null);
+
+  // Estado de exportacion: "pdf" | "excel" | null.
+  // Se usa para mostrar el spinner en el boton correspondiente.
+  const [Exportando, Set_Exportando] = useState(null);
+
+  // Aprendiz seleccionado para ver historial individual en modal
+  const [AprendizSeleccionado, Set_AprendizSeleccionado] = useState(null);
+  const [Busqueda, Set_Busqueda] = useState("");
+
+  // ---------------------------------------------------------------------------
+  // FUNCION: Consultar
+  // Construye la URL con los filtros activos y llama al backend.
+  // ---------------------------------------------------------------------------
+  const Consultar = useCallback(async () => {
+    if (!Fecha) {
+      Set_Error_Msg("Selecciona una fecha para consultar el reporte");
+      return;
+    }
+    try {
+      Set_Cargando(true);
+      Set_Error_Msg(null);
+
+      const Url = `/api/Reportes/diario/detalle?fecha=${Fecha}${Tipo !== "Todos" ? `&tipo=${Tipo}` : ""}`;
+      const Respuesta = await apiAxios.get(Url);
+      Set_Datos(Respuesta.data);
+    } catch (Error) {
+      Set_Error_Msg(Error.response?.data?.message || "Error al consultar el reporte diario");
+      Set_Datos(null);
+    } finally {
+      Set_Cargando(false);
+    }
+  }, [Fecha, Tipo]);
+
+  // Carga automatica inicial y al cambiar fecha o tipo
+  useEffect(() => {
+    Consultar();
+  }, [Consultar]);
+
+  // Socket.IO: Sincronizacion en tiempo real silenciosa sin recargar la pagina
+  useSocketListener("reservas:actualizadas", () => {
+    const hoy = new Date().toISOString().split("T")[0];
+    if (Fecha === hoy) {
+      Consultar();
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // FUNCION: Exportar
+  // Solicita al backend un archivo PDF o Excel con los datos actuales.
+  // Utiliza confirmacion inteligente y descarga universal para todas las plataformas.
+  // ---------------------------------------------------------------------------
+  const Exportar = async (Formato) => {
+    const totalRegistros = Datos?.reservas?.length || 0;
+    if (totalRegistros === 0) {
+      toast.error("No hay reservas registradas para exportar en esta fecha.");
+      return;
+    }
+
+    const tieneFiltros = Tipo !== "Todos" || Busqueda.trim() !== "";
+    const confirmado = await confirmarExportacion({
+      tieneFiltros,
+      totalFiltrados: totalRegistros,
+      totalRegistros: totalRegistros,
+      formato: Formato.toUpperCase()
+    });
+    if (!confirmado) return;
+
+    Set_Exportando(Formato);
+    try {
+      const Params = { periodo: "diario", fechaInicio: Fecha, fechaFin: Fecha };
+      if (Tipo !== "Todos") Params.tipoAlimento = Tipo;
+
+      const Res = await apiAxios.get(`/api/Reportes/exportar/${Formato}`, {
+        params: Params,
+        responseType: "blob",
+      });
+
+      const Ext = Formato === "pdf" ? "pdf" : "xlsx";
+      const Mime = Formato === "pdf"
+        ? "application/pdf"
+        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+      descargarBlobUniversal(Res.data, `Reporte_Diario_${Fecha}.${Ext}`, Mime);
+      toast.success(`Reporte diario ${Formato.toUpperCase()} descargado.`);
+    } catch (Err) {
+      console.error("Error exportando reporte diario:", Err);
+      toast.error("Error al exportar. Verifica la conexion con el servidor.");
+    } finally {
+      Set_Exportando(null);
+    }
+  };
+
+  // Filtrado reactivo en memoria para el buscador de la tabla diaria
+  const Reservas_Filtradas = useMemo(() => {
+    if (!Datos?.reservas) return [];
+    if (!Busqueda.trim()) return Datos.reservas;
+    const q = Busqueda.trim().toLowerCase();
+    return Datos.reservas.filter((R) => {
+      const nombre = `${R.usuario?.Nom_Usuario || ""} ${R.usuario?.Ape_Usuario || ""}`.toLowerCase();
+      const doc = String(R.usuario?.NumDoc_Usuario || "").toLowerCase();
+      const plato = String(R.plato?.Nom_Plato || "").toLowerCase();
+      return nombre.includes(q) || doc.includes(q) || plato.includes(q);
+    });
+  }, [Datos, Busqueda]);
+
+  // ---------------------------------------------------------------------------
+  // PREPARACION DE DATOS PARA GRAFICAS
+  // Se ejecuta cuando Datos existe. Si no hay datos, las graficas no se muestran.
+  // Google Charts requiere que la primera fila sea el encabezado de columnas.
+  // ---------------------------------------------------------------------------
+
+  // Grafica de barras: reservas agrupadas por tipo de comida para el dia con numero directo
+  const Datos_Barras = Datos ? [
+    ["Tipo", "Cantidad", { role: "annotation", type: "string" }],
+    ...Object.entries(Datos.resumen?.porTipo || {}).map(([K, V]) => [K, Number(V), String(V)])
+  ] : [];
+
+  // Grafica de pastel: distribucion porcentual por tipo de comida
+  const Datos_Pastel = Datos ? [
+    ["Tipo", "Cantidad"],
+    ...Object.entries(Datos.resumen?.porTipo || {}).map(([K, V]) => [K, Number(V)])
+  ] : [];
+
+  // Grafica de estados: cuantas reservas hay en cada estado con numero directo
+  const Datos_Estados = Datos ? [
+    ["Estado", "Cantidad", { role: "annotation", type: "string" }],
+    ...Object.entries(Datos.resumen?.porEstado || {}).map(([K, V]) => [K, Number(V), String(V)])
+  ] : [];
+
+  // La grafica de barras necesita al menos una fila de datos (ademas del encabezado)
+  const Hay_Datos_Graficas = Datos_Barras.length > 1;
+
+  // ---------------------------------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------------------------------
+  return (
+    <div className="space-y-5">
+
+      {/* ===================================================================
+          PANEL DE FILTROS
+          Contiene: selector de fecha, botones de tipo de comida y boton Consultar.
+          Se muestra siempre, incluso antes de realizar la primera consulta.
+      ==================================================================== */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+
+        {/* Titulo del panel con icono de calendario */}
+        <h2 className="text-base font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <span className="w-7 h-7 bg-[#1861c1]/10 rounded-lg flex items-center justify-center">
+            <i className="fas fa-calendar-day text-[#1861c1] text-xs"></i>
+          </span>
+          Reporte Diario
+        </h2>
+
+        {/* Fila de controles: fecha + tipo + boton */}
+        <div className="flex flex-col sm:flex-row gap-3 items-end">
+
+          {/* Selector de fecha nativo con icono superpuesto */}
+          <div className="w-full sm:flex-1">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-500">
+                Seleccionar fecha
+              </label>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => Set_Fecha(new Date().toISOString().split("T")[0])}
+                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded cursor-pointer border-0"
+                >
+                  Hoy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 1);
+                    Set_Fecha(d.toISOString().split("T")[0]);
+                  }}
+                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded cursor-pointer border-0"
+                >
+                  Mañana
+                </button>
+              </div>
+            </div>
+            <div className="relative">
+              {/* Icono decorativo de calendario, no interactivo */}
+              <i className="fas fa-calendar absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+              <input
+                type="date"
+                value={Fecha}
+                onChange={(E) => Set_Fecha(E.target.value)}
+                className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#1861c1]"
+              />
+            </div>
+          </div>
+
+          {/* Botones de seleccion de tipo de comida */}
+          <div className="w-full sm:flex-1">
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+              Tipo de comida
+            </label>
+            <div className="flex gap-1.5">
+              {["Todos", "Desayuno", "Almuerzo", "Cena"].map((T) => (
+                <button
+                  key={T}
+                  onClick={() => Set_Tipo(T)}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition ${Tipo === T
+                      ? "bg-[#1861c1] text-white shadow-sm"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                >
+                  {T}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Boton principal de consulta */}
+          <button
+            onClick={Consultar}
+            disabled={Cargando}
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#1861c1] text-white text-sm font-semibold hover:bg-[#1452a8] active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-60 whitespace-nowrap"
+          >
+            {Cargando ? (
+              // Spinner mientras el backend responde
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <i className="fas fa-search text-xs"></i>
+            )}
+            Consultar
+          </button>
+        </div>
+      </div>
+
+      {/* ===================================================================
+          MENSAJE DE ERROR
+          Solo se muestra si la peticion al backend falla.
+      ==================================================================== */}
+      {Error_Msg && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+          <p className="text-sm text-red-600">{Error_Msg}</p>
+        </div>
+      )}
+
+      {/* ===================================================================
+          RESULTADOS DEL REPORTE
+          Solo se muestra cuando Datos existe (despues de una consulta exitosa).
+      ==================================================================== */}
+      {Datos && (
+        <div className="space-y-5">
+
+          {/* ---------------------------------------------------------------
+              FILA SUPERIOR: Tarjetas de resumen + Botones de exportacion
+          --------------------------------------------------------------- */}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+
+            {/* Tarjetas de resumen numericas del dia */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 flex-1">
+
+              {/* Tarjeta: total de reservas del dia */}
+              <div className="bg-[#1861c1]/5 rounded-2xl p-4 text-center">
+                <p className="text-3xl font-bold text-[#1861c1]">{Datos.resumen.total}</p>
+                <p className="text-xs text-gray-500 mt-1">Total reservas</p>
+                <p className="text-xs text-gray-400 mt-0.5">{Formatear_Fecha(Datos.resumen.fecha)}</p>
+              </div>
+
+              {/* Tarjetas dinamicas: una por cada tipo de comida encontrado */}
+              {Object.entries(Datos.resumen.porTipo || {}).map(([Tipo_Key, Conteo]) => (
+                <div key={Tipo_Key} className="bg-orange-50 rounded-2xl p-4 text-center">
+                  <p className="text-3xl font-bold text-orange-500">{Conteo}</p>
+                  <p className="text-xs text-gray-500 mt-1">{Tipo_Key}</p>
+                </div>
+              ))}
+
+              {/* Tarjeta de excepcionales: solo aparece si hay al menos uno */}
+              {Datos.resumen.totalExcepcionales > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 text-center">
+                  <p className="text-3xl font-bold text-yellow-600">{Datos.resumen.totalExcepcionales}</p>
+                  <p className="text-xs text-gray-500 mt-1">Excepcionales</p>
+                </div>
+              )}
+
+              {/* Tarjeta de estado Especial: solo aparece si hay al menos uno */}
+              {Datos.resumen.totalEspeciales > 0 && (
+                <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-center">
+                  <p className="text-3xl font-bold text-purple-600">{Datos.resumen.totalEspeciales}</p>
+                  <p className="text-xs text-gray-500 mt-1">Estado Especial</p>
+                </div>
+              )}
+            </div>
+
+            {/* Botones de exportacion PDF y Excel */}
+            <div className="flex gap-2 sm:flex-col sm:gap-2">
+              <button
+                onClick={() => Exportar("pdf")}
+                disabled={Exportando === "pdf" || Datos.reservas.length === 0}
+                className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+              >
+                {Exportando === "pdf" ? <Spinner /> : <FileText className="w-4 h-4" />}
+                <span>PDF</span>
+              </button>
+              <button
+                onClick={() => Exportar("excel")}
+                disabled={Exportando === "excel" || Datos.reservas.length === 0}
+                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+              >
+                {Exportando === "excel" ? <Spinner /> : <FileSpreadsheet className="w-4 h-4" />}
+                <span>Excel</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ---------------------------------------------------------------
+              TARJETAS DE ESTADO DE RESERVA
+              Una tarjeta por cada estado encontrado (Consumido, Vencido, etc.)
+          --------------------------------------------------------------- */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Object.entries(Datos.resumen.porEstado || {}).map(([Estado_Key, Conteo]) => (
+              <div
+                key={Estado_Key}
+                className={`rounded-xl p-3 text-center ${Color_Estado(Estado_Key)}`}
+              >
+                <p className="text-xl font-bold">{Conteo}</p>
+                <p className="text-xs mt-0.5">{Estado_Key}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* ---------------------------------------------------------------
+              SECCION DE GRAFICAS
+              Se muestran solo cuando hay datos numericos para renderizar.
+              Tres graficas: barras por tipo, pastel por tipo, barras por estado.
+          --------------------------------------------------------------- */}
+          {Hay_Datos_Graficas && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+              {/* Grafica de barras: cantidad de reservas por tipo de comida */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                <h3 className="text-xs font-semibold text-gray-500 mb-3 flex items-center gap-1.5">
+                  <i className="fas fa-chart-bar text-indigo-500"></i>
+                  Reservas por tipo
+                </h3>
+                <Chart
+                  chartType="BarChart"
+                  data={Datos_Barras}
+                  options={{
+                    chartArea: { width: "70%", height: "65%" },
+                    colors: ["#1861c1"],
+                    legend: { position: "none" },
+                    hAxis: { minValue: 0, textStyle: { fontSize: 10 } },
+                    vAxis: { textStyle: { fontSize: 10 } },
+                    annotations: {
+                      alwaysOutside: true,
+                      textStyle: { fontSize: 10, bold: true, color: "#1861c1", auraColor: "none" },
+                    },
+                  }}
+                  width="100%"
+                  height="220px"
+                />
+              </div>
+
+              {/* Grafica de pastel: distribucion porcentual de tipos de comida */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                <h3 className="text-xs font-semibold text-gray-500 mb-3 flex items-center gap-1.5">
+                  <i className="fas fa-chart-pie text-amber-500"></i>
+                  Distribucion por tipo
+                </h3>
+                <Chart
+                  chartType="PieChart"
+                  data={Datos_Pastel}
+                  options={{
+                    colors: ["#6366f1", "#10b981", "#f59e0b"],
+                    chartArea: { width: "85%", height: "80%" },
+                    legend: { position: "right", textStyle: { fontSize: 10 } },
+                    pieHole: 0.4,
+                    pieSliceText: "value", // Muestra el numero directamente sobre cada rebanada
+                    sliceVisibilityThreshold: 0,
+                  }}
+                  width="100%"
+                  height="220px"
+                />
+              </div>
+
+              {/* Grafica de barras: cantidad de reservas por estado */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                <h3 className="text-xs font-semibold text-gray-500 mb-3 flex items-center gap-1.5">
+                  <i className="fas fa-chart-bar text-emerald-500"></i>
+                  Reservas por estado
+                </h3>
+                <Chart
+                  chartType="BarChart"
+                  data={Datos_Estados}
+                  options={{
+                    chartArea: { width: "70%", height: "65%" },
+                    colors: ["#10b981"],
+                    legend: { position: "none" },
+                    hAxis: { minValue: 0, textStyle: { fontSize: 10 } },
+                    vAxis: { textStyle: { fontSize: 10 } },
+                    annotations: {
+                      alwaysOutside: true,
+                      textStyle: { fontSize: 10, bold: true, color: "#10b981", auraColor: "none" },
+                    },
+                  }}
+                  width="100%"
+                  height="220px"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ---------------------------------------------------------------
+              TABLA DE DETALLE DE RESERVAS
+              Muestra cada reserva del dia con: nombre, documento, tipo,
+              plato, estado, telefono y correo del aprendiz.
+              Al hacer clic en cualquier aprendiz, abre su historial individual.
+          --------------------------------------------------------------- */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+
+            {/* Encabezado de la tabla con buscador y contador de registros */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700">
+                  Detalle de reservas — {Formatear_Fecha(Datos.resumen.fecha)}
+                </h3>
+                <span className="text-xs font-normal text-gray-400">
+                  Mostrando {Reservas_Filtradas.length} de {Datos.reservas.length} registros — Haz clic en un aprendiz para ver su historial
+                </span>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Buscar aprendiz, documento o plato..."
+                  value={Busqueda}
+                  onChange={(e) => Set_Busqueda(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Estado vacio: no hay reservas para los filtros seleccionados */}
+            {Reservas_Filtradas.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-32 text-gray-300">
+                <i className="fas fa-inbox text-3xl mb-2"></i>
+                <p className="text-sm">No hay reservas para los filtros seleccionados</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+
+                  {/* Cabecera de la tabla */}
+                  <thead className="bg-gray-50 rounded-xl">
+                    <tr>
+                      <th className="text-left px-3 py-2.5 text-gray-500 font-semibold rounded-l-xl">Aprendiz</th>
+                      <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Documento</th>
+                      <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Tipo</th>
+                      <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Plato</th>
+                      <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Estado</th>
+                      <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Hora</th>
+                      <th className="text-left px-3 py-2.5 text-gray-500 font-semibold">Telefono</th>
+                      <th className="text-left px-3 py-2.5 text-gray-500 font-semibold rounded-r-xl">Correo</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {Reservas_Filtradas.map((R) => {
+                      // Extraer los nombres de roles del aprendiz para saber si es externo
+                      const Roles_Usuario = R.usuario?.rolesUsuario
+                        ?.map((UR) => UR.rolUsuario?.Nom_Rol)
+                        .filter(Boolean) || [];
+
+                      // Determinar si el aprendiz tiene estado Especial activo
+                      const Es_Especial = R.usuario?.Est_Usuario === "Especial";
+
+                      // Determinar si el aprendiz tiene un rol de tipo externo
+                      const Es_Externo = Roles_Usuario.some(
+                        (Rol) => Rol === "Aprendiz Externo" || Rol === "Pasante Externo"
+                      );
+
+                      // Extraer la hora de creacion de la reserva del campo createdAt
+                      const Hora_Reserva = R.createdAt
+                        ? new Date(R.createdAt).toLocaleTimeString("es-CO", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                        : "--";
+
+                      return (
+                        <tr
+                          key={R.Id_Reserva}
+                          onClick={() => {
+                            if (!esRolCocina && R.usuario?.Id_Usuario) {
+                              Set_AprendizSeleccionado({
+                                id: R.usuario.Id_Usuario,
+                                nombre: `${R.usuario.Nom_Usuario || ""} ${R.usuario.Ape_Usuario || ""}`.trim()
+                              });
+                            }
+                          }}
+                          className={`border-t border-gray-50 transition ${
+                            esRolCocina ? "" : "hover:bg-indigo-50/50 cursor-pointer"
+                          }`}
+                          title={esRolCocina ? "Datos personales anonimizados para Cocina" : "Clic para ver historial completo del aprendiz"}
+                        >
+
+                          {/* Columna: nombre del aprendiz con badges de estado */}
+                          <td className="px-3 py-2.5">
+                            <div>
+                              <p className={`font-medium ${esRolCocina ? "text-slate-700" : "text-indigo-600 hover:underline"}`}>
+                                {esRolCocina
+                                  ? `Comensal #${R.Id_Reserva}`
+                                  : R.usuario
+                                  ? `${R.usuario.Nom_Usuario} ${R.usuario.Ape_Usuario}`
+                                  : `Usuario #${R.Id_Usuario}`
+                                }
+                              </p>
+                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                {Es_Externo && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600">
+                                    Externo
+                                  </span>
+                                )}
+                                {Es_Especial && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
+                                    Especial
+                                  </span>
+                                )}
+                                {R.Exc_Reserva === "Si" && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                                    Novedad
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Columna: tipo y numero de documento */}
+                          <td className="px-3 py-2.5 text-gray-500">
+                            {esRolCocina
+                              ? `***${String(R.usuario?.NumDoc_Usuario || "000").slice(-3)}`
+                              : `${R.usuario?.TipDoc_Usuario || ""} ${R.usuario?.NumDoc_Usuario || ""}`}
+                          </td>
+
+                          {/* Columna: tipo de comida de la reserva */}
+                          <td className="px-3 py-2.5 text-gray-600 font-medium">{R.Tip_Reserva}</td>
+
+                          {/* Columna: nombre del plato elegido */}
+                          <td className="px-3 py-2.5 text-gray-600 font-medium">
+                            {R.plato?.Nom_Plato || "--"}
+                          </td>
+
+                          {/* Columna: estado de la reserva con badge de color */}
+                          <td className="px-3 py-2.5">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${Color_Estado(R.Est_Reserva)}`}>
+                              {R.Est_Reserva}
+                            </span>
+                          </td>
+
+                          {/* Columna: hora en que se registro la reserva */}
+                          <td className="px-3 py-2.5 text-gray-500">{Hora_Reserva}</td>
+
+                          {/* Columna: telefono de contacto del aprendiz */}
+                          <td className="px-3 py-2.5 text-gray-500">
+                            {esRolCocina ? "Protegido" : (R.usuario?.Tel_Usuario || "--")}
+                          </td>
+
+                          {/* Columna: correo electronico, truncado si es muy largo */}
+                          <td className="px-3 py-2.5 text-gray-500 max-w-[160px] truncate">
+                            {esRolCocina ? "Protegido" : (R.usuario?.Cor_Usuario || "--")}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Modal interactivo de Historial Completo del Aprendiz */}
+          {AprendizSeleccionado && (
+            <ModalHistorialAprendiz
+              aprendizId={AprendizSeleccionado.id}
+              nombreAprendiz={AprendizSeleccionado.nombre}
+              onClose={() => Set_AprendizSeleccionado(null)}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ReporteDiario;
