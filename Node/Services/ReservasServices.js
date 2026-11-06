@@ -1834,4 +1834,4 @@ class ReservasServices {
   }
 }
 
-export default new ReservasServices(s
+export default new ReservasServices();
