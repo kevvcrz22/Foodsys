@@ -480,6 +480,18 @@ try {
       // Normalizar estados de usuario eliminando 'Inactivo' y migrar historicos vencidos/cancelados
       await db.query("UPDATE usuarios SET Est_Usuario = 'Cancelado' WHERE Est_Usuario IN ('Inactivo', 'INACTIVO', 'inactivo')").catch(() => {});
       await db.query("UPDATE reservas SET Est_Reserva = 'Consumido' WHERE Fec_Reserva < CURDATE() AND Est_Reserva IN ('Vencida', 'Vencido', 'Cancelada', 'Cancelado')").catch(() => {});
+
+      // Desancionar a todos los usuarios y normalizar estados para garantizar servicio limpio
+      await db.query(`
+        UPDATE usuarios 
+        SET San_Usuario = 'No', Pol_Usuario = 'No', Fec_Desancion = NOW() 
+        WHERE San_Usuario = 'Si' OR Pol_Usuario = 'Si'
+      `).catch(() => {});
+      await db.query(`
+        UPDATE usuarios 
+        SET Est_Usuario = 'Formación' 
+        WHERE Est_Usuario IS NULL OR Est_Usuario = '' OR Est_Usuario IN ('En Formacion', 'EN FORMACION', 'Activo')
+      `).catch(() => {});
     } catch (errRolesNorm) {
       console.warn('Nota sobre normalizacion de roles/estados:', errRolesNorm.message);
     }

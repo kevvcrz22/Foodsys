@@ -13,6 +13,15 @@ import { encolarEventoSync } from "./SyncOutboxService.js";
 // Roles de aprendices y pasantes que dependen de la etapa lectiva de la ficha
 const ROLES_APRENDIZ_Y_PASANTE = [4, 5]; // Aprendiz Interno (4), Aprendiz Externo (5)
 
+// Cache en memoria para acelerar carga de tablas de fichas (<20ms)
+let cacheFichasAll = null;
+let cacheFichasAllTime = 0;
+
+export function invalidarCacheFichas() {
+  cacheFichasAll = null;
+  cacheFichasAllTime = 0;
+}
+
 /**
  * Obtiene la fecha actual en formato YYYY-MM-DD en la zona horaria oficial de Colombia (America/Bogota).
  * Esto evita el desajuste de UTC donde a las 7:00 PM ya cambia de dia en el servidor.
@@ -155,9 +164,12 @@ export async function sincronizarTodasLasFichasVencidas() {
 }
 
 class FichasServices {
-  // Lista todas las fichas con su programa asociado
+  // Lista todas las fichas con su programa asociado con cache de alta velocidad
   async getAll() {
-    return await FichasModel.findAll({
+    if (cacheFichasAll && (Date.now() - cacheFichasAllTime < 60000)) {
+      return cacheFichasAll;
+    }
+    const fichas = await FichasModel.findAll({
       include: [{
         model: ProgramaModel,
         as: "programas",
@@ -165,6 +177,9 @@ class FichasServices {
       }],
       order: [["Id_Ficha", "DESC"]]
     });
+    cacheFichasAll = fichas;
+    cacheFichasAllTime = Date.now();
+    return fichas;
   }
 
   // Obtiene una ficha por ID incluyendo el programa
@@ -222,6 +237,7 @@ class FichasServices {
       }
     });
 
+    invalidarCacheFichas();
     return nuevaFicha;
   }
 
@@ -272,6 +288,7 @@ class FichasServices {
       }
     });
 
+    invalidarCacheFichas();
     return true;
   }
 
@@ -290,6 +307,7 @@ class FichasServices {
       }
     });
 
+    invalidarCacheFichas();
     return true;
   }
 }

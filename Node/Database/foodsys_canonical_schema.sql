@@ -424,3 +424,9 @@ UPDATE reservas
 SET Est_Reserva = 'Consumido'
 WHERE Fec_Reserva < CURDATE()
   AND Est_Reserva IN ('Vencida', 'Vencido', 'Cancelada', 'Cancelado');
+
+-- 7. LEVANTAMIENTO TOTAL DE SANCIONES Y RESTABLECIMIENTO DE CUENTAS
+UPDATE usuarios 
+SET San_Usuario = 'No', Pol_Usuario = 'No', Fec_Desancion = NOW() 
+WHERE San_Usuario = 'Si' OR Pol_Usuario = 'Si';
+

@@ -51,8 +51,8 @@ const Permisos_Vista = {
     "Administrador", "Supervisor", "Monitor", "Bienestar", "Coordinador", "Supervisor de Contrato"
   ],
 
-  // Gestion de permisos y asignacion de roles: Administrador y Coordinador
-  Permisos: ["Administrador", "Coordinador"],
+  // Gestion de permisos y asignacion de roles: Administrador, Coordinador y SENA Empresa (restringido a su rol de apoyo)
+  Permisos: ["Administrador", "Coordinador", "SENA Empresa"],
 
   // Contacto
   Contacto: [

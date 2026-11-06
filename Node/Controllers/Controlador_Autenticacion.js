@@ -160,7 +160,7 @@ export const Enviar_Contacto = async (peticion, respuesta) => {
     const adjuntos = adjunto ? [adjunto] : []; // Si hay archivo, lo mandamos como array
 
     // Enviar a la cuenta de soporte institucional
-    const correoSoporte = process.env.CONTACT_EMAIL || process.env.SMTP_USER || 'fierrokkevin@gmail.com';
+    const correoSoporte = process.env.CONTACT_EMAIL || process.env.SMTP_USER || 'foodsyslagranja@gmail.com';
     await Servicio_Correo.Enviar_Correo(correoSoporte, `Contacto de ${nombre}`, cuerpoHtml, adjuntos);
 
     return respuesta.status(200).json({ mensaje: "Tu mensaje ha sido enviado exitosamente al equipo de soporte." });

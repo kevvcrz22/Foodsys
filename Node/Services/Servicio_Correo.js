@@ -10,16 +10,18 @@ dotenv.config();
 const port = Number(process.env.SMTP_PORT) || 587;
 const isSecure = port === 465;
 
+const smtpPassword = (process.env.SMTP_PASS || process.env.EMAIL_PASS || '').replace(/\s+/g, '');
+
 const transportador = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: port,
   secure: isSecure,
-  connectionTimeout: 2500,
-  greetingTimeout: 2500,
-  socketTimeout: 3000,
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
+  socketTimeout: 5000,
   auth: {
-    user: process.env.SMTP_USER || 'fierrokkevin@gmail.com',
-    pass: process.env.SMTP_PASS || process.env.EMAIL_PASS || '',
+    user: process.env.SMTP_USER || 'foodsyslagranja@gmail.com',
+    pass: smtpPassword,
   },
 });
 
@@ -42,7 +44,7 @@ export const Enviar_Correo = async (destinatario, asunto, htmlCuerpo, adjuntos =
       return { skipped: true, reason: 'Modo local sin SMTP configurado' };
     }
     const opcionesCorreo = {
-      from: `"Soporte Foodsys" <${process.env.SMTP_USER || 'fierrokkevin@gmail.com'}>`,
+      from: `"Soporte Foodsys" <${process.env.SMTP_USER || 'foodsyslagranja@gmail.com'}>`,
       to: destinatario,
       subject: asunto,
       html: htmlCuerpo,
@@ -97,7 +99,7 @@ export const sendPasswordResetEmail = async (email, tokenForPassword) => {
  * Notificación de inicio de turno de supervisor al correo institucional.
  */
 export const notificarInicioTurno = async (supervisor, turno) => {
-  const correoAdmin = process.env.CONTACT_EMAIL || process.env.SMTP_USER || 'fierrokkevin@gmail.com';
+  const correoAdmin = process.env.CONTACT_EMAIL || process.env.SMTP_USER || 'foodsyslagranja@gmail.com';
   const nombre = `${supervisor.Nom_Usuario || ''} ${supervisor.Ape_Usuario || ''}`.trim() || 'Supervisor';
   const fechaStr = new Date(turno.Fecha_Inicio || Date.now()).toLocaleString('es-CO', { timeZone: 'America/Bogota' });
   const html = `
@@ -124,7 +126,7 @@ export const notificarInicioTurno = async (supervisor, turno) => {
  * Notificación de fin de turno de supervisor al correo institucional.
  */
 export const notificarFinTurno = async (supervisor, turno) => {
-  const correoAdmin = process.env.CONTACT_EMAIL || process.env.SMTP_USER || 'fierrokkevin@gmail.com';
+  const correoAdmin = process.env.CONTACT_EMAIL || process.env.SMTP_USER || 'foodsyslagranja@gmail.com';
   const nombre = `${supervisor.Nom_Usuario || ''} ${supervisor.Ape_Usuario || ''}`.trim() || 'Supervisor';
   const fechaInicioStr = new Date(turno.Fecha_Inicio).toLocaleString('es-CO', { timeZone: 'America/Bogota' });
   const fechaFinStr = new Date(turno.Fecha_Fin || Date.now()).toLocaleString('es-CO', { timeZone: 'America/Bogota' });

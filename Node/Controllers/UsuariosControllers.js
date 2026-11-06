@@ -3,7 +3,7 @@
 // Cada funcion recibe la peticion HTTP, delega al servicio y responde con JSON
 // Nomenclatura: PascalCase en espanol sin tildes
 
-import UsuariosService, { normalizarEstadoOficial } from "../Services/UsuariosService.js";
+import UsuariosService, { normalizarEstadoOficial, invalidarCacheUsuarios } from "../Services/UsuariosService.js";
 import CsvService from "../Services/CsvService.js";
 import UsuariosModel from "../Models/UsuariosModel.js";
 import FichasModel from "../Models/FichasModel.js";
@@ -1126,6 +1126,8 @@ export const importarSeleccionados = async (req, res) => {
       );
     }
 
+    invalidarCacheUsuarios();
+
     return res.status(200).json({
       creados: Creados,
       actualizados: Actualizados,
@@ -1186,6 +1188,8 @@ export const ActualizarSancion = async (req, res) => {
         Fec_Desancion: camposActualizar.Fec_Desancion || null
       }
     });
+
+    invalidarCacheUsuarios();
 
     return res.status(200).json({
       message: `Sancion ${San_Usuario === 'Si' ? 'activada' : 'eliminada'} correctamente`,
@@ -1258,6 +1262,8 @@ export const QuitarTodasLasSanciones = async (_req, res) => {
         }
       }).catch(() => {});
     }
+
+    invalidarCacheUsuarios();
 
     return res.status(200).json({
       afectados: sancionados.length,
@@ -1508,6 +1514,8 @@ export const importarInstructoresExcel = async (req, res) => {
         creados++;
       }
     }
+
+    invalidarCacheUsuarios();
 
     return res.status(200).json({
       message: `Proceso completado. ${creados} instructores creados, ${actualizados} actualizados, ${omitidos} omitidos.`,

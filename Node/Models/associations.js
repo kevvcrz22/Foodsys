@@ -15,6 +15,7 @@ import NotificacionesModel from "./NotificacionesModel.js";
 import PqrsfModel from "./PqrsfModel.js";
 import SolicitudesCampoModel from "./SolicitudesCampoModel.js";
 import InternadoTemporalModel from "./InternadoTemporalModel.js";
+import AsignacionSupervisorModel from "./AsignacionSupervisorModel.js";
 
 let asociacionesCargadas = false;
 
@@ -75,6 +76,11 @@ export function setupAssociations() {
   // 11. Internado Temporal SENA Empresa
   InternadoTemporalModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' });
   UsuariosModel.hasMany(InternadoTemporalModel, { foreignKey: 'Id_Usuario', as: 'internadosTemporales' });
+
+  // 12. Asignacion Temporal de Supervisores
+  AsignacionSupervisorModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario', as: 'usuario' });
+  UsuariosModel.hasMany(AsignacionSupervisorModel, { foreignKey: 'Id_Usuario', as: 'asignacionesSupervisor' });
+  AsignacionSupervisorModel.belongsTo(UsuariosModel, { foreignKey: 'Id_Usuario_Asigno', as: 'usuarioAsignador' });
 
   asociacionesCargadas = true;
 }

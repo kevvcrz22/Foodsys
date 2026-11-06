@@ -76,6 +76,12 @@ class UsuariosRolService {
                     throw new Error(`El rol Coordinador solo está autorizado para asignar perfiles de Casino/Cocina, Monitores, Bienestar y Aprendices/Pasantes.`);
                 }
             }
+
+            if (rolActivoSolicitante === "SENA Empresa") {
+                if (nombreRolNuevo !== "SENA Empresa") {
+                    throw new Error("El rol SENA Empresa únicamente está autorizado para delegar el rol de apoyo 'SENA Empresa' a otros aprendices.");
+                }
+            }
         }
 
         // 2. Obtener los roles que ya tiene el usuario (excluyendo el registro actual si es edición)
@@ -215,6 +221,13 @@ class UsuariosRolService {
             const nomRol = ur.rolUsuario?.Nom_Rol || "";
             if (nomRol && !ROLES_PERMITIDOS_COORDINADOR.includes(nomRol)) {
                 throw new Error(`El rol Coordinador no puede retirar el perfil '${nomRol}'.`);
+            }
+        }
+
+        if (usuarioSolicitante && usuarioSolicitante.rol === "SENA Empresa") {
+            const nomRol = ur.rolUsuario?.Nom_Rol || "";
+            if (nomRol !== "SENA Empresa") {
+                throw new Error("El rol SENA Empresa únicamente puede revocar el rol de apoyo 'SENA Empresa'.");
             }
         }
 

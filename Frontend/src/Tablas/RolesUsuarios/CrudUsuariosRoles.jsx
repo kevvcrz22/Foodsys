@@ -157,10 +157,12 @@ const CrudUsuariosRoles = () => {
         listaRolesUnicos.push({ ...r, Nom_Rol: nombreLimpio });
       }
 
-      const rolesFiltradosPorJerarquia =
-        rolActivo === "Coordinador"
-          ? listaRolesUnicos.filter((r) => ROLES_PERMITIDOS_COORDINADOR.includes(r.Nom_Rol))
-          : listaRolesUnicos;
+      let rolesFiltradosPorJerarquia = listaRolesUnicos;
+      if (rolActivo === "Coordinador") {
+        rolesFiltradosPorJerarquia = listaRolesUnicos.filter((r) => ROLES_PERMITIDOS_COORDINADOR.includes(r.Nom_Rol));
+      } else if (rolActivo === "SENA Empresa") {
+        rolesFiltradosPorJerarquia = listaRolesUnicos.filter((r) => r.Nom_Rol === "SENA Empresa");
+      }
 
       setUsuarios(listaMatriz);
       setRolesDisponibles(rolesFiltradosPorJerarquia);
@@ -225,6 +227,14 @@ const CrudUsuariosRoles = () => {
   // ── Logica para Activar o Desactivar Rol ──────────────────────────────────
   const solicitarAlternarRol = (usuario, rolObj) => {
     const nombreRol = rolObj.Nom_Rol;
+
+    if (rolActivo === "SENA Empresa" && nombreRol !== "SENA Empresa") {
+      foodsysToast.warning(
+        "Restricción de Perfil",
+        "Como usuario SENA Empresa únicamente puedes delegar o retirar el rol de apoyo 'SENA Empresa'."
+      );
+      return;
+    }
 
     if (rolActivo === "Coordinador" && !ROLES_PERMITIDOS_COORDINADOR.includes(nombreRol)) {
       foodsysToast.warning(
@@ -499,10 +509,12 @@ const CrudUsuariosRoles = () => {
               </div>
               <div>
                 <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
-                  Matriz de Usuarios y Roles
+                  {rolActivo === "SENA Empresa" ? "Delegación de Apoyo SENA Empresa" : "Matriz de Usuarios y Roles"}
                 </h1>
                 <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                  Total de usuarios en base de datos: <span className="text-emerald-700 font-bold">{usuarios.length}</span>
+                  {rolActivo === "SENA Empresa"
+                    ? "Búsqueda de aprendices para asignar o retirar el rol de apoyo SENA Empresa (asistencia de cargue)"
+                    : <>Total de usuarios en base de datos: <span className="text-emerald-700 font-bold">{usuarios.length}</span></>}
                 </p>
               </div>
             </div>
@@ -658,9 +670,16 @@ const CrudUsuariosRoles = () => {
 
                     {/* Fila 2: Chips Interactivos de Roles */}
                     <div className="pt-2 border-t border-slate-100">
-                      <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
-                        Roles del Sistema (Clic para activar / quitar):
-                      </p>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                          {rolActivo === "SENA Empresa" ? "Rol de Apoyo Delegado:" : "Roles del Sistema (Clic para activar / quitar):"}
+                        </p>
+                        {rolActivo === "SENA Empresa" && (
+                          <span className="text-[10px] text-slate-400 font-medium truncate" title={u.rolesNombres.join(", ")}>
+                            Roles actuales: {u.rolesNombres.length > 0 ? u.rolesNombres.join(", ") : "Ninguno"}
+                          </span>
+                        )}
+                      </div>
 
                       <div className="flex flex-wrap gap-1.5">
                         {rolesDisponibles.map((rol) => {

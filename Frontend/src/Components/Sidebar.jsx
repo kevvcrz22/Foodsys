@@ -72,6 +72,7 @@ const NAV_POR_ROL = {
     { to: "/sena-empresa",           label: "Inicio",                              icon: Home          },
     { to: "/sena-empresa/Perfil",    label: "Mi Perfil",                           icon: User          },
     { to: "/internado-temporal",     label: "Internado Temporal",                  icon: Clock         },
+    { to: "/UsuariosRoles",          label: "Delegar Rol SENA Empresa",           icon: ShieldCheck   },
     { to: "/sena-empresa/Reportes",  label: "Reportes",                            icon: BarChart3     },
   ],
   Cocina: [

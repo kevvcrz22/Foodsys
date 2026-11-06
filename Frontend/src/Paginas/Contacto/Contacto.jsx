@@ -1,6 +1,6 @@
 // Paginas/Contacto/Contacto.jsx
 // Formulario de Contacto y PQRSF integrado con matriz estandar de prioridad y almacenamiento en MySQL + Correo
-// Envia notificacion a fierrokkevin@gmail.com y devuelve numero de radicado oficial para trazabilidad
+// Envia notificacion a foodsyslagranja@gmail.com y devuelve numero de radicado oficial para trazabilidad
 // Codigo comentado didacticamente sin tildes ni emojis para aprendices de primer semestre
 
 import { useState } from "react";
@@ -221,7 +221,7 @@ const Contacto = () => {
               <p><strong>1. Asignacion de Radicado:</strong> Cada mensaje genera un radicado unico (ej: PQRS-202610-0042) para que puedas consultar su estado.</p>
               <p><strong>2. Estandar de Prioridad y SLA:</strong> Quejas sobre inocuidad o alimentos en presunto mal estado se marcan como CRITICAS con atencion en menos de 4 horas.</p>
               <p><strong>3. Termometro de Interventoria:</strong> Si se acumulan 3 o mas quejas sobre un mismo plato o turno, se dispara alerta automatica al contratista del comedor.</p>
-              <p><strong>4. Destino Oficial:</strong> El mensaje se almacena en el sistema y se notifica inmediatamente al correo institucional fierrokkevin@gmail.com.</p>
+              <p><strong>4. Destino Oficial:</strong> El mensaje se almacena en el sistema y se notifica inmediatamente al correo institucional foodsyslagranja@gmail.com.</p>
             </div>
           )}
         </div>
@@ -232,7 +232,7 @@ const Contacto = () => {
             <Tarjeta_Contacto
               Icono={Mail}
               Titulo="Correo Institucional"
-              Linea1="fierrokkevin@gmail.com"
+              Linea1="foodsyslagranja@gmail.com"
             />
             <Tarjeta_Contacto
               Icono={Phone}
@@ -287,7 +287,7 @@ const Contacto = () => {
                     <p className="text-base font-extrabold text-[#0f3f80]">{radicadoExitoso}</p>
                   </div>
                   <p className="text-texto-secundario text-sm mt-2 max-w-sm">
-                    Hemos recibido tu reporte en la Oficina de Bienestar al Aprendiz e Interventoria. Se notifico a fierrokkevin@gmail.com para su gestion oportuna.
+                    Hemos recibido tu reporte en la Oficina de Bienestar al Aprendiz e Interventoria. Se notifico a foodsyslagranja@gmail.com para su gestion oportuna.
                   </p>
                   <button onClick={() => setEstadoCarga('ocioso')} className="boton-secundario px-6 py-2 mt-6 cursor-pointer">
                     Registrar otra PQRSF

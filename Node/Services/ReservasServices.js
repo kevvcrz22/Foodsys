@@ -76,7 +76,7 @@ class ReservasServices {
       if (config?.Hora_Limite_Cancelacion) {
         horaLimiteStr = config.Hora_Limite_Cancelacion;
       }
-    } catch (_) {}
+    } catch (_) { }
 
     const [limH, limM] = horaLimiteStr.split(":").map(Number);
     const minutosLimite = limH * 60 + limM;
@@ -139,7 +139,7 @@ class ReservasServices {
         limiteMinutos = cH * 60 + cM;
         horaStr = `${String(cH).padStart(2, "0")}:${String(cM).padStart(2, "0")}`;
       }
-    } catch (_) {}
+    } catch (_) { }
 
     if (minutosActuales > limiteMinutos) {
       throw new Error(`El turno de ${tipo} ha finalizado por hoy (limite para ceder: ${horaStr}).`);
@@ -315,10 +315,10 @@ class ReservasServices {
 
   // Tipos de comida permitidos segun rol y condicion de internado
   ObtenerRolesPermitidos(roles, cenCon = "No") {
-    const esAdminOGestor = roles.some(r => 
-      r === "Administrador" || 
-      r === "SENA Empresa" || 
-      r === "Bienestar" || 
+    const esAdminOGestor = roles.some(r =>
+      r === "Administrador" ||
+      r === "SENA Empresa" ||
+      r === "Bienestar" ||
       r === "Coordinador"
     );
     if (esAdminOGestor) return ["Desayuno", "Almuerzo", "Cena"];
@@ -383,7 +383,7 @@ class ReservasServices {
         try {
           const payload = JSON.parse(Buffer.from(partes[0], "base64url").toString("utf8"));
           if (payload.idReserva) return payload.idReserva;
-        } catch (_) {}
+        } catch (_) { }
       }
       throw new Error("No se pudo interpretar el codigo QR");
     }
@@ -655,7 +655,7 @@ class ReservasServices {
       });
 
       // Incrementar contador en turno activo
-      TurnosService.incrementarConsumoTurnoActivo().catch(() => {});
+      TurnosService.incrementarConsumoTurnoActivo().catch(() => { });
 
       return {
         message: "Reserva verificada y registrada como consumida exitosamente en Cocina.",
@@ -699,7 +699,7 @@ class ReservasServices {
     let payload = null;
     try {
       payload = verificarQrOffline(limpio, null, this.ObtenerFechaHoy());
-    } catch (_) {}
+    } catch (_) { }
 
     if (payload) {
       if (payload.id) {
@@ -973,7 +973,7 @@ class ReservasServices {
       });
 
       // Incrementar contador en turno activo
-      TurnosService.incrementarConsumoTurnoActivo().catch(() => {});
+      TurnosService.incrementarConsumoTurnoActivo().catch(() => { });
 
       return {
         message: "Alimentacion registrada como consumida exitosamente",
@@ -1510,7 +1510,7 @@ class ReservasServices {
           Mensaje: `Se ha liberado un cupo de ${reserva.Tip_Reserva} para el ${reserva.Fec_Reserva}. ¡Reclámalo ahora en la Bolsa Solidaria!`,
           Tipo: "bolsa_solidaria"
         });
-      } catch (_) {}
+      } catch (_) { }
 
       return {
         exito: true,
@@ -1826,7 +1826,7 @@ class ReservasServices {
           Reserva.uuid_reserva,
           JSON.stringify({ uuid_reserva: Reserva.uuid_reserva, Est_Reserva: "Cancelado" })
         ]
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     dispararCicloSyncDebounced();
@@ -1834,4 +1834,4 @@ class ReservasServices {
   }
 }
 
-export default new ReservasServices();
+export default new ReservasServices(s

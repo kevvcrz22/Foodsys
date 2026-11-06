@@ -138,7 +138,7 @@ const DICCIONARIO_RESPUESTAS = {
     "En la pantalla de acceso, haz clic en '¿Olvidaste tu contrasena?'. Ingresa tu correo institucional registrado y te enviaremos un codigo OTP de 6 digitos para restablecer tu clave en menos de 15 minutos.",
   
   "Contacto y Bienestar":
-    "Puedes comunicarte directamente con la Oficina de Bienestar al Aprendiz en el Centro Agropecuario La Granja del Espinal-Tolima, o enviar tu solicitud o queja (PQRS) mediante el formulario de Contacto, el cual se remite al correo fierrokkevin@gmail.com.",
+    "Puedes comunicarte directamente con la Oficina de Bienestar al Aprendiz en el Centro Agropecuario La Granja del Espinal-Tolima, o enviar tu solicitud o queja (PQRS) mediante el formulario de Contacto, el cual se remite al correo foodsyslagranja@gmail.com.",
   
   "¿Es un servicio gratuito?":
     "Si, el beneficio de alimentacion es completamente gratuito para los aprendices y pasantes priorizados y autorizados por Bienestar al Aprendiz del SENA.",
@@ -282,7 +282,7 @@ const DICCIONARIO_RESPUESTAS = {
     "Si CenCon_Usuario es 'Si' o '1', se asigna 'Aprendiz Interno' (o 'Pasante Interno'). Si es 'No' o vacio, se asigna 'Aprendiz Externo' (o 'Pasante Externo'). Si la etapa lectiva ya vencio, se guarda Inactivo.",
 
   "Auditoria y control de turnos en tiempo real":
-    "El sistema registra inicio y fin de turno con notificaciones automaticas internas a campanita y correo a fierrokkevin@gmail.com, impidiendo turnos paralelos.",
+    "El sistema registra inicio y fin de turno con notificaciones automaticas internas a campanita y correo a foodsyslagranja@gmail.com, impidiendo turnos paralelos.",
 
   "Exportacion e importacion en todas las tablas":
     "Todas las tablas (Programas, Fichas, Usuarios, Aprendices, Pasantes, Platos, Menus, Roles, Reservas) cuentan con botones de Exportar Excel y PDF con confirmacion inteligente si no hay filtros aplicados."

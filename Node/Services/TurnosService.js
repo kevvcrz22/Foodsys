@@ -105,7 +105,7 @@ class TurnosService {
 
     const nombreSup = `${supervisor.Nom_Usuario || ''} ${supervisor.Ape_Usuario || ''}`.trim() || 'Supervisor';
 
-    // 1. Notificacion por correo a fierrokkevin@gmail.com (no bloqueante para modo sin internet)
+    // 1. Notificacion por correo a foodsyslagranja@gmail.com (no bloqueante para modo sin internet)
     Servicio_Correo.notificarInicioTurno(supervisor, turnoCompleto).catch((errCorreo) => {
       console.warn("[TurnosService] Nota sobre correo de inicio de turno:", errCorreo.message);
     });
@@ -208,7 +208,7 @@ class TurnosService {
     const supervisor = turnoFinalizado.supervisor || await UsuariosModel.findByPk(turnoActivo.Id_Usuario);
     const nombreSup = supervisor ? `${supervisor.Nom_Usuario} ${supervisor.Ape_Usuario}` : 'Supervisor';
 
-    // 1. Notificacion por correo a fierrokkevin@gmail.com (no bloqueante para modo sin internet)
+    // 1. Notificacion por correo a foodsyslagranja@gmail.com (no bloqueante para modo sin internet)
     Servicio_Correo.notificarFinTurno(supervisor, turnoFinalizado).catch((errCorreo) => {
       console.warn("[TurnosService] Nota sobre correo de cierre de turno:", errCorreo.message);
     });

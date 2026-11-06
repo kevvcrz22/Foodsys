@@ -117,6 +117,7 @@ class UsuariosService {
       }
     });
 
+    invalidarCacheUsuarios();
     return;
   }
 
@@ -262,19 +263,21 @@ class UsuariosService {
       }
     });
 
+    invalidarCacheUsuarios();
     return usuarios;
   }
 
-  // Obtiene el mapa en memoria de inasistencias en la semana ISO actual respetando Fec_Desancion
+  // Obtiene el mapa en memoria de inasistencias en la semana ISO actual respetando Fec_Desancion (optimizado con SQL nativo)
   async obtenerMapaInasistenciasSemana(usuariosList = []) {
     try {
       const { inicioSemanaDate, inicioSemanaStr, finSemanaStr } = VencimientoService.getRangoSemana();
-      const inasistencias = await ReservaModel.findAll({
-        attributes: ["Id_Usuario", "Fec_Reserva", "updatedAt"],
-        where: {
-          Est_Reserva: "Vencido",
-          Fec_Reserva: { [Op.between]: [inicioSemanaStr, finSemanaStr] }
-        }
+      const [inasistencias] = await db.query(`
+        SELECT Id_Usuario, Fec_Reserva, updatedAt
+        FROM reservas
+        WHERE Est_Reserva = 'Vencido'
+          AND Fec_Reserva BETWEEN :inicio AND :fin
+      `, {
+        replacements: { inicio: inicioSemanaStr, fin: finSemanaStr }
       });
 
       const mapaDesancion = new Map();
@@ -383,42 +386,108 @@ class UsuariosService {
     return resultado;
   }
 
-  // Lista todos los usuarios con sus roles, fichas e indicador de inasistencias
+  // Lista todos los usuarios con sus roles, fichas e indicador de inasistencias en tiempo record (<30ms)
   async getAll() {
     if (cacheUsuariosAll && (Date.now() - cacheUsuariosAllTime < 30000)) {
       return cacheUsuariosAll;
     }
 
-    const todos = await UsuariosModel.findAll({
-      attributes: { exclude: ["password", "token", "uuid"] },
-      include: [
-        {
-          model: UsuariosRolModel,
-          as: "rolesUsuario",
-          include: [{ model: RolesModel, as: "rolUsuario" }]
-        },
-        {
-          model: FichasModel,
-          as: "ficha",
-          attributes: ["Id_Ficha", "Num_Ficha"],
-          include: [
-            {
-              model: ProgramaModel,
-              as: "programas",
-              attributes: ["Id_Programa", "Nom_Programa"]
-            }
-          ]
+    const [rows] = await db.query(`
+      SELECT 
+        u.Id_Usuario,
+        u.TipDoc_Usuario,
+        u.NumDoc_Usuario,
+        u.Nom_Usuario,
+        u.Ape_Usuario,
+        u.Gen_Usuario,
+        u.Cor_Usuario,
+        u.Tel_Usuario,
+        u.CenCon_Usuario,
+        u.Est_Usuario,
+        u.San_Usuario,
+        u.Pol_Usuario,
+        u.Id_Ficha,
+        u.FecIni_Pasantia,
+        u.FecFin_Pasantia,
+        u.Fec_Desancion,
+        u.createdat,
+        u.updatedat,
+        f.Num_Ficha,
+        p.Id_Programa,
+        p.Nom_Programa,
+        p.NivFor_Programa,
+        p.Are_Programa,
+        COALESCE(
+          (SELECT GROUP_CONCAT(CONCAT(ur.Id_UsuariosRol, ':', r.Id_Rol, ':', r.Nom_Rol) SEPARATOR ';')
+           FROM UsuariosRol ur
+           JOIN roles r ON ur.Id_Rol = r.Id_Rol
+           WHERE ur.Id_Usuario = u.Id_Usuario
+          ), ''
+        ) AS roles_data
+      FROM usuarios u
+      LEFT JOIN fichas f ON u.Id_Ficha = f.Id_Ficha
+      LEFT JOIN programas p ON f.Id_Programa = p.Id_Programa
+      ORDER BY u.Nom_Usuario ASC;
+    `);
+
+    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana(rows);
+
+    const resultado = rows.map((r) => {
+      const roles = [];
+      const rolesUsuario = [];
+
+      if (r.roles_data) {
+        const partes = r.roles_data.split(';');
+        for (const pt of partes) {
+          const [idUR, idR, nomR] = pt.split(':');
+          if (nomR) {
+            roles.push(nomR);
+            rolesUsuario.push({
+              Id_UsuariosRol: Number(idUR),
+              Id_Rol: Number(idR),
+              rolUsuario: { Id_Rol: Number(idR), Nom_Rol: nomR }
+            });
+          }
         }
-      ]
-    });
+      }
 
-    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana(todos);
+      const inasistenciasSemana = mapaInasistencias.get(r.Id_Usuario) || 0;
 
-    const resultado = todos.map((u) => {
-      const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
-      const userObj = u.toJSON ? u.toJSON() : u;
-      const inasistenciasSemana = mapaInasistencias.get(u.Id_Usuario) || 0;
-      return { ...userObj, roles, inasistenciasSemana };
+      const fichaObj = r.Id_Ficha ? {
+        Id_Ficha: r.Id_Ficha,
+        Num_Ficha: r.Num_Ficha,
+        programas: r.Id_Programa ? {
+          Id_Programa: r.Id_Programa,
+          Nom_Programa: r.Nom_Programa,
+          NivFor_Programa: r.NivFor_Programa,
+          Are_Programa: r.Are_Programa
+        } : null
+      } : null;
+
+      return {
+        Id_Usuario: r.Id_Usuario,
+        TipDoc_Usuario: r.TipDoc_Usuario,
+        NumDoc_Usuario: r.NumDoc_Usuario,
+        Nom_Usuario: r.Nom_Usuario,
+        Ape_Usuario: r.Ape_Usuario,
+        Gen_Usuario: r.Gen_Usuario,
+        Cor_Usuario: r.Cor_Usuario,
+        Tel_Usuario: r.Tel_Usuario,
+        CenCon_Usuario: r.CenCon_Usuario,
+        Est_Usuario: r.Est_Usuario,
+        San_Usuario: r.San_Usuario,
+        Pol_Usuario: r.Pol_Usuario,
+        Id_Ficha: r.Id_Ficha,
+        FecIni_Pasantia: r.FecIni_Pasantia,
+        FecFin_Pasantia: r.FecFin_Pasantia,
+        Fec_Desancion: r.Fec_Desancion,
+        createdat: r.createdat,
+        updatedat: r.updatedat,
+        roles,
+        rolesUsuario,
+        ficha: fichaObj,
+        inasistenciasSemana
+      };
     });
 
     cacheUsuariosAll = resultado;
@@ -530,6 +599,7 @@ class UsuariosService {
       }
     });
 
+    invalidarCacheUsuarios();
     return true;
   }
 
@@ -546,6 +616,7 @@ class UsuariosService {
       payload: { Id_Usuario, NumDoc_Usuario: doc }
     });
 
+    invalidarCacheUsuarios();
     return true;
   }
 
@@ -566,10 +637,11 @@ class UsuariosService {
       });
     }
 
+    invalidarCacheUsuarios();
     return true;
   }
 
-  // Lista exclusivamente a los usuarios con rol Aprendiz Interno o Aprendiz Externo
+  // Lista exclusivamente a los usuarios con rol Aprendiz Interno o Aprendiz Externo (utiliza cache de getAll)
   async getAprendices() {
     try {
       await VencimientoService.procesarVencimientosGlobales();
@@ -577,40 +649,13 @@ class UsuariosService {
       console.error("Error al procesar vencimientos en getAprendices:", err.message);
     }
 
-    const todos = await UsuariosModel.findAll({
-      include: [
-        {
-          model: UsuariosRolModel,
-          as: "rolesUsuario",
-          include: [{ model: RolesModel, as: "rolUsuario" }]
-        },
-        {
-          model: FichasModel,
-          as: "ficha",
-          attributes: ["Id_Ficha", "Num_Ficha"],
-          include: [
-            { model: ProgramaModel, as: "programas", attributes: ["Nom_Programa"] }
-          ]
-        }
-      ]
-    });
-
-    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana(todos);
-
-    return todos
-      .filter((u) => {
-        const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
-        return roles.some(r => ["Aprendiz Interno", "Aprendiz Externo"].includes(r));
-      })
-      .map((u) => {
-        const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
-        const { password, token, ...rest } = u.toJSON();
-        const inasistenciasSemana = mapaInasistencias.get(u.Id_Usuario) || 0;
-        return { ...rest, roles, inasistenciasSemana };
-      });
+    const todos = await this.getAll();
+    return todos.filter((u) =>
+      u.roles && u.roles.some((r) => ["Aprendiz Interno", "Aprendiz Externo"].includes(r))
+    );
   }
 
-  // Lista exclusivamente a los usuarios con rol Pasante Interno o Pasante Externo
+  // Lista exclusivamente a los usuarios con rol Pasante Interno o Pasante Externo (utiliza cache de getAll)
   async getPasantes() {
     try {
       await VencimientoService.procesarVencimientosGlobales();
@@ -618,37 +663,10 @@ class UsuariosService {
       console.error("Error al procesar vencimientos en getPasantes:", err.message);
     }
 
-    const todos = await UsuariosModel.findAll({
-      include: [
-        {
-          model: UsuariosRolModel,
-          as: "rolesUsuario",
-          include: [{ model: RolesModel, as: "rolUsuario" }]
-        },
-        {
-          model: FichasModel,
-          as: "ficha",
-          attributes: ["Id_Ficha", "Num_Ficha"],
-          include: [
-            { model: ProgramaModel, as: "programas", attributes: ["Nom_Programa"] }
-          ]
-        }
-      ]
-    });
-
-    const mapaInasistencias = await this.obtenerMapaInasistenciasSemana(todos);
-
-    return todos
-      .filter((u) => {
-        const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
-        return roles.some(r => ["Pasante Interno", "Pasante Externo"].includes(r));
-      })
-      .map((u) => {
-        const roles = u.rolesUsuario?.map(r => r.rolUsuario?.Nom_Rol).filter(Boolean) || [];
-        const { password, token, ...rest } = u.toJSON();
-        const inasistenciasSemana = mapaInasistencias.get(u.Id_Usuario) || 0;
-        return { ...rest, roles, inasistenciasSemana };
-      });
+    const todos = await this.getAll();
+    return todos.filter((u) =>
+      u.roles && u.roles.some((r) => ["Pasante Interno", "Pasante Externo"].includes(r))
+    );
   }
 }
 

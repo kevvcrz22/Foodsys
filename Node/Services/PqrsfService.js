@@ -194,7 +194,7 @@ class PqrsfService {
       }
     }
 
-    // Notificacion por correo a fierrokkevin@gmail.com
+    // Notificacion por correo institucional
     try {
       const adjuntos = [];
       if (archivoBuffer && archivoNombre) {
@@ -205,7 +205,7 @@ class PqrsfService {
       }
 
       await Servicio_Correo.enviarCorreo({
-        to: "fierrokkevin@gmail.com",
+        to: process.env.CONTACT_EMAIL || process.env.SMTP_USER || "foodsyslagranja@gmail.com",
         subject: `[PQRSF ${radicado}] ${Tipo_Solicitud.toUpperCase()} - ${Categoria_Estandar} (${matriz.nivel})`,
         text: `Se ha registrado una nueva PQRSF en Foodsys.\n\n` +
           `Radicado: ${radicado}\n` +

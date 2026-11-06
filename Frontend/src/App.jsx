@@ -601,7 +601,7 @@ function App() {
 
           {/* ── TABLAS Y MÓDULOS TRANSVERSALES SEGÚN MATRIZ RBAC ────────────── */}
           <Route path="/usuarios" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudUsuarios /></LayoutConSidebar></ProtectedRoute>} />
-          <Route path="/UsuariosRoles" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudUsuariosRoles /></LayoutConSidebar></ProtectedRoute>} />
+          <Route path="/UsuariosRoles" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador", "SENA Empresa"]}><LayoutConSidebar {...Props_Layout}><CrudUsuariosRoles /></LayoutConSidebar></ProtectedRoute>} />
           <Route path="/fichas" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudFichas /></LayoutConSidebar></ProtectedRoute>} />
           <Route path="/programas" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador", "Coordinador"]}><LayoutConSidebar {...Props_Layout}><CrudPrograma /></LayoutConSidebar></ProtectedRoute>} />
           <Route path="/roles" element={<ProtectedRoute {...Props_Auth} allowedRoles={["Administrador"]}><LayoutConSidebar {...Props_Layout}><CrudRoles /></LayoutConSidebar></ProtectedRoute>} />

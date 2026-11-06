@@ -2,7 +2,7 @@
 // Controladores del modulo de fichas para el sistema Foodsys
 // Comentarios didacticos para aprendices de tecnologo de primer semestre sin tildes ni emojis
 
-import FichasServices, { sincronizarEstadoAprendices } from "../Services/FichasServices.js";
+import FichasServices, { sincronizarEstadoAprendices, invalidarCacheFichas } from "../Services/FichasServices.js";
 import FichasModel from "../Models/FichasModel.js";
 import ProgramaModel from "../Models/ProgramaModel.js";
 import { normalizarNombrePrograma } from "../Services/ProgramaService.js";
@@ -700,6 +700,8 @@ export const importarFichasSeleccionadas = async (req, res) => {
         })
       );
     }
+
+    invalidarCacheFichas();
 
     return res.status(200).json({
       creados: Creados,
