@@ -1,0 +1,136 @@
+================================================================================
+SISTEMA DE GESTION BIOMETRICA Y CONTROL DE RACIONES - FOODSYS
+CENTRO AGROPECUARIO "LA GRANJA" - SENA ESPINAL, TOLIMA
+DOSSIER OFICIAL DE CREDENCIALES, ACCESOS Y TRANSFERENCIA TECNOLOGICA
+================================================================================
+Fecha de Emision: Noviembre 2026
+Proyecto: Foodsys - Plataforma Web y Biometrica de Alimentacion Escolar
+Version: 2.0.0 (Entrega Oficial Definitiva)
+Equipo Desarrollador:
+- Kevin Stiven Cruz Fierro (Lider Tecnico / Arquitecto)
+- Karol Jimena Gomez Alba (Desarrolladora / Analista)
+- Diego Julio Santofimio (Desarrollador)
+- Estefania Otalvaro Otero (Desarrolladora)
+================================================================================
+
+1. CUENTA INSTITUCIONAL Y SERVICIO DE CORREO (GMAIL SMTP)
+--------------------------------------------------------------------------------
+Este correo centraliza la recuperacion de contraseñas de los usuarios, las
+notificaciones de turnos en SENA Empresa, el formulario de PQRSF y el soporte:
+
+- Correo Electronico Oficial: foodsyslagranja@gmail.com
+- Clave de Acceso Web (Gmail): foodsys12345
+- Clave de Aplicacion SMTP (16 caracteres): lkun jgwl pfzi igfz
+  (Sin espacios para codigo: lkunjgwlpfziigfz)
+- Servidor Saliente SMTP: smtp.gmail.com
+- Puerto SMTP: 587 (TLS / STARTTLS) o 465 (SSL)
+- Seguridad: Verificacion en 2 pasos activa vinculada a la cuenta oficial.
+- Estado: VERIFICADO Y CONECTADO EXITOSAMENTE con el backend de Foodsys.
+
+
+2. REPOSITORIO DE CODIGO FUENTE (GITHUB)
+--------------------------------------------------------------------------------
+El codigo fuente completo, versionado y con historial de desarrollo se encuentra
+alojado en GitHub:
+
+- URL del Repositorio: https://github.com/kevvcrz22/Foodsys.git
+- Rama Principal de Produccion: main
+- Cuenta Receptora para Transferencia: foodsyslagranja@gmail.com
+- Pasos para Aceptar la Transferencia de Propiedad:
+  1. Iniciar sesion en https://github.com con el usuario vinculado a foodsyslagranja@gmail.com.
+  2. Abrir el correo de notificacion enviado por GitHub o acceder a la campana de notificaciones.
+  3. Hacer clic en "Accept transfer" para que el repositorio quede bajo la propiedad definitiva de la cuenta oficial.
+  4. Comando para clonar en un nuevo servidor:
+     git clone https://github.com/kevvcrz22/Foodsys.git
+
+
+3. BASE DE DATOS RELACIONAL (MYSQL)
+--------------------------------------------------------------------------------
+- Motor: MySQL 8.0+ / MariaDB 10.4+
+- Nombre de la Base de Datos: foodsys
+- Codificacion (Charset): utf8mb4 / Collation: utf8mb4_unicode_ci
+- Archivo SQL Canonico Maestro: Node/Database/foodsys_canonical_schema.sql
+  (Contiene la creacion completa de tablas, llaves foraneas, vistas, procedimientos
+   y datos iniciales de roles, comedores, jornadas y configuraciones).
+- Parametros de Conexion Local por Defecto (Node/.env):
+  * DB_HOST=localhost (o 127.0.0.1)
+  * DB_PORT=3306
+  * DB_NAME=foodsys
+  * DB_USER=root
+  * DB_PASS= (vacio por defecto en XAMPP o configurar segun servidor local)
+- Parametros de Produccion (Plantilla en Node/.env.example):
+  * DB_HOST=127.0.0.1
+  * DB_PORT=3306
+  * DB_NAME=foodsys
+  * DB_USER=foodsys_user
+  * DB_PASS=<clave_segura_servidor>
+
+
+4. CUENTAS ADMINISTRATIVAS Y ROLES CLAVE DEL SISTEMA
+--------------------------------------------------------------------------------
+El sistema cuenta con roles preconfigurados y cuentas habilitadas para administracion:
+
+A. Superusuario / Administrador del Sistema:
+   - Documento: 1005829633 (Kevin Stiven Cruz Fierro)
+   - Roles Asignados: Administrador, Coordinador
+   - Contrasena Inicial: 1005829633 (o la personalizada por el usuario)
+
+B. Equipo de Desarrollo y Coordinacion:
+   - Karol Jimena Gomez Alba: 1104868018
+   - Diego Julio Santofimio: 1005826955
+   - Estefania Otalvaro Otero: 1006096537
+
+C. Nuevo Modulo Delegado "SENA Empresa":
+   - Permite al lider de SENA Empresa buscar aprendices por Nombre, Documento o Ficha
+     y asignar/retirar EXCLUSIVAMENTE el rol de apoyo "SENA Empresa" para el cargue
+     de informacion de turnos y casino.
+
+
+5. PUESTA EN MARCHA LOCAL Y EN RED INTERNA DEL SENA
+--------------------------------------------------------------------------------
+Para ejecutar el aplicativo de forma gratuita y autonoma en cualquier computador
+del Centro Agropecuario La Granja:
+
+1. Ejecucion Automatica en un solo clic:
+   - Hacer doble clic sobre el archivo: INICIAR_FOODSYS_LOCAL.bat
+   - Este script arranca de forma simultanea y silenciosa:
+     * Backend API en: http://localhost:8000
+     * Frontend Web en: http://localhost:5173
+
+2. Habilitar Acceso en Red Local (Casino, Torniquetes y Oficinas):
+   - Hacer clic derecho y "Ejecutar como Administrador" en:
+     HABILITAR_ACCESO_RED_LOCAL.bat
+   - Cualquier dispositivo conectado a la misma red Wi-Fi o cableada del SENA podra
+     acceder usando la direccion IP local del equipo servidor, por ejemplo:
+     http://192.168.1.50:5173
+
+3. Detener Servicios:
+   - Hacer doble clic en: DETENER_FOODSYS.vbs
+
+
+6. DETENCION DEFINITIVA DE COSTOS EN HETZNER CLOUD (PASO A PASO)
+--------------------------------------------------------------------------------
+Dado que Hetzner Cloud factura por horas de reserva del servidor mientras exista,
+para eliminar el servidor y retirar la tarjeta de credito sin costo adicional:
+
+Paso 1: Entrar a la consola de Hetzner Cloud:
+        https://console.hetzner.cloud/
+
+Paso 2: Seleccionar el Proyecto donde se encuentra el servidor Foodsys.
+
+Paso 3: En el menu izquierdo, hacer clic en "Servers".
+
+Paso 4: Hacer clic en el servidor activo y dirigirse a "Actions" (o "Delete").
+
+Paso 5: Seleccionar "Delete Server", escribir el nombre del servidor para
+        confirmar y presionar el boton rojo de eliminacion.
+        *A partir de este instante cesa todo cobro de Hetzner.*
+
+Paso 6: Ir a https://accounts.hetzner.com/ -> "Billing" -> "Invoices" para
+        cancelar la ultima factura correspondiente a los dias utilizados.
+
+Paso 7: Ir a "Payment Methods" y eliminar la tarjeta de credito personal vinculada.
+
+================================================================================
+Fin del Documento de Credenciales y Accesos Oficiales.
+================================================================================
